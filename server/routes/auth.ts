@@ -16,8 +16,11 @@ router.post('/signup', async (req: Request, res) => {
 
     try {
         // Check if user exists
-        const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-        if (existingUser) {
+        const existingResult = await db.execute({
+            sql: 'SELECT id FROM users WHERE email = ?',
+            args: [email]
+        });
+        if (existingResult.rows.length > 0) {
             return res.status(400).json({ message: 'Email already in use' });
         }
 
@@ -25,19 +28,18 @@ router.post('/signup', async (req: Request, res) => {
         const userId = uuidv4();
         const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`;
 
-        const insertUser = db.prepare(`
-      INSERT INTO users (id, name, email, password_hash, avatar, exam_type, preparation_stage)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-
-        insertUser.run(userId, name, email, hashedPassword, avatar, examType, preparationStage);
+        await db.execute({
+            sql: `INSERT INTO users (id, name, email, password_hash, avatar, exam_type, preparation_stage)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: [userId, name, email, hashedPassword, avatar, examType || null, preparationStage || null]
+        });
 
         // Initialize streaks
-        const insertStreak = db.prepare(`
-        INSERT INTO streaks (id, user_id, login_streak, check_in_streak, goal_completion_streak, last_active_date)
-        VALUES (?, ?, 0, 0, 0, CURRENT_TIMESTAMP)
-    `);
-        insertStreak.run(uuidv4(), userId);
+        await db.execute({
+            sql: `INSERT INTO streaks (id, user_id, login_streak, check_in_streak, goal_completion_streak, last_active_date)
+                  VALUES (?, ?, 0, 0, 0, CURRENT_TIMESTAMP)`,
+            args: [uuidv4(), userId]
+        });
 
         // Set session
         req.session.userId = userId;
@@ -66,7 +68,11 @@ router.post('/login', async (req: Request, res) => {
     }
 
     try {
-        const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+        const result = await db.execute({
+            sql: 'SELECT * FROM users WHERE email = ?',
+            args: [email]
+        });
+        const user = result.rows[0] as any;
         console.log('🔵 [LOGIN] User found:', user ? 'Yes' : 'No');
 
         if (!user || !(await bcrypt.compare(password, user.password_hash))) {
@@ -74,19 +80,15 @@ router.post('/login', async (req: Request, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // Update login streak logic (simplified for now)
-        // In a real app, calculate streak based on last_active_date
-        const updateStreak = db.prepare(`
-        UPDATE streaks 
-        SET login_streak = login_streak + 1, last_active_date = CURRENT_TIMESTAMP 
-        WHERE user_id = ?
-    `);
-        updateStreak.run(user.id);
+        // Update login streak
+        await db.execute({
+            sql: `UPDATE streaks SET login_streak = login_streak + 1, last_active_date = CURRENT_TIMESTAMP WHERE user_id = ?`,
+            args: [user.id]
+        });
         console.log('🟢 [LOGIN] Streak updated');
 
         req.session.userId = user.id;
         console.log('🟢 [LOGIN] Session userId set:', req.session.userId);
-        console.log('🟢 [LOGIN] Session ID:', req.sessionID);
 
         res.json({
             id: user.id,
@@ -108,16 +110,20 @@ router.post('/logout', (req: Request, res) => {
         if (err) {
             return res.status(500).json({ message: 'Could not log out' });
         }
-        res.clearCookie('nistha.sid'); // Matching cookie name from index.ts
+        res.clearCookie('nistha.sid');
         res.json({ message: 'Logged out successfully' });
     });
 });
 
 // Get Current User
-router.get('/me', requireAuth, (req: Request, res) => {
+router.get('/me', requireAuth, async (req: Request, res) => {
     console.log('🔵 [ME] Request received, session userId:', req.session.userId);
     try {
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId) as any;
+        const userResult = await db.execute({
+            sql: 'SELECT * FROM users WHERE id = ?',
+            args: [req.session.userId]
+        });
+        const user = userResult.rows[0] as any;
         console.log('🔵 [ME] User found:', user ? 'Yes' : 'No');
 
         if (!user) {
@@ -125,7 +131,11 @@ router.get('/me', requireAuth, (req: Request, res) => {
         }
 
         // Get streaks
-        const streaks = db.prepare('SELECT * FROM streaks WHERE user_id = ?').get(user.id) as any;
+        const streaksResult = await db.execute({
+            sql: 'SELECT * FROM streaks WHERE user_id = ?',
+            args: [user.id]
+        });
+        const streaks = streaksResult.rows[0] as any;
 
         res.json({
             user: {
@@ -152,7 +162,7 @@ router.get('/me', requireAuth, (req: Request, res) => {
 });
 
 // Update Profile
-router.patch('/profile', requireAuth, (req: Request, res) => {
+router.patch('/profile', requireAuth, async (req: Request, res) => {
     const { name, examType, preparationStage } = req.body;
     const userId = req.session.userId;
 
@@ -179,10 +189,15 @@ router.patch('/profile', requireAuth, (req: Request, res) => {
 
         values.push(userId);
         const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
-        db.prepare(sql).run(...values);
+        await db.execute({ sql, args: values });
 
         // Return updated user
-        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as any;
+        const userResult = await db.execute({
+            sql: 'SELECT * FROM users WHERE id = ?',
+            args: [userId]
+        });
+        const user = userResult.rows[0] as any;
+
         res.json({
             id: user.id,
             name: user.name,

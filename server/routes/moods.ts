@@ -6,10 +6,13 @@ import { requireAuth } from '../middleware/auth';
 const router = Router();
 
 // Get all moods for the current user
-router.get('/', requireAuth, (req: Request, res) => {
+router.get('/', requireAuth, async (req: Request, res) => {
     try {
-        const moods = db.prepare('SELECT * FROM moods WHERE user_id = ? ORDER BY timestamp DESC').all(req.session.userId);
-        res.json(moods);
+        const result = await db.execute({
+            sql: 'SELECT * FROM moods WHERE user_id = ? ORDER BY timestamp DESC',
+            args: [req.session.userId]
+        });
+        res.json(result.rows);
     } catch (error) {
         console.error('Get moods error:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -17,7 +20,7 @@ router.get('/', requireAuth, (req: Request, res) => {
 });
 
 // Create a new mood entry
-router.post('/', requireAuth, (req: Request, res) => {
+router.post('/', requireAuth, async (req: Request, res) => {
     const { mood, intensity, notes } = req.body;
 
     if (!mood || !intensity) {
@@ -28,21 +31,16 @@ router.post('/', requireAuth, (req: Request, res) => {
         const id = uuidv4();
         const userId = req.session.userId;
 
-        const insertMood = db.prepare(`
-            INSERT INTO moods (id, user_id, mood, intensity, notes)
-            VALUES (?, ?, ?, ?, ?)
-        `);
+        await db.execute({
+            sql: `INSERT INTO moods (id, user_id, mood, intensity, notes) VALUES (?, ?, ?, ?, ?)`,
+            args: [id, userId, mood, intensity, notes || '']
+        });
 
-        insertMood.run(id, userId, mood, intensity, notes || '');
-
-        // Update verify streak (simple logic: increment check_in_streak)
-        // In a real sophisticated app you'd check if they already checked in today
-        const updateStreak = db.prepare(`
-            UPDATE streaks 
-            SET check_in_streak = check_in_streak + 1, last_active_date = CURRENT_TIMESTAMP
-            WHERE user_id = ?
-        `);
-        updateStreak.run(userId);
+        // Update check_in streak
+        await db.execute({
+            sql: `UPDATE streaks SET check_in_streak = check_in_streak + 1, last_active_date = CURRENT_TIMESTAMP WHERE user_id = ?`,
+            args: [userId]
+        });
 
         res.status(201).json({
             id,

@@ -6,10 +6,13 @@ import { requireAuth } from '../middleware/auth';
 const router = Router();
 
 // Get all journal entries
-router.get('/', requireAuth, (req: Request, res) => {
+router.get('/', requireAuth, async (req: Request, res) => {
     try {
-        const entries = db.prepare('SELECT * FROM journal WHERE user_id = ? ORDER BY timestamp DESC').all(req.session.userId);
-        res.json(entries);
+        const result = await db.execute({
+            sql: 'SELECT * FROM journal WHERE user_id = ? ORDER BY timestamp DESC',
+            args: [req.session.userId]
+        });
+        res.json(result.rows);
     } catch (error) {
         console.error('Get journal error:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -17,7 +20,7 @@ router.get('/', requireAuth, (req: Request, res) => {
 });
 
 // Create entry
-router.post('/', requireAuth, (req: Request, res) => {
+router.post('/', requireAuth, async (req: Request, res) => {
     const { content } = req.body;
 
     if (!content) {
@@ -28,12 +31,10 @@ router.post('/', requireAuth, (req: Request, res) => {
         const id = uuidv4();
         const userId = req.session.userId;
 
-        const insertEntry = db.prepare(`
-            INSERT INTO journal (id, user_id, content)
-            VALUES (?, ?, ?)
-        `);
-
-        insertEntry.run(id, userId, content);
+        await db.execute({
+            sql: `INSERT INTO journal (id, user_id, content) VALUES (?, ?, ?)`,
+            args: [id, userId, content]
+        });
 
         res.status(201).json({
             id,
@@ -48,14 +49,17 @@ router.post('/', requireAuth, (req: Request, res) => {
 });
 
 // Delete entry
-router.delete('/:id', requireAuth, (req: Request, res) => {
+router.delete('/:id', requireAuth, async (req: Request, res) => {
     const { id } = req.params;
     const userId = req.session.userId;
 
     try {
-        const result = db.prepare('DELETE FROM journal WHERE id = ? AND user_id = ?').run(id, userId);
+        const result = await db.execute({
+            sql: 'DELETE FROM journal WHERE id = ? AND user_id = ?',
+            args: [id, userId]
+        });
 
-        if (result.changes === 0) {
+        if (result.rowsAffected === 0) {
             return res.status(404).json({ message: 'Entry not found or unauthorized' });
         }
 

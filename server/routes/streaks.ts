@@ -5,12 +5,15 @@ import { requireAuth } from '../middleware/auth';
 const router = Router();
 
 // Get streak data for current user
-router.get('/', requireAuth, (req: Request, res) => {
+router.get('/', requireAuth, async (req: Request, res) => {
     try {
-        const streak = db.prepare('SELECT * FROM streaks WHERE user_id = ?').get(req.session.userId);
+        const result = await db.execute({
+            sql: 'SELECT * FROM streaks WHERE user_id = ?',
+            args: [req.session.userId]
+        });
+        const streak = result.rows[0] as any;
 
         if (!streak) {
-            // Return default streak data if none exists
             return res.json({
                 loginStreak: 0,
                 checkInStreak: 0,
