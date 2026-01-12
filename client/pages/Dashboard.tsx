@@ -155,8 +155,9 @@ export default function Dashboard() {
     return (
         <MainLayout userName={user.name} userAvatar={user.avatar}>
             <div className="flex-1 h-full overflow-y-auto bg-background/95 font-['Plus_Jakarta_Sans'] transition-colors duration-300">
+                {/* Background Gradient */}
                 <div
-                    className="relative min-h-screen"
+                    className="fixed inset-0 pointer-events-none z-0"
                     style={{
                         backgroundImage: `
               radial-gradient(circle at 15% 50%, hsl(var(--primary) / 0.1) 0%, transparent 50%),
