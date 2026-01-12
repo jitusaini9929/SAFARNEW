@@ -20,7 +20,7 @@ export default function MainLayout({
       <LeftSidebar />
       <div className="flex flex-col flex-1 relative z-10">
         <TopNavbar userName={userName} userAvatar={userAvatar} onLogout={onLogout} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
           {children}
         </main>
       </div>

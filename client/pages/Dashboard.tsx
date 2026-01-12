@@ -169,26 +169,23 @@ export default function Dashboard() {
                 ></div>
 
                 {/* Content Wrapper */}
-                <div className="relative z-10 p-8">
-                    <header className="flex items-center justify-between mb-8">
+                <div className="relative z-10 p-4 md:p-6 lg:p-8">
+                    <header className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 md:mb-8 gap-4">
                         <div>
-                            <button className="lg:hidden p-2 text-muted-foreground hover:text-foreground mb-4">
-                                <Menu />
-                            </button>
-                            <h1 className="text-3xl font-bold text-foreground mb-1">Welcome Back, {user.name}</h1>
-                            <p className="text-muted-foreground text-sm">
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1">Welcome Back, {user.name}</h1>
+                            <p className="text-muted-foreground text-xs sm:text-sm">
                                 "{getDailyQuote()}"
                             </p>
                         </div>
                         <div className="flex items-center gap-6">
                             <div className="relative">
-                                <Bell className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors w-6 h-6" />
+                                <Bell className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors w-5 h-5 sm:w-6 sm:h-6" />
                                 <span className="absolute top-0 right-0 w-2 h-2 bg-secondary rounded-full border border-background"></span>
                             </div>
                         </div>
                     </header>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6">
 
                         {/* Today's Mood */}
                         <div className="lg:col-span-7 glass-high rounded-2xl p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">

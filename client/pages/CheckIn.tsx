@@ -120,13 +120,13 @@ export default function CheckIn() {
         </div>
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-8 relative z-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-8 relative z-10">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-3xl font-bold text-foreground tracking-tight">Inner Reflection</h2>
-              <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground tracking-tight">Inner Reflection</h2>
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 animate-pulse" />
             </div>
-            <p className="text-muted-foreground font-light">Pause. Breathe. Connect with yourself.</p>
+            <p className="text-muted-foreground font-light text-sm sm:text-base">Pause. Breathe. Connect with yourself.</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-full bg-muted border border-border text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer backdrop-blur-sm">

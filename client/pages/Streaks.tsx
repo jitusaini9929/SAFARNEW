@@ -246,10 +246,10 @@ export default function Streaks() {
 
           {/* Header */}
           <div className="flex flex-col gap-1">
-            <h2 className="text-3xl font-['Outfit'] font-bold text-foreground flex items-center gap-2">
-              <span className="text-3xl">🔥</span> Keep the fire burning!
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-['Outfit'] font-bold text-foreground flex items-center gap-2">
+              <span className="text-xl sm:text-2xl lg:text-3xl">🔥</span> Keep the fire burning!
             </h2>
-            <p className="text-muted-foreground text-sm md:text-base">
+            <p className="text-muted-foreground text-xs sm:text-sm md:text-base">
               Consistency is key to building sustainable habits. Monitor your progress below.
             </p>
           </div>
