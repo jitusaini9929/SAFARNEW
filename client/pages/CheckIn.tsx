@@ -12,7 +12,9 @@ import {
   ArrowRight,
   Sparkles,
   Zap,
-  Heart
+  Heart,
+  History,
+  Clock
 } from "lucide-react";
 
 type MoodType = "peaceful" | "happy" | "okay" | "motivated" | "anxious" | "low" | "frustrated" | "overwhelmed" | "numb";
@@ -47,9 +49,16 @@ export default function CheckIn() {
   const [note, setNote] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [moodHistory, setMoodHistory] = useState<any[]>([]);
+
+  // Helper to get emoji for mood
+  const getMoodEmoji = (mood: string) => {
+    const option = moodOptions.find(o => o.type === mood);
+    return option?.emoji || '😐';
+  };
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const loadData = async () => {
       try {
         const data = await authService.getCurrentUser();
         if (!data || !data.user) {
@@ -57,11 +66,19 @@ export default function CheckIn() {
           return;
         }
         setUser(data.user);
+
+        // Fetch mood history
+        try {
+          const moods = await dataService.getMoods();
+          setMoodHistory(moods || []);
+        } catch (e) {
+          console.error('Failed to fetch moods', e);
+        }
       } catch (error) {
         navigate("/login");
       }
     };
-    checkAuth();
+    loadData();
   }, [navigate]);
 
   const toggleTag = (tag: string) => {
@@ -212,15 +229,19 @@ export default function CheckIn() {
 
             <div className="flex-1 z-10">
               <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
-                Daily Journal <Edit3 className="text-primary w-4 h-4" />
+                Why do you feel this way? <Edit3 className="text-primary w-4 h-4" />
               </h3>
               <p className="text-sm text-muted-foreground mb-6 font-light">
-                Unpack your thoughts. How does this mood manifest for you today?
+                {selectedMood
+                  ? `What's making you feel ${selectedMood}? Share your thoughts below.`
+                  : 'Select a mood above, then share what led to this feeling.'}
               </p>
               <div className="relative">
                 <textarea
                   className="w-full h-40 bg-muted/50 border border-border rounded-2xl p-6 text-foreground placeholder-muted-foreground focus:bg-muted focus:border-primary/30 focus:ring-1 focus:ring-primary/30 resize-none transition-all outline-none leading-relaxed"
-                  placeholder="Start typing your thoughts here..."
+                  placeholder={selectedMood
+                    ? `What happened that made you feel ${selectedMood}? What triggered this emotion?`
+                    : "Start by selecting a mood above..."}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                 ></textarea>
@@ -264,6 +285,53 @@ export default function CheckIn() {
           </div>
 
         </div>
+
+        {/* Mood History Section */}
+        <div className="glass-high rounded-[2rem] p-8 mt-8 shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <History className="w-6 h-6 text-primary" />
+              <h3 className="text-xl font-bold text-foreground">Mood History</h3>
+            </div>
+            <span className="text-sm text-muted-foreground">{moodHistory.length} check-ins</span>
+          </div>
+
+          {moodHistory.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p className="text-lg">No mood check-ins yet</p>
+              <p className="text-sm">Your check-in history will appear here</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto pr-2">
+              {moodHistory.slice(0, 12).map((m: any, idx: number) => {
+                const date = m.timestamp ? new Date(m.timestamp.replace(' ', 'T') + (m.timestamp.includes('Z') ? '' : 'Z')) : new Date();
+                const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                return (
+                  <div
+                    key={m.id || idx}
+                    className="p-5 rounded-2xl bg-muted/30 border border-border hover:border-primary/30 transition-all"
+                  >
+                    <div className="flex items-start gap-4">
+                      <span className="text-3xl">{getMoodEmoji(m.mood)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-foreground capitalize">{m.mood}</span>
+                          <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">{m.intensity}/5</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{dateStr}</p>
+                        {m.notes && (
+                          <p className="text-sm text-foreground/70 line-clamp-2">{m.notes}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
       </div>
     </MainLayout>
   );

@@ -259,32 +259,6 @@ export default function Streaks() {
               </div>
             </div>
 
-            {/* Goal Completion Card */}
-            <div className="relative glass-high rounded-[1.5rem] p-6 flex flex-col justify-between h-48 shadow-sm hover:-translate-y-1 transition-transform duration-200">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-bl-full -mr-4 -mt-4"></div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="p-1.5 bg-muted rounded-lg text-orange-500">
-                    <Target className="w-4 h-4" />
-                  </span>
-                  <h3 className="text-muted-foreground font-medium text-sm">Goal Completion</h3>
-                </div>
-                <div className="mt-4">
-                  <span className="font-['Outfit'] font-bold text-5xl text-foreground">{streakData?.goalCompletionStreak || 0}</span>
-                  <span className="text-muted-foreground text-lg ml-1">day</span>
-                </div>
-              </div>
-              <div className="relative z-10 mt-auto">
-                <p className="text-xs text-muted-foreground">
-                  Days in a row you've completed goals.
-                </p>
-                <div className="flex gap-1 mt-3">
-                  <div className="h-1.5 w-6 bg-orange-500 rounded-full"></div>
-                  <div className="h-1.5 w-full bg-muted rounded-full"></div>
-                </div>
-              </div>
-            </div>
-
             {/* Activity Calendar - Current Month */}
             <div className="md:col-span-2 rounded-[1.5rem] glass-high p-6 md:p-8 shadow-sm hover:-translate-y-1 transition-transform duration-200">
               <div className="flex items-center justify-between mb-6">

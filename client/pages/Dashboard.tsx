@@ -13,7 +13,11 @@ import {
     Bell,
     Menu,
     ExternalLink,
-    Play
+    Play,
+    History,
+    Target,
+    CheckCircle2,
+    Circle
 } from "lucide-react";
 import youtubeImg from "@/assets/youtube-thumbnail.png";
 import courseImg from "@/assets/course-thumbnail.png";
@@ -38,6 +42,8 @@ export default function Dashboard() {
     const [streaks, setStreaks] = useState({ checkInStreak: 0, loginStreak: 0, goalCompletionStreak: 0 });
     const [todayMood, setTodayMood] = useState<{ mood: string; intensity: number } | null>(null);
     const [goals, setGoals] = useState<{ total: number; completed: number }>({ total: 0, completed: 0 });
+    const [weeklyMoods, setWeeklyMoods] = useState<{ day: string; intensity: number; mood: string }[]>([]);
+    const [allGoals, setAllGoals] = useState<any[]>([]);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -53,18 +59,59 @@ export default function Dashboard() {
                     const streakData = await dataService.getStreaks();
                     setStreaks(streakData);
                 } catch (e) { console.error('Failed to fetch streaks', e); }
-                // Fetch today's mood
+                // Fetch all moods for the week
                 try {
                     const moods = await dataService.getMoods();
-                    const today = new Date().toISOString().split('T')[0];
-                    const todaysMood = moods.find(m => m.timestamp?.startsWith(today));
+                    const today = new Date();
+                    const todayStr = today.toISOString().split('T')[0];
+                    const todaysMood = moods.find((m: any) => m.timestamp?.startsWith(todayStr));
                     if (todaysMood) setTodayMood({ mood: todaysMood.mood, intensity: todaysMood.intensity });
+
+                    // Calculate weekly moods (Mon to Sun of current week)
+                    const dayOfWeek = today.getDay();
+                    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    const weekData = [];
+
+                    for (let i = 0; i < 7; i++) {
+                        const targetDate = new Date(today);
+                        targetDate.setDate(today.getDate() - daysFromMonday + i);
+                        const dateStr = targetDate.toISOString().split('T')[0];
+
+                        // Find mood for this day
+                        const dayMood = moods.find((m: any) => {
+                            if (!m.timestamp) return false;
+                            const moodDate = m.timestamp.split('T')[0].replace(' ', 'T').split('T')[0];
+                            return moodDate === dateStr;
+                        });
+
+                        weekData.push({
+                            day: dayNames[i],
+                            intensity: dayMood ? dayMood.intensity : 0,
+                            mood: dayMood ? dayMood.mood : ''
+                        });
+                    }
+                    setWeeklyMoods(weekData);
                 } catch (e) { console.error('Failed to fetch moods', e); }
                 // Fetch goals
                 try {
                     const goalsData = await dataService.getGoals();
-                    const total = goalsData.length;
-                    const completed = goalsData.filter((g: any) => g.completed).length;
+                    setAllGoals(goalsData || []);
+
+                    // Filter for TODAY's goals only (IST)
+                    const nowIST = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
+                    const todayISTStr = nowIST.toISOString().split('T')[0];
+
+                    const todaysGoals = goalsData.filter((g: any) => {
+                        const createdAt = g.created_at || g.createdAt;
+                        if (!createdAt) return false;
+                        // Parse date - handle both UTC and IST formats
+                        const goalDate = createdAt.split('T')[0].split(' ')[0];
+                        return goalDate === todayISTStr;
+                    });
+
+                    const total = todaysGoals.length;
+                    const completed = todaysGoals.filter((g: any) => g.completed).length;
                     setGoals({ total, completed });
                 } catch (e) { console.error('Failed to fetch goals', e); }
             } catch (error) {
@@ -143,7 +190,7 @@ export default function Dashboard() {
                                         <>
                                             <p className="text-4xl mb-2">{getMoodEmoji(todayMood.mood)}</p>
                                             <p className="text-foreground font-semibold text-lg capitalize mb-1">{todayMood.mood}</p>
-                                            <p className="text-muted-foreground text-sm">Intensity: {todayMood.intensity}/10</p>
+                                            <p className="text-muted-foreground text-sm">Intensity: {todayMood.intensity}/5</p>
                                             <button
                                                 onClick={() => navigate('/check-in')}
                                                 className="mt-4 text-primary text-sm hover:underline flex items-center gap-1"
@@ -197,30 +244,42 @@ export default function Dashboard() {
                                     <Zap className="text-blue-500 w-5 h-5" />
                                     <div>
                                         <h3 className="font-semibold text-lg text-foreground">Today's Goals</h3>
-                                        <p className="text-xs text-blue-500">{goals.total} goals total</p>
+                                        <p className="text-xs text-blue-500">{goals.total > 0 ? `${goals.total} goals today` : 'No goals set for today'}</p>
                                     </div>
                                 </div>
-                                <span className="bg-blue-500/20 text-blue-600 px-2 py-1 rounded text-xs font-bold border border-blue-500/30">
-                                    {goals.total > 0 ? Math.round((goals.completed / goals.total) * 100) : 0}%
-                                </span>
+                                {goals.total > 0 && (
+                                    <span className="bg-blue-500/20 text-blue-600 px-2 py-1 rounded text-xs font-bold border border-blue-500/30">
+                                        {Math.round((goals.completed / goals.total) * 100)}%
+                                    </span>
+                                )}
                             </div>
-                            <div className="flex-1 flex flex-col items-center justify-center my-6">
-                                <div className="text-4xl font-bold text-foreground mb-2">
-                                    {goals.completed}<span className="text-muted-foreground text-2xl">/{goals.total}</span>
+
+                            {goals.total > 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center my-6">
+                                    <div className="text-4xl font-bold text-foreground mb-2">
+                                        {goals.completed}<span className="text-muted-foreground text-2xl">/{goals.total}</span>
+                                    </div>
+                                    <p className="text-xs tracking-widest text-muted-foreground uppercase">Goals Completed</p>
+                                    <div className="w-full h-1 bg-muted rounded-full mt-6 overflow-hidden">
+                                        <div
+                                            className="h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-500"
+                                            style={{ width: `${(goals.completed / goals.total) * 100}%` }}
+                                        ></div>
+                                    </div>
                                 </div>
-                                <p className="text-xs tracking-widest text-muted-foreground uppercase">Goals Completed</p>
-                                <div className="w-full h-1 bg-muted rounded-full mt-6 overflow-hidden">
-                                    <div
-                                        className="h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-500"
-                                        style={{ width: goals.total > 0 ? `${(goals.completed / goals.total) * 100}%` : '0%' }}
-                                    ></div>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center my-6 text-center">
+                                    <div className="text-4xl mb-4">🎯</div>
+                                    <p className="text-muted-foreground text-sm mb-2">Start your day with intention</p>
+                                    <p className="text-xs text-muted-foreground/70">Set goals to track your progress</p>
                                 </div>
-                            </div>
+                            )}
+
                             <button
                                 onClick={() => navigate('/goals')}
                                 className="w-full mt-auto bg-muted hover:bg-muted/80 text-blue-600 border border-blue-500/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group"
                             >
-                                View Goals
+                                {goals.total > 0 ? 'View Goals' : 'Set Goals'}
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
@@ -247,35 +306,200 @@ export default function Dashboard() {
                             </div>
                             <p className="text-muted-foreground text-sm mb-6">Your emotional well-being over the week</p>
                             <div className="w-full">
-                                <svg className="w-full h-auto max-h-[400px]" viewBox="0 0 1000 300">
-                                    <defs>
-                                        <linearGradient id="gradientFill" x1="0" x2="0" y1="0" y2="1">
-                                            <stop offset="0%" stopColor="hsl(168, 76%, 50%)" stopOpacity="0.3"></stop>
-                                            <stop offset="100%" stopColor="hsl(168, 76%, 50%)" stopOpacity="0.0"></stop>
-                                        </linearGradient>
-                                    </defs>
-                                    <line stroke="hsl(var(--border))" strokeDasharray="4" x1="40" x2="1000" y1="50" y2="50"></line>
-                                    <line stroke="hsl(var(--border))" strokeDasharray="4" x1="40" x2="1000" y1="110" y2="110"></line>
-                                    <line stroke="hsl(var(--border))" strokeDasharray="4" x1="40" x2="1000" y1="170" y2="170"></line>
-                                    <line stroke="hsl(var(--border))" strokeDasharray="4" x1="40" x2="1000" y1="230" y2="230"></line>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="55">10</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="115">8</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="175">6</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="235">4</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="295">2</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="middle" x="50" y="290">Mon</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="middle" x="210" y="290">Tue</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="middle" x="370" y="290">Wed</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="middle" x="530" y="290">Thu</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="middle" x="690" y="290">Fri</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="middle" x="850" y="290">Sat</text>
-                                    <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="middle" x="980" y="290">Sun</text>
-                                    <path d="M 40,230 C 150,210 250,190 350,220 S 550,160 650,150 S 850,180 1000,190 L 1000,300 L 40,300 Z" fill="url(#gradientFill)"></path>
-                                    <path d="M 40,230 C 150,210 250,190 350,220 S 550,160 650,150 S 850,180 1000,190" fill="none" filter="drop-shadow(0 0 4px hsl(168, 76%, 50%, 0.5))" stroke="hsl(168, 76%, 50%)" strokeWidth="3"></path>
-                                    <circle cx="350" cy="220" fill="hsl(var(--card))" r="4" stroke="hsl(168, 76%, 50%)" strokeWidth="2"></circle>
-                                    <circle cx="650" cy="150" fill="hsl(var(--card))" r="4" stroke="hsl(168, 76%, 50%)" strokeWidth="2"></circle>
-                                </svg>
+                                {(() => {
+                                    // Calculate SVG points based on weeklyMoods data
+                                    const xPositions = [50, 210, 370, 530, 690, 850, 980];
+                                    const chartHeight = 240;
+                                    const minY = 50; // Top of chart (intensity 10)
+                                    const maxY = 270; // Bottom of chart (intensity 0)
+
+                                    // Generate Y positions for each day
+                                    const points = weeklyMoods.map((m, i) => ({
+                                        x: xPositions[i],
+                                        y: m.intensity > 0 ? maxY - ((m.intensity / 5) * chartHeight) : maxY,
+                                        intensity: m.intensity,
+                                        mood: m.mood,
+                                        day: m.day
+                                    }));
+
+                                    // Generate path for curve
+                                    const validPoints = points.filter(p => p.intensity > 0);
+                                    let linePath = '';
+                                    let areaPath = '';
+
+                                    if (validPoints.length > 0) {
+                                        // Create smooth bezier curve path
+                                        const tension = 0.3; // Controls curve smoothness
+
+                                        linePath = points.reduce((path, point, i, arr) => {
+                                            if (i === 0) return `M ${point.x},${point.y}`;
+
+                                            const prev = arr[i - 1];
+                                            const prevPrev = arr[i - 2] || prev;
+                                            const next = arr[i + 1] || point;
+
+                                            // Calculate control points for smooth curves
+                                            const cp1x = prev.x + (point.x - prevPrev.x) * tension;
+                                            const cp1y = prev.y + (point.y - prevPrev.y) * tension;
+                                            const cp2x = point.x - (next.x - prev.x) * tension;
+                                            const cp2y = point.y - (next.y - prev.y) * tension;
+
+                                            return `${path} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${point.x},${point.y}`;
+                                        }, '');
+
+                                        // Create area path with same curve
+                                        areaPath = linePath + ` L ${points[points.length - 1].x},${maxY} L ${points[0].x},${maxY} Z`;
+                                    }
+
+                                    // Get today's index (0 = Mon, 6 = Sun)
+                                    const todayDayOfWeek = new Date().getDay();
+                                    const todayIndex = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
+
+                                    return (
+                                        <svg className="w-full h-auto max-h-[400px]" viewBox="0 0 1000 320">
+                                            <defs>
+                                                <linearGradient id="moodGradientFill" x1="0" x2="0" y1="0" y2="1">
+                                                    <stop offset="0%" stopColor="hsl(168, 76%, 50%)" stopOpacity="0.3"></stop>
+                                                    <stop offset="100%" stopColor="hsl(168, 76%, 50%)" stopOpacity="0.0"></stop>
+                                                </linearGradient>
+                                            </defs>
+                                            {/* Grid lines */}
+                                            <line stroke="hsl(var(--border))" strokeDasharray="4" x1="40" x2="1000" y1="50" y2="50"></line>
+                                            <line stroke="hsl(var(--border))" strokeDasharray="4" x1="40" x2="1000" y1="110" y2="110"></line>
+                                            <line stroke="hsl(var(--border))" strokeDasharray="4" x1="40" x2="1000" y1="170" y2="170"></line>
+                                            <line stroke="hsl(var(--border))" strokeDasharray="4" x1="40" x2="1000" y1="230" y2="230"></line>
+                                            {/* Y-axis labels */}
+                                            <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="55">5</text>
+                                            <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="115">4</text>
+                                            <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="175">3</text>
+                                            <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="235">2</text>
+                                            <text fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="end" x="30" y="275">1</text>
+                                            {/* X-axis labels */}
+                                            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => (
+                                                <text
+                                                    key={day}
+                                                    fill={i === todayIndex ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"}
+                                                    fontSize={i === todayIndex ? "12" : "10"}
+                                                    fontWeight={i === todayIndex ? "bold" : "normal"}
+                                                    textAnchor="middle"
+                                                    x={xPositions[i]}
+                                                    y="305"
+                                                >{day}</text>
+                                            ))}
+                                            {/* Area fill */}
+                                            {areaPath && (
+                                                <path d={areaPath} fill="url(#moodGradientFill)"></path>
+                                            )}
+                                            {/* Line */}
+                                            {linePath && (
+                                                <path
+                                                    d={linePath}
+                                                    fill="none"
+                                                    filter="drop-shadow(0 0 4px hsl(168, 76%, 50%, 0.5))"
+                                                    stroke="hsl(168, 76%, 50%)"
+                                                    strokeWidth="3"
+                                                    strokeLinejoin="round"
+                                                ></path>
+                                            )}
+                                            {/* Points with tooltips */}
+                                            {points.map((p, i) => (
+                                                <g key={i}>
+                                                    <circle
+                                                        cx={p.x}
+                                                        cy={p.y}
+                                                        fill={p.intensity > 0 ? "hsl(var(--card))" : "hsl(var(--muted))"}
+                                                        r={i === todayIndex ? 8 : 5}
+                                                        stroke={p.intensity > 0 ? "hsl(168, 76%, 50%)" : "hsl(var(--border))"}
+                                                        strokeWidth={i === todayIndex ? 3 : 2}
+                                                    ></circle>
+                                                    {/* Show mood emoji for valid entries */}
+                                                    {p.intensity > 0 && (
+                                                        <text
+                                                            x={p.x}
+                                                            y={p.y - 15}
+                                                            textAnchor="middle"
+                                                            fontSize="14"
+                                                        >{getMoodEmoji(p.mood)}</text>
+                                                    )}
+                                                </g>
+                                            ))}
+                                            {/* No data message */}
+                                            {weeklyMoods.every(m => m.intensity === 0) && (
+                                                <text
+                                                    fill="hsl(var(--muted-foreground))"
+                                                    fontSize="14"
+                                                    textAnchor="middle"
+                                                    x="500"
+                                                    y="160"
+                                                >No mood check-ins this week. Start tracking your emotions!</text>
+                                            )}
+                                        </svg>
+                                    );
+                                })()}
                             </div>
+                        </div>
+
+                        {/* Goal History Section */}
+                        <div className="lg:col-span-12 glass-high rounded-2xl p-6 relative">
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-2">
+                                    <History className="text-primary w-5 h-5" />
+                                    <h3 className="font-semibold text-lg text-foreground">Goal History</h3>
+                                </div>
+                                <button
+                                    onClick={() => navigate('/goals')}
+                                    className="text-xs font-bold text-primary uppercase tracking-wider hover:underline flex items-center gap-1"
+                                >
+                                    View All <ArrowRight className="w-3 h-3" />
+                                </button>
+                            </div>
+                            <p className="text-muted-foreground text-sm mb-6">Your recent goals and their completion status</p>
+
+                            {allGoals.length === 0 ? (
+                                <div className="text-center py-8 text-muted-foreground">
+                                    <Target className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                    <p className="text-sm">No goals set yet. Start by creating your first goal!</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[300px] overflow-y-auto pr-2">
+                                    {allGoals.slice(0, 12).map((goal: any, idx: number) => {
+                                        const createdAt = goal.created_at || goal.createdAt || '';
+                                        const dateStr = createdAt ? new Date(createdAt.replace(' ', 'T') + (createdAt.includes('Z') ? '' : 'Z')).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '';
+                                        return (
+                                            <div
+                                                key={goal.id || idx}
+                                                className={`p-4 rounded-xl border transition-all ${goal.completed
+                                                        ? 'bg-primary/5 border-primary/30'
+                                                        : 'bg-muted/30 border-border'
+                                                    }`}
+                                            >
+                                                <div className="flex items-start gap-3">
+                                                    {goal.completed ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                                                    ) : (
+                                                        <Circle className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-sm font-medium truncate ${goal.completed ? 'text-foreground' : 'text-muted-foreground'
+                                                            }`}>
+                                                            {goal.text || goal.title || 'Untitled Goal'}
+                                                        </p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${goal.type === 'weekly'
+                                                                    ? 'bg-purple-500/20 text-purple-500'
+                                                                    : 'bg-blue-500/20 text-blue-500'
+                                                                }`}>
+                                                                {goal.type || 'daily'}
+                                                            </span>
+                                                            <span className="text-[10px] text-muted-foreground">{dateStr}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
 
                         {/* External Sources Section */}
