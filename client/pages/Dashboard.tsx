@@ -25,15 +25,30 @@ import WelcomeDialog from "@/components/WelcomeDialog";
 
 const getMoodEmoji = (mood: string): string => {
     const moodEmojis: Record<string, string> = {
-        peaceful: "😌",
+        // Positive moods
+        great: "🤩",
+        good: "😊",
         happy: "😊",
+        peaceful: "😌",
+        calm: "😌",
         energized: "⚡",
+        motivated: "💪",
+        grateful: "🙏",
+        hopeful: "🌟",
+        // Neutral moods
+        okay: "😐",
+        neutral: "😐",
+        numb: "😶",
+        // Negative moods
+        low: "😔",
+        sad: "😢",
         anxious: "😰",
         stressed: "😤",
-        sad: "😢",
-        numb: "😶",
+        angry: "😠",
+        tired: "😴",
+        confused: "😕",
     };
-    return moodEmojis[mood.toLowerCase()] || "😊";
+    return moodEmojis[mood.toLowerCase()] || "😐";
 };
 
 export default function Dashboard() {
