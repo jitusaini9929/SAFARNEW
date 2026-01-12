@@ -22,6 +22,7 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [examType, setExamType] = useState("");
   const [preparationStage, setPreparationStage] = useState("");
+  const [gender, setGender] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,8 +30,8 @@ export default function Signup() {
     e.preventDefault();
     setError("");
 
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError("Please fill in all required fields");
+    if (!name.trim() || !email.trim() || !password.trim() || !gender) {
+      setError("Please fill in all required fields including gender");
       return;
     }
 
@@ -51,7 +52,7 @@ export default function Signup() {
 
     setIsLoading(true);
     try {
-      await authService.signup(name, email, password, examType || undefined, preparationStage || undefined);
+      await authService.signup(name, email, password, examType || undefined, preparationStage || undefined, gender);
       toast.success("Account created successfully!");
       // Set flag to show welcome dialog on dashboard
       sessionStorage.setItem("showWelcome", "true");

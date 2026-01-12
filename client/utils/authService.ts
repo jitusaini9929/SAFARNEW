@@ -32,7 +32,8 @@ export const authService = {
         email: string,
         password: string,
         examType?: string,
-        preparationStage?: string
+        preparationStage?: string,
+        gender?: string
     ): Promise<User> {
         const response = await fetch("/api/auth/signup", {
             method: "POST",
@@ -43,6 +44,7 @@ export const authService = {
                 password,
                 examType,
                 preparationStage,
+                gender,
             }),
             credentials: 'include',
         });

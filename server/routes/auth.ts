@@ -8,7 +8,7 @@ const router = Router();
 
 // Signup
 router.post('/signup', async (req: Request, res) => {
-    const { name, email, password, examType, preparationStage } = req.body;
+    const { name, email, password, examType, preparationStage, gender } = req.body;
 
     if (!name || !email || !password) {
         return res.status(400).json({ message: 'Missing required fields' });
@@ -26,12 +26,74 @@ router.post('/signup', async (req: Request, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const userId = uuidv4();
-        const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`;
+
+        // Generate avatar based on gender
+        let avatarSeed = email; // default seed
+        let avatarStyle = 'avataaars'; // default style
+
+        if (gender === 'male') {
+            // Use a style that tends to look masculine or use specific seeds if needed, 
+            // but 'avataaars' is gender neutral by default. 
+            // Let's use 'micah' or specific seeds or just rely on 'avataaars' being diverse.
+            // Better: Use 'adventurer' or 'micah' which have distinct looks, OR stick to avataaars 
+            // and maybe append gender to seed to vary it?
+            // Actually, the user asked for "assign avatar according to that".
+            // Let's use 'pixel-art' or 'avataaars' with a prefix to the seed to ensure variety?
+            // Or better, let's use:
+            // Male -> https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&gender=male (avataaars doesn't strictly support gender param like that)
+            // Let's use 'adventurer' (neutral but nice) or just keep avataaars.
+            // Simpler approach:
+            // Male: https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&eyebrows=default&mouth=smile
+            // Female: https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&top=longHair
+
+            // Even simpler and more effective:
+            // Male: https://api.dicebear.com/7.x/miniavs/svg?seed=${email}&gender=male (Miniavs supports gender!)
+            // Wait, checking DiceBear docs... 'personas' or 'avataaars'.
+            // Let's use 'avataaars' and just modify the URL slightly or use a different collection?
+            // No, let's use user preference.
+
+            // Logic:
+            // If male: seed = name + "male"
+            // If female: seed = name + "female"
+            // This changes the avatar but doesn't guarantee visual gender.
+
+            // User wants specific avatars. Let's use:
+            // https://api.dicebear.com/9.x/avataaars/svg?seed=${email}
+            // But we can customize options.
+
+            // Let's try to imply gender via options if possible, or just accept that random seed is random.
+            // HOWEVER, we can use specific collections.
+            // Let's use `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&topChance=80` etc.
+
+            // Actually, let's just stick to the requested logic:
+            // If gender is male, maybe use `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&facialHair[]`...
+
+            // Simplest working solution for "Male/Female" distinction:
+            // Female: https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&top=longHair,longHairBob,longHairBun,longHairCurly,longHairCurvy,longHairDreads,longHairFrida,longHairFro,longHairFroBand,longHairMiaWallace,longHairNotTooLong,longHairShavedSides,longHairStraight,longHairStraight2,longHairStraightStrand
+            // Male: https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&top=shortHair,shortHairCaesar,shortHairCaesarSidePart,shortHairDreads01,shortHairDreads02,shortHairFrizzle,shortHairShaggyMullet,shortHairShortCurly,shortHairShortFlat,shortHairShortRound,shortHairShortWaved,shortHairSides,shortHairTheCaesar,shortHairTheCaesarSidePart
+
+            // That's too long for a clear URL. 
+            // Let's use 'adventurer' for everyone but vary the seed? No.
+
+            // Let's use:
+            // Male: https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&facialHairProbability=80&topProbability=80
+            // Female: https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&facialHairProbability=0&top[]=longHair&top[]=longHairBob&top[]=longHairBun&top[]=longHairCurly&top[]=longHairCurvy
+        }
+
+        let avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`;
+
+        if (gender === 'male') {
+            // Force short hair and maybe facial hair
+            avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&top=shortHair,shortHairCaesar,shortHairCaesarSidePart,shortHairDreads01,shortHairDreads02,shortHairFrizzle,shortHairShaggyMullet,shortHairShortCurly,shortHairShortFlat,shortHairShortRound,shortHairShortWaved,shortHairSides,shortHairTheCaesar,shortHairTheCaesarSidePart&facialHairProbability=60`;
+        } else if (gender === 'female') {
+            // Force long hair, no facial hair
+            avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}&top=longHair,longHairBob,longHairBun,longHairCurly,longHairCurvy,longHairDreads,longHairFrida,longHairFro,longHairFroBand,longHairMiaWallace,longHairNotTooLong,longHairShavedSides,longHairStraight,longHairStraight2,longHairStraightStrand&facialHairProbability=0`;
+        }
 
         await db.execute({
-            sql: `INSERT INTO users (id, name, email, password_hash, avatar, exam_type, preparation_stage)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            args: [userId, name, email, hashedPassword, avatar, examType || null, preparationStage || null]
+            sql: `INSERT INTO users (id, name, email, password_hash, avatar, exam_type, preparation_stage, gender)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [userId, name, email, hashedPassword, avatarUrl, examType || null, preparationStage || null, gender || null]
         });
 
         // Initialize streaks
@@ -48,9 +110,10 @@ router.post('/signup', async (req: Request, res) => {
             id: userId,
             name,
             email,
-            avatar,
+            avatar: avatarUrl,
             examType,
-            preparationStage
+            preparationStage,
+            gender
         });
     } catch (error) {
         console.error('Signup error:', error);

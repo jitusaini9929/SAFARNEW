@@ -23,6 +23,7 @@ export async function initDatabase() {
             avatar TEXT,
             exam_type TEXT,
             preparation_stage TEXT,
+            gender TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
