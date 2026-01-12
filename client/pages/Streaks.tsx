@@ -150,25 +150,45 @@ export default function Streaks() {
     const lastDay = new Date(currentYear, currentMonth + 1, 0);
     const daysInMonth = lastDay.getDate();
 
-    // Helper to get IST date string
-    const getISTDateString = (date: Date) => {
-      const istOffset = 5.5 * 60 * 60 * 1000;
-      return new Date(date.getTime() + istOffset).toISOString().split('T')[0];
+    // Simple date string in YYYY-MM-DD format (local time)
+    const getLocalDateString = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
     };
 
-    const todayIST = getISTDateString(today);
+    // Extract date from any timestamp string (handles various formats)
+    const extractDateFromTimestamp = (timestamp: string): string | null => {
+      if (!timestamp) return null;
+      try {
+        // Just extract the date portion directly from the string if possible
+        const match = timestamp.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+          return `${match[1]}-${match[2]}-${match[3]}`;
+        }
+        // Fallback: parse as date and get local date string
+        const d = new Date(timestamp);
+        if (isNaN(d.getTime())) return null;
+        return getLocalDateString(d);
+      } catch {
+        return null;
+      }
+    };
+
+    const todayStr = getLocalDateString(today);
 
     // Add empty slots for days before the first day of month (to align with weekday)
     const firstDayWeekday = firstDay.getDay(); // 0 = Sunday
     const startPadding = firstDayWeekday === 0 ? 6 : firstDayWeekday - 1; // Adjust for Monday start
     for (let i = 0; i < startPadding; i++) {
-      days.push({ date: null, level: -1, dateStr: '' }); // Empty slot
+      days.push({ date: null, level: -1, dateStr: '', isToday: false }); // Empty slot
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
       const d = new Date(currentYear, currentMonth, day);
-      const dateStr = getISTDateString(d);
-      const isToday = dateStr === todayIST;
+      const dateStr = getLocalDateString(d);
+      const isToday = dateStr === todayStr;
       const isFuture = d > today;
 
       // Check activity on this day
@@ -176,52 +196,31 @@ export default function Streaks() {
 
       if (isFuture) {
         level = -1; // Future day - no data yet
-      } else if (isToday && goalsData.length > 0) {
-        // Today: based on current completion
-        const completed = goalsData.filter((g: any) => g.completed).length;
-        const pct = (completed / goalsData.length) * 100;
-        level = pct === 100 ? 2 : pct > 0 ? 1 : 0;
       } else {
-        // Past days: check ANY activity (goals, journal, moods)
+        // Check ANY activity on this day (goals, journal, moods, logins)
         let hasActivity = false;
-
-        // Helper to extract just the date portion (YYYY-MM-DD) from any timestamp
-        const extractDateStr = (timestamp: string): string | null => {
-          if (!timestamp) return null;
-          try {
-            // Handle various formats: "2026-01-12T10:30:00Z", "2026-01-12 10:30:00", etc.
-            const cleanTimestamp = timestamp.replace(' ', 'T');
-            const d = new Date(cleanTimestamp);
-            if (isNaN(d.getTime())) return null;
-            // Convert to IST and get date string
-            const istOffset = 5.5 * 60 * 60 * 1000;
-            return new Date(d.getTime() + istOffset).toISOString().split('T')[0];
-          } catch {
-            return null;
-          }
-        };
 
         // Check goals created on this day
         const goalsOnDay = goalsData.filter((g: any) => {
           const createdAt = g.createdAt || g.created_at;
-          return extractDateStr(createdAt) === dateStr;
+          return extractDateFromTimestamp(createdAt) === dateStr;
         });
 
         // Check journal entries on this day
         const journalOnDay = journalData.filter((j: any) => {
           const timestamp = j.timestamp || j.createdAt || j.created_at;
-          return extractDateStr(timestamp) === dateStr;
+          return extractDateFromTimestamp(timestamp) === dateStr;
         });
 
         // Check mood check-ins on this day
         const moodsOnDay = moodsData.filter((m: any) => {
           const timestamp = m.timestamp || m.createdAt || m.created_at;
-          return extractDateStr(timestamp) === dateStr;
+          return extractDateFromTimestamp(timestamp) === dateStr;
         });
 
         // Check login history on this day
         const loginOnDay = loginData.filter((l: any) => {
-          return extractDateStr(l.timestamp) === dateStr;
+          return extractDateFromTimestamp(l.timestamp) === dateStr;
         });
 
         // If ANY activity exists, mark as active
