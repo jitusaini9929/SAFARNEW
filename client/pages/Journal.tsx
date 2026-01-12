@@ -11,7 +11,6 @@ import {
   Bold,
   Italic,
   List,
-  Image as ImageIcon,
   Check,
   Sun,
   ArrowRight,
@@ -27,7 +26,6 @@ export default function Journal() {
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
 
   // Active formatting states
@@ -125,28 +123,6 @@ export default function Journal() {
     editorRef.current?.focus();
   };
 
-  const insertImage = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      const img = `<img src="${base64}" alt="Journal image" style="max-width: 100%; height: auto; border-radius: 8px; margin: 12px 0;" />`;
-      document.execCommand('insertHTML', false, img);
-      editorRef.current?.focus();
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-
   const handleAddEntry = async () => {
     const content = editorRef.current?.innerHTML || "";
     if (!content.trim() || content === '<br>') {
@@ -240,15 +216,6 @@ export default function Journal() {
     <MainLayout userName={user.name} userAvatar={user.avatar}>
       <div className="relative min-h-[calc(100vh-64px)] w-full overflow-hidden bg-background font-['Poppins'] text-foreground transition-colors duration-300">
 
-        {/* Hidden file input for image upload */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleImageUpload}
-          accept="image/*"
-          className="hidden"
-        />
-
         {/* Main Content Area */}
         <div className="flex h-full overflow-hidden">
 
@@ -284,9 +251,6 @@ export default function Journal() {
                       </button>
                       <button onClick={formatBulletList} className={`p-1.5 rounded-lg transition-all ${isList ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}>
                         <List className="w-5 h-5" />
-                      </button>
-                      <button onClick={insertImage} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-all">
-                        <ImageIcon className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
