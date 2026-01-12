@@ -373,21 +373,31 @@ router.patch('/profile', requireAuth, async (req: Request, res) => {
             updates.push('gender = ?');
             values.push(gender);
 
-            // Auto-generate avatar when gender changes (unless custom avatar is also being uploaded)
-            if (!avatar && gender !== currentUser.gender) {
-                let newAvatarUrl: string;
-                if (gender === 'male') {
-                    // Male silhouette avatar
-                    newAvatarUrl = 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
-                } else if (gender === 'female') {
-                    // Female silhouette avatar
-                    newAvatarUrl = 'https://cdn-icons-png.flaticon.com/512/3135/3135789.png';
-                } else {
-                    // Other - neutral avatar
-                    newAvatarUrl = 'https://cdn-icons-png.flaticon.com/512/1077/1077114.png';
+            // Auto-generate avatar based on gender (unless custom avatar is being uploaded)
+            // This updates avatar whenever profile is saved to ensure it matches gender
+            if (!avatar) {
+                // Check if current avatar is a DiceBear URL or old avatar - if so, update to silhouette
+                const currentAvatarUrl = currentUser.avatar || '';
+                const isOldAvatar = currentAvatarUrl.includes('dicebear') ||
+                    currentAvatarUrl.includes('api.dicebear.com') ||
+                    !currentAvatarUrl.includes('flaticon.com');
+
+                // Only auto-update if user doesn't have a custom base64 avatar and has old avatar
+                if (isOldAvatar && !currentAvatarUrl.startsWith('data:image')) {
+                    let newAvatarUrl: string;
+                    if (gender === 'male') {
+                        // Male silhouette avatar
+                        newAvatarUrl = 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
+                    } else if (gender === 'female') {
+                        // Female silhouette avatar
+                        newAvatarUrl = 'https://cdn-icons-png.flaticon.com/512/3135/3135789.png';
+                    } else {
+                        // Other - neutral avatar
+                        newAvatarUrl = 'https://cdn-icons-png.flaticon.com/512/1077/1077114.png';
+                    }
+                    updates.push('avatar = ?');
+                    values.push(newAvatarUrl);
                 }
-                updates.push('avatar = ?');
-                values.push(newAvatarUrl);
             }
         }
         if (avatar !== undefined) {
