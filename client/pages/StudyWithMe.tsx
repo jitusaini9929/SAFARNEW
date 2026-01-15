@@ -46,6 +46,7 @@ export default function StudyWithMe() {
     const [isDark, setIsDark] = useState(true);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const [customMinutes, setCustomMinutes] = useState(25);
+    const [customBreakMinutes, setCustomBreakMinutes] = useState(5);
     const [activePreset, setActivePreset] = useState<number | null>(null);
     const [showCustomSettings, setShowCustomSettings] = useState(false);
 
@@ -176,7 +177,7 @@ export default function StudyWithMe() {
         if (customMinutes > 0) {
             startSession({
                 duration: customMinutes,
-                break: Math.max(5, Math.floor(customMinutes / 5)),
+                break: customBreakMinutes > 0 ? customBreakMinutes : 5,
                 label: `${customMinutes}`
             });
         }
@@ -509,7 +510,7 @@ export default function StudyWithMe() {
                                     <p className={`text-xs ${mutedTextClass}`}>Add tasks to track what you want to accomplish.</p>
                                 </div>
                             ) : (
-                                <div className="p-3 space-y-2 overflow-y-auto h-full">
+                                <div className="p-3 flex flex-col gap-3 overflow-y-auto h-full">
                                     {tasks.map((task) => (
                                         <div
                                             key={task.id}
@@ -615,12 +616,23 @@ export default function StudyWithMe() {
                                             e.stopPropagation();
                                             startCustomSession();
                                         }}
-                                        className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors"
+                                        className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-white font-bold text-xs uppercase tracking-wider rounded-lg transition-colors h-full"
                                     >
-                                        Start Custom
+                                        Start
                                     </button>
                                 </div>
-                                <p className={`text-xs ${mutedTextClass}`}>Break time: {Math.max(5, Math.floor(customMinutes / 5))} min (auto-calculated)</p>
+                                <div className="flex items-center gap-4">
+                                    <label className={`text-sm font-medium ${mutedTextClass}`}>Break (minutes):</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="60"
+                                        value={customBreakMinutes}
+                                        onChange={(e) => setCustomBreakMinutes(Math.max(1, Math.min(60, parseInt(e.target.value) || 1)))}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`w-24 px-3 py-2 rounded-lg border ${borderClass} ${isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'} focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500`}
+                                    />
+                                </div>
                             </div>
                         )}
                     </div>
@@ -691,20 +703,17 @@ export default function StudyWithMe() {
                                 </div>
 
                                 {/* Daily Goal */}
-                                <div className={`flex-1 ${cardBgClass} border ${borderClass} rounded-xl p-4 flex flex-col justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>
-                                    <div className="flex justify-between items-center">
-                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-tight">Daily Goal</h4>
-                                        <span className="text-xs text-pink-500 font-bold">
-                                            {focusStats.dailyGoalProgress}%
-                                        </span>
+                                {/* Daily Goal - User Driven */}
+                                <div className={`flex-1 ${cardBgClass} border ${borderClass} rounded-xl p-4 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>
+                                    <div className={`w-12 h-12 rounded-xl ${isDark ? 'bg-pink-500/10' : 'bg-pink-100'} flex items-center justify-center text-pink-500`}>
+                                        <Target size={24} />
                                     </div>
-                                    <div className={`w-full h-2 ${isDark ? 'bg-gray-800' : 'bg-gray-100'} rounded-full overflow-hidden`}>
-                                        <div
-                                            className="h-full bg-pink-500 transition-all duration-500"
-                                            style={{ width: `${focusStats.dailyGoalProgress}%` }}
-                                        ></div>
+                                    <div>
+                                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-tight">Hours Focused</h4>
+                                        <p className={`text-lg font-bold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                                            {Math.floor(focusStats.totalFocusMinutes / 60)}h {focusStats.totalFocusMinutes % 60}m
+                                        </p>
                                     </div>
-                                    <p className={`text-xs ${mutedTextClass}`}>{Math.floor(focusStats.totalFocusMinutes / 60)}h of 4h goal</p>
                                 </div>
 
                                 {/* Total Focus */}
