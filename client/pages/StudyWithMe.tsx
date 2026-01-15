@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/utils/authService';
-import { X, Moon, Sun, Play, Pause, ChevronDown, Bold, Italic, List, Paperclip, Image } from 'lucide-react';
+import { X, Moon, Sun, Play, Pause, ChevronDown, Plus, Check, Trash2, ListTodo } from 'lucide-react';
 
 interface Session {
     start: Date;
@@ -15,6 +15,12 @@ interface SessionType {
     label: string;
 }
 
+interface Task {
+    id: string;
+    text: string;
+    completed: boolean;
+}
+
 export default function StudyWithMe() {
     const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
@@ -24,7 +30,8 @@ export default function StudyWithMe() {
     const [isBreak, setIsBreak] = useState(false);
     const [completedSessions, setCompletedSessions] = useState<Session[]>([]);
     const [currentSessionStart, setCurrentSessionStart] = useState<Date | null>(null);
-    const [notes, setNotes] = useState('');
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [newTaskText, setNewTaskText] = useState('');
     const [focusTitle, setFocusTitle] = useState('Deep Focus Session');
     const [isDark, setIsDark] = useState(true);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -294,7 +301,7 @@ export default function StudyWithMe() {
         <div className={`min-h-screen ${bgClass} ${textClass} transition-colors duration-300`}>
             <div className="flex flex-col lg:flex-row min-h-screen">
                 {/* Timer Section */}
-                <div className={`flex-1 flex flex-col items-center justify-between p-8 lg:p-12 ${cardBgClass} border-r ${isDark ? 'border-zinc-800' : 'border-zinc-200'} relative`}>
+                <div className={`flex-1 flex flex-col items-center justify-between p-8 lg:p-12 ${cardBgClass} border-r ${isDark ? 'border-zinc-800' : 'border-zinc-300 shadow-lg'} relative`}>
                     {/* Header */}
                     <div className="w-full flex justify-between items-center">
                         <button
@@ -440,37 +447,84 @@ export default function StudyWithMe() {
                     </div>
                 </div>
 
-                {/* Notes Section */}
-                <div className={`flex-1 lg:flex-[1.2] flex flex-col p-8 lg:p-12 ${bgClass}`}>
-                    <h2 className={`text-2xl font-bold ${isDark ? 'text-zinc-200' : 'text-zinc-800'} mb-6`}>Notes</h2>
-                    <div className="flex-1 relative">
-                        <textarea
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            className={`w-full h-full min-h-[300px] ${isDark ? 'bg-zinc-900/40 text-zinc-300 placeholder-zinc-600' : 'bg-white/60 text-zinc-600 placeholder-zinc-400'} backdrop-blur-sm border-none rounded-2xl p-6 focus:ring-2 focus:ring-cyan-500/20 text-lg leading-relaxed resize-none`}
-                            placeholder="Write down your thoughts, your learning, or what you are confused about. Clarify your thoughts. Writing is thinking."
-                        />
+                {/* Tasks Section */}
+                <div className={`flex-1 lg:flex-[1.2] flex flex-col p-8 lg:p-12 ${isDark ? 'bg-zinc-950' : 'bg-zinc-50'}`}>
+                    <div className="flex items-center gap-3 mb-6">
+                        <ListTodo className={`w-6 h-6 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                        <h2 className={`text-2xl font-bold ${isDark ? 'text-zinc-200' : 'text-zinc-800'}`}>Tasks</h2>
+                        <span className={`ml-auto text-sm ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                            {tasks.filter(t => t.completed).length}/{tasks.length} done
+                        </span>
                     </div>
-                    <div className={`mt-4 flex items-center space-x-4 px-2 ${mutedTextClass}`}>
-                        <button className="p-2 hover:text-cyan-500 transition-colors">
-                            <Bold className="w-5 h-5" />
+
+                    {/* Add Task Input */}
+                    <div className={`flex gap-3 mb-6 p-4 rounded-xl ${isDark ? 'bg-zinc-900 border border-zinc-800' : 'bg-white border border-zinc-200 shadow-sm'}`}>
+                        <input
+                            type="text"
+                            value={newTaskText}
+                            onChange={(e) => setNewTaskText(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newTaskText.trim()) {
+                                    setTasks(prev => [...prev, { id: Date.now().toString(), text: newTaskText.trim(), completed: false }]);
+                                    setNewTaskText('');
+                                }
+                            }}
+                            placeholder="Add a task for this session..."
+                            className={`flex-1 bg-transparent border-none outline-none text-lg ${isDark ? 'text-zinc-200 placeholder-zinc-600' : 'text-zinc-700 placeholder-zinc-400'}`}
+                        />
+                        <button
+                            onClick={() => {
+                                if (newTaskText.trim()) {
+                                    setTasks(prev => [...prev, { id: Date.now().toString(), text: newTaskText.trim(), completed: false }]);
+                                    setNewTaskText('');
+                                }
+                            }}
+                            className={`p-2 rounded-lg transition-all ${isDark ? 'bg-cyan-600 hover:bg-cyan-500' : 'bg-cyan-500 hover:bg-cyan-400'} text-white`}
+                        >
+                            <Plus className="w-5 h-5" />
                         </button>
-                        <button className="p-2 hover:text-cyan-500 transition-colors">
-                            <Italic className="w-5 h-5" />
-                        </button>
-                        <button className="p-2 hover:text-cyan-500 transition-colors">
-                            <List className="w-5 h-5" />
-                        </button>
-                        <div className={`h-6 w-px ${isDark ? 'bg-zinc-800' : 'bg-zinc-200'}`}></div>
-                        <button className="p-2 hover:text-cyan-500 transition-colors">
-                            <Paperclip className="w-5 h-5" />
-                        </button>
-                        <button className="p-2 hover:text-cyan-500 transition-colors">
-                            <Image className="w-5 h-5" />
-                        </button>
-                        <div className="ml-auto text-xs uppercase tracking-widest font-medium">
-                            Auto-saved
-                        </div>
+                    </div>
+
+                    {/* Tasks List */}
+                    <div className={`flex-1 overflow-y-auto space-y-3 rounded-xl p-4 ${isDark ? 'bg-zinc-900/50 border border-zinc-800' : 'bg-white border border-zinc-200 shadow-sm'}`}>
+                        {tasks.length === 0 ? (
+                            <div className={`flex flex-col items-center justify-center h-full py-12 ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                                <ListTodo className="w-12 h-12 mb-4 opacity-50" />
+                                <p className="text-center">No tasks yet.<br />Add tasks to track what you want to accomplish.</p>
+                            </div>
+                        ) : (
+                            tasks.map((task) => (
+                                <div
+                                    key={task.id}
+                                    className={`flex items-center gap-4 p-4 rounded-xl transition-all ${task.completed
+                                        ? isDark ? 'bg-zinc-800/50 opacity-60' : 'bg-zinc-100 opacity-60'
+                                        : isDark ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-zinc-50 hover:bg-zinc-100 border border-zinc-200'
+                                        }`}
+                                >
+                                    <button
+                                        onClick={() => setTasks(prev => prev.map(t => t.id === task.id ? { ...t, completed: !t.completed } : t))}
+                                        className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${task.completed
+                                            ? 'bg-cyan-500 border-cyan-500 text-white'
+                                            : isDark ? 'border-zinc-600 hover:border-cyan-500' : 'border-zinc-300 hover:border-cyan-500'
+                                            }`}
+                                    >
+                                        {task.completed && <Check className="w-4 h-4" />}
+                                    </button>
+                                    <span className={`flex-1 text-lg ${task.completed
+                                        ? 'line-through ' + (isDark ? 'text-zinc-500' : 'text-zinc-400')
+                                        : isDark ? 'text-zinc-200' : 'text-zinc-700'
+                                        }`}>
+                                        {task.text}
+                                    </span>
+                                    <button
+                                        onClick={() => setTasks(prev => prev.filter(t => t.id !== task.id))}
+                                        className={`p-2 rounded-lg transition-all opacity-50 hover:opacity-100 ${isDark ? 'hover:bg-red-500/20 text-red-400' : 'hover:bg-red-50 text-red-500'}`}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
