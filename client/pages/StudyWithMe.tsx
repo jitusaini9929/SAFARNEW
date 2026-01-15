@@ -39,6 +39,8 @@ export default function StudyWithMe() {
     const [customStudy, setCustomStudy] = useState(30);
     const [customBreak, setCustomBreak] = useState(5);
     const [showCustom, setShowCustom] = useState(false);
+    const [timerMode, setTimerMode] = useState<'focus' | 'shortBreak' | 'longBreak'>('focus');
+    const [focusCount, setFocusCount] = useState(0);
 
     const sessionTypes: SessionType[] = [
         { duration: 25, break: 5, label: '25 min' },
@@ -89,13 +91,16 @@ export default function StudyWithMe() {
                 duration: selectedSession.duration
             }]);
             setCurrentSessionStart(null);
+            setFocusCount(prev => prev + 1);
 
-            // Start break
+            // Auto switch to short break
             setIsBreak(true);
-            setTimeLeft(selectedSession.break * 60);
+            setTimerMode('shortBreak');
+            setTimeLeft(5 * 60);
             setIsRunning(true);
         } else if (isBreak && selectedSession) {
             setIsBreak(false);
+            setTimerMode('focus');
             setTimeLeft(selectedSession.duration * 60);
         }
     };
@@ -469,14 +474,76 @@ export default function StudyWithMe() {
                     </div>
 
                     {/* Focus Title */}
-                    <div className="flex flex-col items-center mt-4 space-y-3">
-                        <div className={`flex items-center space-x-2 ${isDark ? 'bg-cyan-900/30' : 'bg-cyan-50'} px-4 py-1.5 rounded-full border ${isDark ? 'border-cyan-800/50' : 'border-cyan-100'}`}>
-                            <div className={`w-2 h-2 rounded-full bg-cyan-500 ${isRunning ? 'animate-pulse' : ''}`}></div>
-                            <span className="text-cyan-500 text-sm font-semibold">
-                                {isBreak ? 'Break Time' : 'Focus Mode'}
+                    <div className="flex flex-col items-center mt-4 space-y-4">
+                        {/* Session Counter */}
+                        <div className={`flex items-center space-x-2 ${isDark ? 'bg-zinc-800' : 'bg-zinc-100'} px-4 py-1.5 rounded-full`}>
+                            <span className={`text-sm font-semibold ${timerMode === 'focus' ? 'text-cyan-500' : timerMode === 'shortBreak' ? 'text-green-500' : 'text-amber-500'}`}>
+                                {timerMode === 'focus' ? 'FOCUS' : timerMode === 'shortBreak' ? 'SHORT BREAK' : 'LONG BREAK'}
                             </span>
+                            <span className={mutedTextClass}>🎯</span>
+                            <span className={mutedTextClass}>{focusCount} / 4</span>
                         </div>
-                        <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-center">{focusTitle}</h1>
+
+                        {/* Mode Switching Tabs */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setTimerMode('focus');
+                                    setIsBreak(false);
+                                    if (selectedSession) setTimeLeft(selectedSession.duration * 60);
+                                    setIsRunning(false);
+                                }}
+                                className={`px-6 py-4 rounded-xl transition-all ${timerMode === 'focus'
+                                    ? 'bg-cyan-500/20 border-2 border-cyan-500'
+                                    : isDark ? 'bg-zinc-800 border border-zinc-700 hover:border-zinc-600' : 'bg-zinc-100 border border-zinc-300 hover:border-zinc-400'
+                                    }`}
+                            >
+                                <div className="flex items-center gap-2 text-sm font-medium text-red-400 mb-1">
+                                    🍅 Focus
+                                </div>
+                                <div className={`text-xl font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                                    {selectedSession?.duration || 25} min
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setTimerMode('shortBreak');
+                                    setIsBreak(true);
+                                    setTimeLeft(5 * 60);
+                                    setIsRunning(false);
+                                }}
+                                className={`px-6 py-4 rounded-xl transition-all ${timerMode === 'shortBreak'
+                                    ? 'bg-green-500/20 border-2 border-green-500'
+                                    : isDark ? 'bg-zinc-800 border border-zinc-700 hover:border-zinc-600' : 'bg-zinc-100 border border-zinc-300 hover:border-zinc-400'
+                                    }`}
+                            >
+                                <div className="flex items-center gap-2 text-sm font-medium text-blue-400 mb-1">
+                                    ☕ Short Break
+                                </div>
+                                <div className={`text-xl font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                                    5 min
+                                </div>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setTimerMode('longBreak');
+                                    setIsBreak(true);
+                                    setTimeLeft(25 * 60);
+                                    setIsRunning(false);
+                                }}
+                                className={`px-6 py-4 rounded-xl transition-all ${timerMode === 'longBreak'
+                                    ? 'bg-amber-500/20 border-2 border-amber-500'
+                                    : isDark ? 'bg-zinc-800 border border-zinc-700 hover:border-zinc-600' : 'bg-zinc-100 border border-zinc-300 hover:border-zinc-400'
+                                    }`}
+                            >
+                                <div className="flex items-center gap-2 text-sm font-medium text-amber-400 mb-1">
+                                    🧘 Long Break
+                                </div>
+                                <div className={`text-xl font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
+                                    25 min
+                                </div>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Analog Clock Timer */}
