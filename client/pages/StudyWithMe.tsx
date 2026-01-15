@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '@/utils/authService';
-import { X, Sun, Moon, Play, Pause, Flame, Target, BarChart3, Info } from 'lucide-react';
+import { X, Sun, Moon, Play, Pause, Flame, Target, BarChart3, Info, GripHorizontal, ChevronDown, Check } from 'lucide-react';
 
 interface Session {
     start: Date;
@@ -27,7 +27,8 @@ export default function StudyWithMe() {
     const [isDark, setIsDark] = useState(true);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const [customMinutes, setCustomMinutes] = useState(25);
-    const [activePreset, setActivePreset] = useState<number | null>(30);
+    const [activePreset, setActivePreset] = useState<number | null>(null); // Changed default to null
+    const [showCustomSettings, setShowCustomSettings] = useState(false); // For custom timer toggle
 
     const sessionTypes: SessionType[] = [
         { duration: 25, break: 5, label: '25' },
@@ -142,356 +143,329 @@ export default function StudyWithMe() {
         };
     };
 
+    // Helper to generate random heatmap data for visualization
+    const heatmapData = Array.from({ length: 7 * 24 }, () => Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0);
+    const heatmapColors = [
+        'bg-cyan-100/20 dark:bg-cyan-900/10', // 0
+        'bg-cyan-100 dark:bg-cyan-900',       // 1
+        'bg-cyan-300 dark:bg-cyan-700',       // 2
+        'bg-cyan-500 dark:bg-cyan-500',       // 3
+        'bg-cyan-700 dark:bg-cyan-300',       // 4
+    ];
+
     if (!user) return null;
 
-    const bgClass = isDark ? 'bg-[#050505]' : 'bg-gray-100';
-    const textClass = isDark ? 'text-gray-200' : 'text-gray-800';
-    const cardBgClass = isDark ? 'bg-[#1c1c1e]' : 'bg-white';
-    const borderClass = isDark ? 'border-[#27272a]' : 'border-gray-200';
+    const bgClass = isDark ? 'bg-[#09090b]' : 'bg-[#f1f5f9]';
+    const textClass = isDark ? 'text-gray-100' : 'text-gray-800';
+    const cardBgClass = isDark ? 'bg-[#18181b]' : 'bg-white';
+    const borderClass = isDark ? 'border-gray-800' : 'border-gray-200';
     const mutedTextClass = isDark ? 'text-gray-400' : 'text-gray-500';
-    const inputBgClass = isDark ? 'bg-[#2a2a2d]' : 'bg-gray-50';
+    const primaryColorClass = 'text-[#06b6d4]'; // Cyan-500
 
     // Active Timer Screen
     if (selectedSession) {
         const progressPercent = ((selectedSession.duration * 60 - timeLeft) / (selectedSession.duration * 60)) * 100;
 
         return (
-            <div className={`min-h-screen ${bgClass} ${textClass} transition-colors duration-300 p-4 md:p-8`}>
-                {/* Header */}
-                <header className="w-full max-w-7xl mx-auto flex justify-between items-center mb-8">
-                    <div className="flex items-center gap-3">
+            <div className={`min-h-screen ${bgClass} ${textClass} transition-colors duration-300 flex items-center justify-center p-4`}>
+                <div className="w-full max-w-md flex flex-col items-center gap-8">
+                    {/* Header */}
+                    <div className="w-full flex justify-between items-center px-4">
                         <button
                             onClick={finishSession}
-                            className={`p-2 rounded hover:bg-gray-800/50 transition-colors`}
+                            className={`p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors`}
                         >
                             <X className={mutedTextClass} size={24} />
                         </button>
-                        <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {isBreak ? 'Break Time ☕' : 'Focus Mode 🎯'}
+                        <h1 className="text-xl font-bold tracking-tight">
+                            {isBreak ? 'Break Time' : 'Focus Session'}
                         </h1>
+                        <button
+                            onClick={() => setIsDark(!isDark)}
+                            className={`p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors`}
+                        >
+                            {isDark ? <Sun className="text-yellow-400" size={20} /> : <Moon className="text-gray-500" size={20} />}
+                        </button>
                     </div>
-                    <button
-                        onClick={() => setIsDark(!isDark)}
-                        className={`p-2 rounded-full hover:bg-gray-800/50 transition-colors`}
-                    >
-                        {isDark ? <Sun className="text-yellow-400" size={24} /> : <Moon className="text-gray-500" size={24} />}
-                    </button>
-                </header>
 
-                {/* Timer Display */}
-                <div className="max-w-2xl mx-auto text-center">
-                    {/* Progress Ring */}
-                    <div className="relative w-64 h-64 mx-auto mb-8">
-                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    {/* Timer Circle */}
+                    <div className="relative w-72 h-72">
+                        {/* Glow effect */}
+                        <div className={`absolute inset-0 rounded-full blur-2xl ${isBreak ? 'bg-green-500/20' : 'bg-cyan-500/20'} animate-pulse`}></div>
+
+                        <svg className="w-full h-full transform -rotate-90 relative z-10" viewBox="0 0 100 100">
                             <circle
                                 cx="50" cy="50" r="45"
                                 fill="none"
                                 stroke={isDark ? '#27272a' : '#e5e7eb'}
-                                strokeWidth="4"
+                                strokeWidth="3"
                             />
                             <circle
                                 cx="50" cy="50" r="45"
                                 fill="none"
                                 stroke={isBreak ? '#22c55e' : '#06b6d4'}
-                                strokeWidth="4"
+                                strokeWidth="3"
                                 strokeLinecap="round"
                                 strokeDasharray={`${2 * Math.PI * 45}`}
                                 strokeDashoffset={`${2 * Math.PI * 45 * (1 - progressPercent / 100)}`}
-                                className="transition-all duration-1000"
-                                style={{ filter: `drop-shadow(0 0 10px ${isBreak ? 'rgba(34, 197, 94, 0.5)' : 'rgba(6, 182, 212, 0.5)'})` }}
+                                className="transition-all duration-1000 ease-linear"
                             />
                         </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <div className={`text-5xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                            <div className={`text-6xl font-bold tracking-tighter ${isDark ? 'text-white' : 'text-gray-900'}`}>
                                 {formatTime(timeLeft)}
                             </div>
-                            <div className={`text-sm ${mutedTextClass} mt-2`}>
-                                {isBreak ? 'break remaining' : 'time remaining'}
+                            <div className={`text-sm font-medium uppercase tracking-widest mt-2 ${isBreak ? 'text-green-500' : 'text-cyan-500'}`}>
+                                {isBreak ? 'Rest' : 'Focus'}
                             </div>
                         </div>
                     </div>
 
-                    {/* Control Buttons */}
-                    <div className="flex items-center justify-center gap-4">
+                    {/* Controls */}
+                    <div className="flex items-center gap-6">
                         <button
                             onClick={toggleTimer}
-                            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${isBreak
-                                ? 'bg-green-500 hover:bg-green-400 shadow-green-500/30'
-                                : 'bg-cyan-500 hover:bg-cyan-400 shadow-cyan-500/30'
+                            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-105 active:scale-95 ${isBreak
+                                    ? 'bg-green-500 hover:bg-green-400 shadow-green-500/30'
+                                    : 'bg-cyan-500 hover:bg-cyan-400 shadow-cyan-500/30'
                                 } text-white`}
                         >
-                            {isRunning ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
-                        </button>
-                        <button
-                            onClick={finishSession}
-                            className="px-6 py-3 bg-red-500 hover:bg-red-400 text-white font-semibold rounded-lg transition-all"
-                        >
-                            End Session
+                            {isRunning ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1" />}
                         </button>
                     </div>
 
-                    {/* Session Info */}
-                    <div className={`mt-8 ${cardBgClass} border ${borderClass} rounded-lg p-4`}>
-                        <div className="flex justify-between text-sm">
-                            <span className={mutedTextClass}>Session</span>
-                            <span className="font-medium">{selectedSession.duration} min focus / {selectedSession.break} min break</span>
-                        </div>
-                        <div className="flex justify-between text-sm mt-2">
-                            <span className={mutedTextClass}>Sessions Today</span>
-                            <span className="font-medium text-cyan-500">{completedSessions.length}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Pro Tip */}
-                <footer className="max-w-7xl mx-auto mt-12 text-center">
-                    <p className={`text-xs ${mutedTextClass}`}>
-                        Pro Tip: Press <span className={`font-mono ${inputBgClass} px-1 rounded`}>Space</span> to pause/resume timer.
+                    <p className={`text-xs ${mutedTextClass} mt-4`}>
+                        Use <span className="font-mono bg-gray-200 dark:bg-gray-800 px-1.5 py-0.5 rounded text-[10px]">Space</span> to pause
                     </p>
-                </footer>
+                </div>
             </div>
         );
     }
 
-    // Session Selection Screen (Dashboard)
+    // Dashboard Screen
     return (
-        <div className={`min-h-screen ${bgClass} ${textClass} transition-colors duration-300 p-6 md:p-12`}>
-            {/* Header */}
-            <header className="w-full max-w-7xl mx-auto flex justify-between items-center mb-10">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className={`p-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors`}
-                    >
-                        <X className={mutedTextClass} size={28} />
-                    </button>
-                    <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} flex items-center gap-3`}>
-                        Study With Me <span className="text-3xl">📚</span>
-                    </h1>
+        <div className={`min-h-screen ${bgClass} ${textClass} font-sans transition-colors duration-300 flex items-center justify-center p-4`}>
+            <div className="w-full max-w-6xl mx-auto flex flex-col gap-6">
+
+                {/* Navbar */}
+                <div className="flex justify-between items-center px-1">
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => navigate('/dashboard')} className="hover:opacity-75 transition-opacity">
+                            <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} flex items-center gap-2`}>
+                                Study With Me <span className="text-xl">📚</span>
+                            </h1>
+                        </button>
+                        <div className={`h-4 w-px ${isDark ? 'bg-gray-800' : 'bg-gray-300'} mx-1`}></div>
+                        <p className={`text-xs ${mutedTextClass} font-medium`}>Daily focus optimizer</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setIsDark(!isDark)}
+                            className={`p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors ${isDark ? 'text-yellow-400' : 'text-gray-500'}`}
+                        >
+                            {isDark ? <Sun size={20} /> : <Moon size={20} />}
+                        </button>
+                        <button className={`p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors ${mutedTextClass}`}>
+                            {/* Settings icon placeholder using GripHorizontal as substitute if Settings not imported, checking imports... grip is visually different but works as placeholder or add Settings to import */}
+                            <GripHorizontal size={20} />
+                        </button>
+                    </div>
                 </div>
-                <button
-                    onClick={() => setIsDark(!isDark)}
-                    className={`p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors`}
-                >
-                    {isDark ? <Sun className="text-yellow-400" size={24} /> : <Moon className="text-gray-500" size={24} />}
-                </button>
-            </header>
 
-            {/* Main Grid */}
-            <main className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left Column - Session Duration */}
-                <section className="lg:col-span-4 flex flex-col gap-8">
-                    <div className={`${cardBgClass} border ${borderClass} p-8 rounded-xl shadow-sm flex-1 flex flex-col`}>
-                        <div className="mb-8">
-                            <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Session Duration</h2>
-                            <p className={`text-base ${mutedTextClass} mt-1`}>Select your focus interval</p>
-                        </div>
-
-                        {/* Preset Grid */}
-                        <div className="grid grid-cols-2 gap-4 mb-8">
-                            {sessionTypes.slice(0, 4).map((session) => (
+                <main className="grid grid-cols-12 gap-4">
+                    {/* Timer Selection Section */}
+                    <div className="col-span-12 flex flex-col gap-3">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {sessionTypes.map((session) => (
                                 <button
                                     key={session.duration}
                                     onClick={() => startSession(session)}
-                                    className={`group relative flex flex-col items-center justify-center py-6 px-4 rounded-xl transition-all duration-200 ${activePreset === session.duration
-                                        ? 'bg-cyan-500 border border-cyan-500 shadow-lg shadow-cyan-500/20'
-                                        : `${inputBgClass} border border-transparent hover:border-cyan-500/50`
+                                    className={`relative p-3 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200 ${activePreset === session.duration
+                                            ? 'bg-[#06b6d4] text-white shadow-[0_0_20px_-5px_rgba(6,182,212,0.4)] hover:shadow-[0_0_25px_-3px_rgba(6,182,212,0.6)] transform -translate-y-[2px]'
+                                            : `${cardBgClass} border ${borderClass} hover:border-[#06b6d4]/50 hover:-translate-y-[2px]`
                                         }`}
                                 >
-                                    <span className={`text-4xl font-bold ${activePreset === session.duration ? 'text-white' : isDark ? 'text-white' : 'text-gray-800'
-                                        } group-hover:text-cyan-400 transition-colors`}>
-                                        {session.duration}
-                                    </span>
-                                    <span className={`text-sm uppercase tracking-wider font-medium mt-1 ${activePreset === session.duration ? 'text-cyan-100' : mutedTextClass
-                                        }`}>
-                                        Minutes
-                                    </span>
-                                    <span className={`absolute bottom-2 text-xs ${activePreset === session.duration ? 'text-cyan-50 opacity-80' : 'text-gray-400 opacity-0 group-hover:opacity-100'
-                                        } transition-opacity`}>
-                                        {session.break}min break
+                                    <span className="text-xl font-bold">{session.label}</span>
+                                    <span className={`text-[10px] uppercase tracking-wider font-medium ${activePreset === session.duration ? 'opacity-90' : mutedTextClass}`}>
+                                        min focus
                                     </span>
                                 </button>
                             ))}
-                            {/* 90 min spanning 2 columns */}
-                            <button
-                                onClick={() => startSession(sessionTypes[4])}
-                                className={`group relative flex flex-col items-center justify-center py-5 px-4 rounded-xl transition-all duration-200 col-span-2 ${activePreset === 90
-                                    ? 'bg-cyan-500 border border-cyan-500 shadow-lg shadow-cyan-500/20'
-                                    : `${inputBgClass} border border-transparent hover:border-cyan-500/50`
-                                    }`}
-                            >
-                                <div className="flex flex-row items-baseline gap-3">
-                                    <span className={`text-4xl font-bold ${activePreset === 90 ? 'text-white' : isDark ? 'text-white' : 'text-gray-800'
-                                        } group-hover:text-cyan-400 transition-colors`}>
-                                        90
-                                    </span>
-                                    <span className={`text-sm uppercase tracking-wider font-medium ${activePreset === 90 ? 'text-cyan-100' : mutedTextClass
-                                        }`}>
-                                        Minutes
-                                    </span>
-                                </div>
-                                <span className={`text-xs mt-1 ${activePreset === 90 ? 'text-cyan-50' : 'text-gray-400'}`}>
-                                    15min break
-                                </span>
-                            </button>
                         </div>
 
-                        {/* Custom Timer */}
-                        <div className={`mt-auto pt-8 border-t ${borderClass}`}>
-                            <label className={`block text-sm font-semibold uppercase ${mutedTextClass} mb-3`}>Custom Timer</label>
-                            <div className="flex gap-3">
-                                <div className="relative flex-1">
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max="180"
-                                        value={customMinutes}
-                                        onChange={(e) => setCustomMinutes(parseInt(e.target.value) || 0)}
-                                        className={`w-full ${inputBgClass} border ${borderClass} ${isDark ? 'text-white' : 'text-gray-900'} text-lg rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-4 placeholder-gray-400`}
-                                        placeholder="25"
-                                    />
-                                    <span className="absolute right-4 top-4 text-sm text-gray-400">min</span>
-                                </div>
-                                <button
-                                    onClick={startCustomSession}
-                                    className="bg-gray-800 hover:bg-gray-700 text-white rounded-lg p-4 transition-colors"
-                                >
-                                    <Play size={24} />
-                                </button>
+                        {/* Custom Timer & Settings Row */}
+                        <div className={`w-full ${cardBgClass} border ${borderClass} rounded-lg px-4 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group`}>
+                            <div className="flex items-center gap-2">
+                                {/* Tune icon placeholder */}
+                                <GripHorizontal className="text-[#06b6d4]" size={20} />
+                                <span className={`font-medium text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Custom Timer Settings</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-[10px] font-bold text-gray-400">POMODORO MODE</span>
+                                <ChevronDown className="text-gray-400" size={18} />
                             </div>
                         </div>
                     </div>
-                </section>
 
-                {/* Right Column - Focus Analytics */}
-                <section className="lg:col-span-8 flex flex-col gap-8">
-                    <div className="flex justify-between items-end">
-                        <div>
-                            <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Focus Analytics</h2>
-                            <p className={`text-base ${mutedTextClass} mt-1`}>Your productivity insights</p>
+                    {/* Analytics Section */}
+                    <div className="col-span-12 flex flex-col gap-3 mt-2">
+                        <div className="flex justify-between items-end px-1">
+                            <div>
+                                <h2 className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'} uppercase tracking-wider`}>Performance Analytics</h2>
+                            </div>
+                            <div className="flex gap-2">
+                                <button className={`text-[10px] font-bold border ${borderClass} ${mutedTextClass} px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors uppercase`}>Export</button>
+                                <button className="text-[10px] font-bold bg-[#06b6d4]/10 text-[#06b6d4] px-2 py-1 rounded hover:bg-[#06b6d4]/20 transition-colors uppercase">Weekly View</button>
+                            </div>
                         </div>
-                        <div className={`${inputBgClass} ${isDark ? 'text-gray-300' : 'text-gray-700'} text-sm font-medium px-4 py-2 rounded-lg cursor-pointer hover:bg-gray-700 transition-colors`}>
-                            This Week
-                        </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-                        {/* Daily Overview Chart */}
-                        <div className={`md:col-span-8 ${cardBgClass} border ${borderClass} p-8 rounded-xl shadow-sm flex flex-col`}>
-                            <div className="flex justify-between items-start mb-8">
-                                <div>
-                                    <h3 className={`text-base font-semibold ${mutedTextClass} uppercase tracking-wide`}>Daily Overview</h3>
-                                    <div className={`text-5xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} mt-2`}>
-                                        {getTotalStudyTime().hours}h {getTotalStudyTime().mins}m
+                        <div className="grid grid-cols-12 gap-4">
+                            {/* Daily Overview Chart */}
+                            <div className={`col-span-12 lg:col-span-4 ${cardBgClass} border ${borderClass} rounded-lg p-4 flex flex-col min-h-[240px]`}>
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-tight">Daily Overview</h3>
+                                        <p className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                            {getTotalStudyTime().hours}h {getTotalStudyTime().mins}m
+                                        </p>
                                     </div>
+                                    <span className="text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">+12%</span>
                                 </div>
-                                <div className="flex items-center gap-4 text-xs font-semibold tracking-wider">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-3 h-3 rounded-full bg-cyan-500"></span>
-                                        <span className={mutedTextClass}>FOCUS</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`w-3 h-3 rounded-full ${isDark ? 'bg-gray-600' : 'bg-gray-300'}`}></span>
-                                        <span className={mutedTextClass}>BREAK</span>
-                                    </div>
+                                <div className="flex items-end justify-between h-full gap-1.5 px-1">
+                                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => {
+                                        const h = [40, 65, 85, 55, 30, 20, 15][i];
+                                        const isToday = i === 2; // Mocking Wednesday as today based on screenshot
+                                        return (
+                                            <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group cursor-pointer h-full justify-end">
+                                                <div
+                                                    className={`w-full rounded-sm transition-colors ${isToday
+                                                            ? 'bg-[#06b6d4] shadow-[0_0_10px_rgba(6,182,212,0.4)]'
+                                                            : `${isDark ? 'bg-gray-800' : 'bg-gray-100'} group-hover:bg-[#06b6d4]/30`
+                                                        }`}
+                                                    style={{ height: `${h}%` }}
+                                                ></div>
+                                                <span className={`text-[9px] font-bold ${isToday ? 'text-[#06b6d4]' : 'text-gray-400'}`}>{day}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
-                            {/* Bar Chart */}
-                            <div className="flex-1 flex items-end justify-between gap-3 mt-4 h-48">
-                                {[30, 45, 65, 25, 10, 50, 35].map((height, i) => (
-                                    <div key={i} className="flex flex-col items-center gap-3 group w-full">
-                                        <div className={`w-full ${inputBgClass} rounded-t relative h-48 flex items-end overflow-hidden group-hover:bg-opacity-80 transition-colors`}>
-                                            <div
-                                                className={`w-full bg-cyan-500 rounded-t transition-all ${i === 2 ? 'shadow-[0_0_10px_rgba(6,182,212,0.4)]' : 'opacity-40'}`}
-                                                style={{ height: `${height}%` }}
-                                            />
+                            {/* Heatmap */}
+                            <div className={`col-span-12 lg:col-span-5 ${cardBgClass} border ${borderClass} rounded-lg p-4 flex flex-col min-h-[240px]`}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-tight">Focus Intensity Heatmap</h3>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[9px] text-gray-400">Less</span>
+                                        <div className="flex gap-0.5">
+                                            {heatmapColors.slice(1).map((c, i) => (
+                                                <div key={i} className={`w-2 h-2 rounded-sm ${c.split(' ')[0]} ${c.split(' ')[1] || ''}`}></div>
+                                            ))}
                                         </div>
-                                        <span className={`text-sm font-medium ${i === 2 ? 'text-cyan-500 font-bold' : 'text-gray-400'}`}>
-                                            {12 + i}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Stats Cards */}
-                        <div className="md:col-span-4 flex flex-col gap-5">
-                            {/* Focus Streak */}
-                            <div className={`${cardBgClass} border ${borderClass} p-5 rounded-xl shadow-sm hover:border-gray-600 transition-colors flex items-center gap-5`}>
-                                <div className={`p-4 rounded-lg ${isDark ? 'bg-indigo-900/20' : 'bg-indigo-50'} text-indigo-500`}>
-                                    <Flame size={28} />
-                                </div>
-                                <div>
-                                    <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Focus Streak</h4>
-                                    <p className={`text-sm ${mutedTextClass} mt-1`}>
-                                        Current: <span className="text-indigo-500 font-medium">{completedSessions.length} sessions</span>
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Daily Goal */}
-                            <div className={`${cardBgClass} border ${borderClass} p-5 rounded-xl shadow-sm hover:border-gray-600 transition-colors flex items-center gap-5`}>
-                                <div className={`p-4 rounded-lg ${isDark ? 'bg-rose-900/20' : 'bg-rose-50'} text-rose-500`}>
-                                    <Target size={28} />
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Daily Goal</h4>
-                                        <span className="text-xs text-gray-400">{getTotalStudyTime().total}/240 min</span>
-                                    </div>
-                                    <div className={`w-full ${isDark ? 'bg-gray-700' : 'bg-gray-100'} h-2 rounded-full overflow-hidden`}>
-                                        <div
-                                            className="bg-rose-500 h-full rounded-full transition-all"
-                                            style={{ width: `${Math.min((getTotalStudyTime().total / 240) * 100, 100)}%` }}
-                                        />
+                                        <span className="text-[9px] text-gray-400">More</span>
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Total Minutes */}
-                            <div className={`${cardBgClass} border ${borderClass} p-5 rounded-xl shadow-sm hover:border-gray-600 transition-colors flex items-center gap-5`}>
-                                <div className={`p-4 rounded-lg ${isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'} text-emerald-500`}>
-                                    <BarChart3 size={28} />
-                                </div>
-                                <div>
-                                    <h4 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Total Minutes</h4>
-                                    <p className={`text-sm ${mutedTextClass} mt-1`}>
-                                        <span className="text-emerald-500 font-medium">{getTotalStudyTime().total} minutes</span> focused
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Session Summary */}
-                            <div className={`${cardBgClass} border ${borderClass} p-5 rounded-xl shadow-sm flex-1 flex flex-col justify-center`}>
-                                <h4 className={`text-sm font-bold ${mutedTextClass} uppercase tracking-wide mb-3`}>Session Summary</h4>
-                                {completedSessions.length > 0 ? (
-                                    <div className="space-y-3">
-                                        {completedSessions.slice(-3).map((session, i) => (
-                                            <div key={i} className="flex justify-between text-base">
-                                                <span className={mutedTextClass}>Session {completedSessions.length - 2 + i}</span>
-                                                <span className="text-cyan-500 font-medium">{session.duration} min</span>
+                                <div className="flex-1 flex flex-col justify-center overflow-x-auto">
+                                    <div className="min-w-[400px]" style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'auto repeat(24, 1fr)',
+                                        gap: '3px'
+                                    }}>
+                                        {/* Time Labels */}
+                                        <div className="text-[8px] text-gray-400 h-3"></div>
+                                        {Array.from({ length: 12 }).map((_, i) => (
+                                            <div key={i} className="text-[8px] text-gray-400 text-center col-span-2">
+                                                {(i * 2).toString().padStart(2, '0')}
                                             </div>
                                         ))}
+
+                                        {/* Days Rows */}
+                                        {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day, dIndex) => (
+                                            <>
+                                                <div key={`label-${day}`} className="text-[9px] font-bold text-gray-400 pr-2 self-center">{day}</div>
+                                                {Array.from({ length: 24 }).map((_, hIndex) => {
+                                                    const val = Math.floor(Math.random() * 5); // Random intensity
+                                                    const colorClass = heatmapColors[val];
+                                                    return (
+                                                        <div key={`${day}-${hIndex}`} className={`aspect-square rounded-[2px] ${colorClass}`}></div>
+                                                    );
+                                                })}
+                                            </>
+                                        ))}
                                     </div>
-                                ) : (
-                                    <div className={`flex items-center gap-3 text-base ${mutedTextClass} italic`}>
-                                        <Info size={22} />
-                                        No recent sessions
+                                </div>
+                            </div>
+
+                            {/* Stats Side Column */}
+                            <div className="col-span-12 lg:col-span-3 flex flex-col gap-3">
+                                {/* Focus Streak */}
+                                <div className={`flex-1 ${cardBgClass} border ${borderClass} rounded-lg p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>
+                                    <div className={`w-9 h-9 rounded-lg ${isDark ? 'bg-orange-500/10' : 'bg-orange-100'} flex items-center justify-center text-orange-500`}>
+                                        <Flame size={20} />
                                     </div>
-                                )}
+                                    <div>
+                                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Focus Streak</h4>
+                                        <p className={`text-sm font-bold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                                            {completedSessions.length > 0 ? `${completedSessions.length} Days` : '0 Days'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Daily Goal */}
+                                <div className={`flex-1 ${cardBgClass} border ${borderClass} rounded-lg p-3 flex flex-col justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Daily Goal</h4>
+                                        <span className="text-[10px] text-pink-500 font-bold">
+                                            {Math.round(Math.min((getTotalStudyTime().total / 240) * 100, 100))}%
+                                        </span>
+                                    </div>
+                                    <div className={`w-full h-1.5 ${isDark ? 'bg-gray-800' : 'bg-gray-100'} rounded-full overflow-hidden`}>
+                                        <div
+                                            className="h-full bg-pink-500 transition-all duration-500"
+                                            style={{ width: `${Math.min((getTotalStudyTime().total / 240) * 100, 100)}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+
+                                {/* Total Focus */}
+                                <div className={`flex-1 ${cardBgClass} border ${borderClass} rounded-lg p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors`}>
+                                    <div className={`w-9 h-9 rounded-lg ${isDark ? 'bg-emerald-500/10' : 'bg-emerald-100'} flex items-center justify-center text-emerald-500`}>
+                                        <Target size={20} />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Total Focus</h4>
+                                        <p className={`text-sm font-bold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{getTotalStudyTime().total} mins</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </section>
-            </main>
 
-            {/* Footer */}
-            <footer className="w-full max-w-7xl mx-auto mt-10 text-center">
-                <p className={`text-sm ${mutedTextClass}`}>
-                    Pro Tip: Use <span className={`font-mono ${inputBgClass} px-2 py-1 rounded`}>Space</span> to pause/resume timer.
-                </p>
-            </footer>
+                    {/* Recent Activity / Bottom Bar */}
+                    <div className="col-span-12">
+                        <div className={`w-full ${cardBgClass} border ${borderClass} rounded-lg px-4 py-2.5 flex justify-between items-center`}>
+                            <div className="flex items-center gap-4">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recent Activity</span>
+                                <div className="flex -space-x-1.5">
+                                    <div className={`w-5 h-5 rounded-full border-2 ${isDark ? 'border-gray-900 bg-cyan-900' : 'border-white bg-cyan-100'}`}></div>
+                                    <div className={`w-5 h-5 rounded-full border-2 ${isDark ? 'border-gray-900 bg-cyan-800' : 'border-white bg-cyan-200'}`}></div>
+                                    <div className={`w-5 h-5 rounded-full border-2 ${isDark ? 'border-gray-900 bg-cyan-700' : 'border-white bg-cyan-300'}`}></div>
+                                </div>
+                            </div>
+                            <button className="text-[10px] font-bold text-[#06b6d4] hover:underline uppercase tracking-tight">
+                                Explore Full History →
+                            </button>
+                        </div>
+                    </div>
+                </main>
+            </div>
+
+            <script dangerouslySetInnerHTML={{
+                __html: `
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.classList.add('dark');
+                }
+            `}} />
         </div>
     );
 }
