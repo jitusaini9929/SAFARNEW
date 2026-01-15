@@ -41,6 +41,13 @@ export default function StudyWithMe() {
     const [showCustom, setShowCustom] = useState(false);
     const [timerMode, setTimerMode] = useState<'focus' | 'shortBreak' | 'longBreak'>('focus');
     const [focusCount, setFocusCount] = useState(0);
+    // Custom timer state (hours, minutes, seconds)
+    const [studyHours, setStudyHours] = useState(0);
+    const [studyMinutes, setStudyMinutes] = useState(25);
+    const [studySeconds, setStudySeconds] = useState(0);
+    const [breakHours, setBreakHours] = useState(0);
+    const [breakMinutes, setBreakMinutes] = useState(5);
+    const [breakSeconds, setBreakSeconds] = useState(0);
 
     const sessionTypes: SessionType[] = [
         { duration: 25, break: 5, label: '25 min' },
@@ -114,12 +121,22 @@ export default function StudyWithMe() {
     };
 
     const startCustomSession = () => {
-        if (customStudy > 0 && customBreak > 0) {
-            startSession({
-                duration: customStudy,
-                break: customBreak,
-                label: `${customStudy} min`
+        const totalStudyMinutes = studyHours * 60 + studyMinutes + studySeconds / 60;
+        const totalBreakMinutes = breakHours * 60 + breakMinutes + breakSeconds / 60;
+        const studySeconds_total = studyHours * 3600 + studyMinutes * 60 + studySeconds;
+        const breakSeconds_total = breakHours * 3600 + breakMinutes * 60 + breakSeconds;
+
+        if (studySeconds_total > 0 && breakSeconds_total > 0) {
+            setSelectedSession({
+                duration: Math.ceil(totalStudyMinutes),
+                break: Math.ceil(totalBreakMinutes),
+                label: `${studyHours > 0 ? studyHours + 'h ' : ''}${studyMinutes}m${studySeconds > 0 ? ' ' + studySeconds + 's' : ''}`
             });
+            setTimeLeft(studySeconds_total);
+            setIsBreak(false);
+            setIsRunning(false);
+            setShowCustom(false);
+            setTimerMode('focus');
         }
     };
 
@@ -241,31 +258,91 @@ export default function StudyWithMe() {
                         </button>
 
                         {showCustom && (
-                            <div className="mt-4 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={`block text-sm ${mutedTextClass} mb-2`}>Study (min)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="180"
-                                            value={customStudy}
-                                            onChange={(e) => setCustomStudy(parseInt(e.target.value) || 0)}
-                                            className={`w-full px-4 py-3 ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-100 border-zinc-300'} border rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${textClass}`}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={`block text-sm ${mutedTextClass} mb-2`}>Break (min)</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="60"
-                                            value={customBreak}
-                                            onChange={(e) => setCustomBreak(parseInt(e.target.value) || 0)}
-                                            className={`w-full px-4 py-3 ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-100 border-zinc-300'} border rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${textClass}`}
-                                        />
+                            <div className="mt-4 space-y-6">
+                                {/* Study Duration */}
+                                <div>
+                                    <label className={`block text-sm font-medium ${mutedTextClass} mb-3`}>Study Duration</label>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1">
+                                            <div className={`text-xs ${mutedTextClass} mb-1 text-center`}>Hours</div>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="23"
+                                                value={studyHours}
+                                                onChange={(e) => setStudyHours(Math.max(0, Math.min(23, parseInt(e.target.value) || 0)))}
+                                                className={`w-full px-3 py-3 text-center text-xl font-bold ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-zinc-300'} border rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${textClass}`}
+                                            />
+                                        </div>
+                                        <span className={`text-2xl font-bold ${mutedTextClass}`}>:</span>
+                                        <div className="flex-1">
+                                            <div className={`text-xs ${mutedTextClass} mb-1 text-center`}>Minutes</div>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="59"
+                                                value={studyMinutes}
+                                                onChange={(e) => setStudyMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                                                className={`w-full px-3 py-3 text-center text-xl font-bold ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-zinc-300'} border rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${textClass}`}
+                                            />
+                                        </div>
+                                        <span className={`text-2xl font-bold ${mutedTextClass}`}>:</span>
+                                        <div className="flex-1">
+                                            <div className={`text-xs ${mutedTextClass} mb-1 text-center`}>Seconds</div>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="59"
+                                                value={studySeconds}
+                                                onChange={(e) => setStudySeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                                                className={`w-full px-3 py-3 text-center text-xl font-bold ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-zinc-300'} border rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${textClass}`}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Break Duration */}
+                                <div>
+                                    <label className={`block text-sm font-medium ${mutedTextClass} mb-3`}>Break Duration</label>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1">
+                                            <div className={`text-xs ${mutedTextClass} mb-1 text-center`}>Hours</div>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="23"
+                                                value={breakHours}
+                                                onChange={(e) => setBreakHours(Math.max(0, Math.min(23, parseInt(e.target.value) || 0)))}
+                                                className={`w-full px-3 py-3 text-center text-xl font-bold ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-zinc-300'} border rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${textClass}`}
+                                            />
+                                        </div>
+                                        <span className={`text-2xl font-bold ${mutedTextClass}`}>:</span>
+                                        <div className="flex-1">
+                                            <div className={`text-xs ${mutedTextClass} mb-1 text-center`}>Minutes</div>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="59"
+                                                value={breakMinutes}
+                                                onChange={(e) => setBreakMinutes(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                                                className={`w-full px-3 py-3 text-center text-xl font-bold ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-zinc-300'} border rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${textClass}`}
+                                            />
+                                        </div>
+                                        <span className={`text-2xl font-bold ${mutedTextClass}`}>:</span>
+                                        <div className="flex-1">
+                                            <div className={`text-xs ${mutedTextClass} mb-1 text-center`}>Seconds</div>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="59"
+                                                value={breakSeconds}
+                                                onChange={(e) => setBreakSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
+                                                className={`w-full px-3 py-3 text-center text-xl font-bold ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-zinc-300'} border rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${textClass}`}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <button
                                     onClick={startCustomSession}
                                     className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-white font-bold rounded-xl transition-all"
