@@ -557,7 +557,6 @@ export default function StudyWithMe() {
                             <span className={`text-sm font-semibold ${timerMode === 'focus' ? 'text-cyan-500' : timerMode === 'shortBreak' ? 'text-green-500' : 'text-amber-500'}`}>
                                 {timerMode === 'focus' ? 'FOCUS' : timerMode === 'shortBreak' ? 'SHORT BREAK' : 'LONG BREAK'}
                             </span>
-                            <span className={mutedTextClass}>🎯</span>
                             <span className={mutedTextClass}>{focusCount} / 4</span>
                         </div>
 
@@ -575,8 +574,8 @@ export default function StudyWithMe() {
                                     : isDark ? 'bg-zinc-800 border border-zinc-700 hover:border-zinc-600' : 'bg-zinc-100 border border-zinc-300 hover:border-zinc-400'
                                     }`}
                             >
-                                <div className="flex items-center gap-2 text-sm font-medium text-red-400 mb-1">
-                                    🍅 Focus
+                                <div className="text-sm font-medium text-red-400 mb-1">
+                                    Focus
                                 </div>
                                 <div className={`text-xl font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                                     {selectedSession?.duration || 25} min
@@ -594,8 +593,8 @@ export default function StudyWithMe() {
                                     : isDark ? 'bg-zinc-800 border border-zinc-700 hover:border-zinc-600' : 'bg-zinc-100 border border-zinc-300 hover:border-zinc-400'
                                     }`}
                             >
-                                <div className="flex items-center gap-2 text-sm font-medium text-blue-400 mb-1">
-                                    ☕ Short Break
+                                <div className="text-sm font-medium text-blue-400 mb-1">
+                                    Short Break
                                 </div>
                                 <div className={`text-xl font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                                     5 min
@@ -613,8 +612,8 @@ export default function StudyWithMe() {
                                     : isDark ? 'bg-zinc-800 border border-zinc-700 hover:border-zinc-600' : 'bg-zinc-100 border border-zinc-300 hover:border-zinc-400'
                                     }`}
                             >
-                                <div className="flex items-center gap-2 text-sm font-medium text-amber-400 mb-1">
-                                    🧘 Long Break
+                                <div className="text-sm font-medium text-amber-400 mb-1">
+                                    Long Break
                                 </div>
                                 <div className={`text-xl font-bold ${isDark ? 'text-white' : 'text-zinc-900'}`}>
                                     25 min
