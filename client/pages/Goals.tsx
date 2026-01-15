@@ -80,7 +80,7 @@ export default function Goals() {
   const safeGoals = Array.isArray(goals) ? goals : [];
   const activeGoals = safeGoals.filter(g => !g.completed);
   const priorityGoal = activeGoals.length > 0 ? activeGoals[0] : null;
-  const upNextGoals = activeGoals.slice(1, 4);
+  const upNextGoals = activeGoals.slice(1);
   const completedGoals = safeGoals.filter(g => g.completed);
   const completionRate = safeGoals.length > 0 ? Math.round((completedGoals.length / safeGoals.length) * 100) : 0;
 
@@ -264,7 +264,7 @@ export default function Goals() {
                     <div className="group flex items-center justify-between p-4 -ml-4 rounded-2xl hover:bg-muted/50 transition-all cursor-pointer">
                       <div>
                         <h4 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">{goal.text}</h4>
-                        <p className="text-sm text-muted-foreground mt-1">{new Date(goal.createdAt).toLocaleDateString()} • {goal.type}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{new Date(goal.createdAt || goal.created_at).toLocaleDateString()} • {goal.type}</p>
                       </div>
                       <button
                         onClick={() => handleToggleGoal(goal.id)}
