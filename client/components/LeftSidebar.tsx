@@ -50,10 +50,10 @@ const navItems = [
     description: "Maintain your streaks",
   },
   {
-    label: "Perks",
-    href: "/perks",
+    label: "Achievements",
+    href: "/achievements",
     icon: Award,
-    description: "Your rewards & titles",
+    description: "Badges & titles",
   },
   {
     label: "Suggestions",

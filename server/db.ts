@@ -157,5 +157,47 @@ export async function initDatabase() {
         // Column likely already exists - ignore
     }
 
+    // ========================================
+    // NEW: Achievement System Tables
+    // ========================================
+
+    // Achievement definitions table - stores all available achievements
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS achievement_definitions (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            type TEXT CHECK(type IN ('badge', 'title')) NOT NULL,
+            category TEXT CHECK(category IN ('focus', 'goals', 'emotional')) NOT NULL,
+            rarity TEXT CHECK(rarity IN ('common', 'uncommon', 'rare', 'epic', 'legendary', 'special')),
+            tier INTEGER,
+            criteria_json TEXT NOT NULL DEFAULT '{}',
+            display_priority INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // User achievements table - tracks which achievements each user has earned
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS user_achievements (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            achievement_id TEXT NOT NULL,
+            acquired_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            is_active INTEGER DEFAULT 1,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (achievement_id) REFERENCES achievement_definitions(id),
+            UNIQUE(user_id, achievement_id)
+        )
+    `);
+
+    // Migration: Add selected_achievement_id to users table
+    try {
+        await db.execute(`ALTER TABLE users ADD COLUMN selected_achievement_id TEXT`);
+        console.log('Added selected_achievement_id column to users table');
+    } catch (e) {
+        // Column likely already exists - ignore
+    }
+
     console.log('Database initialized successfully');
 }

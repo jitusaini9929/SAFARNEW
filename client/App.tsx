@@ -23,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import ForgotPassword from "./pages/ForgotPassword";
 import StudyWithMe from "./pages/StudyWithMe";
 import Perks from "./pages/Perks";
+import Achievements from "./pages/Achievements";
 
 const queryClient = new QueryClient();
 
@@ -132,6 +133,14 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <Perks />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/achievements"
+            element={
+              <ProtectedRoute>
+                <Achievements />
               </ProtectedRoute>
             }
           />

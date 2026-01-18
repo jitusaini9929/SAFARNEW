@@ -271,7 +271,7 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Your Perks - Uses glass-high for proper theme switching */}
+                        {/* Achievements - Uses glass-high for proper theme switching */}
                         <div className="lg:col-span-4 glass-high rounded-[2rem] p-8 relative overflow-hidden flex flex-col justify-between min-h-[380px]">
                             {/* Gold accent glow */}
                             <div className="absolute top-0 right-0 w-40 h-40 bg-yellow-400/20 dark:bg-yellow-400/10 rounded-full blur-[50px] pointer-events-none"></div>
@@ -283,9 +283,9 @@ export default function Dashboard() {
                                         <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-500">
                                             <Sparkles className="w-5 h-5" />
                                         </div>
-                                        <h3 className="font-bold text-xl tracking-tight text-foreground font-['Plus_Jakarta_Sans']">Your Perks</h3>
+                                        <h3 className="font-bold text-xl tracking-tight text-foreground font-['Poppins']">Achievements</h3>
                                     </div>
-                                    <a href="/perks" className="text-xs font-bold uppercase tracking-widest text-primary hover:text-primary/80 transition-colors">
+                                    <a href="/achievements" className="text-xs font-bold uppercase tracking-widest text-primary hover:text-primary/80 transition-colors">
                                         View All
                                     </a>
                                 </div>
