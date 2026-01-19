@@ -659,7 +659,7 @@ export default function StudyWithMe() {
                                             }}
                                             className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-wider rounded-xl transition-colors"
                                         >
-                                            Start Custom
+                                            Start Timer
                                         </button>
                                     </div>
                                 </div>
