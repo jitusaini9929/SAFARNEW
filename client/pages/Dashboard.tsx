@@ -271,7 +271,7 @@ export default function Dashboard() {
                                     <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
                                         <Award className="text-yellow-500 w-5 h-5" />
                                     </div>
-                                    <h3 className="font-semibold text-xl text-foreground">Your Perks</h3>
+                                    <h3 className="font-semibold text-xl text-foreground">Achievements</h3>
                                 </div>
                                 <button
                                     onClick={() => navigate('/achievements')}
