@@ -51,8 +51,6 @@ export default function Dashboard() {
     const [weeklyMoods, setWeeklyMoods] = useState<{ day: string; intensity: number; mood: string }[]>([]);
     const [allGoals, setAllGoals] = useState<any[]>([]);
     const [activeTitle, setActiveTitle] = useState<string | null>(null);
-    const [perks, setPerks] = useState<any[]>([]);
-    const [perkCounts, setPerkCounts] = useState<{ aura: number; echo: number; seasonal: number }>({ aura: 0, echo: 0, seasonal: 0 });
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -123,17 +121,11 @@ export default function Dashboard() {
                     const completed = todaysGoals.filter((g: any) => g.completed).length;
                     setGoals({ total, completed });
                 } catch (e) { console.error('Failed to fetch goals', e); }
-                // Fetch active perk title
+                // Fetch active achievement title
                 try {
                     const titleData = await dataService.getActiveTitle();
                     setActiveTitle(titleData.title);
                 } catch (e) { console.error('Failed to fetch active title', e); }
-                // Fetch all perks
-                try {
-                    const perkData = await dataService.getPerks();
-                    setPerks(perkData.perks || []);
-                    setPerkCounts(perkData.counts || { aura: 0, echo: 0, seasonal: 0 });
-                } catch (e) { console.error('Failed to fetch perks', e); }
             } catch (error) {
                 navigate("/login");
             }
@@ -271,50 +263,44 @@ export default function Dashboard() {
                             </div>
                         </div>
 
-                        {/* Your Perks */}
-                        <div className="lg:col-span-4 glass-high rounded-2xl p-6 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-2xl pointer-events-none"></div>
-                            <div className="flex items-center gap-2 mb-4 relative z-10">
-                                <Award className="text-yellow-500 w-5 h-5" />
-                                <h3 className="font-semibold text-lg text-foreground">Your Perks</h3>
+                        {/* Your Achievements */}
+                        <div className="lg:col-span-4 rounded-2xl p-6 relative overflow-hidden min-h-[280px]"
+                            style={{
+                                background: 'radial-gradient(circle at top right, rgba(251, 191, 36, 0.08), transparent), linear-gradient(135deg, rgba(18, 26, 22, 1) 0%, rgba(10, 15, 13, 1) 100%)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)'
+                            }}>
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400/10 rounded-full blur-3xl pointer-events-none"></div>
+                            <div className="flex items-center justify-between mb-8 relative z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                                        <Award className="text-yellow-500 w-5 h-5" />
+                                    </div>
+                                    <h3 className="font-semibold text-xl text-foreground">Your Perks</h3>
+                                </div>
+                                <button
+                                    onClick={() => navigate('/achievements')}
+                                    className="text-xs font-bold uppercase tracking-widest text-primary/80 hover:text-primary transition-colors"
+                                >
+                                    View All
+                                </button>
                             </div>
-                            <div className="relative z-10">
-                                {perks.length > 0 ? (
-                                    <div className="space-y-3">
-                                        {/* Active Aura Title */}
-                                        {activeTitle && (
-                                            <div className="perk-container p-3 rounded-xl bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30">
-                                                <p className="text-xs text-muted-foreground mb-1">Active Title</p>
-                                                <PerkTitle title={activeTitle} type="aura" size="md" />
-                                            </div>
-                                        )}
-                                        {/* Perk Counts */}
-                                        <div className="flex gap-2 flex-wrap">
-                                            {perkCounts.aura > 0 && (
-                                                <span className="bg-yellow-500/20 text-yellow-600 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
-                                                    <Sparkles className="w-3 h-3" /> {perkCounts.aura} Aura
-                                                </span>
-                                            )}
-                                            {perkCounts.echo > 0 && (
-                                                <span className="bg-purple-500/20 text-purple-600 px-2 py-1 rounded-lg text-xs font-bold">
-                                                    {perkCounts.echo} Echo
-                                                </span>
-                                            )}
-                                            {perkCounts.seasonal > 0 && (
-                                                <span className="bg-emerald-500/20 text-emerald-600 px-2 py-1 rounded-lg text-xs font-bold">
-                                                    {perkCounts.seasonal} Seasonal
-                                                </span>
-                                            )}
-                                        </div>
-                                        {perks.length === 0 && !activeTitle && (
-                                            <p className="text-muted-foreground text-sm">Keep going to earn perks!</p>
-                                        )}
+
+                            <div className="relative z-10 text-center">
+                                <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted-foreground mb-4">Current Title</p>
+                                {activeTitle ? (
+                                    <div className="relative inline-block px-8 py-4 rounded-2xl bg-white/5 border border-yellow-500/40"
+                                        style={{ boxShadow: '0 0 25px rgba(251, 191, 36, 0.25)' }}>
+                                        <Sparkles className="absolute -top-3 -right-3 text-yellow-500 w-5 h-5" />
+                                        <span className="text-2xl font-serif italic font-bold bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 bg-clip-text text-transparent">
+                                            {activeTitle}
+                                        </span>
+                                        <Sparkles className="absolute -bottom-2 -left-3 text-yellow-500/40 w-4 h-4" />
                                     </div>
                                 ) : (
                                     <div className="text-center py-4">
                                         <Sparkles className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                                        <p className="text-muted-foreground text-sm">No perks yet</p>
-                                        <p className="text-muted-foreground text-xs mt-1">Build streaks to unlock!</p>
+                                        <p className="text-muted-foreground text-sm">No title yet</p>
+                                        <p className="text-muted-foreground text-xs mt-1">Complete focus sessions to earn!</p>
                                     </div>
                                 )}
                             </div>

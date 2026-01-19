@@ -106,32 +106,31 @@ export const dataService = {
         return res.json();
     },
 
-    // --- Perks ---
-    async getPerks(): Promise<{
-        perks: Array<{
-            perk_id: string;
+    // --- Achievements ---
+    async getAchievements(): Promise<{
+        achievements: Array<{
+            achievement_id: string;
             acquired_at: string;
             is_active: number;
             name: string;
-            type: 'aura' | 'echo' | 'seasonal';
+            type: 'badge' | 'title';
             category: string;
-            rarity: string | null;
             tier: number | null;
             display_priority: number;
         }>;
-        counts: { aura: number; echo: number; seasonal: number };
+        counts: { badges: number; titles: number };
     }> {
-        const res = await fetch(`${API_URL}/perks`, {
+        const res = await fetch(`${API_URL}/achievements`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
         });
-        if (!res.ok) throw new Error("Failed to fetch perks");
+        if (!res.ok) throw new Error("Failed to fetch achievements");
         return res.json();
     },
 
     async getActiveTitle(): Promise<{ title: string | null; type?: string }> {
-        const res = await fetch(`${API_URL}/perks/active-title`, {
+        const res = await fetch(`${API_URL}/achievements/active-title`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
@@ -140,41 +139,39 @@ export const dataService = {
         return res.json();
     },
 
-    async getAllPerks(): Promise<{
-        perks: Array<{
+    async getAllAchievements(): Promise<{
+        achievements: Array<{
             id: string;
             name: string;
             description: string | null;
-            type: 'aura' | 'echo' | 'seasonal';
+            type: 'badge' | 'title';
             category: string;
-            rarity: string | null;
             tier: number | null;
             requirement: string;
             holderCount: number;
             earned: boolean;
-            active: boolean;
             progress: number;
             currentValue: number;
             targetValue: number;
         }>;
     }> {
-        const res = await fetch(`${API_URL}/perks/all`, {
+        const res = await fetch(`${API_URL}/achievements/all`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
         });
-        if (!res.ok) throw new Error("Failed to fetch all perks");
+        if (!res.ok) throw new Error("Failed to fetch all achievements");
         return res.json();
     },
 
-    async selectPerk(perkId: string | null): Promise<{ message: string; selectedPerkId: string | null; title?: string; type?: string }> {
-        const res = await fetch(`${API_URL}/perks/select`, {
+    async selectAchievement(achievementId: string | null): Promise<{ message: string; selectedId: string | null; title?: string; type?: string }> {
+        const res = await fetch(`${API_URL}/achievements/select`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ perkId }),
+            body: JSON.stringify({ achievementId }),
             credentials: 'include',
         });
-        if (!res.ok) throw new Error("Failed to select perk");
+        if (!res.ok) throw new Error("Failed to select achievement");
         return res.json();
     },
 };
