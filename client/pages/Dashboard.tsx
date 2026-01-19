@@ -20,7 +20,8 @@ import {
     CheckCircle2,
     Circle,
     Award,
-    Sparkles
+    Sparkles,
+    Medal
 } from "lucide-react";
 import youtubeImg from "@/assets/youtube-thumbnail.png";
 import courseImg from "@/assets/course-thumbnail.png";
@@ -51,6 +52,7 @@ export default function Dashboard() {
     const [weeklyMoods, setWeeklyMoods] = useState<{ day: string; intensity: number; mood: string }[]>([]);
     const [allGoals, setAllGoals] = useState<any[]>([]);
     const [activeTitle, setActiveTitle] = useState<string | null>(null);
+    const [activeBadge, setActiveBadge] = useState<any | null>(null);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -125,6 +127,19 @@ export default function Dashboard() {
                 try {
                     const titleData = await dataService.getActiveTitle();
                     setActiveTitle(titleData.title);
+
+                    // Fetch all achievements to find active badge (highest tier earned)
+                    try {
+                        const allAchievementsData = await dataService.getAllAchievements();
+                        const earnedBadges = (allAchievementsData.achievements || [])
+                            .filter((a: any) => a.type === 'badge' && a.earned)
+                            .sort((a: any, b: any) => (b.tier || 0) - (a.tier || 0)); // Sort by tier descending, highest first
+
+                        if (earnedBadges.length > 0) {
+                            setActiveBadge(earnedBadges[0]);
+                        }
+                    } catch (e) { console.error('Failed to fetch badges', e); }
+
                 } catch (e) { console.error('Failed to fetch active title', e); }
             } catch (error) {
                 navigate("/login");
@@ -286,42 +301,42 @@ export default function Dashboard() {
                             </div>
 
                             <div className="relative z-10 text-center">
-                                <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted-foreground mb-6">Current Title</p>
-                                {activeTitle ? (
+                                <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted-foreground mb-6">Current Badge</p>
+                                {activeBadge ? (
                                     <div
-                                        className="relative inline-block px-10 py-5 rounded-2xl bg-gradient-to-br from-yellow-400/20 via-amber-300/15 to-yellow-400/20 dark:from-yellow-500/15 dark:via-amber-400/10 dark:to-yellow-500/15 border-2 border-yellow-500/50 dark:border-yellow-400/40 animate-pulse"
+                                        className="relative inline-block px-10 py-5 rounded-2xl bg-gradient-to-br from-teal-400/20 via-emerald-300/15 to-teal-400/20 dark:from-teal-500/15 dark:via-emerald-400/10 dark:to-teal-500/15 border-2 border-teal-500/50 dark:border-teal-400/40 animate-pulse"
                                         style={{
-                                            boxShadow: '0 0 40px rgba(251, 191, 36, 0.4), 0 0 80px rgba(251, 191, 36, 0.2), inset 0 0 20px rgba(251, 191, 36, 0.1)',
+                                            boxShadow: '0 0 40px rgba(20, 184, 166, 0.4), 0 0 80px rgba(20, 184, 166, 0.2), inset 0 0 20px rgba(20, 184, 166, 0.1)',
                                         }}
                                     >
                                         {/* Decorative sparkles with glow */}
-                                        <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-yellow-400/30 dark:bg-yellow-500/20 blur-md"></div>
-                                        <Sparkles className="absolute -top-3 -right-3 text-yellow-500 dark:text-yellow-400 w-6 h-6 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]" />
+                                        <div className="absolute -top-4 -right-4 w-8 h-8 rounded-full bg-teal-400/30 dark:bg-teal-500/20 blur-md"></div>
+                                        <Medal className="absolute -top-3 -right-3 text-teal-500 dark:text-teal-400 w-6 h-6 drop-shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
 
-                                        <div className="absolute -bottom-3 -left-3 w-6 h-6 rounded-full bg-yellow-400/20 dark:bg-yellow-500/15 blur-sm"></div>
-                                        <Sparkles className="absolute -bottom-2 -left-3 text-yellow-500/70 dark:text-yellow-400/60 w-5 h-5 drop-shadow-[0_0_6px_rgba(234,179,8,0.4)]" />
+                                        <div className="absolute -bottom-3 -left-3 w-6 h-6 rounded-full bg-teal-400/20 dark:bg-teal-500/15 blur-sm"></div>
+                                        <Medal className="absolute -bottom-2 -left-3 text-teal-500/70 dark:text-teal-400/60 w-5 h-5 drop-shadow-[0_0_6px_rgba(20,184,166,0.4)]" />
 
-                                        {/* Title text with enhanced gradient and glow */}
+                                        {/* Badge text with enhanced gradient and glow */}
                                         <span
-                                            className="text-3xl font-serif italic font-bold bg-gradient-to-r from-amber-700 via-yellow-500 to-amber-700 dark:from-amber-300 dark:via-yellow-300 dark:to-amber-300 bg-clip-text text-transparent"
+                                            className="text-3xl font-serif italic font-bold bg-gradient-to-r from-teal-700 via-emerald-500 to-teal-700 dark:from-teal-300 dark:via-emerald-300 dark:to-teal-300 bg-clip-text text-transparent"
                                             style={{
-                                                filter: 'drop-shadow(0 0 10px rgba(251, 191, 36, 0.5))',
+                                                filter: 'drop-shadow(0 0 10px rgba(20, 184, 166, 0.5))',
                                             }}
                                         >
-                                            {activeTitle}
+                                            {activeBadge.name}
                                         </span>
 
                                         {/* Inner glow effect */}
-                                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-yellow-400/10 to-transparent pointer-events-none"></div>
+                                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-teal-400/10 to-transparent pointer-events-none"></div>
                                     </div>
                                 ) : (
                                     <div className="text-center py-6">
                                         <div className="relative inline-block mb-3">
-                                            <div className="absolute inset-0 bg-yellow-400/20 dark:bg-yellow-500/10 rounded-full blur-xl"></div>
-                                            <Sparkles className="relative w-10 h-10 text-yellow-500/60 dark:text-yellow-400/40 mx-auto" />
+                                            <div className="absolute inset-0 bg-teal-400/20 dark:bg-teal-500/10 rounded-full blur-xl"></div>
+                                            <Award className="relative w-10 h-10 text-teal-500/60 dark:text-teal-400/40 mx-auto" />
                                         </div>
-                                        <p className="text-muted-foreground text-sm font-medium">No title yet</p>
-                                        <p className="text-muted-foreground text-xs mt-1.5">Complete focus sessions to earn!</p>
+                                        <p className="text-muted-foreground text-sm font-medium">No badge yet</p>
+                                        <p className="text-muted-foreground text-xs mt-1.5">Complete goals to earn!</p>
                                     </div>
                                 )}
                             </div>
