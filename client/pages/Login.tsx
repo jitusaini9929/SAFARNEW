@@ -36,11 +36,11 @@ export default function Login() {
       const user = await authService.login(email, password);
       console.log('🟢 [CLIENT LOGIN] Login successful, user:', user);
       toast.success("Welcome back!");
-      console.log('🟢 [CLIENT LOGIN] Calling navigate("/dashboard")...');
+      console.log('🟢 [CLIENT LOGIN] Calling navigate("/")...');
       // Set flag to show welcome dialog on dashboard
       sessionStorage.setItem("showWelcome", "true");
-      // Navigate using React Router instead of hard reload
-      navigate("/dashboard");
+      // Navigate to Landing page after successful login
+      navigate("/");
       console.log('🟢 [CLIENT LOGIN] navigate() called');
     } catch (err: any) {
       console.error('🔴 [CLIENT LOGIN] Error:', err);
