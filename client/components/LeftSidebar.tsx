@@ -44,22 +44,10 @@ const navItems = [
     description: "Maintain your streaks",
   },
   {
-    label: "Achievements",
-    href: "/achievements",
-    icon: Award,
-    description: "Badges & titles",
-  },
-  {
     label: "Suggestions",
     href: "/suggestions",
     icon: Lightbulb,
     description: "Personalized tips",
-  },
-  {
-    label: "Profile",
-    href: "/profile",
-    icon: User,
-    description: "Account settings",
   },
 ];
 
@@ -71,7 +59,6 @@ const mobileNavItems = [
   { label: "Goals", href: "/goals", icon: Target },
   { label: "Streaks", href: "/streaks", icon: Flame },
   { label: "Tips", href: "/suggestions", icon: Lightbulb },
-  { label: "Profile", href: "/profile", icon: User },
 ];
 
 export default function LeftSidebar() {

@@ -1,12 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
+import { dataService } from "@/utils/dataService";
+import { useTheme } from "@/contexts/ThemeContext";
+import PerkTitle from "@/components/PerkTitle";
+import { Bell, ArrowRight, Moon, Sun, LogOut, ChevronDown, ChevronUp, User, Award, Target, Flame, BookOpen, Heart, Medal } from "lucide-react";
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState<any>(null);
+  const [activeTitle, setActiveTitle] = useState<string | null>(null);
+  const [activeBadge, setActiveBadge] = useState<any | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'apps' | 'tools' | 'community'>('apps');
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = 0.5;
+    }
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -14,6 +28,23 @@ export default function Landing() {
         const data = await authService.getCurrentUser();
         if (data?.user) {
           setUser(data.user);
+          // Fetch active title
+          try {
+            const titleData = await dataService.getActiveTitle();
+            setActiveTitle(titleData.title);
+          } catch (e) { console.error('Failed to fetch active title', e); }
+
+          // Fetch all achievements to find active badge (highest tier earned)
+          try {
+            const allAchievementsData = await dataService.getAllAchievements();
+            const earnedBadges = (allAchievementsData.achievements || [])
+              .filter((a: any) => a.type === 'badge' && a.earned)
+              .sort((a: any, b: any) => (b.tier || 0) - (a.tier || 0));
+
+            if (earnedBadges.length > 0) {
+              setActiveBadge(earnedBadges[0]);
+            }
+          } catch (e) { console.error('Failed to fetch badges', e); }
         }
       } catch (e) {
         console.error("Failed to fetch user", e);
@@ -31,335 +62,492 @@ export default function Landing() {
     }
   };
 
+  const apps = [
+    {
+      name: "Nishta",
+      description: "Mental wellness tracking, mood journals, and daily goals for academic success",
+      emoji: "🧘",
+      href: "/dashboard",
+      gradient: "from-primary/20 to-secondary/10",
+      borderColor: "border-primary/30",
+      available: true
+    },
+    {
+      name: "Focus Timer",
+      description: "Pomodoro sessions with calming visuals to enhance your concentration",
+      emoji: "⏱️",
+      href: "/study",
+      gradient: "from-green-500/20 to-teal-500/10",
+      borderColor: "border-green-500/30",
+      available: true
+    },
+    {
+      name: "Mehfil",
+      description: "Study communities and peer support groups for collaborative learning",
+      emoji: "👥",
+      href: "/mehfil",
+      gradient: "from-purple-500/20 to-pink-500/10",
+      borderColor: "border-purple-500/30",
+      available: true
+    }
+  ];
+
+  const features = [
+    { icon: "💚", title: "Emotional Check-Ins", desc: "Track your daily mood and understand patterns" },
+    { icon: "📓", title: "Private Journal", desc: "Express your thoughts in a safe space" },
+    { icon: "🎯", title: "Goal Setting", desc: "Set and track daily & weekly objectives" },
+    { icon: "🔥", title: "Streak System", desc: "Build habits with motivating streaks" },
+    { icon: "🏆", title: "Achievements", desc: "Earn badges and titles as you progress" },
+    { icon: "💡", title: "Smart Suggestions", desc: "Personalized tips based on your state" }
+  ];
+
+  const stats = [
+    { value: "10K+", label: "Active Students" },
+    { value: "50K+", label: "Goals Completed" },
+    { value: "98%", label: "Satisfaction Rate" },
+    { value: "365", label: "Days of Support" }
+  ];
+
+  const testimonials = [
+    {
+      quote: "Review 3",
+      name: "",
+      role: "",
+      avatar: "👩‍🎓"
+    },
+    {
+      quote: "Review 1",
+      name: "",
+      role: "",
+      avatar: "👨‍⚕️"
+    },
+    {
+      quote: "review 2 ",
+      name: "",
+      role: "",
+      avatar: "👩‍🎨"
+    }
+  ];
+
+  const faqs = [
+    {
+      question: "What is Safar and how does it help students?",
+      answer: "Safar is a comprehensive productivity ecosystem designed for students. It includes Nishta for mental wellness tracking, Focus Timer for productive study sessions, and Mehfil (coming soon) for study communities. Together, these tools help you achieve academic success while maintaining mental well-being."
+    },
+    {
+      question: "Is my data secure and private?",
+      answer: "Absolutely! Your privacy is our top priority. All your journal entries, mood data, and personal information are encrypted and stored securely. We never share your data with third parties, and you have full control over your information."
+    },
+    {
+      question: "How does the Achievement system work?",
+      answer: "As you use Nishta, you earn badges and titles by completing goals, maintaining streaks, and tracking your emotional wellness. There are different tiers of badges — from Bronze to Diamond — rewarding consistent progress and helping you stay motivated."
+    },
+    {
+      question: "Can I use Safar on multiple devices?",
+      answer: "Yes! Your account syncs across all devices. Log in from your laptop, tablet, or phone, and all your data — goals, journal entries, streaks — will be there waiting for you."
+    },
+    {
+      question: "Is Safar free to use?",
+      answer: "Safar is completely free for all students! We believe mental wellness and productivity tools should be accessible to everyone. There are no hidden fees or premium tiers."
+    },
+    {
+      question: "How do I get started with Nishta?",
+      answer: "Simply create an account, complete your first emotional check-in, and set a few daily goals. The dashboard will guide you through all features. You can personalize your experience in the Profile section."
+    }
+  ];
+
   return (
-    <div className="bg-white text-gray-900 overflow-x-hidden font-sans">
-      <style>{`
-        :root {
-          --primary: #0A5FFF;
-          --accent: #FFB200;
-          --bg-neutral: #F7F9FC;
-          --text-main: #111827;
-          --text-muted: #6B7280;
-        }
-        body {
-          font-family: 'Lato', sans-serif;
-          scroll-behavior: smooth;
-        }
-        h1, h2, h3, h4, .font-heading {
-          font-family: 'Poppins', sans-serif;
-        }
-        .glass-nav {
-          background: rgba(255, 255, 255, 0.9);
-          backdrop-filter: blur(10px);
-          border-bottom: 1px solid rgba(10, 95, 255, 0.1);
-        }
-        .card-hover:hover {
-          transform: translateY(-8px);
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        .btn-animate:hover {
-          transform: scale(1.02);
-          box-shadow: 0 0 15px rgba(10, 95, 255, 0.3);
-        }
-        .gold-glow:hover {
-          box-shadow: 0 0 20px rgba(255, 178, 0, 0.4);
-        }
-      `}</style>
+    <div className="min-h-screen bg-background text-foreground font-['Poppins'] transition-colors duration-300">
+      {/* Background Gradient Overlay */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 15% 50%, hsl(var(--primary) / 0.08) 0%, transparent 50%),
+            radial-gradient(circle at 85% 30%, hsl(var(--primary) / 0.08) 0%, transparent 45%),
+            radial-gradient(circle at 50% 80%, hsl(var(--secondary) / 0.06) 0%, transparent 40%)
+          `,
+          backgroundAttachment: 'fixed'
+        }}
+      ></div>
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 glass-nav">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-          <div className="flex items-center gap-12">
-            <Link to="/" className="text-2xl font-extrabold text-blue-600 flex items-center gap-2">
-              🌟 Safar
-            </Link>
-            <div className="hidden lg:flex items-center space-x-8 font-medium text-gray-900">
-              <div className="group relative py-7">
-                <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-1 hover:text-blue-600 transition-colors"
-                >
-                  Apps <span className="text-sm">▼</span>
-                </button>
-                {dropdownOpen && (
-                  <div className="absolute top-20 left-0 w-48 bg-white shadow-xl rounded-xl border border-gray-100 p-2">
-                    <Link to="/dashboard" className="block p-3 hover:bg-gray-50 rounded-lg text-sm">Nishta</Link>
-                    <Link to="/study" className="block p-3 hover:bg-gray-50 rounded-lg text-sm">Focus Timer</Link>
-                    <span className="block p-3 text-gray-400 rounded-lg text-sm">Mehfil (Coming Soon)</span>
-                  </div>
-                )}
-              </div>
-              <Link to="/dashboard" className="hover:text-blue-600 transition-colors">Dashboard</Link>
-              <Link to="/achievements" className="hover:text-blue-600 transition-colors">Achievements</Link>
-              <Link to="/profile" className="hover:text-blue-600 transition-colors">Profile</Link>
+      <nav className="fixed top-0 w-full z-50 glass border-b border-white/10">
+        <div className="w-full px-8 h-16 flex justify-between items-center">
+          {/* Left: Logo */}
+          <Link to="/" className="text-xl font-bold text-primary flex items-center gap-2 shrink-0">
+            🌟 Safar
+          </Link>
+
+          {/* Center: Navigation Links */}
+          <div className="hidden lg:flex items-center space-x-8 text-sm font-medium absolute left-1/2 -translate-x-1/2">
+            <div className="relative flex items-center">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
+              >
+                Apps <ChevronDown className="w-4 h-4" />
+              </button>
+              {dropdownOpen && (
+                <div className="absolute top-10 left-1/2 -translate-x-1/2 w-48 glass-high rounded-xl p-2 shadow-xl">
+                  <Link to="/dashboard" className="block p-3 hover:bg-muted rounded-lg text-sm text-foreground">Nishta</Link>
+                  <Link to="/study" className="block p-3 hover:bg-muted rounded-lg text-sm text-foreground">Focus Timer</Link>
+                  <Link to="/mehfil" className="block p-3 hover:bg-muted rounded-lg text-sm text-foreground">Mehfil</Link>
+                </div>
+              )}
             </div>
+            <Link to="/dashboard" className="text-muted-foreground hover:text-primary transition-colors">Dashboard</Link>
+            <Link to="/achievements" className="text-muted-foreground hover:text-primary transition-colors">Achievements</Link>
+            <Link to="/profile" className="text-muted-foreground hover:text-primary transition-colors">Profile</Link>
           </div>
-          <div className="flex items-center gap-4">
+
+          {/* Right: Actions and Logout */}
+          <div className="flex items-center gap-4 shrink-0">
             {user && (
-              <span className="hidden sm:block text-sm text-gray-600">Welcome, {user.name}</span>
+              <span className="hidden sm:block text-xs text-muted-foreground mr-2">
+                Welcome, <span className="text-foreground font-medium">{user.name}</span>
+              </span>
             )}
             <button
-              onClick={handleLogout}
-              className="hidden sm:flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white font-bold btn-animate transition-all text-sm"
+              onClick={toggleTheme}
+              className="w-9 h-9 rounded-lg glass-high flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
             >
-              Logout
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <div className="relative mr-2">
+              <Bell className="w-5 h-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-secondary rounded-full"></span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+            >
+              <LogOut className="w-4 h-4" /> Logout
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <header className="relative pt-32 pb-20 overflow-hidden bg-gray-50">
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
-          <div className="z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-600 font-bold text-xs uppercase tracking-widest mb-6">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
-              </span>
-              Your Productivity Ecosystem
-            </div>
-            <h1 className="text-5xl md:text-6xl font-extrabold leading-tight mb-6 text-gray-900">
-              Transform Your <span className="text-blue-600">Study Journey</span> with Safar
-            </h1>
-            <p className="text-lg md:text-xl text-gray-600 mb-10 max-w-xl leading-relaxed">
-              Everything you need for academic success - mental wellness tracking, focus sessions, and study communities. All in one place.
-            </p>
-            <div className="flex items-center gap-4 text-gray-500">
-              <span className="animate-bounce">↓</span>
-              <span className="text-sm font-medium">Scroll down to explore our apps</span>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl aspect-[4/3] bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-              <span className="text-9xl">🎯</span>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-              <div className="absolute bottom-6 left-6 right-6 p-6 bg-white/95 backdrop-blur-sm rounded-2xl flex items-center gap-4 border border-white/20">
-                <div className="flex -space-x-3">
-                  <div className="w-10 h-10 rounded-full border-2 border-white bg-blue-500 flex items-center justify-center text-white font-bold">S</div>
-                  <div className="w-10 h-10 rounded-full border-2 border-white bg-purple-500 flex items-center justify-center text-white font-bold">A</div>
-                  <div className="w-10 h-10 rounded-full border-2 border-white bg-green-500 flex items-center justify-center text-white font-bold">F</div>
-                </div>
-                <p className="text-sm font-bold">1000+ Active Students</p>
+      {/* Hero Section with Video Card */}
+      <header className="relative pt-0 pb-0 overflow-hidden min-h-screen">
+        <div className="w-full relative z-10 h-full">
+          {/* Hero Card with Video Background */}
+          <div className="relative w-full mx-auto h-full">
+            {/* Hero Card with glass effect - Contains video background */}
+            <div className="glass-high px-8 py-24 md:px-16 md:py-32 relative overflow-hidden rounded-none w-full border-0 min-h-screen flex items-center justify-center">
+              {/* Video Background - Inside the card */}
+              <div className="absolute inset-0 z-0">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{ opacity: 0.3 }}
+                >
+                  <source src="/hero-background-new.mp4" type="video/mp4" />
+                </video>
+                {/* Overlay for better text readability */}
+                <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/60 to-background/40" />
+                {/* Vignette effect */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: 'radial-gradient(ellipse at center, transparent 0%, transparent 40%, rgba(0,0,0,0.4) 100%)'
+                  }}
+                />
               </div>
-            </div>
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-yellow-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-            <div className="absolute -bottom-10 -left-10 w-60 h-60 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
-          </div>
-        </div>
 
-        {/* Stats Bar */}
-        <div className="max-w-7xl mx-auto px-6 mt-24 border-t border-gray-100 pt-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="flex items-center gap-3 grayscale hover:grayscale-0 transition-all opacity-70 hover:opacity-100">
-              <span className="text-blue-600 text-3xl">✓</span>
-              <span className="font-bold text-sm">Daily Check-ins</span>
-            </div>
-            <div className="flex items-center gap-3 grayscale hover:grayscale-0 transition-all opacity-70 hover:opacity-100">
-              <span className="text-blue-600 text-3xl">📈</span>
-              <span className="font-bold text-sm">Progress Tracking</span>
-            </div>
-            <div className="flex items-center gap-3 grayscale hover:grayscale-0 transition-all opacity-70 hover:opacity-100">
-              <span className="text-blue-600 text-3xl">🎯</span>
-              <span className="font-bold text-sm">Goal Setting</span>
-            </div>
-            <div className="flex items-center gap-3 grayscale hover:grayscale-0 transition-all opacity-70 hover:opacity-100">
-              <span className="text-blue-600 text-3xl">🏆</span>
-              <span className="font-bold text-sm">Achievements</span>
+              {/* Decorative gradient orbs */}
+              <div className="absolute top-0 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 pointer-events-none z-0" />
+              <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-secondary/10 rounded-full blur-3xl translate-y-1/2 pointer-events-none z-0" />
+
+              <div className="text-center max-w-3xl mx-auto relative z-10">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary font-medium text-xs uppercase tracking-widest mb-6">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                  </span>
+                  Your Productivity Ecosystem
+                </div>
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
+                  Transform Your{" "}
+                  <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Study Journey
+                  </span>{" "}
+                  with Safar
+                </h1>
+                <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
+                  Everything you need for academic success — mental wellness tracking, focus sessions, and study communities. All in one place.
+                </p>
+                <div className="flex flex-wrap justify-center gap-4 mb-12">
+                  <Link
+                    to="/dashboard"
+                    className="px-8 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl font-semibold flex items-center gap-2 hover:shadow-lg hover:shadow-primary/25 transition-all"
+                  >
+                    Enter Nishta <ArrowRight className="w-4 h-4" />
+                  </Link>
+                  <Link
+                    to="/study"
+                    className="px-8 py-3 glass-high rounded-xl font-semibold flex items-center gap-2 hover:bg-primary/5 transition-all"
+                  >
+                    Focus Timer <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+
+                {/* Stats moved inside the card */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 border-t border-white/10">
+                  {stats.map((stat, i) => (
+                    <div key={i} className="text-center">
+                      <div className="text-2xl md:text-3xl font-bold text-primary mb-1">{stat.value}</div>
+                      <div className="text-xs text-muted-foreground">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Why Choose Section */}
-      <section className="py-24 bg-white">
+
+
+      {/* Apps Section */}
+      <section className="py-16 relative z-10">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">Why Choose Safar?</h2>
-            <div className="w-20 h-1.5 bg-yellow-400 mx-auto rounded-full"></div>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Our Apps</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              A suite of tools designed to support your academic journey and mental well-being
+            </p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="p-8 rounded-2xl bg-gray-50 border border-gray-100 card-hover transition-all">
-              <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-6 text-2xl">
-                🧘
+          <div className="grid md:grid-cols-3 gap-6">
+            {apps.map((app) => (
+              <Link
+                key={app.name}
+                to={app.available ? app.href : "#"}
+                className={`group relative glass-high rounded-2xl p-6 border ${app.borderColor} overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${!app.available && 'opacity-60 cursor-not-allowed'}`}
+              >
+                <div className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                <div className="relative z-10">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+                    {app.emoji}
+                  </div>
+                  <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                    {app.name}
+                    {!app.available && (
+                      <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground font-normal">
+                        Coming Soon
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{app.description}</p>
+                  {app.available && (
+                    <div className="mt-4 flex items-center gap-1 text-primary text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                      Open App <ArrowRight className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="py-16 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Nishta Features</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Comprehensive tools to support your mental wellness and academic growth
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {features.map((feature, i) => (
+              <div
+                key={i}
+                className="glass-high rounded-xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-2xl shrink-0">
+                    {feature.icon}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-1">{feature.title}</h3>
+                    <p className="text-muted-foreground text-sm">{feature.desc}</p>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold mb-3">Mental Wellness</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Daily mood tracking and journaling to maintain emotional balance during studies.
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-16 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">What Students Say</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Hear from students who transformed their study habits with Safar
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {testimonials.map((testimonial, i) => (
+              <div key={i} className="glass-high rounded-2xl p-6">
+                <div className="text-4xl mb-4">{testimonial.avatar}</div>
+                <p className="text-muted-foreground text-sm leading-relaxed mb-4 italic">
+                  "{testimonial.quote}"
+                </p>
+                <div>
+                  <div className="font-semibold">{testimonial.name}</div>
+                  <div className="text-xs text-muted-foreground">{testimonial.role}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Profile Preview Section */}
+      <section className="py-16 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-3xl font-bold mb-4">Your Personal Profile</h2>
+              <p className="text-muted-foreground mb-6 leading-relaxed">
+                Track your progress, view your achievements, and personalize your Safar experience. Your profile is your command center for academic success.
               </p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-medium">Personal Dashboard</div>
+                    <div className="text-sm text-muted-foreground">View all your stats at a glance</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-medium">Achievement Gallery</div>
+                    <div className="text-sm text-muted-foreground">Showcase your earned badges</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                    <Target className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-medium">Goal History</div>
+                    <div className="text-sm text-muted-foreground">Review your completed objectives</div>
+                  </div>
+                </div>
+              </div>
+              <Link
+                to="/profile"
+                className="inline-flex items-center gap-2 mt-6 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all"
+              >
+                View Profile <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
-            <div className="p-8 rounded-2xl bg-gray-50 border border-gray-100 card-hover transition-all">
-              <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mb-6 text-2xl">
-                ⏱️
+            <div className="glass-high rounded-2xl p-6">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-2xl font-bold">
+                  {user?.name?.charAt(0) || "S"}
+                </div>
+                <div>
+                  <div className="font-bold text-lg">{user?.name || "Student Name"}</div>
+                  <div className="text-sm text-muted-foreground">{user?.email || "student@safar.com"}</div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold mb-3">Focus Sessions</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Pomodoro-style timer with customizable sessions and achievement rewards.
-              </p>
-            </div>
-            <div className="p-8 rounded-2xl bg-gray-50 border border-gray-100 card-hover transition-all">
-              <div className="w-14 h-14 bg-green-100 text-green-600 rounded-xl flex items-center justify-center mb-6 text-2xl">
-                🎯
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-3 bg-muted/50 rounded-xl">
+                  <Flame className="w-5 h-5 mx-auto text-orange-500 mb-1" />
+                  <div className="font-bold">12</div>
+                  <div className="text-xs text-muted-foreground">Day Streak</div>
+                </div>
+                <div className="text-center p-3 bg-muted/50 rounded-xl">
+                  <Target className="w-5 h-5 mx-auto text-blue-500 mb-1" />
+                  <div className="font-bold">45</div>
+                  <div className="text-xs text-muted-foreground">Goals Done</div>
+                </div>
+                <div className="text-center p-3 bg-muted/50 rounded-xl">
+                  <Award className="w-5 h-5 mx-auto text-yellow-500 mb-1" />
+                  <div className="font-bold">8</div>
+                  <div className="text-xs text-muted-foreground">Badges</div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold mb-3">Goal Tracking</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Set daily and weekly goals. Track your progress and earn streaks.
-              </p>
-            </div>
-            <div className="p-8 rounded-2xl bg-gray-50 border border-gray-100 card-hover transition-all">
-              <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-6 text-2xl">
-                🏅
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Weekly Progress</span>
+                  <span className="font-medium">78%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full w-[78%] bg-gradient-to-r from-primary to-secondary rounded-full"></div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold mb-3">Achievements</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Earn badges and titles as you maintain consistency and hit milestones.
-              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Our Apps Section */}
-      <section className="py-24 bg-gray-50" id="courses">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
-            <div>
-              <h2 className="text-3xl md:text-4xl font-extrabold mb-4">Our Apps</h2>
-              <p className="text-gray-600">Your complete productivity ecosystem.</p>
-            </div>
-            <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-              <button
-                onClick={() => setActiveTab('apps')}
-                className={`px-6 py-2 rounded-lg font-bold text-sm ${activeTab === 'apps' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-blue-600'}`}
-              >
-                Apps
-              </button>
-              <button
-                onClick={() => setActiveTab('tools')}
-                className={`px-6 py-2 rounded-lg font-bold text-sm ${activeTab === 'tools' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-blue-600'}`}
-              >
-                Tools
-              </button>
-              <button
-                onClick={() => setActiveTab('community')}
-                className={`px-6 py-2 rounded-lg font-bold text-sm ${activeTab === 'community' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-blue-600'}`}
-              >
-                Community
-              </button>
-            </div>
+      {/* FAQ Section */}
+      <section className="py-16 relative z-10">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Frequently Asked Questions</h2>
+            <p className="text-muted-foreground">
+              Everything you need to know about Safar
+            </p>
           </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Nishta Card */}
-            <Link to="/dashboard" className="group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300">
-              <div className="h-48 overflow-hidden relative bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center">
-                <span className="text-8xl group-hover:scale-110 transition-transform duration-500">🧘</span>
-                <div className="absolute top-4 right-4 bg-teal-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                  Wellness
-                </div>
+          <div className="space-y-4">
+            {faqs.map((faq, i) => (
+              <div key={i} className="glass-high rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex items-center justify-between p-5 text-left hover:bg-muted/50 transition-colors"
+                >
+                  <span className="font-medium pr-4">{faq.question}</span>
+                  {openFaq === i ? (
+                    <ChevronUp className="w-5 h-5 text-primary shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" />
+                  )}
+                </button>
+                {openFaq === i && (
+                  <div className="px-5 pb-5 text-muted-foreground text-sm leading-relaxed">
+                    {faq.answer}
+                  </div>
+                )}
               </div>
-              <div className="p-8">
-                <h3 className="text-2xl font-bold mb-2">Nishta</h3>
-                <p className="text-gray-600 text-sm mb-6">
-                  Mental wellness companion with daily mood check-ins, journaling, and emotional tracking.
-                </p>
-                <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-                  <span className="flex items-center gap-1 text-sm font-bold text-gray-600">
-                    ✨ Daily Check-ins
-                  </span>
-                  <span className="text-blue-600 font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
-                    Enter →
-                  </span>
-                </div>
-              </div>
-            </Link>
-
-            {/* Focus Timer Card - Links to /study */}
-            <Link to="/study" className="group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300">
-              <div className="h-48 overflow-hidden relative bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
-                <span className="text-8xl group-hover:scale-110 transition-transform duration-500">⏱️</span>
-                <div className="absolute top-4 right-4 bg-orange-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                  Productivity
-                </div>
-              </div>
-              <div className="p-8">
-                <h3 className="text-2xl font-bold mb-2">Focus Timer</h3>
-                <p className="text-gray-600 text-sm mb-6">
-                  Pomodoro timer with 25, 30, 45, 60, or 90-minute focus sessions and automatic breaks.
-                </p>
-                <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-                  <span className="flex items-center gap-1 text-sm font-bold text-gray-600">
-                    🔥 Study Sessions
-                  </span>
-                  <span className="text-blue-600 font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
-                    Enter →
-                  </span>
-                </div>
-              </div>
-            </Link>
-
-            {/* Mehfil Card */}
-            <div className="group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm opacity-70">
-              <div className="h-48 overflow-hidden relative bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
-                <span className="text-8xl">👥</span>
-                <div className="absolute top-4 right-4 bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                  Coming Soon
-                </div>
-              </div>
-              <div className="p-8">
-                <h3 className="text-2xl font-bold mb-2">Mehfil</h3>
-                <p className="text-gray-600 text-sm mb-6">
-                  Social study rooms where you can focus together with friends and fellow students.
-                </p>
-                <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-                  <span className="flex items-center gap-1 text-sm font-bold text-gray-600">
-                    🎯 Study Together
-                  </span>
-                  <span className="text-purple-600 font-bold">
-                    Coming Soon
-                  </span>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-24" id="contact">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="bg-blue-600 rounded-3xl overflow-hidden relative shadow-2xl">
-            <div className="absolute top-0 right-0 w-1/2 h-full bg-blue-700/20 transform skew-x-12 translate-x-32"></div>
-            <div className="grid lg:grid-cols-2 p-10 md:p-16 relative z-10 items-center gap-12">
-              <div className="text-white">
-                <h2 className="text-4xl md:text-5xl font-extrabold mb-6">Start Your Journey Today!</h2>
-                <p className="text-blue-100 text-lg mb-10 leading-relaxed">
-                  Choose your app and begin transforming your study habits. Track progress, earn achievements, and stay consistent.
-                </p>
-                <div className="flex items-center gap-6">
-                  <div className="flex flex-col">
-                    <span className="text-3xl font-extrabold">100%</span>
-                    <span className="text-xs uppercase opacity-70">Free to Use</span>
-                  </div>
-                  <div className="w-px h-10 bg-white/20"></div>
-                  <div className="flex flex-col">
-                    <span className="text-3xl font-extrabold">∞</span>
-                    <span className="text-xs uppercase opacity-70">Unlimited Sessions</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-4">
+      <section className="py-16 relative z-10">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="glass-high rounded-3xl p-10 text-center border border-primary/20 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-secondary/10 rounded-full blur-3xl -ml-24 -mb-24 pointer-events-none"></div>
+            <div className="relative z-10">
+              <h2 className="text-3xl font-bold mb-4">Ready to Start Your Journey?</h2>
+              <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
+                Join thousands of students who are already transforming their study habits and mental wellness.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
                 <Link
                   to="/dashboard"
-                  className="w-full py-5 bg-white text-blue-600 font-bold rounded-xl text-lg text-center hover:bg-blue-50 transition-all"
+                  className="px-8 py-3 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-xl font-semibold flex items-center gap-2 hover:shadow-lg hover:shadow-primary/25 transition-all"
                 >
-                  🧘 Enter Nishta (Wellness)
-                </Link>
-                <Link
-                  to="/study"
-                  className="w-full py-5 bg-yellow-400 text-gray-900 font-bold rounded-xl text-lg text-center gold-glow transition-all btn-animate"
-                >
-                  ⏱️ Start Focus Timer
+                  Get Started <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
@@ -368,38 +556,51 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white pt-20 pb-10">
+      <footer className="py-12 border-t border-white/10 relative z-10 bg-gradient-to-b from-primary/70 to-primary/10 dark:from-primary/40 dark:to-background">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-20">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <span className="text-2xl font-extrabold text-white flex items-center gap-2 mb-6">
+              <div className="flex items-center gap-2 text-lg font-bold text-primary mb-4">
                 🌟 Safar
-              </span>
-              <p className="text-slate-400 text-sm leading-relaxed mb-8">
-                Your complete productivity ecosystem for academic success and mental wellness.
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Your companion for academic success and mental well-being.
               </p>
             </div>
             <div>
-              <h4 className="text-lg font-bold mb-6">Quick Links</h4>
-              <ul className="space-y-4 text-slate-400 text-sm">
-                <li><Link to="/dashboard" className="hover:text-white transition-colors">Nishta Dashboard</Link></li>
-                <li><Link to="/study" className="hover:text-white transition-colors">Focus Timer</Link></li>
-                <li><Link to="/goals" className="hover:text-white transition-colors">Goals</Link></li>
-                <li><Link to="/achievements" className="hover:text-white transition-colors">Achievements</Link></li>
-              </ul>
+              <div className="font-semibold mb-4">Apps</div>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <Link to="/dashboard" className="block hover:text-primary transition-colors">Nishta</Link>
+                <Link to="/study" className="block hover:text-primary transition-colors">Focus Timer</Link>
+                <span className="block">Mehfil (Soon)</span>
+              </div>
             </div>
             <div>
-              <h4 className="text-lg font-bold mb-6">Account</h4>
-              <ul className="space-y-4 text-slate-400 text-sm">
-                <li><Link to="/profile" className="hover:text-white transition-colors">Profile</Link></li>
-                <li><Link to="/streaks" className="hover:text-white transition-colors">Streaks</Link></li>
-                <li><button onClick={handleLogout} className="hover:text-white transition-colors">Logout</button></li>
-              </ul>
+              <div className="font-semibold mb-4">Features</div>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <Link to="/check-in" className="block hover:text-primary transition-colors">Check-Ins</Link>
+                <Link to="/journal" className="block hover:text-primary transition-colors">Journal</Link>
+                <Link to="/goals" className="block hover:text-primary transition-colors">Goals</Link>
+              </div>
+            </div>
+            <div>
+              <div className="font-semibold mb-4">Account</div>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <Link to="/profile" className="block hover:text-primary transition-colors">Profile</Link>
+                <Link to="/achievements" className="block hover:text-primary transition-colors">Achievements</Link>
+                <Link to="/streaks" className="block hover:text-primary transition-colors">Streaks</Link>
+              </div>
             </div>
           </div>
-          <div className="pt-10 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-slate-500 text-xs">© 2024 Safar. All rights reserved.</p>
-            <p className="text-slate-500 text-xs">Made with ❤️ for students</p>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 pt-8 border-t border-white/10">
+            <p className="text-xs text-muted-foreground">
+              © 2026 Safar. Built with 💚 for students.
+            </p>
+            <div className="flex items-center gap-6 text-xs text-muted-foreground">
+              <span>Privacy Policy</span>
+              <span>Terms of Service</span>
+              <span>Contact</span>
+            </div>
           </div>
         </div>
       </footer>

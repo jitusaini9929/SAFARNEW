@@ -63,6 +63,8 @@ export default {
         "pastel-green": "hsl(var(--pastel-green))",
         "pastel-pink": "hsl(var(--pastel-pink))",
         "pastel-yellow": "hsl(var(--pastel-yellow))",
+        // Mehfil colors
+        "mint": "#D1FAE5",
       },
       borderRadius: {
         lg: "var(--radius)",

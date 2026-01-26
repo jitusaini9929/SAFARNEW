@@ -63,11 +63,11 @@
     --sidebar-border: 220 15% 15%;
     --sidebar-ring: 168 76% 50%;
 
-    /* Glass - High Intensity (Dark) */
-    --glass-bg: rgba(20, 22, 27, 0.3);
-    --glass-border: rgba(255, 255, 255, 0.15);
+    /* Glass - High Intensity (Dark) - 30% more blur */
+    --glass-bg: rgba(20, 22, 27, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.18);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    --glass-blur: 40px;
+    --glass-blur: 52px;
   }
 
   /**
@@ -116,8 +116,8 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 0%;
-    /* Black border for "bolder" look */
+    --border: 168 30% 70%;
+    /* Soft teal border instead of black */
     --input: 175 30% 92%;
     --ring: 168 100% 25%;
 
@@ -129,18 +129,18 @@
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 335 100% 30%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 0%;
-    /* Bold border */
+    --sidebar-border: 168 30% 70%;
+    /* Soft teal border */
     --sidebar-ring: 168 100% 25%;
 
-    /* Glass - High Intensity (Light mode on Yellow) */
-    --glass-bg: rgba(255, 255, 255, 0.65);
+    /* Glass - High Intensity (Light mode) - 30% more blur */
+    --glass-bg: rgba(255, 255, 255, 0.75);
     /* Higher opacity for whiter look */
-    --glass-border: rgba(255, 255, 255, 0.8);
-    /* Stronger frosty border */
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    --glass-blur: 40px;
-    /* High blur */
+    --glass-border: rgba(255, 255, 255, 0.9);
+    /* Stronger frosty border - no dark outline */
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    --glass-blur: 52px;
+    /* 30% more blur */
   }
 }
 
@@ -178,6 +178,140 @@
 
 /* Glassmorphism Utility Classes */
 @layer utilities {
+
+  /* Premium Glass Effects */
+  .glass-2-0 {
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  }
+
+  .dark .glass-2-0 {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-card {
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 4px 15px rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+  }
+
+  .dark .glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-button {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    transition: all 0.3s ease;
+  }
+
+  .glass-button:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .dark .glass-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .sidebar-link:hover {
+    background: rgba(20, 184, 166, 0.1);
+    color: rgb(13 148 136);
+  }
+
+  .dark .sidebar-link:hover {
+    color: rgb(45 212 191);
+  }
+
+  .sidebar-link.active {
+    background: rgba(20, 184, 166, 0.1);
+    color: rgb(13 148 136);
+    font-weight: 600;
+  }
+
+  .dark .sidebar-link.active {
+    color: rgb(45 212 191);
+  }
+
+  .poll-bar {
+    position: absolute;
+    inset: 0;
+    border-radius: 0.75rem;
+    transition: all 0.7s ease;
+    box-shadow: 0 0 15px rgba(45, 212, 191, 0.2);
+  }
+
+  /* Gradient Blobs */
+  .gradient-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    -webkit-filter: blur(120px);
+    z-index: -10;
+    opacity: 0.6;
+  }
+
+  /* Live Pulse Animation */
+  .pulse-live {
+    position: relative;
+    display: flex;
+    height: 0.5rem;
+    width: 0.5rem;
+    margin-right: 0.5rem;
+  }
+
+  .pulse-live span:nth-child(1) {
+    animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+    position: absolute;
+    display: inline-flex;
+    height: 100%;
+    width: 100%;
+    border-radius: 50%;
+    background-color: rgb(45 212 191);
+    opacity: 0.75;
+  }
+
+  .pulse-live span:nth-child(2) {
+    position: relative;
+    display: inline-flex;
+    border-radius: 50%;
+    height: 0.5rem;
+    width: 0.5rem;
+    background-color: rgb(20 184 166);
+  }
+
+  @keyframes ping {
+
+    75%,
+    100% {
+      transform: scale(2);
+      opacity: 0;
+    }
+  }
+
+
   .glass {
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur));

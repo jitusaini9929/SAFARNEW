@@ -9,6 +9,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { authService } from "./utils/authService";
 
+import Test from "./pages/Test";
+
 // Pages
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -24,6 +26,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import StudyWithMe from "./pages/StudyWithMe";
 import Achievements from "./pages/Achievements";
 import Landing from "./pages/Landing";
+import Mehfil from "./pages/Mehfil";
 
 const queryClient = new QueryClient();
 
@@ -155,16 +158,17 @@ const App = () => (
               </ProtectedRoute>
             }
           />
-
-          {/* Landing page - Protected, shows after login */}
           <Route
-            path="/"
+            path="/mehfil"
             element={
               <ProtectedRoute>
-                <Landing />
+                <Mehfil />
               </ProtectedRoute>
             }
           />
+
+          {/* Landing page */}
+          <Route path="/" element={<Landing />} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
