@@ -182,7 +182,10 @@ const App = () => (
           />
 
           {/* Landing page */}
-          <Route path="/" element={<Landing />} />
+          <Route path="/landing" element={<Landing />} />
+
+          {/* Login as home page */}
+          <Route path="/" element={<Login />} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
