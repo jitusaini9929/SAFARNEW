@@ -87,7 +87,7 @@ const Landing = () => {
       <main className="w-full min-h-screen relative">
 
         {/* Simplified Header - Scrollable (Absolute) */}
-        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4">
+        <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-6">
           {/* Logo and SAFAR Title */}
           <div className="flex items-center gap-4">
             <img
@@ -95,11 +95,21 @@ const Landing = () => {
               alt="Safar Logo"
               className="w-[90px] h-[90px] rounded-full border-2 border-black dark:border-white object-cover shadow-lg shadow-[#6EE7B7]/20"
             />
-            <span className="text-[40px] font-sans font-bold text-black dark:text-white tracking-tight">SAFAR</span>
+            <span className="text-[40px] font-serif font-bold text-black dark:text-white tracking-tight">SAFAR</span>
           </div>
 
-          {/* Profile Section - Distinct & Bold */}
+          {/* Profile Section with Theme Toggle */}
           <div className="flex items-center gap-4">
+            {/* Theme Toggle Button */}
+            <button
+              aria-label="Toggle Theme"
+              className="p-3 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 backdrop-blur-xl shadow-lg transition-all hover:scale-105 active:scale-95"
+              onClick={toggleTheme}
+            >
+              {theme === 'dark' ? <Sun className="w-6 h-6 text-yellow-400" /> : <Moon className="w-6 h-6 text-slate-700" />}
+            </button>
+
+            {/* Profile Avatar */}
             <Link to="/profile" className="flex items-center justify-center p-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 backdrop-blur-xl shadow-2xl transition-all cursor-pointer group hover:scale-105 active:scale-95">
               <img
                 alt="User Avatar"
@@ -143,19 +153,18 @@ const Landing = () => {
             <div className="absolute inset-0 bg-gradient-to-r from-[#F8FAFC]/60 via-[#F8FAFC]/40 to-transparent dark:from-[#0B0F19]/80 dark:via-[#0B0F19]/60 dark:to-transparent/20 z-10"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-[#F8FAFC]/70 via-[#F8FAFC]/30 to-transparent dark:from-[#0B0F19]/80 dark:via-transparent dark:to-transparent z-10"></div>
           </div>
-
-          <div className="relative z-20 px-8 md:px-16 lg:px-20 max-w-4xl mt-12">
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif font-bold leading-[1.1] text-slate-900 dark:text-white mb-6">
-              Study better <br />
-              <span className="font-serif italic">without</span>{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#6EE7B7] to-teal-200 text-glow font-sans not-italic">burning out</span>
+          <div className="relative z-20 px-8 md:px-16 lg:px-20 max-w-5xl mt-12">
+            <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold leading-[1.2] mb-6 drop-shadow-2xl">
+              <span className="inline-block whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 font-serif" style={{ WebkitTextStroke: '1.3px rgba(79, 70, 229, 0.9)' }}>Where preparation meets care-</span><br />
+              <span className="inline-block whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 text-glow font-serif" style={{ WebkitTextStroke: '1.3px rgba(79, 70, 229, 0.9)' }}>A kinder way to move Forward</span>
             </h1>
-            <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-2xl leading-relaxed">
-              Safar helps students stay focused, emotionally balanced, and connected — even during the hardest days. Elevate your student experience with mindful technology.
+            <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-2xl leading-relaxed drop-shadow-lg">
+              A thoughtfully designed space to support your studies, consistency, and emotional well-being — all in one place.
+              Safar helps students stay focused, emotionally steady, and connected — especially when preparation feels heavy. Because " Your marks matter, but so does your mind"
             </p>
 
             <div className="flex flex-col sm:flex-row gap-5">
-              <Link to="/dashboard" className="group flex items-center justify-center gap-2 bg-gradient-to-r from-[#6EE7B7] to-teal-300 text-black px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 button-glow shadow-lg shadow-[#6EE7B7]/30">
+              <Link to="/dashboard" className="group flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 button-glow shadow-lg shadow-indigo-500/30">
                 Start your Safar
                 <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </Link>
@@ -168,106 +177,54 @@ const Landing = () => {
 
         </header>
 
-        {/* Apps Section */}
-        <section className="bg-[#F8FAFC] dark:bg-[#0B0F19] px-8 md:px-12 py-16 relative z-10">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-slate-900 dark:text-white mb-4">Our Apps</h2>
-              <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
-                A suite of tools designed to support your academic journey and mental well-being
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Nishta Skeuomorphic Card */}
-              <Link to="/nishtha" className="flex flex-col items-center justify-center gap-6 group py-8">
-                <div className="skeuo-outer-rim w-48 h-48 rounded-full flex items-center justify-center transition-transform duration-500 group-hover:scale-105 active:scale-95 shadow-2xl">
-                  <div className="skeuo-plate w-40 h-40 rounded-full flex items-center justify-center">
-                    <div className="skeuo-ring w-32 h-32 rounded-full flex items-center justify-center">
-                      <div className="knob-metal w-24 h-24 rounded-full flex items-center justify-center relative shadow-inner">
-                        <Flame className="w-10 h-10 text-black fill-black drop-shadow-md filter transition-transform group-hover:scale-110" />
-                      </div>
-                    </div>
-                  </div>
+        {/* Apps Section - New Colored Box Layout */}
+        <section className="bg-gradient-to-br from-sky-100 via-blue-50 to-cyan-100 dark:bg-[#0B0F19] px-8 md:px-12 py-16 relative z-10">
+          <div className="max-w-5xl mx-auto">
+            {/* Apps Grid - 4 Colored Outline Boxes with Names & Descriptions */}
+            <div className="flex flex-wrap justify-center gap-6 md:gap-8 mb-10">
+              {/* Nishtha - Purple Box */}
+              <Link to="/nishtha" className="group flex flex-col items-center">
+                <div className="w-32 h-32 md:w-44 md:h-44 rounded-xl border-4 border-purple-500 bg-transparent hover:bg-purple-500/10 transition-all duration-300 flex items-center justify-center hover:scale-105 overflow-hidden">
+                  <img src="/nishtha-silhouette.png" alt="Nishtha" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div className="text-center">
-                  <h3 className="text-2xl font-serif font-bold text-slate-900 dark:text-white mb-2 tracking-wide group-hover:text-[#6EE7B7] transition-colors">Nishtha</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wider uppercase">Wellness Companion</p>
-                </div>
+                <h3 className="mt-4 text-xl font-bold text-slate-800 dark:text-white group-hover:text-purple-500 transition-colors">Nishtha</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1">Track consistency, Journal, reflect on your emotional state</p>
               </Link>
 
-              {/* Focus Timer Card */}
-              {/* Focus Timer Skeuomorphic Card */}
-              <Link to="/study" className="flex flex-col items-center justify-center gap-6 group py-8">
-                <div className="timer-bg w-48 h-48 rounded-full flex items-center justify-center transition-transform duration-500 group-hover:scale-105 active:scale-95 shadow-2xl border border-white/5 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(234,179,8,0.15),transparent_70%)]"></div>
-
-                  {/* Hourglass Construction - Geometric X Shape */}
-                  <div className="relative transform group-hover:rotate-180 transition-transform duration-700 ease-in-out scale-[2.5]">
-                    <div className="relative w-[40px] h-[60px] flex flex-col items-center justify-center">
-                      {/* Glass Outline (SVG) */}
-                      <svg width="40" height="60" viewBox="0 0 40 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute inset-0 z-20 drop-shadow-lg">
-                        <path d="M5 2 L35 2 L21 29 L21 31 L35 58 L5 58 L19 31 L19 29 Z" stroke="white" strokeWidth="3" strokeLinejoin="round" />
-                      </svg>
-
-                      {/* Top Sand Container */}
-                      <div className="absolute top-[2px] w-[30px] h-[28px] overflow-hidden z-10" style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%)' }}>
-                        <div className="w-full h-full bg-white origin-bottom transition-transform duration-[3000ms] group-hover:scale-y-0"></div>
-                      </div>
-
-                      {/* Bottom Sand Container */}
-                      <div className="absolute bottom-[2px] w-[30px] h-[28px] overflow-hidden z-10" style={{ clipPath: 'polygon(50% 0, 100% 100%, 0 100%)' }}>
-                        <div className="w-full h-full bg-white origin-bottom transition-transform duration-[3000ms] scale-y-0 group-hover:scale-y-100"></div>
-                      </div>
-                    </div>
-                  </div>
+              {/* Mehfil - Cyan Box */}
+              <Link to="/mehfil" className="group flex flex-col items-center">
+                <div className="w-32 h-32 md:w-44 md:h-44 rounded-xl border-4 border-cyan-400 bg-transparent hover:bg-cyan-400/10 transition-all duration-300 flex items-center justify-center hover:scale-105 overflow-hidden">
+                  <img src="/mehfil-silhouette.png" alt="Mehfil" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
-
-                <div className="text-center">
-                  <h3 className="text-2xl font-serif font-bold text-slate-900 dark:text-white mb-2 tracking-wide group-hover:text-yellow-500 transition-colors focus-title">Focus Timer</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wider uppercase">Productivity</p>
-                </div>
+                <h3 className="mt-4 text-xl font-bold text-slate-800 dark:text-white group-hover:text-cyan-400 transition-colors">Mehfil</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1">Judgement free and safe emotional space</p>
               </Link>
 
-              {/* Mehfil Card */}
-              {/* Mehfil Social UI Button */}
-              <Link to="/mehfil" className="flex flex-col items-center justify-center gap-6 group py-8">
-                <div className="w-48 h-48 rounded-[40px] flex items-center justify-center transition-all duration-500 hover:scale-105 active:scale-95 bg-gradient-to-br from-[#FF3B7F] to-[#D81B60] shadow-[0_20px_40px_-10px_rgba(255,59,127,0.4)] group-hover:shadow-[0_30px_60px_-15px_rgba(255,59,127,0.6)] relative overflow-hidden">
-
-                  {/* Gloss/Shine Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/30 skew-x-12 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-
-                  {/* Inner Depth */}
-                  <div className="w-32 h-32 rounded-[24px] bg-white/10 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(255,255,255,0.3),_0_4px_8px_rgba(0,0,0,0.1)] flex items-center justify-center">
-                    <span className="text-6xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)] filter transition-transform group-hover:scale-110 group-hover:rotate-12">👥</span>
-                  </div>
+              {/* Dhyan (Meditation) - Green Box */}
+              <Link to="/meditation" className="group flex flex-col items-center">
+                <div className="w-32 h-32 md:w-44 md:h-44 rounded-xl border-4 border-green-400 bg-transparent hover:bg-green-400/10 transition-all duration-300 flex items-center justify-center hover:scale-105 overflow-hidden">
+                  <img src="/meditation-silhouette.png" alt="Dhyan" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
-
-                <div className="text-center">
-                  <h3 className="text-2xl font-serif font-bold text-slate-900 dark:text-white mb-2 tracking-wide group-hover:text-[#FF3B7F] transition-colors">Mehfil</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wider uppercase">Community</p>
-                </div>
+                <h3 className="mt-4 text-xl font-bold text-slate-800 dark:text-white group-hover:text-green-400 transition-colors">Dhyan</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1">Meditation sessions and live chitchat with Parmar sir</p>
               </Link>
 
-              {/* Meditation Card */}
-              <Link to="/meditation" className="flex flex-col items-center justify-center gap-6 group py-8">
-                <div className="w-48 h-48 rounded-full flex items-center justify-center transition-all duration-500 group-hover:scale-105 active:scale-95 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 shadow-2xl border-4 border-slate-200 dark:border-slate-700 group-hover:border-emerald-400 group-hover:shadow-[0_0_40px_rgba(52,211,153,0.3)] relative overflow-hidden">
-
-                  {/* Meditation Image */}
-                  <img
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuC03jxU5u_cgQDKXbMsTTcYxSeQWddHxS7XfwCab3gFZQiE6cK7cyPkPFJ8OwtNZ492fyl_KmoZHgHE0djejqLziIrqMAFwUD-VIM1O7LaYGMtrjAYDrgsjMz1M6uDBLiySXSgL3WojSwxGls6yMb3J3bmUYvMVGFey1aJV0NUgD4IstZNbe4UT_ZsSuJTwdkb6h0-B82SelK-SuD083O4z3SmruVOS3wDLibDcTuKG-LZKP8rlw-CZYq2cSiz5nnbW9uXoJ6LGfrx-"
-                    alt="Meditation"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    style={{ filter: 'grayscale(100%) contrast(110%) brightness(105%)' }}
-                  />
+              {/* Ekagra Mode (Focus Timer) - Yellow Box */}
+              <Link to="/study" className="group flex flex-col items-center">
+                <div className="w-32 h-32 md:w-44 md:h-44 rounded-xl border-4 border-yellow-400 bg-transparent hover:bg-yellow-400/10 transition-all duration-300 flex items-center justify-center hover:scale-105 overflow-hidden">
+                  <img src="/focus-timer.png" alt="Ekagra Mode" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                 </div>
-
-                <div className="text-center">
-                  <h3 className="text-2xl font-serif font-bold text-slate-900 dark:text-white mb-2 tracking-wide group-hover:text-emerald-500 transition-colors">Meditation</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium tracking-wider uppercase">Mindfulness</p>
-                </div>
+                <h3 className="mt-4 text-xl font-bold text-slate-800 dark:text-white group-hover:text-yellow-400 transition-colors">Ekagra Mode</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1">Your focus timer for productive study</p>
               </Link>
             </div>
+
+            {/* White Dashboard Container Box - Glassmorphism */}
+            <Link to="/dashboard" className="group block w-full max-w-2xl mx-auto">
+              <div className="rounded-xl border border-white/30 dark:border-white/20 bg-white/40 dark:bg-white/5 backdrop-blur-md hover:bg-white/60 dark:hover:bg-white/10 transition-all duration-300 py-5 px-10 flex items-center justify-center shadow-lg shadow-slate-200/50 dark:shadow-black/20 hover:scale-[1.02] hover:shadow-xl">
+                <span className="text-white text-sm md:text-base font-bold px-8 py-2 rounded-full bg-gradient-to-r from-orange-400 to-orange-600 shadow-md group-hover:shadow-orange-400/50 group-hover:from-orange-500 group-hover:to-orange-700 transition-all">Go to Dashboard</span>
+              </div>
+            </Link>
           </div>
         </section>
 
@@ -287,7 +244,7 @@ const Landing = () => {
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-purple-500">Mehfil</span>
                 </h2>
                 <p className="text-lg text-slate-600 dark:text-slate-300 mb-8 leading-relaxed">
-                  A safe space where students come together to share their journeys, celebrate wins, and support each other through challenges. Because studying is better together.
+                  A safe space to speak about your silent struggles and quiet wins — because here, you're not alone.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Link to="/mehfil" className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-purple-500 text-white px-8 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-lg shadow-rose-500/30">
@@ -298,22 +255,22 @@ const Landing = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-4">
-                  <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg">
-                    <h4 className="font-bold text-slate-900 dark:text-white">Anonymous Posts</h4>
+                  <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Anonymous Posts</h4>
                     <p className="text-sm text-slate-500 dark:text-slate-400">Share without judgment</p>
                   </div>
-                  <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg">
-                    <h4 className="font-bold text-slate-900 dark:text-white">Peer Support</h4>
+                  <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Peer Support</h4>
                     <p className="text-sm text-slate-500 dark:text-slate-400">React with empathy</p>
                   </div>
                 </div>
                 <div className="space-y-4 mt-8">
-                  <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg">
-                    <h4 className="font-bold text-slate-900 dark:text-white">Study Groups</h4>
+                  <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Study Groups</h4>
                     <p className="text-sm text-slate-500 dark:text-slate-400">Find your tribe</p>
                   </div>
-                  <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg">
-                    <h4 className="font-bold text-slate-900 dark:text-white">Achievements</h4>
+                  <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Achievements</h4>
                     <p className="text-sm text-slate-500 dark:text-slate-400">Celebrate together</p>
                   </div>
                 </div>
@@ -329,9 +286,7 @@ const Landing = () => {
               <span className="inline-block px-4 py-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-full text-sm font-semibold mb-4">
                 Resources
               </span>
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-slate-900 dark:text-white mb-4">
-                External Sources
-              </h2>
+
               <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
                 Helpful resources for your well-being and study journey
               </p>
@@ -406,34 +361,78 @@ const Landing = () => {
         </section>
 
         {/* Footer */}
-        <footer className="bg-[#0B0F19] px-8 md:px-12 py-12 text-center">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#6EE7B7] to-teal-600 flex items-center justify-center text-black font-serif text-xl font-bold">
-                S
+        <footer className="bg-[#0B0F19] px-8 md:px-12 py-10">
+          <div className="max-w-6xl mx-auto">
+            {/* Top Section - Logo & Tagline */}
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <img
+                  src="/safar-logo.png.jpeg"
+                  alt="Safar Logo"
+                  className="w-16 h-16 rounded-full border-2 border-[#6EE7B7] object-cover shadow-lg"
+                />
+                <span className="text-3xl font-serif font-bold text-white">Safar</span>
               </div>
-              <span className="text-2xl font-serif font-semibold text-white">Safar</span>
+              <p className="text-slate-400 text-sm max-w-md mx-auto">Your journey to better studying starts here.</p>
             </div>
-            <p className="text-slate-400 mb-6">Your journey to better studying starts here.</p>
-            <div className="flex items-center justify-center gap-6 text-sm text-slate-500">
+
+            {/* Middle Section - Links */}
+            <div className="flex flex-wrap items-center justify-center gap-5 text-sm text-slate-400 mb-6">
               <Link to="/dashboard" className="hover:text-[#6EE7B7] transition-colors">Dashboard</Link>
               <Link to="/study" className="hover:text-[#6EE7B7] transition-colors">Focus Timer</Link>
               <Link to="/mehfil" className="hover:text-[#6EE7B7] transition-colors">Mehfil</Link>
               <Link to="/achievements" className="hover:text-[#6EE7B7] transition-colors">Achievements</Link>
             </div>
-            <p className="text-slate-600 text-sm mt-8">© 2026 Safar. Made for students.</p>
+
+            {/* Divider */}
+            <div className="border-t border-slate-800 my-6"></div>
+
+            {/* Contact & Social Section */}
+            <div className="grid md:grid-cols-3 gap-6 mb-6">
+              {/* Contact */}
+              <div className="text-center md:text-left">
+                <h4 className="text-white font-semibold mb-2 text-sm">Write to us</h4>
+                <a href="mailto:safarparmar0@gmail.com" className="text-[#6EE7B7] hover:text-[#6EE7B7]/80 transition-colors text-sm">
+                  safarparmar0@gmail.com
+                </a>
+              </div>
+
+              {/* Instagram */}
+              <div className="text-center">
+                <h4 className="text-white font-semibold mb-2 text-sm">Follow us on Instagram</h4>
+                <a
+                  href="https://www.instagram.com/safar_parmar?igsh=MXFlOGF0YnBxcmV0bQ=="
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#E4405F] hover:text-[#E4405F]/80 transition-colors text-sm inline-flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" /></svg>
+                  @SAFAR_PARMAR
+                </a>
+              </div>
+
+              {/* Parmar Academy App */}
+              <div className="text-center md:text-right">
+                <h4 className="text-white font-semibold mb-2 text-sm">Join Daily Meditation</h4>
+                <p className="text-slate-400 text-xs mb-2">SAFAR 3.0 on Parmar Academy</p>
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.parmar.academy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#6EE7B7] text-black px-4 py-2 rounded-full text-sm font-semibold hover:bg-[#6EE7B7]/90 transition-colors"
+                >
+                  📱 Download App
+                </a>
+              </div>
+            </div>
+
+            {/* Bottom - Copyright */}
+            <p className="text-slate-600 text-xs text-center pt-4 border-t border-slate-800/50">© 2026 Safar. Made for students.</p>
           </div>
         </footer>
       </main>
 
-      {/* Floating Theme Toggle */}
-      <button
-        aria-label="Toggle Theme"
-        className="fixed bottom-4 right-4 z-50 p-3 bg-white dark:bg-slate-800 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white hover:scale-110 transition-transform"
-        onClick={toggleTheme}
-      >
-        {theme === 'dark' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
-      </button>
+
     </div>
   );
 };

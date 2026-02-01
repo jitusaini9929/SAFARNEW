@@ -16,7 +16,7 @@ import {
 const navItems = [
   {
     label: "Home",
-    href: "/",
+    href: "/landing",
     icon: Home,
     description: "Back to landing",
   },

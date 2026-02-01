@@ -202,7 +202,7 @@ export default function Dashboard() {
                         <div>
                             <div className="flex items-center gap-3">
                                 <button
-                                    onClick={() => navigate('/')}
+                                    onClick={() => navigate('/landing')}
                                     className="p-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
                                     title="Back to Home"
                                 >

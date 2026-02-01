@@ -14,7 +14,7 @@ const LeftSidebar = () => {
         <aside className="hidden lg:flex flex-col w-72 xl:w-80 shrink-0 sticky top-28 h-[calc(100vh-8rem)] overflow-y-auto custom-scrollbar pb-6">
             <div className="flex flex-col gap-1.5">
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/landing')}
                     className={`sidebar-link group ${isActive('/') ? 'active bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'}`}
                 >
                     <Home className={`w-5 h-5 ${isActive('/') ? 'stroke-[2.5px]' : 'stroke-2'}`} />

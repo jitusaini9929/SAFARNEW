@@ -21,15 +21,34 @@ export const pool = new Pool({
     ssl: connectionString?.includes('neon.tech') ? {
         rejectUnauthorized: false
     } : false,
-    max: 20, // Max connections in pool
+    max: 10, // Reduced for Neon free tier limits
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 30000, // Increased to 30s for Neon cold starts
+    keepAlive: true, // Prevent connection drops
 });
 
-// Test connection on startup
-pool.query('SELECT NOW()')
-    .then(() => console.log('📁 Database: PostgreSQL (Neon) connected'))
-    .catch(err => console.error('❌ Database connection failed:', err.message));
+// Helper function to test connection with retries
+async function testConnection(retries = 3, delay = 2000): Promise<boolean> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await pool.query('SELECT NOW()');
+            console.log('📁 Database: PostgreSQL (Neon) connected');
+            return true;
+        } catch (err: any) {
+            console.warn(`⚠️  Database connection attempt ${attempt}/${retries} failed: ${err.message}`);
+            if (attempt < retries) {
+                console.log(`   Retrying in ${delay / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+            }
+        }
+    }
+    console.error('❌ Database connection failed after all retries. Server will continue but DB operations may fail.');
+    return false;
+}
+
+// Test connection on startup (non-blocking - doesn't prevent server start)
+testConnection().catch(() => { });
 
 // Helper function to match the old interface pattern
 // This makes migration easier - routes can use db.query() similar to before
@@ -62,10 +81,35 @@ export const db = {
     query: pool.query.bind(pool)
 };
 
+// Retry wrapper for database operations
+async function withRetry<T>(
+    operation: () => Promise<T>,
+    operationName: string,
+    retries = 3,
+    delay = 2000
+): Promise<T> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            return await operation();
+        } catch (err: any) {
+            console.warn(`⚠️  ${operationName} attempt ${attempt}/${retries} failed: ${err.message}`);
+            if (attempt < retries) {
+                console.log(`   Retrying in ${delay / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+            } else {
+                throw err;
+            }
+        }
+    }
+    throw new Error(`${operationName} failed after ${retries} attempts`);
+}
+
 // Initialize tables (PostgreSQL syntax)
 export async function initDatabase() {
-    // Users table
-    await pool.query(`
+    return withRetry(async () => {
+        // Users table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             email TEXT UNIQUE NOT NULL,
@@ -81,8 +125,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Moods table
-    await pool.query(`
+        // Moods table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS moods (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL REFERENCES users(id),
@@ -93,8 +137,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Goals table
-    await pool.query(`
+        // Goals table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS goals (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL REFERENCES users(id),
@@ -106,8 +150,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Journal entries table
-    await pool.query(`
+        // Journal entries table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS journal (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL REFERENCES users(id),
@@ -116,8 +160,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Streaks table
-    await pool.query(`
+        // Streaks table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS streaks (
             id TEXT PRIMARY KEY,
             user_id TEXT UNIQUE NOT NULL REFERENCES users(id),
@@ -128,8 +172,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Sessions table (for express-session)
-    await pool.query(`
+        // Sessions table (for express-session)
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS sessions (
             sid TEXT PRIMARY KEY NOT NULL,
             sess TEXT NOT NULL,
@@ -137,8 +181,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Login/Activity history
-    await pool.query(`
+        // Login/Activity history
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS login_history (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL REFERENCES users(id),
@@ -146,8 +190,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Focus sessions table
-    await pool.query(`
+        // Focus sessions table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS focus_sessions (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL REFERENCES users(id),
@@ -159,8 +203,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Perk definitions table
-    await pool.query(`
+        // Perk definitions table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS perk_definitions (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -180,8 +224,8 @@ export async function initDatabase() {
         )
     `);
 
-    // User perks table
-    await pool.query(`
+        // User perks table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS user_perks (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL REFERENCES users(id),
@@ -193,8 +237,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Achievement definitions table
-    await pool.query(`
+        // Achievement definitions table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS achievement_definitions (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -209,8 +253,8 @@ export async function initDatabase() {
         )
     `);
 
-    // User achievements table
-    await pool.query(`
+        // User achievements table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS user_achievements (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL REFERENCES users(id),
@@ -221,8 +265,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Mehfil topics table
-    await pool.query(`
+        // Mehfil topics table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS mehfil_topics (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
@@ -232,8 +276,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Mehfil messages table
-    await pool.query(`
+        // Mehfil messages table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS mehfil_messages (
             id TEXT PRIMARY KEY,
             topic_id TEXT NOT NULL REFERENCES mehfil_topics(id),
@@ -246,8 +290,8 @@ export async function initDatabase() {
         )
     `);
 
-    // Mehfil votes table
-    await pool.query(`
+        // Mehfil votes table
+        await pool.query(`
         CREATE TABLE IF NOT EXISTS mehfil_votes (
             id TEXT PRIMARY KEY,
             message_id TEXT NOT NULL REFERENCES mehfil_messages(id),
@@ -258,20 +302,21 @@ export async function initDatabase() {
         )
     `);
 
-    // Seed default topics if none exist
-    const existingTopics = await pool.query(`SELECT COUNT(*) as count FROM mehfil_topics`);
-    if (parseInt(existingTopics.rows[0]?.count) === 0) {
-        await pool.query(`
+        // Seed default topics if none exist
+        const existingTopics = await pool.query(`SELECT COUNT(*) as count FROM mehfil_topics`);
+        if (parseInt(existingTopics.rows[0]?.count) === 0) {
+            await pool.query(`
             INSERT INTO mehfil_topics (id, name, description) VALUES
             ('1', 'General', 'General discussions and thoughts'),
             ('2', 'Study Tips', 'Share your study strategies'),
             ('3', 'Stress Relief', 'Support for stressful times'),
             ('4', 'Achievements', 'Celebrate your wins')
         `);
-        console.log('Seeded default Mehfil topics');
-    }
+            console.log('Seeded default Mehfil topics');
+        }
 
-    console.log('Database initialized successfully (PostgreSQL)');
+        console.log('Database initialized successfully (PostgreSQL)');
+    }, 'Database initialization', 3, 3000);
 }
 
 // Graceful shutdown
