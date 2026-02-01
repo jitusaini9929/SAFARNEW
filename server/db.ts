@@ -16,11 +16,11 @@ if (!connectionString) {
 
 export const pool = new Pool({
     connectionString,
-    // SSL configuration for various PostgreSQL providers (Neon, Render, etc.)
-    // - Neon: requires ssl: true
-    // - Render: requires ssl: { rejectUnauthorized: false }
-    // This config works for both
-    ssl: connectionString ? { rejectUnauthorized: false } : false,
+    // SSL configuration for Neon PostgreSQL
+    // rejectUnauthorized: false allows self-signed certificates
+    ssl: connectionString?.includes('neon.tech') ? {
+        rejectUnauthorized: false
+    } : false,
     max: 20, // Max connections in pool
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
