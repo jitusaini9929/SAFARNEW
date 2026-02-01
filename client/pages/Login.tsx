@@ -30,10 +30,10 @@ export default function Login() {
       const user = await authService.login(email, password);
       toast.success("Welcome back!");
       sessionStorage.setItem("showWelcome", "true");
-      navigate("/dashboard");
+      // Use window.location for reliable redirect
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setError(err.message || "Invalid credentials");
-    } finally {
       setIsLoading(false);
     }
   };
