@@ -2,6 +2,7 @@ import path from "path";
 import { createServer } from "./index";
 import * as express from "express";
 
+// Build timestamp: 2026-02-01T09:36 - Force fresh build
 const port = process.env.PORT || 3000;
 
 // In production, serve the built SPA files
