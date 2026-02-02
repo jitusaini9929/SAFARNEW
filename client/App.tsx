@@ -64,13 +64,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     console.log(
-      "🔴 [PROTECTED ROUTE] Not authenticated, redirecting to /login",
+      "🔴 [PROTECTED ROUTE] Not authenticated, redirecting to Landing with signin modal",
     );
   } else {
     console.log("🟢 [PROTECTED ROUTE] Authenticated, rendering children");
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  return isAuthenticated ? <>{children}</> : <Navigate to="/?signin=true" replace />;
 }
 
 const App = () => (
@@ -181,11 +181,11 @@ const App = () => (
             }
           />
 
-          {/* Landing page */}
+          {/* Landing page - Public Home */}
           <Route path="/landing" element={<Landing />} />
 
-          {/* Login as home page */}
-          <Route path="/" element={<Login />} />
+          {/* Default route - Landing page is now home */}
+          <Route path="/" element={<Landing />} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
