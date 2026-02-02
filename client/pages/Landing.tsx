@@ -155,8 +155,8 @@ const Landing = () => {
           </div>
           <div className="relative z-20 px-8 md:px-16 lg:px-20 max-w-5xl mt-12">
             <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold leading-[1.2] mb-6 drop-shadow-2xl">
-              <span className="inline-block whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 font-serif" style={{ WebkitTextStroke: '1.3px rgba(79, 70, 229, 0.9)' }}>Where preparation meets care-</span><br />
-              <span className="inline-block whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 text-glow font-serif" style={{ WebkitTextStroke: '1.3px rgba(79, 70, 229, 0.9)' }}>A kinder way to move Forward</span>
+              <span className="inline-block whitespace-nowrap text-black font-serif">Where preparation meets care-</span><br />
+              <span className="inline-block whitespace-nowrap text-black font-serif">A kinder way to move Forward</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-2xl leading-relaxed drop-shadow-lg">
               A thoughtfully designed space to support your studies, consistency, and emotional well-being — all in one place.
@@ -191,6 +191,15 @@ const Landing = () => {
                 <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1">Track consistency, Journal, reflect on your emotional state</p>
               </Link>
 
+              {/* Ekagra Mode (Focus Timer) - Yellow Box */}
+              <Link to="/study" className="group flex flex-col items-center">
+                <div className="w-32 h-32 md:w-44 md:h-44 rounded-xl border-4 border-yellow-400 bg-transparent hover:bg-yellow-400/10 transition-all duration-300 flex items-center justify-center hover:scale-105 overflow-hidden">
+                  <img src="/focus-timer.png" alt="Ekagra Mode" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                </div>
+                <h3 className="mt-4 text-xl font-bold text-slate-800 dark:text-white group-hover:text-yellow-400 transition-colors">Ekagra Mode</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1">Your focus timer for productive study</p>
+              </Link>
+
               {/* Mehfil - Cyan Box */}
               <Link to="/mehfil" className="group flex flex-col items-center">
                 <div className="w-32 h-32 md:w-44 md:h-44 rounded-xl border-4 border-cyan-400 bg-transparent hover:bg-cyan-400/10 transition-all duration-300 flex items-center justify-center hover:scale-105 overflow-hidden">
@@ -209,14 +218,7 @@ const Landing = () => {
                 <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1">Meditation sessions and live chitchat with Parmar sir</p>
               </Link>
 
-              {/* Ekagra Mode (Focus Timer) - Yellow Box */}
-              <Link to="/study" className="group flex flex-col items-center">
-                <div className="w-32 h-32 md:w-44 md:h-44 rounded-xl border-4 border-yellow-400 bg-transparent hover:bg-yellow-400/10 transition-all duration-300 flex items-center justify-center hover:scale-105 overflow-hidden">
-                  <img src="/focus-timer.png" alt="Ekagra Mode" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <h3 className="mt-4 text-xl font-bold text-slate-800 dark:text-white group-hover:text-yellow-400 transition-colors">Ekagra Mode</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1">Your focus timer for productive study</p>
-              </Link>
+
             </div>
 
             {/* White Dashboard Container Box - Glassmorphism */}
@@ -236,9 +238,6 @@ const Landing = () => {
           <div className="max-w-7xl mx-auto relative z-10">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
-                <span className="inline-block px-4 py-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-full text-sm font-semibold mb-6">
-                  ✨ Community Feature
-                </span>
                 <h2 className="text-4xl md:text-5xl font-serif font-bold text-slate-900 dark:text-white mb-6 leading-tight">
                   Join the<br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-purple-500">Mehfil</span>
@@ -256,22 +255,18 @@ const Landing = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-4">
                   <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Anonymous Posts</h4>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Share without judgment</p>
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Share without judgment</h4>
                   </div>
                   <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Peer Support</h4>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">React with empathy</p>
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">React with empathy</h4>
                   </div>
                 </div>
                 <div className="space-y-4 mt-8">
                   <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Study Groups</h4>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Find your tribe</p>
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Find your tribe</h4>
                   </div>
                   <div className="bg-white dark:bg-[#1E293B] rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Achievements</h4>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Celebrate together</p>
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Celebrate together</h4>
                   </div>
                 </div>
               </div>
