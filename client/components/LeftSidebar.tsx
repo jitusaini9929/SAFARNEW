@@ -18,7 +18,6 @@ const navItems = [
     label: "Home",
     href: "/landing",
     icon: Home,
-    description: "Back to landing",
   },
   {
     label: "Emotional Check-In",
@@ -95,14 +94,14 @@ export default function LeftSidebar() {
                   />
                   <span
                     className={cn(
-                      "font-medium transition-colors duration-200",
+                      "font-medium transition-colors duration-200 whitespace-nowrap",
                       isActive ? "text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-300"
                     )}
                   >
                     {item.label}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-500 ml-8">{item.description}</p>
+                {item.description && <p className="text-xs text-slate-500 dark:text-slate-500 ml-8">{item.description}</p>}
               </Link>
             );
           })}

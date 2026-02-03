@@ -323,11 +323,16 @@ router.get('/me', requireAuth, async (req: Request, res) => {
 
             let shouldInsert = true;
             if (historyCheck.rows.length > 0) {
-                const lastTimestamp = historyCheck.rows[0].timestamp as string;
-                // Treat DB timestamp as UTC (automatically handled by Date usually if ISO string)
-                // If DB stores as "YYYY-MM-DD HH:MM:SS" without Z, it might be treated as local or UTC. 
-                // Turso/SQLite CURRENT_TIMESTAMP is UTC "YYYY-MM-DD HH:MM:SS".
-                const lastDate = new Date(lastTimestamp + (lastTimestamp.includes('Z') ? '' : 'Z'));
+                const lastTimestamp = historyCheck.rows[0].timestamp as any;
+                let lastDate: Date;
+
+                if (lastTimestamp instanceof Date) {
+                    lastDate = lastTimestamp;
+                } else {
+                    const timestampStr = lastTimestamp as string;
+                    lastDate = new Date(timestampStr + (timestampStr.includes('Z') ? '' : 'Z'));
+                }
+
                 const lastDateIST = new Date(lastDate.getTime() + istOffset).toISOString().split('T')[0];
 
                 if (lastDateIST === todayIST) {

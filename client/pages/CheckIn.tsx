@@ -96,9 +96,18 @@ export default function CheckIn() {
     setIsSubmitting(true);
     try {
       const finalNote = note + (selectedTags.length > 0 ? `\n\nTags: ${selectedTags.join(", ")}` : "");
-      await dataService.addMood(selectedMood, intensity, finalNote);
+      const newMood = await dataService.addMood(selectedMood, intensity, finalNote);
       toast.success("Check-in saved successfully!");
-      navigate("/nishtha/check-in");
+
+      // Update local state immediately
+      setMoodHistory(prev => [newMood, ...prev]);
+
+      // Reset form
+      setSelectedMood(null);
+      setIntensity(3);
+      setNote("");
+      setSelectedTags([]);
+
     } catch (error) {
       console.error(error);
       toast.error("Failed to save check-in");
@@ -129,9 +138,6 @@ export default function CheckIn() {
             <p className="text-muted-foreground font-light text-sm sm:text-base">Pause. Breathe. Connect with yourself.</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-full bg-muted border border-border text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer backdrop-blur-sm">
-              <Moon className="w-5 h-5" />
-            </div>
           </div>
         </div>
 

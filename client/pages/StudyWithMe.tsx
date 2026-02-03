@@ -40,6 +40,7 @@ export default function StudyWithMe() {
     const [user, setUser] = useState<any>(null);
     const [mode, setMode] = useState<"Timer" | "short" | "long">("Timer");
     const [sliderValue, setSliderValue] = useState(25);
+    const [breakSliderValue, setBreakSliderValue] = useState(5);
     const [minutes, setMinutes] = useState(25);
     const [seconds, setSeconds] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
@@ -106,8 +107,8 @@ export default function StudyWithMe() {
     };
 
     const modeSettings = {
-        Timer: { minutes: 25, label: "Pomodoro" },
-        short: { minutes: 5, label: "Short break" },
+        Timer: { minutes: sliderValue, label: "Pomodoro" },
+        short: { minutes: breakSliderValue, label: "Short break" },
         long: { minutes: 15, label: "Long break" },
     };
 
@@ -143,9 +144,20 @@ export default function StudyWithMe() {
 
     const handleSliderChange = (value: number) => {
         setSliderValue(value);
-        setTotalSeconds(value * 60);
-        setRemainingSeconds(value * 60);
-        setIsRunning(false);
+        if (mode === 'Timer') {
+            setTotalSeconds(value * 60);
+            setRemainingSeconds(value * 60);
+            setIsRunning(false);
+        }
+    };
+
+    const handleBreakSliderChange = (value: number) => {
+        setBreakSliderValue(value);
+        if (mode === 'short') {
+            setTotalSeconds(value * 60);
+            setRemainingSeconds(value * 60);
+            setIsRunning(false);
+        }
     };
 
     const toggleTimer = () => {
@@ -249,21 +261,7 @@ export default function StudyWithMe() {
 
                         {/* Navigation */}
                         <div className="space-y-2 flex-1">
-                            <button
-                                onClick={toggleTheme}
-                                className={`flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all group ${isSidebarCollapsed ? 'justify-center' : ''}`}
-                                title={theme === "dark" ? "Light Mode" : "Dark Mode"}
-                            >
-                                {theme === "dark" ?
-                                    <Sun className="w-5 h-5 text-yellow-500 group-hover:rotate-90 transition-transform" /> :
-                                    <Moon className="w-5 h-5 text-indigo-500 group-hover:-rotate-12 transition-transform" />
-                                }
-                                {!isSidebarCollapsed && (
-                                    <span className="font-medium">
-                                        {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                                    </span>
-                                )}
-                            </button>
+
 
                             <button
                                 onClick={() => setIsTasksOpen(true)}
@@ -320,6 +318,36 @@ export default function StudyWithMe() {
                                     <span>5M</span>
                                     <span>60M</span>
                                     <span>120M</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Break Duration Slider */}
+                        {!isSidebarCollapsed && (
+                            <div className="pt-6 border-t border-border/50 mt-6">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Set Break</span>
+                                    <span
+                                        className="text-xs font-bold px-2 py-0.5 rounded-full"
+                                        style={{ backgroundColor: `${currentTheme.accent}20`, color: currentTheme.accent }}
+                                    >
+                                        {breakSliderValue} min
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="30"
+                                    step="1"
+                                    value={breakSliderValue}
+                                    onChange={(e) => handleBreakSliderChange(parseInt(e.target.value))}
+                                    className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer"
+                                    style={{ accentColor: currentTheme.accent }}
+                                />
+                                <div className="flex justify-between mt-2 text-[10px] text-muted-foreground font-medium">
+                                    <span>1M</span>
+                                    <span>15M</span>
+                                    <span>30M</span>
                                 </div>
                             </div>
                         )}
@@ -514,9 +542,7 @@ export default function StudyWithMe() {
                     {/* Mobile Controls */}
                     <div className="lg:hidden fixed bottom-4 left-4 right-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl p-4">
                         <div className="flex items-center justify-between">
-                            <button onClick={toggleTheme} className="p-3 rounded-xl bg-muted">
-                                {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                            </button>
+
                             <div className="flex-1 mx-4">
                                 <input
                                     type="range"

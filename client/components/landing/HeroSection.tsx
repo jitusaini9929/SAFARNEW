@@ -155,9 +155,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                             Start your Safar
                             <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                         </Link>
-                        <Link to="/register" className="flex items-center justify-center gap-2 bg-slate-200/50 dark:bg-white/5 backdrop-blur-md border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white px-6 py-3 md:px-8 md:py-4 rounded-full font-medium text-base md:text-lg transition-all hover:bg-slate-300/50 dark:hover:bg-white/10">
-                            Learn More
-                        </Link>
+
                     </div>
                 </div>
             </header>

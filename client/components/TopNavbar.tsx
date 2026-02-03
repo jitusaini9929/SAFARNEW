@@ -45,7 +45,7 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
         {/* Left side - Logo and Portal Name (clickable to home) */}
         <Link to="/landing" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           {/* Logo with teal gradient background like Landing page */}
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#6EE7B7] to-teal-600 flex items-center justify-center text-black font-serif text-xl font-bold shadow-lg shadow-[#6EE7B7]/20 overflow-hidden">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#6EE7B7] to-teal-600 flex items-center justify-center text-black font-serif text-xl font-bold shadow-lg shadow-[#6EE7B7]/20 overflow-hidden">
             <img
               src={safarLogo}
               alt="Safar Logo"
@@ -53,28 +53,15 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
             />
           </div>
 
-          <div className="hidden sm:block">
-            <h1 className="text-xl font-serif font-bold text-slate-900 dark:text-white tracking-tight">
-              Safar
-            </h1>
-          </div>
+          <h1 className="text-xl font-serif font-bold text-slate-900 dark:text-white tracking-tight">
+            SAFAR
+          </h1>
         </Link>
 
         {/* Right side - Theme Toggle and User Avatar */}
         <div className="flex items-center gap-3">
           {/* Theme Toggle Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            className="rounded-full h-10 w-10 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20"
-          >
-            {theme === 'dark' ? (
-              <Sun className="h-5 w-5 text-[#6EE7B7]" />
-            ) : (
-              <Moon className="h-5 w-5 text-slate-600" />
-            )}
-          </Button>
+
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

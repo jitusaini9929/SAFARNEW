@@ -7,7 +7,7 @@ import MessageCard from './MessageCard';
 import Composer from './Composer';
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
-import { Contrast, Search, Bell, Settings, LogOut, Home } from 'lucide-react';
+import { Contrast, Search, Settings, LogOut, Home } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -184,10 +184,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl = 'http://localhost:3000' })
                     <Link to="/landing" className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors" title="Home">
                         <Home className="w-5 h-5" />
                     </Link>
-                    <button className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors relative">
-                        <Bell className="w-5 h-5" />
-                        <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-950"></span>
-                    </button>
+
 
                     <button
                         onClick={toggleTheme}

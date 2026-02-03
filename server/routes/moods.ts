@@ -34,9 +34,11 @@ router.post('/', requireAuth, async (req: Request, res) => {
         // Check if there's already a mood entry for today (IST)
         const todayIST = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
         const existingMood = await db.execute({
-            sql: `SELECT id FROM moods WHERE user_id = ? AND DATE(timestamp) = DATE(?)`,
+            // Explicit cast for Postgres
+            sql: `SELECT id FROM moods WHERE user_id = ? AND timestamp::date = ?::date`,
             args: [userId, todayIST]
         });
+        console.log('🔵 [CHECK-IN] Checking existing for:', todayIST, 'Found:', existingMood.rows.length);
 
         const isFirstCheckInToday = existingMood.rows.length === 0;
 
@@ -55,7 +57,13 @@ router.post('/', requireAuth, async (req: Request, res) => {
             const currentStreak = streakResult.rows[0] as any;
 
             if (currentStreak) {
-                const lastActiveDate = currentStreak.last_active_date ? currentStreak.last_active_date.split(' ')[0].split('T')[0] : null;
+                let lastActiveDate: string | null = null;
+                if (currentStreak.last_active_date) {
+                    const dateObj = new Date(currentStreak.last_active_date);
+                    // Convert to IST for consistency
+                    const istDate = new Date(dateObj.getTime() + (5.5 * 60 * 60 * 1000));
+                    lastActiveDate = istDate.toISOString().split('T')[0];
+                }
 
                 if (lastActiveDate === todayIST) {
                     // Already active today, no change

@@ -57,12 +57,7 @@ export default function FocusAnalytics({ onBack, onSetTimer }: FocusAnalyticsPro
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <button
-          onClick={toggleTheme}
-          className="p-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-500 dark:text-yellow-400"
-        >
-          {theme === 'dark' ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
-        </button>
+
       </div>
 
       {/* Focus Analytics Header */}

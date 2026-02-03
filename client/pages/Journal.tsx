@@ -194,14 +194,15 @@ export default function Journal() {
   };
 
   // Extract title from content - look for h2 tag first, then first line
+  // Extract title from content - look for h2/h3 tag first, then first line
   const getTitle = (html: string) => {
     const div = document.createElement('div');
     div.innerHTML = html;
 
-    // First try to get h2 title (this is how we save entries)
-    const h2 = div.querySelector('h2');
-    if (h2 && h2.textContent) {
-      const title = h2.textContent.trim();
+    // First try to get h2 or h3 title (h3 is used for prompt answers)
+    const titleFromHeader = div.querySelector('h2') || div.querySelector('h3');
+    if (titleFromHeader && titleFromHeader.textContent) {
+      const title = titleFromHeader.textContent.trim();
       return title.length > 50 ? title.substring(0, 50) + '...' : title;
     }
 
@@ -212,14 +213,14 @@ export default function Journal() {
     return firstLine || 'Untitled Entry';
   };
 
-  // Get body content (everything except the h2 title)
+  // Get body content (everything except the header title)
   const getBody = (html: string) => {
     const div = document.createElement('div');
     div.innerHTML = html;
 
-    // Remove h2 tag to get just the body
-    const h2 = div.querySelector('h2');
-    if (h2) h2.remove();
+    // Remove title tag to get just the body
+    const titleTag = div.querySelector('h2') || div.querySelector('h3');
+    if (titleTag) titleTag.remove();
 
     const text = div.textContent || div.innerText || '';
     return text.trim();
@@ -241,8 +242,7 @@ export default function Journal() {
   };
 
   // Calculate progress percentage
-  const weeklyProgress = Math.round((getWeeklyCount() / 7) * 100);
-  const progressOffset = 251.2 - (251.2 * weeklyProgress) / 100;
+
 
   if (!user) return null;
 
@@ -324,10 +324,7 @@ export default function Journal() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-mono text-emerald-600 dark:text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    AUTO-SAVED
-                  </div>
+
                 </div>
 
                 {/* Editor Area */}
@@ -487,30 +484,7 @@ export default function Journal() {
                 </span>
               </div>
 
-              {/* Progress Ring */}
-              <div className="flex items-center justify-center py-4">
-                <div className="relative w-28 h-28">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                    <circle
-                      className="text-slate-200 dark:text-slate-800 stroke-current"
-                      cx="50" cy="50" r="40"
-                      fill="transparent" strokeWidth="8"
-                    />
-                    <circle
-                      className="text-emerald-500 stroke-current transition-all duration-500"
-                      cx="50" cy="50" r="40"
-                      fill="transparent" strokeWidth="8"
-                      strokeDasharray="251.2"
-                      strokeDashoffset={progressOffset}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-2xl font-bold text-slate-900 dark:text-white">{weeklyProgress}%</span>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500">Complete</span>
-                  </div>
-                </div>
-              </div>
+
 
               {/* Day indicators */}
               <div className="grid grid-cols-7 gap-1 mt-4">

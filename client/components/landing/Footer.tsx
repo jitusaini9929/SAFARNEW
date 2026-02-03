@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+
 
 const Footer = () => {
     return (
@@ -19,12 +19,7 @@ const Footer = () => {
                 </div>
 
                 {/* Middle Section - Links */}
-                <div className="flex flex-wrap items-center justify-center gap-5 text-sm text-slate-400 mb-6">
-                    <Link to="/dashboard" className="hover:text-[#6EE7B7] transition-colors">Dashboard</Link>
-                    <Link to="/study" className="hover:text-[#6EE7B7] transition-colors">Focus Timer</Link>
-                    <Link to="/mehfil" className="hover:text-[#6EE7B7] transition-colors">Mehfil</Link>
-                    <Link to="/achievements" className="hover:text-[#6EE7B7] transition-colors">Achievements</Link>
-                </div>
+
 
                 {/* Divider */}
                 <div className="border-t border-slate-800 my-6"></div>

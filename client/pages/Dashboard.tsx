@@ -11,7 +11,6 @@ import {
     Quote,
     Activity,
     ArrowRight,
-    Bell,
     Menu,
     ExternalLink,
     Play,
@@ -199,27 +198,25 @@ export default function Dashboard() {
                 {/* Content Wrapper */}
                 <div className="relative z-10 p-4 md:p-6 lg:p-8">
                     <header className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 md:mb-8 gap-4">
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => navigate('/landing')}
-                                    className="p-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
-                                    title="Back to Home"
-                                >
-                                    <Home className="w-5 h-5 text-primary" />
-                                </button>
-                                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-1">Welcome Back, {user.name}</h1>
-                                {activeTitle && <PerkTitle title={activeTitle} type="aura" size="md" />}
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => navigate('/landing')}
+                                className="p-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
+                                title="Back to Home"
+                            >
+                                <Home className="w-5 h-5 text-primary" />
+                            </button>
+                            <div>
+                                <div className="flex items-center gap-3 mb-1">
+                                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Welcome Back, {user.name}</h1>
+                                    {activeTitle && <PerkTitle title={activeTitle} type="aura" size="md" />}
+                                </div>
+                                <p className="text-muted-foreground text-xs sm:text-sm">
+                                    "{getDailyQuote()}"
+                                </p>
                             </div>
-                            <p className="text-muted-foreground text-xs sm:text-sm">
-                                "{getDailyQuote()}"
-                            </p>
                         </div>
                         <div className="flex items-center gap-6">
-                            <div className="relative">
-                                <Bell className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors w-5 h-5 sm:w-6 sm:h-6" />
-                                <span className="absolute top-0 right-0 w-2 h-2 bg-secondary rounded-full border border-background"></span>
-                            </div>
                         </div>
                     </header>
 
@@ -241,7 +238,7 @@ export default function Dashboard() {
                                             <p className="text-foreground font-semibold text-lg capitalize mb-1">{todayMood.mood}</p>
                                             <p className="text-muted-foreground text-sm">Intensity: {todayMood.intensity}/5</p>
                                             <button
-                                                onClick={() => navigate('/check-in')}
+                                                onClick={() => navigate('/nishtha/check-in')}
                                                 className="mt-4 text-primary text-sm hover:underline flex items-center gap-1"
                                             >
                                                 Update Check-In <ArrowRight className="w-3 h-3" />
@@ -251,7 +248,7 @@ export default function Dashboard() {
                                         <>
                                             <p className="text-muted-foreground italic mb-6 text-lg font-light">No check-in yet today</p>
                                             <button
-                                                onClick={() => navigate('/check-in')}
+                                                onClick={() => navigate('/nishtha/check-in')}
                                                 className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white px-8 py-3 rounded-full font-medium transition-all shadow-lg hover:shadow-orange-500/25 flex items-center gap-2"
                                             >
                                                 Check In Now
@@ -398,7 +395,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* Daily Inspiration */}
-                        <div className="lg:col-span-7 glass-high rounded-2xl p-8 flex flex-col justify-center relative overflow-hidden">
+                        <div className="lg:col-span-4 glass-high rounded-2xl p-8 flex flex-col justify-center relative overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-secondary/10 pointer-events-none"></div>
                             <div className="relative z-10">
                                 <div className="flex items-center gap-2 mb-4 text-purple-500">
@@ -586,7 +583,7 @@ export default function Dashboard() {
                                                     : 'bg-muted/30 border-border'
                                                     }`}
                                             >
-                                                <div className="flex items-start gap-3">
+                                                <div className="flex items-center gap-3">
                                                     {goal.completed ? (
                                                         <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                                                     ) : (
