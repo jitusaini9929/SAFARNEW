@@ -97,7 +97,14 @@ const App = () => (
 
           {/* Nishtha - Wellness App with 5 sections */}
           <Route path="/nishtha">
-            <Route index element={<Navigate to="/nishtha/check-in" replace />} />
+            <Route
+              index
+              element={
+                <ProtectedRoute>
+                  <Navigate to="/nishtha/check-in" replace />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="check-in"
               element={

@@ -65,41 +65,41 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
     return (
         <div className="relative w-full min-h-screen">
             {/* Simplified Header - Scrollable (Absolute) */}
-            <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-6">
+            <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4 md:px-8 md:py-6">
                 {/* Logo and SAFAR Title */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 md:gap-4">
                     <img
                         src="/safar-logo.png.jpeg"
                         alt="Safar Logo"
-                        className="w-[90px] h-[90px] rounded-full border-2 border-black dark:border-white object-cover shadow-lg shadow-brand-accent/20"
+                        className="w-12 h-12 md:w-[90px] md:h-[90px] rounded-full border-2 border-black dark:border-white object-cover shadow-lg shadow-brand-accent/20 transition-all"
                     />
-                    <span className="text-[40px] font-serif font-bold text-black dark:text-white tracking-tight">SAFAR</span>
+                    <span className="text-2xl md:text-[40px] font-serif font-bold text-black dark:text-white tracking-tight">SAFAR</span>
                 </div>
 
                 {/* Profile Section with Theme Toggle */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 md:gap-4">
                     {/* Theme Toggle Button */}
                     <button
                         aria-label="Toggle Theme"
-                        className="p-3 rounded-full bg-white/80 dark:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-800 shadow-lg border-2 border-gray-200 dark:border-slate-700 transition-all hover:scale-105 active:scale-95"
+                        className="p-2 md:p-3 rounded-full bg-white/80 dark:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-800 shadow-lg border-2 border-gray-200 dark:border-slate-700 transition-all hover:scale-105 active:scale-95"
                         onClick={toggleTheme}
                     >
-                        {theme === 'dark' ? <Sun className="w-6 h-6 text-yellow-400" /> : <Moon className="w-6 h-6 text-slate-700" />}
+                        {theme === 'dark' ? <Sun className="w-5 h-5 md:w-6 md:h-6 text-yellow-400" /> : <Moon className="w-5 h-5 md:w-6 md:h-6 text-slate-700" />}
                     </button>
 
                     {/* Conditional: Sign In Button vs Profile Avatar */}
                     {user ? (
-                        <Link to="/profile" className="flex items-center justify-center p-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 backdrop-blur-xl shadow-2xl transition-all cursor-pointer group hover:scale-105 active:scale-95">
+                        <Link to="/profile" className="flex items-center justify-center p-1 md:p-2 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 backdrop-blur-xl shadow-2xl transition-all cursor-pointer group hover:scale-105 active:scale-95">
                             <img
                                 alt="User Avatar"
-                                className="w-20 h-20 rounded-full object-cover shadow-md"
+                                className="w-12 h-12 md:w-20 md:h-20 rounded-full object-cover shadow-md"
                                 src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDpC23e9Ij3Kzg310AyhS08hUZzUO5wS83FP5YrPuwjRF6AdxBcC0qMEWdFAJiBHiiKEpJHNEbk9vqBSUUAUjgF2APRS9xFACSDScYRjzU5e2Jdzerz_s7hmwhryXd5GYbqUBly6WOzSLclpR9PSy-7IzNLc4H3bsD04CkD_UDuiADxphkdk_S6XJUWlkbEJLC8p79msm7_L_2qzmoVs8sriSKSPq99rcz8ANuarcX1JwGcgGg6NcLBVgUPi59TaljhiM80PD-94ds"}
                             />
                         </Link>
                     ) : (
                         <button
                             onClick={() => setIsAuthModalOpen(true)}
-                            className="px-6 py-3 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all"
+                            className="px-4 py-2 md:px-6 md:py-3 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-xs md:text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all"
                         >
                             Sign In
                         </button>
@@ -140,22 +140,22 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                     <div className="absolute inset-0 bg-gradient-to-r from-slate-50/60 via-slate-50/40 to-transparent dark:from-midnight/80 dark:via-midnight/60 dark:to-transparent/20 z-10"></div>
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-50/70 via-slate-50/30 to-transparent dark:from-midnight/80 dark:via-transparent dark:to-transparent z-10"></div>
                 </div>
-                <div className="relative z-20 px-8 md:px-16 lg:px-20 max-w-5xl mt-12">
-                    <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold leading-[1.2] mb-6 drop-shadow-2xl">
-                        <span className="inline-block whitespace-nowrap text-black font-serif">Where preparation meets care-</span><br />
-                        <span className="inline-block whitespace-nowrap text-black font-serif">A kinder way to move Forward</span>
+                <div className="relative z-20 px-6 md:px-16 lg:px-20 max-w-5xl mt-24 md:mt-12">
+                    <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 drop-shadow-2xl">
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black font-serif">Where preparation meets care-</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black font-serif mt-2">A kinder way to move Forward</span>
                     </h1>
-                    <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-2xl leading-relaxed drop-shadow-lg">
+                    <p className="text-base md:text-xl text-slate-600 dark:text-slate-300 mb-8 md:mb-10 max-w-xl md:max-w-2xl leading-relaxed drop-shadow-lg">
                         A thoughtfully designed space to support your studies, consistency, and emotional well-being — all in one place.
                         Safar helps students stay focused, emotionally steady, and connected — especially when preparation feels heavy. Because " Your marks matter, but so does your mind"
                     </p>
 
-                    <div className="flex flex-col sm:flex-row gap-5">
-                        <Link to="/dashboard" className="group flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-8 py-4 rounded-full font-bold text-lg transition-all hover:scale-105 button-glow shadow-lg shadow-indigo-500/30">
+                    <div className="flex flex-col sm:flex-row gap-4 md:gap-5 w-full sm:w-auto">
+                        <Link to="/dashboard" className="group flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg transition-all hover:scale-105 button-glow shadow-lg shadow-indigo-500/30">
                             Start your Safar
                             <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                         </Link>
-                        <Link to="/register" className="flex items-center justify-center gap-2 bg-slate-200/50 dark:bg-white/5 backdrop-blur-md border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white px-8 py-4 rounded-full font-medium text-lg transition-all hover:bg-slate-300/50 dark:hover:bg-white/10">
+                        <Link to="/register" className="flex items-center justify-center gap-2 bg-slate-200/50 dark:bg-white/5 backdrop-blur-md border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white px-6 py-3 md:px-8 md:py-4 rounded-full font-medium text-base md:text-lg transition-all hover:bg-slate-300/50 dark:hover:bg-white/10">
                             Learn More
                         </Link>
                     </div>

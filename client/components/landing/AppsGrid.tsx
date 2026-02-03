@@ -48,14 +48,16 @@ const AppsGrid = () => {
     return (
         <div className="max-w-5xl mx-auto">
             {/* Apps Grid - 4 Colored Outline Boxes with Names & Descriptions */}
-            <div className="flex flex-wrap justify-center gap-6 md:gap-8 mb-10">
+            <div className="grid grid-cols-2 md:flex md:flex-wrap justify-center gap-4 md:gap-8 mb-10 w-full">
                 {apps.map((app) => (
-                    <Link key={app.name} to={app.path} className="group flex flex-col items-center">
-                        <div className={`w-32 h-32 md:w-44 md:h-44 rounded-xl border-4 ${app.borderColor} bg-transparent ${app.hoverBg} transition-all duration-300 flex items-center justify-center hover:scale-105 overflow-hidden`}>
+                    <Link key={app.name} to={app.path} className="group flex flex-col items-center w-full md:w-auto">
+                        <div className={`w-full aspect-square max-w-[140px] md:w-44 md:h-44 rounded-xl border-4 ${app.borderColor} bg-transparent ${app.hoverBg} transition-all duration-300 flex items-center justify-center hover:scale-105 overflow-hidden`}>
                             <img src={app.image} alt={app.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <h3 className={`mt-4 text-xl font-bold text-slate-800 dark:text-white ${app.textColor} transition-colors`}>{app.name}</h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1">{app.description}</p>
+                        <h3 className={`mt-3 md:mt-4 text-lg md:text-xl font-bold text-slate-800 dark:text-white ${app.textColor} transition-colors text-center`}>{app.name}</h3>
+                        <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 text-center max-w-[170px] mt-1 hidden md:block">{app.description}</p>
+                        {/* Only show brief description on mobile if needed, currently hidden to save space as cards are small? OR show nicely. */}
+                        <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-1 md:hidden line-clamp-2 leading-tight px-1">{app.description}</p>
                     </Link>
                 ))}
             </div>

@@ -5,19 +5,19 @@ import courseImg from "@/assets/course-thumbnail.png";
 
 const ExternalResources = () => {
     return (
-        <section className="bg-slate-50 dark:bg-midnight px-8 md:px-12 py-20 relative z-10">
+        <section className="bg-slate-50 dark:bg-midnight px-4 md:px-12 py-12 md:py-20 relative z-10">
             <div className="max-w-7xl mx-auto">
-                <div className="text-center mb-12">
+                <div className="text-center mb-8 md:mb-12">
                     <span className="inline-block px-4 py-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-full text-sm font-semibold mb-4">
                         Resources
                     </span>
 
-                    <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                    <p className="text-base md:text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
                         Helpful resources for your well-being and study journey
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-4xl mx-auto">
                     {/* YouTube Channel */}
                     <a
                         href="https://youtube.com/@safarparmar?si=Mvs6U5JaSGojIzSM"

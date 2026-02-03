@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
 import { toast } from "sonner";
 import { X } from "lucide-react";
@@ -10,6 +11,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
+    const navigate = useNavigate();
     const [mode, setMode] = useState<"login" | "signup">("login");
 
     // Login fields
@@ -215,8 +217,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                 type="button"
                                 onClick={() => { setMode("login"); setError(""); }}
                                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === "login"
-                                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow"
-                                        : "text-gray-500 dark:text-gray-400"
+                                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow"
+                                    : "text-gray-500 dark:text-gray-400"
                                     }`}
                             >
                                 Sign In
@@ -225,8 +227,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                 type="button"
                                 onClick={() => { setMode("signup"); setError(""); }}
                                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === "signup"
-                                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow"
-                                        : "text-gray-500 dark:text-gray-400"
+                                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow"
+                                    : "text-gray-500 dark:text-gray-400"
                                     }`}
                             >
                                 Sign Up
@@ -268,6 +270,19 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                         {error}
                                     </div>
                                 )}
+
+                                <div className="flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            onClose();
+                                            navigate("/forgot-password");
+                                        }}
+                                        className="text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition-colors"
+                                    >
+                                        Forgot Password?
+                                    </button>
+                                </div>
 
                                 <button
                                     type="submit"

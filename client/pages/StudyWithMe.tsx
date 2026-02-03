@@ -27,11 +27,11 @@ interface FocusTheme {
 }
 
 const focusThemes: FocusTheme[] = [
-    { id: "forest", name: "Forest", video: "/themes/forest.mp4", accent: "#22c55e", accentRgb: "34, 197, 94", icon: <Trees className="w-4 h-4" /> },
-    { id: "ocean", name: "Ocean", video: "/themes/ocean.mp4", accent: "#0ea5e9", accentRgb: "14, 165, 233", icon: <Waves className="w-4 h-4" /> },
-    { id: "sunset", name: "Sunset", video: "/themes/sunset.mp4", accent: "#f97316", accentRgb: "249, 115, 22", icon: <Sunset className="w-4 h-4" /> },
-    { id: "night", name: "Night", video: "/themes/night.mp4", accent: "#8b5cf6", accentRgb: "139, 92, 246", icon: <MoonStar className="w-4 h-4" /> },
-    { id: "aurora", name: "Aurora", video: "/themes/aurora.mp4", accent: "#ec4899", accentRgb: "236, 72, 153", icon: <Sparkle className="w-4 h-4" /> },
+    { id: "autumn", name: "Autumn", video: "/themes/forest.mp4", accent: "#cd6b25ff", accentRgb: "34, 197, 94", icon: <Trees className="w-4 h-4" /> },
+    { id: "beach", name: "Beach", video: "/themes/ocean.mp4", accent: "#1b8ec3ff", accentRgb: "14, 165, 233", icon: <Waves className="w-4 h-4" /> },
+    { id: "nostalgia", name: "Nostalgia", video: "/themes/sunset.mp4", accent: "#1cbc31ff", accentRgb: "249, 115, 22", icon: <Sunset className="w-4 h-4" /> },
+    { id: "waterfall", name: "Waterfall", video: "/themes/night.mp4", accent: "#2e7144ff", accentRgb: "139, 92, 246", icon: <MoonStar className="w-4 h-4" /> },
+    { id: "aurora", name: "Aurora", video: "/themes/aurora.mp4", accent: "#1c527cff", accentRgb: "236, 72, 153", icon: <Sparkle className="w-4 h-4" /> },
 ];
 
 export default function StudyWithMe() {
@@ -180,6 +180,7 @@ export default function StudyWithMe() {
         // Reload video
         if (videoRef.current) {
             videoRef.current.load();
+            videoRef.current.playbackRate = 0.7;
             videoRef.current.play();
         }
     };
@@ -198,6 +199,7 @@ export default function StudyWithMe() {
                     muted
                     playsInline
                     className="w-full h-full object-cover"
+                    onLoadedData={(e) => { (e.target as HTMLVideoElement).playbackRate = 0.5; }}
                 >
                     <source src={currentTheme.video} type="video/mp4" />
                 </video>
@@ -389,7 +391,7 @@ export default function StudyWithMe() {
                 <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 min-h-screen">
                     {/* Timer Card */}
                     <div
-                        className="w-full max-w-2xl rounded-3xl p-8 md:p-12 text-center shadow-2xl relative overflow-hidden transition-all duration-300 border-4 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md"
+                        className="w-full max-w-2xl rounded-3xl p-8 md:p-12 text-center shadow-2xl relative overflow-hidden transition-all duration-300 border-4 bg-white/20 dark:bg-slate-900/50 backdrop-blur-md"
                         style={{ borderColor: currentTheme.accent }}
                     >
                         {/* Decorative Nature Icons */}
