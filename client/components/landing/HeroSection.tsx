@@ -65,50 +65,52 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
     return (
         <div className="relative w-full min-h-screen">
             {/* Simplified Header - Scrollable (Absolute) */}
-            <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4 md:px-8 md:py-6">
-                {/* Logo and SAFAR Title */}
-                <div className="flex items-center gap-3 md:gap-4">
-                    <img
-                        src="/safar-logo.png.jpeg"
-                        alt="Safar Logo"
-                        className="w-12 h-12 md:w-[90px] md:h-[90px] rounded-full object-cover shadow-lg shadow-brand-accent/20 transition-all"
-                    />
-                    <span className="text-2xl md:text-[40px] font-serif font-bold text-black dark:text-white tracking-tight">SAFAR</span>
-                </div>
+            <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-4 md:px-8 md:py-6">
+                <div className="w-full max-w-[1200px] flex items-center justify-between">
+                    {/* Logo and SAFAR Title */}
+                    <div className="flex items-center gap-3 md:gap-4">
+                        <img
+                            src="/safar-logo.png.jpeg"
+                            alt="Safar Logo"
+                            className="w-12 h-12 md:w-[90px] md:h-[90px] rounded-full object-cover shadow-lg shadow-brand-accent/20 transition-all"
+                        />
+                        <span className="text-2xl md:text-[40px] font-serif font-bold text-black dark:text-white tracking-tight">SAFAR</span>
+                    </div>
 
-                {/* Profile Section with Theme Toggle */}
-                <div className="flex items-center gap-3 md:gap-4">
-                    {/* Theme Toggle Button */}
-                    <button
-                        aria-label="Toggle Theme"
-                        className="p-2 md:p-3 rounded-full bg-white/80 dark:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-800 shadow-lg border-2 border-gray-200 dark:border-slate-700 transition-all hover:scale-105 active:scale-95"
-                        onClick={toggleTheme}
-                    >
-                        {theme === 'dark' ? <Sun className="w-5 h-5 md:w-6 md:h-6 text-yellow-400" /> : <Moon className="w-5 h-5 md:w-6 md:h-6 text-slate-700" />}
-                    </button>
-
-                    {/* Conditional: Sign In Button vs Profile Avatar */}
-                    {user ? (
-                        <Link to="/profile" className="flex items-center justify-center p-1 md:p-2 rounded-2xl md:rounded-3xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 backdrop-blur-xl shadow-2xl transition-all cursor-pointer group hover:scale-105 active:scale-95">
-                            <img
-                                alt="User Avatar"
-                                className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl object-cover shadow-md"
-                                src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDpC23e9Ij3Kzg310AyhS08hUZzUO5wS83FP5YrPuwjRF6AdxBcC0qMEWdFAJiBHiiKEpJHNEbk9vqBSUUAUjgF2APRS9xFACSDScYRjzU5e2Jdzerz_s7hmwhryXd5GYbqUBly6WOzSLclpR9PSy-7IzNLc4H3bsD04CkD_UDuiADxphkdk_S6XJUWlkbEJLC8p79msm7_L_2qzmoVs8sriSKSPq99rcz8ANuarcX1JwGcgGg6NcLBVgUPi59TaljhiM80PD-94ds"}
-                            />
-                        </Link>
-                    ) : (
+                    {/* Profile Section with Theme Toggle */}
+                    <div className="flex items-center gap-3 md:gap-4">
+                        {/* Theme Toggle Button */}
                         <button
-                            onClick={() => setIsAuthModalOpen(true)}
-                            className="px-4 py-2 md:px-6 md:py-3 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-xs md:text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all"
+                            aria-label="Toggle Theme"
+                            className="p-2 md:p-3 rounded-full bg-white/80 dark:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-800 shadow-lg border-2 border-gray-200 dark:border-slate-700 transition-all hover:scale-105 active:scale-95"
+                            onClick={toggleTheme}
                         >
-                            Sign In
+                            {theme === 'dark' ? <Sun className="w-5 h-5 md:w-6 md:h-6 text-yellow-400" /> : <Moon className="w-5 h-5 md:w-6 md:h-6 text-slate-700" />}
                         </button>
-                    )}
+
+                        {/* Conditional: Sign In Button vs Profile Avatar */}
+                        {user ? (
+                            <Link to="/profile" className="flex items-center justify-center p-1 md:p-2 rounded-2xl md:rounded-3xl bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 backdrop-blur-xl shadow-2xl transition-all cursor-pointer group hover:scale-105 active:scale-95">
+                                <img
+                                    alt="User Avatar"
+                                    className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl object-cover shadow-md"
+                                    src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDpC23e9Ij3Kzg310AyhS08hUZzUO5wS83FP5YrPuwjRF6AdxBcC0qMEWdFAJiBHiiKEpJHNEbk9vqBSUUAUjgF2APRS9xFACSDScYRjzU5e2Jdzerz_s7hmwhryXd5GYbqUBly6WOzSLclpR9PSy-7IzNLc4H3bsD04CkD_UDuiADxphkdk_S6XJUWlkbEJLC8p79msm7_L_2qzmoVs8sriSKSPq99rcz8ANuarcX1JwGcgGg6NcLBVgUPi59TaljhiM80PD-94ds"}
+                                />
+                            </Link>
+                        ) : (
+                            <button
+                                onClick={() => setIsAuthModalOpen(true)}
+                                className="px-4 py-2 md:px-6 md:py-3 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-bold text-xs md:text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all"
+                            >
+                                Sign In
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
             {/* Header / Hero with Video */}
-            <header className="relative w-full min-h-screen flex items-center">
+            <header className="relative w-full min-h-screen flex items-center justify-center">
                 <div className="absolute inset-0 z-0">
                     {/* Static Background Image */}
                     <img
@@ -126,7 +128,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                     <div className="absolute inset-0 bg-gradient-to-r from-slate-50/60 via-slate-50/40 to-transparent dark:from-midnight/80 dark:via-midnight/60 dark:to-transparent/20 z-10"></div>
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-50/70 via-slate-50/30 to-transparent dark:from-midnight/80 dark:via-transparent dark:to-transparent z-10"></div>
                 </div>
-                <div className="relative z-20 px-6 md:px-16 lg:px-20 max-w-5xl mt-24 md:mt-12">
+                <div className="relative z-20 w-full max-w-[1200px] px-6 md:px-8 mt-24 md:mt-12">
                     <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 drop-shadow-2xl">
                         <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif">Where preparation meets care-</span>
                         <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif mt-2">A kinder way to move Forward</span>
