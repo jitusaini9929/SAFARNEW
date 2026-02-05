@@ -93,7 +93,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                             <Link to="/profile" className="flex items-center justify-center p-1 md:p-2 rounded-lg md:rounded-xl bg-black/20 dark:bg-white/20 hover:bg-black/30 dark:hover:bg-white/30 backdrop-blur-xl shadow-2xl transition-all cursor-pointer group hover:scale-105 active:scale-95">
                                 <img
                                     alt="User Avatar"
-                                    className="w-10 h-10 md:w-16 md:h-16 rounded-md md:rounded-lg object-cover shadow-md"
+                                    className="w-10 h-10 md:w-16 md:h-16 rounded-md md:rounded-lg object-cover object-top shadow-md"
                                     src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDpC23e9Ij3Kzg310AyhS08hUZzUO5wS83FP5YrPuwjRF6AdxBcC0qMEWdFAJiBHiiKEpJHNEbk9vqBSUUAUjgF2APRS9xFACSDScYRjzU5e2Jdzerz_s7hmwhryXd5GYbqUBly6WOzSLclpR9PSy-7IzNLc4H3bsD04CkD_UDuiADxphkdk_S6XJUWlkbEJLC8p79msm7_L_2qzmoVs8sriSKSPq99rcz8ANuarcX1JwGcgGg6NcLBVgUPi59TaljhiM80PD-94ds"}
                                 />
                             </Link>
