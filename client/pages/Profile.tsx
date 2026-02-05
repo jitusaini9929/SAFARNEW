@@ -99,7 +99,6 @@ export default function Profile() {
 
   if (!user) return null;
 
-  const profileStrength = 85;
 
   return (
     <>
@@ -220,20 +219,6 @@ export default function Profile() {
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-8">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   Online
-                </div>
-
-                {/* Profile Strength */}
-                <div className="text-left space-y-3 pt-6 border-t border-slate-100 dark:border-slate-700">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 dark:text-slate-400 font-medium">Profile Strength</span>
-                    <span className="text-emerald-500 font-bold">{profileStrength}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
-                      style={{ width: `${profileStrength}%` }}
-                    ></div>
-                  </div>
                 </div>
               </div>
             </div>
