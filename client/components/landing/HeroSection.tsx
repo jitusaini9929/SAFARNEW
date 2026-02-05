@@ -110,28 +110,14 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
             {/* Header / Hero with Video */}
             <header className="relative w-full min-h-screen flex items-center">
                 <div className="absolute inset-0 z-0">
-                    {/* Dual Video Setup for Cross-fade Loop */}
-                    <video
-                        ref={video1Ref}
-                        autoPlay
-                        muted
-                        playsInline
-                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
-                        style={{ opacity: 1, zIndex: 1 }}
-                    >
-                        <source src="/finak.mp4" type="video/mp4" />
-                    </video>
-                    <video
-                        ref={video2Ref}
-                        muted
-                        playsInline
-                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
-                        style={{ opacity: 0, zIndex: 2 }}
-                    >
-                        <source src="/finak.mp4" type="video/mp4" />
-                    </video>
+                    {/* Static Background Image */}
+                    <img
+                        src="/hero-background.png"
+                        alt="Hero background"
+                        className="absolute inset-0 w-full h-full object-cover"
+                    />
 
-                    {/* Subtle Vignette Effect - keeps video clear, just slight edge darkening */}
+                    {/* Subtle Vignette Effect - keeps image clear, just slight edge darkening */}
                     <div className="absolute inset-0 z-[5] pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.15) 100%)' }}></div>
 
                     {/* Dark film for light mode text contrast */}
