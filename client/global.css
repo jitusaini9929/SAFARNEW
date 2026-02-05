@@ -971,6 +971,7 @@
 .dark .scrollbar-blend::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
 }
+
 /* Skeuomorphic UI Elements */
 .skeuo-outer-rim {
   background: conic-gradient(from 180deg, #1a1a1a, #000000, #1a1a1a);
@@ -1011,23 +1012,28 @@
 
 /* Focus Timer Skeuomorphic Elements */
 .timer-bg {
-    background: #080808;
-    box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+  background: #080808;
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.9);
 }
+
 .hourglass-shadow {
-    filter: drop-shadow(-25px 25px 20px rgba(0,0,0,0.8));
+  filter: drop-shadow(-25px 25px 20px rgba(0, 0, 0, 0.8));
 }
+
 .sand-top-shape {
-    clip-path: path('M10,0 H90 Q90,30 50,65 Q10,30 10,0 Z');
+  clip-path: path('M10,0 H90 Q90,30 50,65 Q10,30 10,0 Z');
 }
+
 .sand-bottom-shape {
-    clip-path: path('M50,15 Q80,50 90,70 H10 Q20,50 50,15 Z');
+  clip-path: path('M50,15 Q80,50 90,70 H10 Q20,50 50,15 Z');
 }
+
 .glass-bulb {
-    background: #1a1a1a;
-    border: 6px solid #262626;
+  background: #1a1a1a;
+  border: 6px solid #262626;
 }
+
 .focus-title {
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    letter-spacing: 0.05em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.05em;
 }

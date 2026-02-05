@@ -21,17 +21,18 @@ interface FocusTheme {
     id: string;
     name: string;
     video: string;
+    audio: string;
     accent: string;
     accentRgb: string;
     icon: React.ReactNode;
 }
 
 const focusThemes: FocusTheme[] = [
-    { id: "autumn", name: "Autumn", video: "/themes/forest.mp4", accent: "#cd6b25ff", accentRgb: "34, 197, 94", icon: <Trees className="w-4 h-4" /> },
-    { id: "beach", name: "Beach", video: "/themes/ocean.mp4", accent: "#1b8ec3ff", accentRgb: "14, 165, 233", icon: <Waves className="w-4 h-4" /> },
-    { id: "nostalgia", name: "Nostalgia", video: "/themes/sunset.mp4", accent: "#1cbc31ff", accentRgb: "249, 115, 22", icon: <Sunset className="w-4 h-4" /> },
-    { id: "waterfall", name: "Waterfall", video: "/themes/night.mp4", accent: "#2e7144ff", accentRgb: "139, 92, 246", icon: <MoonStar className="w-4 h-4" /> },
-    { id: "aurora", name: "Aurora", video: "/themes/aurora.mp4", accent: "#1c527cff", accentRgb: "236, 72, 153", icon: <Sparkle className="w-4 h-4" /> },
+    { id: "autumn", name: "Autumn", video: "/themes/forest.mp4", audio: "/audio/autumn.mp3", accent: "#cd6b25ff", accentRgb: "34, 197, 94", icon: <Trees className="w-4 h-4" /> },
+    { id: "beach", name: "Beach", video: "/themes/ocean.mp4", audio: "/audio/beach.mp3", accent: "#1b8ec3ff", accentRgb: "14, 165, 233", icon: <Waves className="w-4 h-4" /> },
+    { id: "nostalgia", name: "Nostalgia", video: "/themes/sunset.mp4", audio: "/audio/nostalgia.mp3", accent: "#1cbc31ff", accentRgb: "249, 115, 22", icon: <Sunset className="w-4 h-4" /> },
+    { id: "waterfall", name: "Waterfall", video: "/themes/night.mp4", audio: "/audio/waterfall.mp3", accent: "#2e7144ff", accentRgb: "139, 92, 246", icon: <MoonStar className="w-4 h-4" /> },
+    { id: "aurora", name: "Aurora", video: "/themes/aurora.mp4", audio: "/audio/aurora.mp3", accent: "#1c527cff", accentRgb: "236, 72, 153", icon: <Sparkle className="w-4 h-4" /> },
 ];
 
 export default function StudyWithMe() {
@@ -55,6 +56,7 @@ export default function StudyWithMe() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
     // Reset log ref when timer starts
     useEffect(() => {
@@ -92,6 +94,27 @@ export default function StudyWithMe() {
         };
         fetchUser();
     }, []);
+
+    // Audio playback control
+    useEffect(() => {
+        if (audioRef.current) {
+            if (isRunning) {
+                audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+            } else {
+                audioRef.current.pause();
+            }
+        }
+    }, [isRunning]);
+
+    // Reload audio when theme changes
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.load();
+            if (isRunning) {
+                audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+            }
+        }
+    }, [currentTheme]);
 
     const handleLogout = async () => {
         try {
@@ -215,6 +238,12 @@ export default function StudyWithMe() {
                 >
                     <source src={currentTheme.video} type="video/mp4" />
                 </video>
+                {/* Background Audio */}
+                <audio
+                    ref={audioRef}
+                    loop
+                    src={currentTheme.audio}
+                />
                 {/* Overlay for readability */}
                 <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
             </div>

@@ -37,7 +37,7 @@ const apps = [
         path: "/meditation",
         image: "/meditation-silhouette.png",
         color: "green",
-        description: "Meditation sessions and live chitchat with Parmar sir",
+        description: "Meditation sessions with Parmar sir",
         borderColor: "border-green-400",
         hoverBg: "hover:bg-green-400/10",
         textColor: "group-hover:text-green-400"

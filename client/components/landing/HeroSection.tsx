@@ -142,8 +142,8 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                 </div>
                 <div className="relative z-20 px-6 md:px-16 lg:px-20 max-w-5xl mt-24 md:mt-12">
                     <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 drop-shadow-2xl">
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black font-serif">Where preparation meets care-</span>
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black font-serif mt-2">A kinder way to move Forward</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif">Where preparation meets care-</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif mt-2">A kinder way to move Forward</span>
                     </h1>
                     <p className="text-base md:text-xl text-slate-600 dark:text-slate-300 mb-8 md:mb-10 max-w-xl md:max-w-2xl leading-relaxed drop-shadow-lg">
                         A thoughtfully designed space to support your studies, consistency, and emotional well-being — all in one place.
