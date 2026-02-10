@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import BreathingVisualizer from "@/components/meditation/BreathingVisualizer";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import { authService } from "@/utils/authService";
@@ -103,6 +104,22 @@ const sessions: Session[] = [
             "Repeat this cycle four times."
         ],
         cycle: { inhale: 4, holdIn: 7, exhale: 8, holdOut: 0 }
+    },
+    {
+        id: "5",
+        title: "Alternate Nostril Breathing",
+        duration: 5,
+        description: "Balance left and right brain hemispheres.",
+        longDescription: "An ancient yogic technique (Nadi Shodhana) that calms the mind, reduces anxiety, and balances the nervous system by alternating airflow through each nostril.",
+        type: "breathing",
+        steps: [
+            "Sit comfortably with your spine straight.",
+            "Close your right nostril with your thumb.",
+            "Inhale slowly through your left nostril.",
+            "Close your left nostril with your ring finger, release your thumb.",
+            "Exhale slowly through your right nostril. Repeat alternating."
+        ],
+        cycle: { inhale: 4, holdIn: 0, exhale: 4, holdOut: 0 }
     },
 ];
 
@@ -263,37 +280,23 @@ export default function Meditation() {
                 {/* Active Session Area */}
                 <div className="flex flex-col items-center mb-16">
                     {/* Visual & Timer */}
-                    <div className="relative group mb-24">
-                        {/* Animated ripple circles */}
-                        <div
-                            className={`absolute inset-0 rounded-full border-2 border-emerald-400/30 transition-all duration-1000 ${isActive ? "animate-ping" : ""
-                                }`}
-                            style={{ transform: "scale(1.3)" }}
-                        />
-                        <div
-                            className={`absolute inset-0 rounded-full border border-emerald-400/20 transition-all duration-700 delay-200 ${isActive ? "animate-pulse" : ""
-                                }`}
-                            style={{ transform: "scale(1.5)" }}
-                        />
-
-                        {/* Main circle with meditating figure */}
-                        <div
-                            className={`w-44 h-44 md:w-52 md:h-52 rounded-full overflow-hidden border-4 transition-all duration-500 ${isActive
-                                ? "border-emerald-400 shadow-[0_0_60px_rgba(52,211,153,0.3)]"
-                                : "border-slate-200 dark:border-slate-700"
-                                } bg-slate-100 dark:bg-slate-800`}
-                        >
-                            <img
-                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuC03jxU5u_cgQDKXbMsTTcYxSeQWddHxS7XfwCab3gFZQiE6cK7cyPkPFJ8OwtNZ492fyl_KmoZHgHE0djejqLziIrqMAFwUD-VIM1O7LaYGMtrjAYDrgsjMz1M6uDBLiySXSgL3WojSwxGls6yMb3J3bmUYvMVGFey1aJV0NUgD4IstZNbe4UT_ZsSuJTwdkb6h0-B82SelK-SuD083O4z3SmruVOS3wDLibDcTuKG-LZKP8rlw-CZYq2cSiz5nnbW9uXoJ6LGfrx-"
-                                alt="Meditation Silhouette"
-                                className={`w-full h-full object-cover transition-transform duration-700 ${isActive ? "scale-105" : ""}`}
-                                style={{ filter: 'grayscale(100%) contrast(110%) brightness(105%)' }}
+                    <div className="relative group mb-16">
+                        {/* Dynamic Breathing Visualizer */}
+                        <div className={`relative rounded-3xl p-6 transition-all duration-500 ${isActive
+                            ? "bg-white/50 dark:bg-white/5 shadow-2xl shadow-emerald-500/10 ring-1 ring-emerald-500/20"
+                            : "bg-white/30 dark:bg-white/[0.02] shadow-lg ring-1 ring-slate-200/50 dark:ring-white/5"
+                            }`}>
+                            <BreathingVisualizer
+                                sessionId={selectedSession.id}
+                                breathPhase={breathPhase}
+                                isActive={isActive}
+                                cycle={selectedSession.cycle}
                             />
                         </div>
 
-                        {/* Breathing indicator */}
+                        {/* Breathing phase indicator below visualizer */}
                         {isActive && (
-                            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-40 text-center">
+                            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-40 text-center">
                                 <span
                                     className={`text-lg font-bold uppercase tracking-widest transition-all duration-500 ${breathPhase === "inhale"
                                         ? "text-emerald-500"
@@ -359,7 +362,7 @@ export default function Meditation() {
                 </div>
 
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-6">Breathing Techniques</h3>
-                <div data-tour="session-cards" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div data-tour="session-cards" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                     {sessions.map((session) => (
                         <div
                             key={session.id}

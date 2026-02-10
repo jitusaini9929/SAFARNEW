@@ -69,7 +69,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                 <div className="w-full max-w-[1400px] flex items-center justify-between">
                     {/* Logo and SAFAR Title */}
                     <div className="flex items-center gap-3 md:gap-4">
-                        <div className="flex items-center justify-center p-1 md:p-2 rounded-full bg-black/20 dark:bg-white/20 backdrop-blur-xl shadow-2xl">
+                        <div className="flex items-center justify-center rounded-full shadow-2xl shadow-black/25 dark:shadow-white/15">
                             <img
                                 src="/safar-logo.png.jpeg"
                                 alt="Safar Logo"
