@@ -8,85 +8,163 @@ interface BreathingVisualizerProps {
     cycle?: { inhale: number; holdIn: number; exhale: number; holdOut: number };
 }
 
-// ─── 1. Diaphragmatic: Wavy S-curve path with traveling dot ─────────────────
+// ─── 1. Diaphragmatic: Belly Breathing Visualization ─────────────────────────
 const WavyPathViz: React.FC<{ breathPhase: string; isActive: boolean }> = ({ breathPhase, isActive }) => {
-    const dotRef = useRef<SVGCircleElement>(null);
-    const progressRef = useRef(0);
-    const animRef = useRef<number>(0);
+    const isInhale = breathPhase === 'inhale';
+    const isExhale = breathPhase === 'exhale';
+    const isHold = breathPhase === 'hold' || breathPhase === 'hold-empty';
 
-    useEffect(() => {
-        if (!isActive) {
-            progressRef.current = 0;
-            if (dotRef.current) {
-                dotRef.current.setAttribute('cx', '20');
-                dotRef.current.setAttribute('cy', '120');
-            }
-            return;
-        }
+    const orbScale = isInhale ? 1.35 : isExhale ? 0.75 : isHold && breathPhase === 'hold' ? 1.35 : 0.75;
+    const glowOpacity = isInhale ? 0.6 : isExhale ? 0.15 : 0.4;
+    const particleDirection = isInhale ? -120 : isExhale ? 120 : 0;
 
-        const path = document.getElementById('wavy-path') as unknown as SVGPathElement;
-        if (!path || !dotRef.current) return;
-
-        const totalLength = path.getTotalLength();
-        const speed = breathPhase === 'inhale' ? 0.003 : breathPhase === 'exhale' ? 0.002 : 0;
-
-        const animate = () => {
-            if (speed > 0) {
-                progressRef.current = (progressRef.current + speed) % 1;
-            }
-            const point = path.getPointAtLength(progressRef.current * totalLength);
-            if (dotRef.current) {
-                dotRef.current.setAttribute('cx', String(point.x));
-                dotRef.current.setAttribute('cy', String(point.y));
-            }
-            animRef.current = requestAnimationFrame(animate);
-        };
-
-        animRef.current = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(animRef.current);
-    }, [isActive, breathPhase]);
+    const phaseColor = isInhale ? '#10b981' : isExhale ? '#6366f1' : '#f59e0b';
+    const phaseGradient = isInhale ? 'from-emerald-400 to-teal-500' : isExhale ? 'from-indigo-400 to-purple-500' : 'from-amber-400 to-orange-500';
 
     return (
-        <div className="w-52 h-52 md:w-60 md:h-60 flex items-center justify-center">
-            <svg viewBox="0 0 240 240" className="w-full h-full">
-                <defs>
-                    <linearGradient id="wavyGrad" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#f87171" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#fb923c" stopOpacity="0.3" />
-                    </linearGradient>
-                </defs>
-                <path
-                    id="wavy-path"
-                    d="M 20 200 C 60 200, 80 40, 120 120 S 180 200, 220 40"
-                    fill="none"
-                    stroke="#f87171"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    opacity="0.6"
+        <div className="w-72 h-72 flex items-center justify-center relative">
+            {/* Concentric pulse rings */}
+            {[1, 2, 3].map((ring) => (
+                <motion.div
+                    key={ring}
+                    animate={{
+                        scale: isActive ? (isInhale ? [1, 1.2 + ring * 0.15] : isExhale ? [1.2 + ring * 0.15, 1] : 1.1 + ring * 0.1) : 1,
+                        opacity: isActive ? (isInhale ? [0.15, 0.05] : isExhale ? [0.05, 0.15] : 0.08) : 0.05,
+                    }}
+                    transition={{ duration: isInhale ? 4 : isExhale ? 6 : 1, ease: 'easeInOut' }}
+                    className="absolute rounded-full border"
+                    style={{
+                        width: `${120 + ring * 50}px`,
+                        height: `${120 + ring * 50}px`,
+                        borderColor: phaseColor,
+                        borderWidth: '1.5px',
+                    }}
                 />
-                <path
-                    d="M 20 200 C 60 200, 80 40, 120 120 S 180 200, 220 40"
-                    fill="none"
-                    stroke="url(#wavyGrad)"
-                    strokeWidth="12"
-                    strokeLinecap="round"
-                    opacity="0.3"
-                    filter="blur(4px)"
+            ))}
+
+            {/* Outer glow */}
+            <motion.div
+                animate={{
+                    scale: isActive ? orbScale * 1.4 : 1,
+                    opacity: isActive ? glowOpacity * 0.5 : 0.1,
+                }}
+                transition={{ duration: isInhale ? 4 : 6, ease: 'easeInOut' }}
+                className={`absolute w-40 h-40 rounded-full bg-gradient-to-r ${phaseGradient} blur-2xl`}
+            />
+
+            {/* Main breathing orb */}
+            <motion.div
+                animate={{
+                    scale: isActive ? orbScale : 1,
+                }}
+                transition={{ duration: isInhale ? 4 : isExhale ? 6 : 0.5, ease: 'easeInOut' }}
+                className="relative"
+            >
+                {/* Orb ring glow */}
+                <motion.div
+                    animate={{ opacity: isActive ? [0.3, 0.6, 0.3] : 0.2 }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                    className={`absolute inset-[-8px] rounded-full bg-gradient-to-r ${phaseGradient} blur-lg opacity-30`}
                 />
-                <circle
-                    ref={dotRef}
-                    cx="20"
-                    cy="200"
-                    r="10"
-                    fill="#3b82f6"
-                    className="drop-shadow-lg"
+
+                {/* Core orb */}
+                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-white to-slate-100 dark:from-slate-800 dark:to-slate-900 border-4 border-white dark:border-slate-700 shadow-2xl flex items-center justify-center overflow-hidden relative">
+                    {/* Inner gradient fill that rises/falls */}
+                    <motion.div
+                        animate={{
+                            height: isActive ? (isInhale || (isHold && breathPhase === 'hold') ? '100%' : '20%') : '50%',
+                        }}
+                        transition={{ duration: isInhale ? 4 : isExhale ? 6 : 0.5, ease: 'easeInOut' }}
+                        className={`absolute bottom-0 w-full bg-gradient-to-t ${phaseGradient} opacity-30`}
+                    />
+
+                    {/* Phase icon */}
+                    <motion.div
+                        animate={{ y: isActive ? (isInhale ? -4 : isExhale ? 4 : 0) : 0 }}
+                        transition={{ duration: isInhale ? 4 : 6, ease: 'easeInOut' }}
+                        className="relative z-10 flex flex-col items-center"
+                    >
+                        <motion.span
+                            animate={{ scale: isActive ? [1, 1.1, 1] : 1 }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="text-3xl mb-1"
+                        >
+                            {isInhale ? '🫁' : isExhale ? '💨' : '✨'}
+                        </motion.span>
+                    </motion.div>
+                </div>
+            </motion.div>
+
+            {/* Floating air particles */}
+            {isActive && !isHold && (
+                <>
+                    {[...Array(6)].map((_, i) => (
+                        <motion.div
+                            key={`particle-${breathPhase}-${i}`}
+                            initial={{
+                                y: isInhale ? 80 : -80,
+                                x: (i - 2.5) * 20,
+                                opacity: 0,
+                                scale: 0.5,
+                            }}
+                            animate={{
+                                y: particleDirection,
+                                opacity: [0, 0.7, 0],
+                                scale: [0.5, 1, 0.3],
+                            }}
+                            transition={{
+                                duration: isInhale ? 3 : 4,
+                                delay: i * 0.3,
+                                repeat: Infinity,
+                                ease: 'easeOut',
+                            }}
+                            className={`absolute w-2 h-2 rounded-full ${isInhale ? 'bg-emerald-400' : 'bg-indigo-400'}`}
+                            style={{ filter: 'blur(1px)' }}
+                        />
+                    ))}
+                </>
+            )}
+
+            {/* Bottom belly wave indicator */}
+            <div className="absolute -bottom-2 flex items-center gap-1">
+                <motion.div
+                    animate={{
+                        scaleY: isActive ? (isInhale ? [1, 1.6] : isExhale ? [1.6, 1] : 1.3) : 1,
+                    }}
+                    transition={{ duration: isInhale ? 4 : 6, ease: 'easeInOut' }}
+                    className="w-6 h-3 rounded-full bg-gradient-to-r from-emerald-400/40 to-teal-400/40 dark:from-emerald-500/30 dark:to-teal-500/30"
+                />
+                <motion.div
+                    animate={{
+                        scaleY: isActive ? (isInhale ? [1, 2] : isExhale ? [2, 1] : 1.5) : 1,
+                    }}
+                    transition={{ duration: isInhale ? 4 : 6, ease: 'easeInOut', delay: 0.1 }}
+                    className="w-8 h-3 rounded-full bg-gradient-to-r from-teal-400/50 to-emerald-400/50 dark:from-teal-500/40 dark:to-emerald-500/40"
+                />
+                <motion.div
+                    animate={{
+                        scaleY: isActive ? (isInhale ? [1, 1.6] : isExhale ? [1.6, 1] : 1.3) : 1,
+                    }}
+                    transition={{ duration: isInhale ? 4 : 6, ease: 'easeInOut' }}
+                    className="w-6 h-3 rounded-full bg-gradient-to-r from-emerald-400/40 to-teal-400/40 dark:from-emerald-500/30 dark:to-teal-500/30"
+                />
+            </div>
+
+            {/* Phase label */}
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={breathPhase}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute -bottom-10 text-center"
                 >
-                    <animate attributeName="r" values="8;12;8" dur="2s" repeatCount="indefinite" />
-                </circle>
-                <text x="120" y="230" textAnchor="middle" fill="currentColor" className="text-xs font-bold uppercase tracking-widest" fontSize="11" opacity="0.5">
-                    {isActive ? 'follow the dot' : 'ready'}
-                </text>
-            </svg>
+                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r ${phaseGradient} text-white shadow-md`}>
+                        {isInhale ? 'Belly Rise' : isExhale ? 'Belly Lower' : breathPhase === 'hold' ? 'Hold Full' : 'Hold'}
+                    </span>
+                </motion.div>
+            </AnimatePresence>
         </div>
     );
 };
