@@ -118,10 +118,8 @@ export default function Login() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
               </div>
-              <h1 className="text-3xl font-bold text-center mb-1 tracking-tight text-gray-900 dark:text-white">
-                <span className="text-teal-700 dark:text-teal-400">NISHTHA</span>
-                <span className="text-gray-400 mx-1 font-light">-</span>
-                <span className="text-rose-900 dark:text-rose-300">Consistency ka Safar</span>
+              <h1 className="text-3xl font-bold text-center mb-1 tracking-tight text-teal-700 dark:text-teal-400">
+                SAFAR
               </h1>
               <p className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 tracking-wide mt-2">
                 Your emotional well-being & productivity portal
@@ -203,7 +201,7 @@ export default function Login() {
 
           <div className="mt-8 text-center">
             <p className="text-xs text-teal-800/60 dark:text-teal-200/40 font-medium">
-              © 2026 NISHTHA Portal. All rights reserved.
+              © 2026 SAFAR. All rights reserved.
             </p>
           </div>
         </main>

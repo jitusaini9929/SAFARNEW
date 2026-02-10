@@ -304,11 +304,11 @@ export default function Meditation() {
                                     cycle={selectedSession.cycle}
                                 />
                             ) : (
-                                <div className="flex flex-col items-center">
-                                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">{selectedSession.title}</h2>
-                                    <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{selectedSession.description}</p>
+                                <div className="flex flex-col items-center w-full h-full justify-between min-h-[350px]">
+                                    <h2 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-white mb-1">{selectedSession.title}</h2>
+                                    <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm mb-4 line-clamp-2">{selectedSession.description}</p>
 
-                                    <div className="relative rounded-3xl p-6 bg-white/30 dark:bg-white/[0.02] shadow-lg ring-1 ring-slate-200/50 dark:ring-white/5 mb-6">
+                                    <div className="relative rounded-3xl p-4 md:p-6 bg-white/30 dark:bg-white/[0.02] shadow-lg ring-1 ring-slate-200/50 dark:ring-white/5 mb-4 flex-shrink-0">
                                         <BreathingVisualizer
                                             sessionId={selectedSession.id}
                                             breathPhase={breathPhase}
@@ -329,12 +329,12 @@ export default function Meditation() {
                                     </div>
 
                                     {/* Timer */}
-                                    <div className="text-5xl font-light text-slate-800 dark:text-white font-mono tracking-wider tabular-nums mb-4">
+                                    <div className="text-4xl md:text-5xl font-light text-slate-800 dark:text-white font-mono tracking-wider tabular-nums mb-3">
                                         {formatTime(timeLeft)}
                                     </div>
 
                                     {/* Progress */}
-                                    <div className="w-full max-w-xs h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-6">
+                                    <div className="w-full max-w-xs h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-6 flex-shrink-0">
                                         <div
                                             className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-1000"
                                             style={{ width: `${progress}%` }}
@@ -342,7 +342,7 @@ export default function Meditation() {
                                     </div>
 
                                     {/* Controls */}
-                                    <div className="flex items-center justify-center gap-8">
+                                    <div className="flex items-center justify-center gap-6 md:gap-8 pb-1">
                                         <button
                                             onClick={handleReset}
                                             className="p-3 rounded-full bg-white dark:bg-slate-800 shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-105"

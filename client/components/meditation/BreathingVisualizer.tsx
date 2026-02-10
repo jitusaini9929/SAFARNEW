@@ -22,7 +22,7 @@ const WavyPathViz: React.FC<{ breathPhase: string; isActive: boolean }> = ({ bre
     const phaseGradient = isInhale ? 'from-emerald-400 to-teal-500' : isExhale ? 'from-indigo-400 to-purple-500' : 'from-amber-400 to-orange-500';
 
     return (
-        <div className="w-72 h-72 flex items-center justify-center relative">
+        <div className="w-72 h-72 flex items-center justify-center relative scale-75 md:scale-100 origin-center">
             {/* Concentric pulse rings */}
             {[1, 2, 3].map((ring) => (
                 <motion.div
@@ -441,7 +441,7 @@ const NostrilViz: React.FC<{ breathPhase: string; isActive: boolean }> = () => {
 
     return (
         <div className="flex items-center justify-center w-full">
-            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-lg border border-white/20 dark:border-white/10">
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-lg border border-white/20 dark:border-white/10 scale-90 md:scale-100 origin-center">
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">

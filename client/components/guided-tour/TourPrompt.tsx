@@ -87,7 +87,7 @@ export default function TourPrompt({ tour, featureName }: TourPromptProps) {
                         variant="ghost"
                         className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-sm"
                     >
-                        Skip, I know my way around
+                        Skip
                     </Button>
                 </div>
             </div>

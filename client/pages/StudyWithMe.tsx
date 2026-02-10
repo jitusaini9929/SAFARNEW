@@ -427,7 +427,8 @@ export default function StudyWithMe() {
                                 <button
                                     key={m}
                                     onClick={() => handleModeChange(m)}
-                                    className={`px-8 py-3 rounded-full text-base font-semibold transition-all ${mode === m
+                                    onClick={() => handleModeChange(m)}
+                                    className={`px-4 py-2 md:px-8 md:py-3 rounded-full text-sm md:text-base font-semibold transition-all ${mode === m
                                         ? "text-white shadow-lg"
                                         : "text-muted-foreground hover:text-foreground"
                                         }`}
@@ -442,7 +443,7 @@ export default function StudyWithMe() {
                         </div>
 
                         {/* Timer Display */}
-                        <div data-tour="timer-display" className="text-8xl md:text-9xl leading-none font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-foreground to-muted-foreground tracking-tight mb-12 drop-shadow-xl font-['Poppins']">
+                        <div data-tour="timer-display" className="text-6xl md:text-8xl lg:text-9xl leading-none font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-foreground to-muted-foreground tracking-tight mb-8 md:mb-12 drop-shadow-xl font-['Poppins']">
                             {formatTime(minutes, seconds)}
                         </div>
 
@@ -459,7 +460,7 @@ export default function StudyWithMe() {
                             <button
                                 data-tour="start-button"
                                 onClick={toggleTimer}
-                                className="group relative px-16 py-5 text-white text-xl font-bold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden"
+                                className="group relative px-8 py-4 md:px-16 md:py-5 text-white text-lg md:text-xl font-bold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden"
                                 style={{
                                     backgroundColor: currentTheme.accent,
                                     boxShadow: `0 0 30px ${currentTheme.accent}50`
