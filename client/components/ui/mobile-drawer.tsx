@@ -6,9 +6,10 @@ interface MobileDrawerProps {
     onClose: () => void;
     children: ReactNode;
     title?: string;
+    className?: string;
 }
 
-export default function MobileDrawer({ isOpen, onClose, children, title }: MobileDrawerProps) {
+export default function MobileDrawer({ isOpen, onClose, children, title, className }: MobileDrawerProps) {
     if (!isOpen) return null;
 
     return (
@@ -20,7 +21,7 @@ export default function MobileDrawer({ isOpen, onClose, children, title }: Mobil
             />
 
             {/* Drawer */}
-            <div className="fixed inset-y-0 left-0 w-[280px] max-w-[85vw] bg-background border-r border-border shadow-2xl z-[70] lg:hidden animate-in slide-in-from-left duration-300">
+            <div className={`fixed inset-y-0 left-0 w-[280px] max-w-[85vw] bg-background border-r border-border shadow-2xl z-[70] lg:hidden animate-in slide-in-from-left duration-300 ${className || ''}`}>
                 {/* Header */}
                 {title && (
                     <div className="flex items-center justify-between p-4 border-b border-border">

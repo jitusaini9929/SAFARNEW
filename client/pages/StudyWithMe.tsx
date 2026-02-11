@@ -438,7 +438,6 @@ export default function StudyWithMe() {
                                 <button
                                     key={m}
                                     onClick={() => handleModeChange(m)}
-                                    onClick={() => handleModeChange(m)}
                                     className={`px-4 py-2 md:px-8 md:py-3 rounded-full text-sm md:text-base font-semibold transition-all ${mode === m
                                         ? "text-white shadow-lg"
                                         : "text-muted-foreground hover:text-foreground"
