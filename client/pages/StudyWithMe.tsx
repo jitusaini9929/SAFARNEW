@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/contexts/ThemeContext";
 import { authService } from "@/utils/authService";
-import { Moon, Sun, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle } from "lucide-react";
+import { Moon, Sun, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music } from "lucide-react";
 import TasksSidebar from "./TasksSidebar";
 import FocusAnalytics from "./FocusAnalytics";
 import { focusService } from "@/utils/focusService";
@@ -29,14 +29,61 @@ interface FocusTheme {
     accentRgb: string;
     gradient: string;
     icon: React.ReactNode;
+    videoUrl: string;
+    musicUrl: string;
 }
 
 const focusThemes: FocusTheme[] = [
-    { id: "autumn", name: "Autumn", accent: "#cd6b25ff", accentRgb: "205, 107, 37", gradient: "linear-gradient(135deg, #2d5016 0%, #4a7c2e 50%, #cd6b25 100%)", icon: <Trees className="w-4 h-4" /> },
-    { id: "beach", name: "Beach", accent: "#1b8ec3ff", accentRgb: "27, 142, 195", gradient: "linear-gradient(135deg, #0a4d68 0%, #1b8ec3 50%, #88d4f5 100%)", icon: <Waves className="w-4 h-4" /> },
-    { id: "nostalgia", name: "Nostalgia", accent: "#1cbc31ff", accentRgb: "28, 188, 49", gradient: "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)", icon: <Sunset className="w-4 h-4" /> },
-    { id: "waterfall", name: "Waterfall", accent: "#2e7144ff", accentRgb: "46, 113, 68", gradient: "linear-gradient(135deg, #1e3a5f 0%, #2e7144 50%, #4ade80 100%)", icon: <MoonStar className="w-4 h-4" /> },
-    { id: "aurora", name: "Aurora", accent: "#1c527cff", accentRgb: "28, 82, 124", gradient: "linear-gradient(135deg, #1c527c 0%, #7c3aed 50%, #ec4899 100%)", icon: <Sparkle className="w-4 h-4" /> },
+    { 
+        id: "autumn", 
+        name: "Autumn", 
+        accent: "#cd6b25ff", 
+        accentRgb: "205, 107, 37", 
+        gradient: "linear-gradient(135deg, #2d5016 0%, #4a7c2e 50%, #cd6b25 100%)", 
+        icon: <Trees className="w-4 h-4" />,
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/23881-337972830_medium.mp4",
+        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/sonican-lo-fi-music-loop-sentimental-jazzy-love-473154.mp3"
+    },
+    { 
+        id: "beach", 
+        name: "Beach", 
+        accent: "#1b8ec3ff", 
+        accentRgb: "27, 142, 195", 
+        gradient: "linear-gradient(135deg, #0a4d68 0%, #1b8ec3 50%, #88d4f5 100%)", 
+        icon: <Waves className="w-4 h-4" />,
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/70796-538877060_medium.mp4",
+        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/viacheslavstarostin-calm-soft-background-music-357212.mp3"
+    },
+    { 
+        id: "nostalgia", 
+        name: "Nostalgia", 
+        accent: "#1cbc31ff", 
+        accentRgb: "28, 188, 49", 
+        gradient: "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)", 
+        icon: <Sunset className="w-4 h-4" />,
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/11898793_3840_2160_60fps.mp4",
+        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/relaxingtime-sleep-music-vol16-195422.mp3"
+    },
+    { 
+        id: "waterfall", 
+        name: "Waterfall", 
+        accent: "#2e7144ff", 
+        accentRgb: "46, 113, 68", 
+        gradient: "linear-gradient(135deg, #1e3a5f 0%, #2e7144 50%, #4ade80 100%)", 
+        icon: <MoonStar className="w-4 h-4" />,
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/216134_medium.mp4",
+        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/sigmamusicart-soft-background-music-468495.mp3"
+    },
+    { 
+        id: "aurora", 
+        name: "Aurora", 
+        accent: "#1c527cff", 
+        accentRgb: "28, 82, 124", 
+        gradient: "linear-gradient(135deg, #1c527c 0%, #7c3aed 50%, #ec4899 100%)", 
+        icon: <Sparkle className="w-4 h-4" />,
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/244839_medium.mp4",
+        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/vividillustrate-432hz-magic-healing-cosmic-sleep-amp-focus-frequency-361117.mp3"
+    },
 ];
 
 export default function StudyWithMe() {
@@ -60,6 +107,13 @@ export default function StudyWithMe() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Audio/Video refs and states
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
+    const [volume, setVolume] = useState(0.5);
 
     // Deep link handling for analytics
     useEffect(() => {
@@ -206,21 +260,96 @@ export default function StudyWithMe() {
     const handleThemeChange = (newTheme: FocusTheme) => {
         setCurrentTheme(newTheme);
         setShowThemeSelector(false);
+        // Stop current audio and reset state when changing theme
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+        }
+        setIsMusicPlaying(false);
     };
+
+    // Audio control handlers
+    const toggleMusic = () => {
+        if (audioRef.current) {
+            if (isMusicPlaying) {
+                audioRef.current.pause();
+                setIsMusicPlaying(false);
+            } else {
+                audioRef.current.play().catch(e => console.error('Audio play error:', e));
+                setIsMusicPlaying(true);
+            }
+        }
+    };
+
+    const toggleMute = () => {
+        if (audioRef.current) {
+            audioRef.current.muted = !isMuted;
+            setIsMuted(!isMuted);
+        }
+    };
+
+    const handleVolumeChange = (newVolume: number) => {
+        setVolume(newVolume);
+        if (audioRef.current) {
+            audioRef.current.volume = newVolume;
+        }
+    };
+
+    // Initialize audio volume on mount
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.volume = volume;
+        }
+    }, []);
+
+    // Update audio source when theme changes
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.src = currentTheme.musicUrl;
+            audioRef.current.volume = volume;
+            audioRef.current.loop = true;
+            if (isMusicPlaying) {
+                audioRef.current.play().catch(e => console.error('Audio play error:', e));
+            }
+        }
+    }, [currentTheme, isMusicPlaying, volume]);
+
+    // Update video source when theme changes
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.src = currentTheme.videoUrl;
+        }
+    }, [currentTheme]);
 
     return (
         <div
             className="flex h-screen overflow-hidden bg-background text-foreground font-sans transition-colors duration-300"
             style={{ '--theme-accent': currentTheme.accent, '--theme-accent-rgb': currentTheme.accentRgb } as React.CSSProperties}
         >
-            {/* Gradient Background */}
-            <div
-                className="fixed inset-0 z-0 transition-all duration-700"
-                style={{ background: currentTheme.gradient }}
-            >
+            {/* Video Background */}
+            <div className="fixed inset-0 z-0">
+                <video
+                    ref={videoRef}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-full h-full object-cover"
+                    src={currentTheme.videoUrl}
+                >
+                    <source src={currentTheme.videoUrl} type="video/mp4" />
+                </video>
                 {/* Overlay for readability */}
-                <div className="absolute inset-0 bg-black/30 dark:bg-black/50" />
+                <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
             </div>
+
+            {/* Audio Element */}
+            <audio
+                ref={audioRef}
+                loop
+                crossOrigin="anonymous"
+                src={currentTheme.musicUrl}
+            />
 
             {/* Sidebar */}
             {!showAnalytics && (
@@ -677,8 +806,45 @@ export default function StudyWithMe() {
                 </div>
             </MobileDrawer>
 
-            {/* Floating Profile Icon */}
-            <div className="fixed top-6 right-8 z-[60]">
+            {/* Floating Controls - Music & Profile */}
+            <div className="fixed top-6 right-8 z-[60] flex items-center gap-3">
+                {/* Music Control */}
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-3 py-2">
+                    <button
+                        onClick={toggleMusic}
+                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                        title={isMusicPlaying ? "Pause Music" : "Play Music"}
+                    >
+                        {isMusicPlaying ? (
+                            <Pause className="w-4 h-4 text-white" />
+                        ) : (
+                            <Music className="w-4 h-4 text-white" />
+                        )}
+                    </button>
+                    <button
+                        onClick={toggleMute}
+                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                        title={isMuted ? "Unmute" : "Mute"}
+                    >
+                        {isMuted ? (
+                            <VolumeX className="w-4 h-4 text-white" />
+                        ) : (
+                            <Volume2 className="w-4 h-4 text-white" />
+                        )}
+                    </button>
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={volume}
+                        onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                        className="w-16 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-white"
+                        title="Volume"
+                    />
+                </div>
+
+                {/* Profile Icon */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="rounded-full h-10 w-10 p-0 hover:bg-white/10 border border-white/20 bg-white/10 backdrop-blur-md">

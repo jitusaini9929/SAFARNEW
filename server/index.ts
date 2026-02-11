@@ -15,6 +15,7 @@ import { focusSessionRoutes } from "./routes/focus-sessions";
 import { achievementRoutes, seedAchievementDefinitions } from "./routes/achievements";
 import { initDatabase } from "./db";
 import { setupMehfilSocket } from "./routes/mehfil-socket";
+import { paymentRoutes } from "./routes/payments";
 
 export async function createServer() {
   const app = express();
@@ -65,6 +66,7 @@ export async function createServer() {
   app.use("/api/streaks", streakRoutes);
   app.use("/api/focus-sessions", focusSessionRoutes);
   app.use("/api/achievements", achievementRoutes);
+  app.use("/api/payments", paymentRoutes);
 
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";

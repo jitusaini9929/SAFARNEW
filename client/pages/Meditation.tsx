@@ -30,6 +30,7 @@ import { TourPrompt } from "@/components/guided-tour";
 import { Button } from "@/components/ui/button";
 import BottomSheet from '@/components/ui/bottom-sheet';
 import FloatingActionButton from '@/components/ui/floating-action-button';
+import CourseBanner from '@/components/meditation/CourseBanner';
 
 interface Session {
     id: string;
@@ -382,21 +383,11 @@ export default function Meditation() {
 
                 {/* ═══════ LEFT SIDEBAR ═══════ */}
                 <aside className="hidden lg:flex flex-col w-[406px] min-w-[406px] border-r border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0d0d14]/60 backdrop-blur-sm p-4 gap-4 overflow-y-auto">
-                    {/* Banner - Clickable Link to Payment Page */}
-                    <div className="flex flex-col gap-2">
-                        <a
-                            href="https://www.parmaracademy.in/courses/75-safar-30"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ring-2 ring-cyan-400/60"
-                            style={{
-                                boxShadow: '0 0 15px rgba(34, 211, 238, 0.4), 0 0 30px rgba(34, 211, 238, 0.2)',
-                            }}
-                        >
-                            <img src="/Banner.jpeg" alt="Safar Course Banner" className="w-full h-auto object-cover" />
-                        </a>
-                        <p className="text-center text-xs text-slate-500 dark:text-slate-400 font-medium mt-2">Click here to know more</p>
-                    </div>
+                    {/* Course Banner with In-App Payment */}
+                    <CourseBanner 
+                        user={user ? { name: user.name, email: user.email } : null}
+                        courseId="safar-30"
+                    />
 
                     {/* Audio Library Placeholder */}
                     <div className="flex-1 rounded-2xl border-2 border-dashed border-slate-200/70 dark:border-white/10 p-5 flex flex-col items-center justify-center text-center gap-3 min-h-[120px]">

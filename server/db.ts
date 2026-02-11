@@ -335,6 +335,106 @@ export async function initDatabase() {
         ON mehfil_reactions(user_id)
     `);
 
+        // ═══════════════════════════════════════════════════════════
+        // Payment System - Razorpay Integration
+        // ═══════════════════════════════════════════════════════════
+
+        // Orders table
+        await pool.query(`
+        CREATE TABLE IF NOT EXISTS orders (
+            id TEXT PRIMARY KEY,
+            razorpay_order_id TEXT UNIQUE NOT NULL,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            course_id TEXT NOT NULL,
+            amount DECIMAL(10, 2) NOT NULL,
+            currency TEXT DEFAULT 'INR',
+            status TEXT DEFAULT 'created',
+            receipt TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+    `);
+
+        // Payments table
+        await pool.query(`
+        CREATE TABLE IF NOT EXISTS payments (
+            id TEXT PRIMARY KEY,
+            razorpay_payment_id TEXT UNIQUE NOT NULL,
+            razorpay_order_id TEXT NOT NULL,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            amount DECIMAL(10, 2) NOT NULL,
+            currency TEXT DEFAULT 'INR',
+            status TEXT NOT NULL,
+            method TEXT,
+            email TEXT,
+            contact TEXT,
+            card_last4 TEXT,
+            card_network TEXT,
+            bank TEXT,
+            wallet TEXT,
+            vpa TEXT,
+            razorpay_signature TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            captured_at TIMESTAMP WITH TIME ZONE,
+            refunded_at TIMESTAMP WITH TIME ZONE
+        )
+    `);
+
+        // Refunds table
+        await pool.query(`
+        CREATE TABLE IF NOT EXISTS refunds (
+            id TEXT PRIMARY KEY,
+            razorpay_refund_id TEXT UNIQUE NOT NULL,
+            razorpay_payment_id TEXT NOT NULL,
+            razorpay_order_id TEXT NOT NULL,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            amount DECIMAL(10, 2) NOT NULL,
+            currency TEXT DEFAULT 'INR',
+            status TEXT NOT NULL,
+            reason TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            processed_at TIMESTAMP WITH TIME ZONE
+        )
+    `);
+
+        // Course enrollments table
+        await pool.query(`
+        CREATE TABLE IF NOT EXISTS course_enrollments (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            course_id TEXT NOT NULL,
+            razorpay_order_id TEXT,
+            razorpay_payment_id TEXT,
+            enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            access_granted BOOLEAN DEFAULT FALSE,
+            expires_at TIMESTAMP WITH TIME ZONE,
+            UNIQUE(user_id, course_id)
+        )
+    `);
+
+        // Transaction logs (audit trail)
+        await pool.query(`
+        CREATE TABLE IF NOT EXISTS transaction_logs (
+            id TEXT PRIMARY KEY,
+            order_id TEXT,
+            payment_id TEXT,
+            event_type TEXT NOT NULL,
+            event_data JSONB,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+    `);
+
+        // Payment indexes
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_razorpay_id ON orders(razorpay_order_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(razorpay_order_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_refunds_payment_id ON refunds(razorpay_payment_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_enrollments_user_course ON course_enrollments(user_id, course_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_transaction_logs_order ON transaction_logs(order_id)`);
+
         console.log('Database initialized successfully (PostgreSQL)');
     }, 'Database initialization', 3, 3000);
 }
