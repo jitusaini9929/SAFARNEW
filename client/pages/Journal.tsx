@@ -257,18 +257,18 @@ export default function Journal() {
         <div className="fixed bottom-0 right-0 w-[600px] h-[600px] bg-violet-500/10 dark:bg-violet-500/5 rounded-full blur-[120px] pointer-events-none translate-x-1/3 translate-y-1/3" />
 
         {/* Main Content Area */}
-        <div className="relative z-10 flex flex-col xl:flex-row h-full overflow-auto">
+        <div className="relative z-10 flex flex-col lg:flex-row h-full overflow-auto">
 
           {/* Editor Section - Main Area */}
-          <section className="flex-[2] min-w-0 p-6 lg:p-10 overflow-y-auto relative">
+          <section className="flex-[2] min-w-0 p-4 md:p-6 lg:p-10 overflow-y-auto relative">
             {/* Writing glow effect */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(16,185,129,0.06),transparent_60%)] dark:bg-[radial-gradient(circle_at_50%_10%,rgba(16,185,129,0.08),transparent_60%)] pointer-events-none" />
 
             <div className="max-w-3xl mx-auto relative">
 
               {/* Header */}
-              <header className="mb-10">
-                <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight font-serif">
+              <header className="mb-6 md:mb-10">
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight font-serif">
                   {dateString}
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide uppercase text-sm flex items-center gap-2">
@@ -281,7 +281,7 @@ export default function Journal() {
               <div data-tour="journal-editor" className="bg-white dark:bg-[#1E1E1E] rounded-3xl shadow-xl dark:shadow-2xl dark:shadow-black/50 border border-slate-200/50 dark:border-white/5 overflow-hidden transition-all duration-300 hover:shadow-emerald-500/5">
 
                 {/* Toolbar */}
-                <div data-tour="journal-toolbar" className="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-white/[0.02]">
+                <div data-tour="journal-toolbar" className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 dark:bg-white/[0.02]">
                   <div className="flex items-center gap-4">
                     {/* Mood Dropdown */}
                     <div className="relative">
@@ -361,11 +361,11 @@ export default function Journal() {
                 <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent opacity-30" />
 
                 {/* Save Button */}
-                <div data-tour="save-entry" className="px-8 py-6 flex justify-end">
+                <div data-tour="save-entry" className="px-4 md:px-8 py-4 md:py-6 flex justify-end sticky bottom-0 bg-white dark:bg-[#1E1E1E] border-t border-slate-200/50 dark:border-white/5 md:border-t-0 md:static">
                   <button
                     onClick={handleAddEntry}
                     disabled={isSubmitting}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-3 px-8 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-3 px-6 md:px-8 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center"
                   >
                     <CheckCircle className="w-5 h-5" />
                     {isSubmitting ? "Saving..." : "Save Entry"}
@@ -376,7 +376,8 @@ export default function Journal() {
           </section>
 
           {/* Right Sidebar - Daily Inspiration & History */}
-          <aside className="w-full xl:w-[400px] xl:flex-shrink-0 border-t xl:border-t-0 xl:border-l border-slate-200 dark:border-white/5 bg-slate-100/50 dark:bg-[#151515]/90 backdrop-blur-sm p-6 overflow-y-auto space-y-6">
+          {/* Right Sidebar - Daily Inspiration & History */}
+          <aside className="w-full lg:w-[400px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-white/5 bg-slate-100/50 dark:bg-[#151515]/90 backdrop-blur-sm p-4 md:p-6 overflow-y-auto space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-6 lg:flex lg:flex-col lg:gap-6 lg:space-y-0">
 
             {/* Daily Inspiration Card */}
             <div data-tour="daily-inspiration" className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-6 border border-slate-200/50 dark:border-white/5 relative overflow-hidden group shadow-lg shadow-slate-200/50 dark:shadow-black/20 hover:shadow-xl hover:shadow-violet-500/5 dark:hover:shadow-violet-500/10 transition-all duration-300">
@@ -489,7 +490,7 @@ export default function Journal() {
 
 
               {/* Day indicators */}
-              <div className="grid grid-cols-7 gap-1 mt-4">
+              <div className="grid grid-cols-7 gap-1 mt-4 max-w-xs mx-auto">
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => {
                   const now = new Date();
                   const todayStr = now.toLocaleDateString('en-CA');
@@ -524,7 +525,7 @@ export default function Journal() {
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-7 gap-y-3 gap-x-1 text-center text-sm">
+              <div className="grid grid-cols-7 gap-y-3 gap-x-1 text-center text-sm max-w-xs mx-auto">
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, idx) => (
                   <div key={idx} className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{d}</div>
                 ))}

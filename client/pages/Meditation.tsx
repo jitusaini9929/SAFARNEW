@@ -21,11 +21,15 @@ import {
     HelpCircle,
     Music,
     Image,
+    List,
+    Dumbbell,
 } from "lucide-react";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { meditationTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
 import { Button } from "@/components/ui/button";
+import BottomSheet from '@/components/ui/bottom-sheet';
+import FloatingActionButton from '@/components/ui/floating-action-button';
 
 interface Session {
     id: string;
@@ -126,6 +130,8 @@ const sessions: Session[] = [
     },
 ];
 
+const exercises = sessions; // Alias for mobile view compatibility
+
 export default function Meditation() {
     const navigate = useNavigate();
     const { theme, toggleTheme } = useTheme();
@@ -136,6 +142,8 @@ export default function Meditation() {
     const [breathPhase, setBreathPhase] = useState<"inhale" | "hold" | "exhale" | "hold-empty">("inhale");
     const [isMuted, setIsMuted] = useState(false);
     const [showInstructions, setShowInstructions] = useState(false);
+    const [showSessionList, setShowSessionList] = useState(false);
+    const [showExercises, setShowExercises] = useState(false);
 
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const breathTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -577,6 +585,80 @@ export default function Meditation() {
                     </div>
                 </div>
             )}
+
+            {/* Mobile FABs for Sidebars */}
+            <div className="lg:hidden">
+                <FloatingActionButton
+                    onClick={() => setShowSessionList(true)}
+                    icon={<List className="w-5 h-5" />}
+                    label="Sessions"
+                    position="bottom-left"
+                />
+                <FloatingActionButton
+                    onClick={() => setShowExercises(true)}
+                    icon={<Dumbbell className="w-5 h-5" />}
+                    label="Exercises"
+                    position="bottom-right"
+                />
+            </div>
+
+            {/* Mobile Bottom Sheets */}
+            <BottomSheet
+                isOpen={showSessionList}
+                onClose={() => setShowSessionList(false)}
+                title="Meditation Sessions"
+            >
+                <div className="space-y-3">
+                    {sessions.map((session) => (
+                        <button
+                            key={session.id}
+                            onClick={() => {
+                                setSelectedSession(session);
+                                setTimeLeft(session.duration * 60);
+                                setShowSessionList(false);
+                            }}
+                            className={`w-full p-4 rounded-xl border-2 transition-all text-left ${selectedSession.id === session.id
+                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                                : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
+                                }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl text-emerald-500"><Wind className="w-6 h-6" /></span>
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-slate-900 dark:text-white">{session.title}</h3>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">{session.duration} min • {session.description}</p>
+                                </div>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </BottomSheet>
+
+            <BottomSheet
+                isOpen={showExercises}
+                onClose={() => setShowExercises(false)}
+                title="Breathing Exercises"
+            >
+                <div className="space-y-4">
+                    {exercises.map((exercise) => (
+                        <div
+                            key={exercise.id}
+                            className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700"
+                        >
+                            <div className="flex items-start gap-3">
+                                <span className="text-2xl text-emerald-500"><Wind className="w-6 h-6" /></span>
+                                <div className="flex-1">
+                                    <h3 className="font-semibold text-slate-900 dark:text-white mb-1">{exercise.title}</h3>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{exercise.description}</p>
+                                    <div className="text-xs text-slate-500 dark:text-slate-500">
+                                        <span className="font-medium">Pattern:</span> Inhale {exercise.cycle?.inhale}s • Hold {exercise.cycle?.holdIn}s • Exhale {exercise.cycle?.exhale}s
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </BottomSheet>
 
             {/* Tour Prompt */}
             <TourPrompt tour={meditationTour} featureName="Meditation" />

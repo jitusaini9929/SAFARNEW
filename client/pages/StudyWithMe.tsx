@@ -18,6 +18,8 @@ import { Button } from "@/components/ui/button";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { focusTimerTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
+import MobileDrawer from "@/components/ui/mobile-drawer";
+import { Menu } from "lucide-react";
 
 // Theme configuration
 interface FocusTheme {
@@ -57,6 +59,15 @@ export default function StudyWithMe() {
     const [currentTheme, setCurrentTheme] = useState<FocusTheme>(focusThemes[0]);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Deep link handling for analytics
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('view') === 'analytics') {
+            setShowAnalytics(true);
+        }
+    }, []);
 
     // Reset log ref when timer starts
     useEffect(() => {
@@ -561,6 +572,111 @@ export default function StudyWithMe() {
                     </div>
                 </main>
             )}
+
+            {/* Mobile Menu Button - Hide on Analytics screen */}
+            {!showAnalytics && (
+                <button
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className={`lg:hidden fixed top-4 left-4 z-[60] p-2 backdrop-blur-md border rounded-xl shadow-lg transition-colors bg-white/20 border-white/20 text-white`}
+                >
+                    <Menu className="w-6 h-6" />
+                </button>
+            )}
+
+            {/* Mobile Drawer */}
+            <MobileDrawer
+                isOpen={isMobileMenuOpen}
+                onClose={() => setIsMobileMenuOpen(false)}
+                title="Focus Menu"
+                className="bg-white/90 dark:bg-slate-900/95 backdrop-blur-xl"
+            >
+                <div className="flex flex-col gap-6 p-4">
+                    {/* Navigation */}
+                    <div className="space-y-2">
+                        <button
+                            onClick={() => {
+                                setIsTasksOpen(true);
+                                setIsMobileMenuOpen(false);
+                            }}
+                            className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all font-medium"
+                        >
+                            <Plus className="w-5 h-5" style={{ color: currentTheme.accent }} />
+                            Add Task
+                        </button>
+                        <button
+                            onClick={() => navigate("/landing")}
+                            className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all font-medium text-muted-foreground"
+                        >
+                            <Home className="w-5 h-5" />
+                            Back to Home
+                        </button>
+                        <button
+                            onClick={() => {
+                                setShowThemeSelector(true);
+                                setIsMobileMenuOpen(false);
+                            }}
+                            className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all font-medium"
+                        >
+                            <Palette className="w-5 h-5" style={{ color: currentTheme.accent }} />
+                            Change Theme
+                        </button>
+                    </div>
+
+                    {/* Timer Settings */}
+                    <div className="space-y-6 pt-6 border-t border-border/50">
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-bold text-muted-foreground uppercase">Timer Duration</span>
+                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-muted text-foreground">
+                                    {sliderValue} min
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="5"
+                                max="120"
+                                step="5"
+                                value={sliderValue}
+                                onChange={(e) => handleSliderChange(parseInt(e.target.value))}
+                                className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer"
+                                style={{ accentColor: currentTheme.accent }}
+                            />
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-bold text-muted-foreground uppercase">Break Duration</span>
+                                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-muted text-foreground">
+                                    {breakSliderValue} min
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="1"
+                                max="30"
+                                step="1"
+                                value={breakSliderValue}
+                                onChange={(e) => handleBreakSliderChange(parseInt(e.target.value))}
+                                className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer"
+                                style={{ accentColor: currentTheme.accent }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Analytics Link */}
+                    <button
+                        onClick={() => {
+                            setShowAnalytics(true);
+                            setIsMobileMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full p-3 mt-4 rounded-xl hover:bg-muted/50 transition-all font-medium"
+                        style={{ color: currentTheme.accent }}
+                    >
+                        <BarChart2 className="w-5 h-5" />
+                        Analytics
+                    </button>
+                </div>
+            </MobileDrawer>
 
             {/* Floating Profile Icon */}
             <div className="fixed top-6 right-8 z-[60]">

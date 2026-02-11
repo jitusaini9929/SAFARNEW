@@ -7,7 +7,7 @@ import MessageCard from './MessageCard';
 import Composer from './Composer';
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
-import { Contrast, Search, Settings, LogOut, Home, HelpCircle } from 'lucide-react';
+import { Contrast, Search, Settings, LogOut, Home, HelpCircle, Menu, Info } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { mehfilTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
+import BottomSheet from '@/components/ui/bottom-sheet';
+import FloatingActionButton from '@/components/ui/floating-action-button';
 
 interface MehfilProps {
     backendUrl?: string;
@@ -148,6 +150,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl = 'http://localhost:3000' })
     };
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [showLeftSidebar, setShowLeftSidebar] = useState(false);
+    const [showRightSidebar, setShowRightSidebar] = useState(false);
 
     const currentMessages = messages
         .filter((m) => m.topicId === currentTopicId)
@@ -299,6 +303,39 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl = 'http://localhost:3000' })
                 {/* Right Sidebar */}
                 <RightSidebar socket={socket} />
             </div>
+
+            {/* Mobile FABs for Sidebars */}
+            <div className="lg:hidden xl:hidden">
+                <FloatingActionButton
+                    onClick={() => setShowLeftSidebar(true)}
+                    icon={<Menu className="w-5 h-5" />}
+                    label="Topics"
+                    position="bottom-left"
+                />
+                <FloatingActionButton
+                    onClick={() => setShowRightSidebar(true)}
+                    icon={<Info className="w-5 h-5" />}
+                    label="Info"
+                    position="bottom-right"
+                />
+            </div>
+
+            {/* Mobile Bottom Sheets */}
+            <BottomSheet
+                isOpen={showLeftSidebar}
+                onClose={() => setShowLeftSidebar(false)}
+                title="Topics & Filters"
+            >
+                <LeftSidebar socket={socket} />
+            </BottomSheet>
+
+            <BottomSheet
+                isOpen={showRightSidebar}
+                onClose={() => setShowRightSidebar(false)}
+                title="Community Info"
+            >
+                <RightSidebar socket={socket} />
+            </BottomSheet>
 
             {/* Tour Prompt */}
             <TourPrompt tour={mehfilTour} featureName="Mehfil" />
