@@ -424,6 +424,20 @@ export async function initDatabase() {
         )
     `);
 
+        // Uploaded images table (for Mehfil image posts)
+        await pool.query(`
+        CREATE TABLE IF NOT EXISTS uploaded_images (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES users(id),
+            data TEXT NOT NULL,
+            mime_type TEXT NOT NULL,
+            size_bytes INTEGER DEFAULT 0,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+    `);
+
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_uploaded_images_user_id ON uploaded_images(user_id)`);
+
         // Payment indexes
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`);

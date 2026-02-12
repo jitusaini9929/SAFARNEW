@@ -24,7 +24,7 @@ interface MehfilProps {
     backendUrl?: string;
 }
 
-const Mehfil: React.FC<MehfilProps> = ({ backendUrl = 'http://localhost:8080' }) => {
+const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     const navigate = useNavigate();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [user, setUser] = useState<any>(null);
@@ -74,11 +74,15 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl = 'http://localhost:8080' })
 
     // Initialize Socket.IO connection
     useEffect(() => {
-        const newSocket = io(backendUrl, {
+        // Connect to same origin (auto-detects in production)
+        // If backendUrl is provided, use it; otherwise omit to use current origin
+        const socketUrl = backendUrl || window.location.origin;
+        const newSocket = io(socketUrl, {
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             reconnectionAttempts: 5,
+            transports: ['websocket', 'polling'],
         });
 
         newSocket.on('connect', () => {

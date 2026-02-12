@@ -69,7 +69,7 @@ export default function Signup() {
       await authService.signup(name, email, password, examType || undefined, preparationStage || undefined, gender, profilePreview || undefined);
       toast.success("Account created successfully!");
       // Set flag to show welcome dialog on dashboard
-      sessionStorage.setItem("showWelcome", "true");
+      sessionStorage.setItem("showWelcomeNishtha", "true");
       navigate("/dashboard");
     } catch (err: any) {
       setError(err.message || "Signup failed");

@@ -32,12 +32,12 @@ const typeStyles = {
         earnedRing: 'ring-teal-500/50',
     },
     title: {
-        bg: 'bg-amber-500/10 dark:bg-amber-500/15',
-        border: 'border-amber-500/30',
-        text: 'text-amber-600 dark:text-amber-400',
+        bg: 'bg-red-500/10 dark:bg-red-500/15',
+        border: 'border-red-600',
+        text: 'text-red-600 dark:text-red-400',
         icon: Sparkles,
         label: 'Title',
-        earnedRing: 'ring-amber-500/50',
+        earnedRing: 'ring-red-500/50',
     },
 };
 
@@ -47,6 +47,10 @@ const categoryIcons: Record<string, any> = {
     emotional: Heart,
     streak: RefreshCw,
 };
+
+// ... (skipping images map for brevity in replace block if possible, but simplest to target specific areas)
+
+
 
 // Achievement badge images - mythological theme mapping
 const achievementImages: Record<string, string> = {
@@ -220,12 +224,12 @@ export default function Achievements() {
                             </div>
                             <p className="text-xs text-teal-600 dark:text-teal-400 uppercase font-semibold">Badges Earned</p>
                         </div>
-                        <div className="glass-high rounded-xl p-4 text-center border border-amber-500/20">
+                        <div className="glass-high rounded-xl p-4 text-center border border-red-500/20 bg-black/5 dark:bg-black/20">
                             <div className="flex items-center justify-center gap-2 mb-2">
-                                <Sparkles className="w-5 h-5 text-amber-500" />
+                                <Sparkles className="w-5 h-5 text-red-500" />
                                 <span className="text-2xl font-bold text-foreground">{titles.filter(a => a.earned).length}</span>
                             </div>
-                            <p className="text-xs text-amber-600 dark:text-amber-400 uppercase font-semibold">Titles Earned</p>
+                            <p className="text-xs text-red-600 dark:text-red-400 uppercase font-semibold">Titles Earned</p>
                         </div>
                     </div>
 
@@ -238,7 +242,7 @@ export default function Achievements() {
                                 key={tab}
                                 onClick={() => setFilter(tab)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === tab
-                                    ? tab === 'badge' ? 'bg-teal-500 text-white' : tab === 'title' ? 'bg-amber-500 text-white' : 'bg-primary text-primary-foreground'
+                                    ? tab === 'badge' ? 'bg-teal-500 text-white' : tab === 'title' ? 'bg-red-600 text-white' : 'bg-primary text-primary-foreground'
                                     : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                                     }`}
                             >
@@ -263,7 +267,8 @@ export default function Achievements() {
                                 return (
                                     <div
                                         key={achievement.id}
-                                        className={`relative group flex flex-col items-center justify-center p-4 transition-all duration-500
+                                        className={`relative group flex flex-col items-center justify-center p-4 transition-all duration-500 rounded-2xl
+                                            ${achievement.type === 'title' ? 'bg-black dark:bg-black/40 border border-slate-800 dark:border-white/5 shadow-xl' : ''}
                                             ${achievement.earned ? 'opacity-100' : 'opacity-60 grayscale hover:grayscale-0 hover:opacity-100'}`}
                                     >
                                         {/* Badge Image - The main "Card" */}

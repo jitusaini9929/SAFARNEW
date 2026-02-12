@@ -70,7 +70,7 @@ export default function LeftSidebar({ homeRoute = "/landing" }: LeftSidebarProps
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside data-tour="sidebar-nav" className="hidden lg:flex flex-col w-64 bg-white/80 dark:bg-[#0B0F19]/95 backdrop-blur-xl border-r border-slate-200 dark:border-white/10 h-screen sticky top-0 overflow-y-auto">
+      <aside data-tour="sidebar-nav" className="hidden lg:flex flex-col w-64 bg-white/80 dark:bg-[#0B0F19]/95 backdrop-blur-xl border-r border-slate-200 dark:border-white/10 h-full sticky top-0 overflow-y-auto">
         <div className="flex-1 px-4 py-6 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -120,16 +120,6 @@ export default function LeftSidebar({ homeRoute = "/landing" }: LeftSidebarProps
             <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
               Take breaks, stay balanced, succeed sustainably.
             </p>
-          </div>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Write to us</p>
-            <a
-              href="mailto:safarparmar0@gmail.com"
-              className="text-base font-medium text-[#6EE7B7] hover:text-teal-500 transition-colors"
-            >
-              safarparmar0@gmail.com
-            </a>
           </div>
         </div>
       </aside>

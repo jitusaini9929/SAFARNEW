@@ -29,7 +29,7 @@ export default function Login() {
     try {
       const user = await authService.login(email, password);
       toast.success("Welcome back!");
-      sessionStorage.setItem("showWelcome", "true");
+      sessionStorage.setItem("showWelcomeNishtha", "true");
       // Redirect after a brief delay to ensure state is saved
       setTimeout(() => {
         window.location.href = "/landing";

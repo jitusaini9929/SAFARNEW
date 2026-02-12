@@ -70,7 +70,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         try {
             await authService.login(email, password);
             toast.success("Welcome back!");
-            sessionStorage.setItem("showWelcome", "true");
+            sessionStorage.setItem("showWelcomeNishtha", "true");
             resetForm();
             onAuthSuccess();
             onClose();
@@ -121,7 +121,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                 profilePreview || undefined
             );
             toast.success("Account created successfully!");
-            sessionStorage.setItem("showWelcome", "true");
+            sessionStorage.setItem("showWelcomeNishtha", "true");
             resetForm();
             onAuthSuccess();
             onClose();

@@ -140,6 +140,7 @@ export default function Meditation() {
     const [user, setUser] = useState<any>(null);
     const [selectedSession, setSelectedSession] = useState<Session>(sessions[0]);
     const [isActive, setIsActive] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [timeLeft, setTimeLeft] = useState(selectedSession.duration * 60);
     const [breathPhase, setBreathPhase] = useState<"inhale" | "hold" | "exhale" | "hold-empty">("inhale");
     const [isMuted, setIsMuted] = useState(false);
@@ -260,6 +261,7 @@ export default function Meditation() {
 
     const startSession = () => {
         setShowInstructions(false);
+        setIsModalOpen(true);
         setIsActive(true);
     };
 
@@ -294,11 +296,11 @@ export default function Meditation() {
             <main className="flex-1 flex overflow-hidden">
 
                 {/* Active Session Modal Overlay - Full Screen Adaptive */}
-                {isActive && (
+                {isModalOpen && (
                     <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-[#0a0a0f] animate-in fade-in duration-300 flex flex-col h-[100dvh] w-screen overflow-hidden">
                         {/* Close / Stop Button */}
                         <button
-                            onClick={() => { setIsActive(false); handleReset(); }}
+                            onClick={() => { setIsModalOpen(false); setIsActive(false); handleReset(); }}
                             className="absolute top-4 right-4 md:top-6 md:right-6 z-50 p-3 rounded-full bg-white dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-500/20 text-slate-400 hover:text-red-500 transition-all shadow-sm"
                         >
                             <X className="w-6 h-6" />

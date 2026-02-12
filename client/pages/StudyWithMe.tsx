@@ -370,25 +370,26 @@ export default function StudyWithMe() {
 
                     <div className={`p-4 ${isSidebarCollapsed ? 'px-2' : 'p-6'}`}>
                         {/* Logo */}
-                        <div
-                            className={`flex items-center gap-3 mb-8 cursor-pointer ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                        <button
                             onClick={() => navigate("/landing")}
+                            className={`flex items-center gap-3 mb-8 cursor-pointer group hover:opacity-80 transition-opacity ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                            title="Back to Home"
                         >
                             <div
-                                className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg"
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-105"
                                 style={{ backgroundColor: currentTheme.accent }}
                             >
-                                F
+                                <Home className="w-5 h-5" />
                             </div>
                             {!isSidebarCollapsed && (
                                 <span
-                                    className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r"
-                                    style={{ backgroundImage: `linear-gradient(to right, ${currentTheme.accent}, ${currentTheme.accent}88)` }}
+                                    className="text-lg font-bold"
+                                    style={{ color: currentTheme.accent }}
                                 >
-                                    Focus
+                                    Home
                                 </span>
                             )}
-                        </div>
+                        </button>
 
                         {/* Navigation */}
                         <div className="space-y-2 flex-1">
@@ -404,14 +405,7 @@ export default function StudyWithMe() {
                                 {!isSidebarCollapsed && <span className="font-medium">Add task</span>}
                             </button>
 
-                            <button
-                                onClick={() => navigate("/landing")}
-                                className={`flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all group text-muted-foreground hover:text-foreground ${isSidebarCollapsed ? 'justify-center' : ''}`}
-                                title="Back to Home"
-                            >
-                                <Home className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                {!isSidebarCollapsed && <span className="font-medium">Back to Home</span>}
-                            </button>
+
 
                             {/* Theme Selector */}
                             <button

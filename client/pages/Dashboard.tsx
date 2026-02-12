@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import youtubeImg from "@/assets/youtube-thumbnail.png";
 import courseImg from "@/assets/course-thumbnail.png";
-import WelcomeDialog from "@/components/WelcomeDialog";
+
 
 const getMoodEmoji = (mood: string): string => {
     // Must match exactly with CheckIn.tsx moodOptions emojis
@@ -191,19 +191,7 @@ export default function Dashboard() {
         checkAuth();
     }, [navigate]);
 
-    const [showWelcome, setShowWelcome] = useState(false);
 
-    useEffect(() => {
-        const shouldShow = sessionStorage.getItem("showWelcome");
-        if (shouldShow === "true") {
-            setShowWelcome(true);
-        }
-    }, []);
-
-    const handleCloseWelcome = () => {
-        setShowWelcome(false);
-        sessionStorage.removeItem("showWelcome");
-    };
 
     if (!user) return null;
 
@@ -286,8 +274,8 @@ export default function Dashboard() {
                                 <div className="relative flex-shrink-0 group/badge">
                                     <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/20 to-transparent rounded-full blur-2xl transform translate-y-4 group-hover/badge:translate-y-2 transition-transform duration-500"></div>
 
-                                    <div className="relative flex flex-col items-center p-6 rounded-2xl bg-white/40 dark:bg-black/20 border border-white/40 dark:border-white/5 backdrop-blur-md shadow-xl transition-transform hover:scale-[1.02] duration-300">
-                                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-2">Current Title</div>
+                                    <div className="relative flex flex-col items-center p-6 rounded-2xl bg-black dark:bg-black/40 border border-slate-800 dark:border-white/5 backdrop-blur-md shadow-xl transition-transform hover:scale-[1.02] duration-300">
+                                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-200 dark:text-slate-500 mb-2">Current Title</div>
 
                                         {activeTitleId && achievementImages[activeTitleId] ? (
                                             <div className="relative w-32 h-32 md:w-36 md:h-36 mb-2 filter drop-shadow-lg">
@@ -303,8 +291,8 @@ export default function Dashboard() {
                                             </div>
                                         )}
 
-                                        <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-200/50 to-yellow-400/50 dark:from-amber-500/20 dark:to-yellow-600/20 border border-amber-300/30 dark:border-amber-500/20">
-                                            <p className="text-xs md:text-sm font-bold text-amber-900 dark:text-amber-200 whitespace-nowrap">
+                                        <div className="px-4 py-1.5 rounded-full border border-red-600 dark:border-amber-500/50 bg-transparent">
+                                            <p className="text-xs md:text-sm font-bold text-red-600 dark:text-amber-200 whitespace-nowrap">
                                                 {activeTitle || 'Explorer'}
                                             </p>
                                         </div>
@@ -710,7 +698,7 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
-            {showWelcome && <WelcomeDialog onClose={handleCloseWelcome} userName={user.name} />}
+
         </MainLayout>
     );
 }
