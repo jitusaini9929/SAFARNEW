@@ -69,7 +69,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
 
         const result = await db.execute({
             sql: `UPDATE goals SET completed = ?, completed_at = ? WHERE id = ? AND user_id = ?`,
-            args: [completed ? 1 : 0, completedAt, id, userId]
+            args: [completed, completedAt, id, userId]
         });
 
         if (result.rowsAffected === 0) {
