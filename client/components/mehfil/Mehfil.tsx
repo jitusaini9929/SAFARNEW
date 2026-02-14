@@ -75,10 +75,9 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
     // Initialize Socket.IO connection
     useEffect(() => {
-        // Connect to same origin (auto-detects in production)
-        // If backendUrl is provided, use it; otherwise omit to use current origin
         const socketUrl = backendUrl || window.location.origin;
-        const newSocket = io(socketUrl, {
+        const newSocket = io(`${socketUrl}/mehfil`, {
+            path: '/socket.io',
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
@@ -88,32 +87,38 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
         newSocket.on('connect', () => {
             console.log('Connected to Mehfil server');
-            newSocket.emit('thoughts:load');
-        });
-
-        newSocket.on('thoughts:list', (thoughtList) => {
-            setThoughts(thoughtList);
-
-            // Load user reactions for these thoughts
-            if (user?.id && thoughtList.length > 0) {
-                const thoughtIds = thoughtList.map((t: any) => t.id);
-                newSocket.emit('thoughts:get_user_reactions', {
-                    userId: user.id,
-                    thoughtIds
+            if (user?.id) {
+                newSocket.emit('register', {
+                    id: user.id,
+                    name: user.name || 'User',
+                    avatar: user.avatar || '',
                 });
             }
+            newSocket.emit('loadThoughts', { page: 1, limit: 20 });
         });
 
-        newSocket.on('thought:new', (thought) => {
+        newSocket.on('thoughts', (payload: { thoughts: any[] }) => {
+            const thoughtList = payload?.thoughts || [];
+            setThoughts(thoughtList);
+            const reactedThoughtIds = thoughtList
+                .filter((t: any) => Boolean(t.hasReacted))
+                .map((t: any) => t.id);
+            setUserReactions(reactedThoughtIds);
+        });
+
+        newSocket.on('thoughtCreated', (thought) => {
             addThought(thought);
         });
 
-        newSocket.on('thought:reaction_updated', ({ thoughtId, relatableCount }) => {
+        newSocket.on('reactionUpdated', ({ thoughtId, relatableCount, userId }) => {
             updateRelatableCount(thoughtId, relatableCount);
+            if (user?.id && userId === user.id) {
+                toggleUserReaction(thoughtId);
+            }
         });
 
-        newSocket.on('thoughts:user_reactions', (reactedThoughtIds: string[]) => {
-            setUserReactions(reactedThoughtIds);
+        newSocket.on('error', (error) => {
+            console.error('Mehfil socket error:', error);
         });
 
         newSocket.on('disconnect', () => {
@@ -125,27 +130,34 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         return () => {
             newSocket.close();
         };
-    }, [backendUrl, setThoughts, addThought, updateRelatableCount, setUserReactions, user?.id]);
+    }, [backendUrl, setThoughts, addThought, updateRelatableCount, setUserReactions, toggleUserReaction, user?.id, user?.name, user?.avatar]);
 
-    const handleSendThought = (content: string, imageUrl?: string) => {
+    useEffect(() => {
+        if (socket && user?.id && socket.connected) {
+            socket.emit('register', {
+                id: user.id,
+                name: user.name || 'User',
+                avatar: user.avatar || '',
+            });
+            socket.emit('loadThoughts', { page: 1, limit: 20 });
+        }
+    }, [socket, user?.id, user?.name, user?.avatar]);
+
+    const handleSendThought = (content: string, isAnonymous: boolean, imageUrl?: string) => {
         if (socket && user) {
-            socket.emit('thought:create', {
-                userId: user.id,
-                authorName: user.name,
-                authorAvatar: user.avatar,
+            socket.emit('newThought', {
                 content,
                 imageUrl,
+                isAnonymous,
             });
         }
     };
 
     const handleReact = (thoughtId: string) => {
         if (!socket || !user) return;
-        socket.emit('thought:react', {
+        socket.emit('toggleReaction', {
             thoughtId,
-            userId: user.id,
         });
-        toggleUserReaction(thoughtId);
     };
 
     const filteredThoughts = thoughts.filter((t) =>

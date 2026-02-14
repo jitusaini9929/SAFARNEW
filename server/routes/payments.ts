@@ -1,369 +1,288 @@
-import { Router, Request, Response } from "express";
-import crypto from "crypto";
-import { v4 as uuidv4 } from "uuid";
-import { pool } from "../db";
-import { requireAuth } from "../middleware/auth";
-import type {
-  CreateOrderRequest,
-  CreateOrderResponse,
-  VerifyPaymentRequest,
-  VerifyPaymentResponse,
-  PaymentStatusResponse,
-  TransactionHistoryResponse,
-} from "@shared/payments";
+import { Router, Request, Response } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { collections, getMongoClient } from '../db';
+import { requireAuth } from '../middleware/auth';
+import crypto from 'crypto';
 
-// Augment Express Request to include session
-declare module "express" {
-  interface Request {
-    session: {
-      userId?: string;
-      destroy: (cb?: (err?: any) => void) => void;
-      [key: string]: any;
-    };
-  }
-}
+const router = Router();
 
-// ═══════════════════════════════════════════════════════
-// Razorpay Configuration
-// ═══════════════════════════════════════════════════════
+// ── Razorpay SDK ────────────────────────────────────
+let Razorpay: any;
+let razorpayInstance: any;
 
-// Import Razorpay - using dynamic import since it's a CommonJS module
-import Razorpay from "razorpay";
-
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "rzp_test_MOCK_KEY_ID";
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "MOCK_KEY_SECRET";
-
-let razorpayInstance: InstanceType<typeof Razorpay> | null = null;
-
-function getRazorpay() {
-  if (!razorpayInstance) {
+try {
+  Razorpay = require('razorpay');
+  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
     razorpayInstance = new Razorpay({
-      key_id: RAZORPAY_KEY_ID,
-      key_secret: RAZORPAY_KEY_SECRET,
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
     });
+    console.log('✅ Razorpay initialized');
+  } else {
+    console.warn('⚠️ Razorpay credentials not found. Payment features will be disabled.');
   }
-  return razorpayInstance;
+} catch (err) {
+  console.warn('⚠️ Razorpay module not found. Payment features will be disabled.');
 }
 
-// Course catalog - imported from shared but server keeps its own source of truth
-const COURSES = [
-  {
-    id: "safar-30",
-    name: "SAFAR 30-Day Meditation Course",
-    description:
-      "A 30-day guided meditation journey to build a consistent practice, reduce stress, and deepen self-awareness.",
-    price: 49,
-    currency: "INR",
-    imageUrl: "/Banner.jpeg",
-  },
-];
+// Available courses
+const COURSES: Record<string, any> = {};
 
-function getCourseById(courseId: string) {
-  return COURSES.find((c) => c.id === courseId) || null;
+try {
+  const { COURSES: sharedCourses } = require('@shared/payments');
+  Object.assign(COURSES, sharedCourses);
+} catch {
+  // Fallback
+  Object.assign(COURSES, {
+    crash_course_1: {
+      id: 'crash_course_1',
+      name: 'JEE Crash Course 2025',
+      description: 'Intensive crash course for JEE Mains',
+      amount: 49900,
+      currency: 'INR',
+      features: ['Live Classes', 'Study Material', 'Mock Tests']
+    }
+  });
 }
 
-// ═══════════════════════════════════════════════════════
-// Router
-// ═══════════════════════════════════════════════════════
+function verifyRazorpaySignature(orderId: string, paymentId: string, signature: string): boolean {
+  if (!process.env.RAZORPAY_KEY_SECRET) return false;
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+    .update(`${orderId}|${paymentId}`)
+    .digest('hex');
+  return expectedSignature === signature;
+}
 
-export const paymentRoutes = Router();
+// ── ROUTES ──────────────────────────────────────────
 
-// All payment routes require auth
-paymentRoutes.use(requireAuth);
+// GET /api/payments/courses
+router.get('/courses', (_req, res) => {
+  res.json({ courses: Object.values(COURSES) });
+});
 
-// ─────────────────────────────────────────────────────
 // POST /api/payments/create-order
-// Creates a Razorpay order and stores it in DB
-// ─────────────────────────────────────────────────────
-paymentRoutes.post("/create-order", async (req: Request, res: Response) => {
+router.post('/create-order', requireAuth, async (req: any, res: Response) => {
+  if (!razorpayInstance) return res.status(503).json({ message: 'Payment service unavailable' });
+
   try {
     const userId = req.session.userId!;
-    const { courseId } = req.body as CreateOrderRequest;
+    const { courseId } = req.body;
 
-    const course = getCourseById(courseId);
-    if (!course) {
-      return res.status(400).json({ success: false, message: "Invalid course ID" });
-    }
+    const course = COURSES[courseId];
+    if (!course) return res.status(400).json({ message: 'Invalid course' });
 
-    // Check if user already purchased this course
-    const existingPurchase = await pool.query(
-      `SELECT id FROM course_enrollments 
-       WHERE user_id = $1 AND course_id = $2 AND access_granted = TRUE`,
-      [userId, courseId]
-    );
+    // Check existing enrollment
+    const existing = await collections.courseEnrollments().findOne({
+      user_id: userId, course_id: courseId, access_granted: true
+    });
+    if (existing) return res.status(400).json({ message: 'Already enrolled in this course' });
 
-    if (existingPurchase.rows.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "You have already purchased this course",
-      });
-    }
-
-    // Create Razorpay order
-    const razorpay = getRazorpay();
-    const receipt = `rcpt_${Date.now()}_${uuidv4().slice(0, 8)}`;
-
-    const razorpayOrder = await razorpay.orders.create({
-      amount: course.price * 100, // Amount in paise
-      currency: course.currency,
+    const receipt = `rcpt_${Date.now()}_${userId.slice(0, 8)}`;
+    const razorpayOrder = await razorpayInstance.orders.create({
+      amount: course.amount,
+      currency: course.currency || 'INR',
       receipt,
-      notes: {
-        courseId,
-        userId,
-        courseName: course.name,
-      },
+      notes: { userId, courseId }
     });
 
-    // Store order in DB
     const orderId = uuidv4();
-    await pool.query(
-      `INSERT INTO orders (id, razorpay_order_id, user_id, course_id, amount, currency, status, receipt)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [orderId, razorpayOrder.id, userId, courseId, course.price, course.currency, "created", receipt]
-    );
+    await collections.orders().insertOne({
+      id: orderId,
+      razorpay_order_id: razorpayOrder.id,
+      user_id: userId,
+      course_id: courseId,
+      amount: course.amount / 100,
+      currency: course.currency || 'INR',
+      status: 'created',
+      receipt,
+      created_at: new Date(),
+      updated_at: new Date()
+    });
 
-    // Log transaction
-    await pool.query(
-      `INSERT INTO transaction_logs (id, order_id, event_type, event_data)
-       VALUES ($1, $2, $3, $4)`,
-      [uuidv4(), razorpayOrder.id, "order_created", JSON.stringify(razorpayOrder)]
-    );
+    await collections.transactionLogs().insertOne({
+      id: uuidv4(),
+      order_id: orderId,
+      payment_id: null,
+      event_type: 'order_created',
+      event_data: { razorpay_order_id: razorpayOrder.id, amount: course.amount, courseId },
+      created_at: new Date()
+    });
 
-    const response: CreateOrderResponse = {
-      success: true,
-      order: {
-        id: razorpayOrder.id,
-        amount: Number(razorpayOrder.amount),
-        currency: razorpayOrder.currency,
-        receipt,
-      },
-      keyId: RAZORPAY_KEY_ID,
-      course,
-    };
-
-    res.json(response);
+    res.json({
+      orderId: razorpayOrder.id,
+      amount: course.amount,
+      currency: course.currency || 'INR',
+      key: process.env.RAZORPAY_KEY_ID,
+      courseName: course.name
+    });
   } catch (error: any) {
-    console.error("❌ Order creation failed:", error);
-    res.status(500).json({ success: false, message: "Failed to create order" });
+    console.error('Create order error:', error);
+    res.status(500).json({ message: 'Failed to create order' });
   }
 });
 
-// ─────────────────────────────────────────────────────
 // POST /api/payments/verify
-// Verifies Razorpay payment signature and grants access
-// ─────────────────────────────────────────────────────
-paymentRoutes.post("/verify", async (req: Request, res: Response) => {
-  const client = await pool.connect();
-
+router.post('/verify', requireAuth, async (req: any, res: Response) => {
   try {
-    await client.query("BEGIN");
-
     const userId = req.session.userId!;
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      courseId,
-    } = req.body as VerifyPaymentRequest;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-    // Verify signature
-    const sign = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSign = crypto
-      .createHmac("sha256", RAZORPAY_KEY_SECRET)
-      .update(sign)
-      .digest("hex");
-
-    if (razorpay_signature !== expectedSign) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ success: false, message: "Invalid payment signature" });
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ message: 'Missing payment details' });
     }
 
-    // Fetch payment details from Razorpay
-    const razorpay = getRazorpay();
-    const payment = await razorpay.payments.fetch(razorpay_payment_id);
+    const isValid = verifyRazorpaySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    if (!isValid) return res.status(400).json({ message: 'Invalid payment signature' });
 
-    // Get order from DB
-    const orderResult = await client.query(
-      "SELECT * FROM orders WHERE razorpay_order_id = $1 AND user_id = $2",
-      [razorpay_order_id, userId]
-    );
+    // Use MongoDB session for atomicity
+    const mongoClient = getMongoClient();
+    const session = mongoClient.startSession();
 
-    if (orderResult.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ success: false, message: "Order not found" });
+    try {
+      await session.withTransaction(async () => {
+        // Update order status
+        await collections.orders().updateOne(
+          { razorpay_order_id },
+          { $set: { status: 'paid', updated_at: new Date() } },
+          { session }
+        );
+
+        const order = await collections.orders().findOne({ razorpay_order_id }, { session });
+        if (!order) throw new Error('Order not found');
+
+        // Record payment
+        await collections.payments().insertOne({
+          id: uuidv4(),
+          razorpay_payment_id,
+          razorpay_order_id,
+          user_id: userId,
+          amount: order.amount,
+          currency: order.currency,
+          status: 'captured',
+          razorpay_signature,
+          created_at: new Date(),
+          captured_at: new Date()
+        }, { session });
+
+        // Create enrollment
+        await collections.courseEnrollments().updateOne(
+          { user_id: userId, course_id: order.course_id },
+          {
+            $set: { access_granted: true, razorpay_order_id, razorpay_payment_id },
+            $setOnInsert: { id: uuidv4(), user_id: userId, course_id: order.course_id, enrolled_at: new Date() }
+          },
+          { upsert: true, session }
+        );
+
+        // Log
+        await collections.transactionLogs().insertOne({
+          id: uuidv4(),
+          order_id: order.id,
+          payment_id: razorpay_payment_id,
+          event_type: 'payment_verified',
+          event_data: { razorpay_order_id, razorpay_payment_id, amount: order.amount },
+          created_at: new Date()
+        }, { session });
+      });
+
+      res.json({ message: 'Payment verified and enrollment granted', success: true });
+    } finally {
+      await session.endSession();
     }
-
-    const order = orderResult.rows[0];
-
-    // Save payment to DB
-    const paymentId = uuidv4();
-    await client.query(
-      `INSERT INTO payments (
-        id, razorpay_payment_id, razorpay_order_id, user_id, amount, currency, status,
-        method, email, contact, card_last4, card_network, bank, wallet, vpa,
-        razorpay_signature, captured_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [
-        paymentId,
-        payment.id,
-        razorpay_order_id,
-        userId,
-        Number(payment.amount) / 100,
-        payment.currency,
-        payment.status,
-        payment.method,
-        payment.email || null,
-        payment.contact || null,
-        (payment as any).card?.last4 || null,
-        (payment as any).card?.network || null,
-        payment.bank || null,
-        payment.wallet || null,
-        payment.vpa || null,
-        razorpay_signature,
-        new Date(),
-      ]
-    );
-
-    // Update order status
-    await client.query(
-      "UPDATE orders SET status = $1, updated_at = NOW() WHERE razorpay_order_id = $2",
-      ["paid", razorpay_order_id]
-    );
-
-    // Grant course access
-    const enrollmentId = uuidv4();
-    await client.query(
-      `INSERT INTO course_enrollments (id, user_id, course_id, razorpay_order_id, razorpay_payment_id, access_granted)
-       VALUES ($1, $2, $3, $4, $5, TRUE)
-       ON CONFLICT (user_id, course_id) DO UPDATE SET access_granted = TRUE, razorpay_payment_id = $5`,
-      [enrollmentId, userId, courseId, razorpay_order_id, razorpay_payment_id]
-    );
-
-    // Log transaction
-    await client.query(
-      `INSERT INTO transaction_logs (id, order_id, payment_id, event_type, event_data)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [uuidv4(), razorpay_order_id, payment.id, "payment_captured", JSON.stringify(payment)]
-    );
-
-    await client.query("COMMIT");
-
-    const response: VerifyPaymentResponse = {
-      success: true,
-      message: "Payment verified and course access granted!",
-      paymentId: payment.id as string,
-      enrollmentId,
-    };
-
-    res.json(response);
   } catch (error: any) {
-    await client.query("ROLLBACK");
-    console.error("❌ Payment verification failed:", error);
-    res.status(500).json({ success: false, message: "Payment verification failed" });
-  } finally {
-    client.release();
+    console.error('Verify payment error:', error);
+    res.status(500).json({ message: 'Payment verification failed' });
   }
 });
 
-// ─────────────────────────────────────────────────────
 // GET /api/payments/status/:courseId
-// Check if user has purchased a specific course
-// ─────────────────────────────────────────────────────
-paymentRoutes.get("/status/:courseId", async (req: Request, res: Response) => {
+router.get('/status/:courseId', requireAuth, async (req: any, res: Response) => {
   try {
     const userId = req.session.userId!;
     const { courseId } = req.params;
 
-    const result = await pool.query(
-      `SELECT ce.id, p.razorpay_payment_id, p.amount, p.status, p.method, p.captured_at
-       FROM course_enrollments ce
-       LEFT JOIN payments p ON ce.razorpay_payment_id = p.razorpay_payment_id
-       WHERE ce.user_id = $1 AND ce.course_id = $2 AND ce.access_granted = TRUE`,
-      [userId, courseId]
-    );
+    const enrollment = await collections.courseEnrollments().findOne({
+      user_id: userId, course_id: courseId
+    });
 
-    if (result.rows.length > 0) {
-      const row = result.rows[0];
-      const response: PaymentStatusResponse = {
-        purchased: true,
-        payment: {
-          paymentId: row.razorpay_payment_id,
-          amount: row.amount,
-          status: row.status,
-          method: row.method,
-          paidAt: row.captured_at,
-        },
-      };
-      return res.json(response);
+    if (enrollment && enrollment.access_granted) {
+      return res.json({ enrolled: true, enrolledAt: enrollment.enrolled_at });
     }
 
-    res.json({ purchased: false } as PaymentStatusResponse);
+    // Check for pending order
+    const pendingOrder = await collections.orders().findOne({
+      user_id: userId, course_id: courseId, status: 'created'
+    });
+
+    res.json({
+      enrolled: false,
+      hasPendingOrder: !!pendingOrder,
+      pendingOrderId: pendingOrder?.razorpay_order_id || null
+    });
   } catch (error: any) {
-    console.error("❌ Payment status check failed:", error);
-    res.status(500).json({ success: false, message: "Failed to check payment status" });
+    console.error('Payment status error:', error);
+    res.status(500).json({ message: 'Failed to check payment status' });
   }
 });
 
-// ─────────────────────────────────────────────────────
 // GET /api/payments/history
-// Get user's full transaction history
-// ─────────────────────────────────────────────────────
-paymentRoutes.get("/history", async (req: Request, res: Response) => {
+router.get('/history', requireAuth, async (req: any, res: Response) => {
   try {
     const userId = req.session.userId!;
 
-    const result = await pool.query(
-      `SELECT 
-        o.razorpay_order_id as order_id,
-        o.amount,
-        o.status as order_status,
-        o.created_at as order_date,
-        o.course_id,
-        p.razorpay_payment_id as payment_id,
-        p.method as payment_method,
-        p.status as payment_status,
-        p.captured_at,
-        r.razorpay_refund_id as refund_id,
-        r.amount as refund_amount,
-        r.processed_at as refund_date
-      FROM orders o
-      LEFT JOIN payments p ON o.razorpay_order_id = p.razorpay_order_id
-      LEFT JOIN refunds r ON p.razorpay_payment_id = r.razorpay_payment_id
-      WHERE o.user_id = $1
-      ORDER BY o.created_at DESC`,
-      [userId]
-    );
+    const orders = await collections.orders()
+      .find({ user_id: userId })
+      .sort({ created_at: -1 })
+      .toArray();
 
-    const response: TransactionHistoryResponse = {
-      success: true,
-      transactions: result.rows.map((row) => ({
-        orderId: row.order_id,
-        amount: row.amount,
-        orderStatus: row.order_status,
-        orderDate: row.order_date,
-        paymentId: row.payment_id,
-        paymentMethod: row.payment_method,
-        paymentStatus: row.payment_status,
-        capturedAt: row.captured_at,
-        courseName:
-          getCourseById(row.course_id)?.name || row.course_id,
-        refundId: row.refund_id,
-        refundAmount: row.refund_amount,
-        refundDate: row.refund_date,
-      })),
-    };
+    // Get payment info for each order
+    const history = [];
+    for (const order of orders) {
+      const payment = await collections.payments().findOne({ razorpay_order_id: order.razorpay_order_id });
+      const course = COURSES[order.course_id];
 
-    res.json(response);
+      history.push({
+        orderId: order.razorpay_order_id,
+        courseName: course?.name || order.course_id,
+        amount: order.amount,
+        currency: order.currency,
+        status: order.status,
+        paymentId: payment?.razorpay_payment_id || null,
+        paymentMethod: payment?.method || null,
+        createdAt: order.created_at,
+        paidAt: payment?.captured_at || null
+      });
+    }
+
+    res.json({ transactions: history });
   } catch (error: any) {
-    console.error("❌ Transaction history fetch failed:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch transaction history" });
+    console.error('Payment history error:', error);
+    res.status(500).json({ message: 'Failed to fetch transaction history' });
   }
 });
 
-// ─────────────────────────────────────────────────────
-// GET /api/payments/courses
-// Get available courses for purchase
-// ─────────────────────────────────────────────────────
-paymentRoutes.get("/courses", async (_req: Request, res: Response) => {
-  res.json({ success: true, courses: COURSES });
+// GET /api/payments/enrollments
+router.get('/enrollments', requireAuth, async (req: any, res: Response) => {
+  try {
+    const userId = req.session.userId!;
+
+    const enrollments = await collections.courseEnrollments()
+      .find({ user_id: userId, access_granted: true })
+      .toArray();
+
+    const result = enrollments.map(e => ({
+      courseId: e.course_id,
+      courseName: COURSES[e.course_id]?.name || e.course_id,
+      enrolledAt: e.enrolled_at,
+      expiresAt: e.expires_at
+    }));
+
+    res.json({ enrollments: result });
+  } catch (error: any) {
+    console.error('Get enrollments error:', error);
+    res.status(500).json({ message: 'Failed to fetch enrollments' });
+  }
 });
+
+export const paymentRoutes = router;

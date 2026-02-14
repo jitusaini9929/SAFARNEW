@@ -4,7 +4,8 @@ import cors from "cors";
 import session from "express-session";
 import cookieParser from "cookie-parser";
 import { createServer as createHttpServer } from "http";
-import { Server } from "socket.io";
+import { createClient } from "redis";
+import { RedisStore } from "connect-redis";
 import { handleDemo } from "./routes/demo";
 import { authRoutes } from "./routes/auth";
 import { moodRoutes } from "./routes/moods";
@@ -13,24 +14,66 @@ import { goalRoutes } from "./routes/goals";
 import { streakRoutes } from "./routes/streaks";
 import { focusSessionRoutes } from "./routes/focus-sessions";
 import { achievementRoutes, seedAchievementDefinitions } from "./routes/achievements";
-import { initDatabase, fixAchievementSchema } from "./db";
+import { connectMongo, initDatabase } from "./db";
 import { setupMehfilSocket } from "./routes/mehfil-socket";
 import { paymentRoutes } from "./routes/payments";
 import { uploadRoutes, imageServeRouter } from "./routes/uploads";
-import { mehfilInteractionsRouter } from "./routes/mehfil-interactions";
+import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
 import mehfilSocialRouter from "./routes/mehfil-social";
+
+async function createRedisSessionStore() {
+  const redisUrl = process.env.REDIS_URL || process.env.REDIS_URI;
+  const redisRequired = process.env.REDIS_REQUIRED === "true";
+  if (!redisUrl) {
+    if (redisRequired) {
+      throw new Error("REDIS_REQUIRED is true but REDIS_URL is not set");
+    }
+    return null;
+  }
+
+  try {
+    const redisClient = createClient({
+      url: redisUrl,
+      socket: {
+        connectTimeout: Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 10000),
+        reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
+      },
+    });
+
+    redisClient.on("error", (error) => {
+      console.error("Redis client error:", error);
+    });
+
+    await redisClient.connect();
+    console.log("✅ Redis connected for session store");
+
+    const store = new RedisStore({
+      client: redisClient,
+      prefix: process.env.REDIS_SESSION_PREFIX || "nistha:sess:",
+    });
+
+    return { store, redisClient };
+  } catch (error) {
+    if (redisRequired) {
+      throw new Error(`Redis connection failed while REDIS_REQUIRED=true: ${String(error)}`);
+    }
+    console.error("⚠️ Redis unavailable, falling back to MemoryStore:", error);
+    return null;
+  }
+}
 
 export async function createServer() {
   const app = express();
 
-  // Initialize DB (async for Turso)
+  // Connect MongoDB first
+  await connectMongo();
   await initDatabase();
-  await fixAchievementSchema();
 
-  // Seed achievement definitions
+  // Seed definitions
   await seedAchievementDefinitions();
   const { seedPerkDefinitions } = await import("./routes/perks");
   await seedPerkDefinitions();
+
 
   // Middleware
   app.use(cors({
@@ -49,8 +92,11 @@ export async function createServer() {
     app.set("trust proxy", 1);
   }
 
+  const redisSession = await createRedisSessionStore();
+
   app.use(
     session({
+      store: redisSession?.store || undefined,
       secret: process.env.SESSION_SECRET || "your-secret-key",
       resave: false,
       saveUninitialized: false,
@@ -64,6 +110,10 @@ export async function createServer() {
     })
   );
 
+  if (!redisSession) {
+    console.warn("⚠️ Using in-memory session store (not recommended for production)");
+  }
+
   // Routes
   app.use("/api/auth", authRoutes);
   app.use("/api/moods", moodRoutes);
@@ -75,7 +125,7 @@ export async function createServer() {
   app.use("/api/payments", paymentRoutes);
   app.use("/api/upload", uploadRoutes);
   app.use("/api/images", imageServeRouter);
-  app.use("/api/mehfil/interactions", mehfilInteractionsRouter);
+  app.use("/api/mehfil/interactions", mehfilInteractionRoutes);
   app.use("/api/mehfil", mehfilSocialRouter);
 
   app.get("/api/ping", (_req, res) => {
@@ -87,15 +137,9 @@ export async function createServer() {
 
   // Create HTTP server and Socket.IO
   const httpServer = createHttpServer(app);
-  const io = new Server(httpServer, {
-    cors: {
-      origin: true,
-      credentials: true,
-    },
-  });
 
   // Setup Mehfil Socket.IO handlers
-  setupMehfilSocket(io);
+  const io = setupMehfilSocket(httpServer);
 
   return { app, httpServer, io };
 }

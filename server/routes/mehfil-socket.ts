@@ -1,194 +1,202 @@
+import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
-import { db, pool } from '../db';
 import { v4 as uuidv4 } from 'uuid';
+import { collections } from '../db';
 
-export function setupMehfilSocket(io: Server) {
-    io.on('connection', (socket: Socket) => {
-        console.log('🔌 Mehfil client connected:', socket.id);
+interface MehfilUser {
+  id: string;
+  name: string;
+  avatar: string;
+  socketId: string;
+}
 
-        // ═══════════════════════════════════════════════════════════
-        // Load all thoughts (newest first, paginated)
-        // ═══════════════════════════════════════════════════════════
-        socket.on('thoughts:load', async (data?: { limit?: number; offset?: number }) => {
-            try {
-                const limit = data?.limit || 50;
-                const offset = data?.offset || 0;
+const connectedUsers = new Map<string, MehfilUser>();
 
-                const result = await pool.query(
-                    `SELECT 
-                        id, user_id as "userId", author_name as "authorName", 
-                        author_avatar as "authorAvatar", content, image_url as "imageUrl",
-                        relatable_count as "relatableCount", created_at as "createdAt"
-                    FROM mehfil_thoughts
-                    ORDER BY created_at DESC
-                    LIMIT $1 OFFSET $2`,
-                    [limit, offset]
-                );
+export function setupMehfilSocket(httpServer: HttpServer) {
+  const io = new Server(httpServer, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST'],
+      credentials: true
+    },
+    path: '/socket.io'
+  });
 
-                socket.emit('thoughts:list', result.rows);
-            } catch (error) {
-                console.error('Error loading thoughts:', error);
-                socket.emit('thoughts:list', []);
-            }
-        });
+  const mehfil = io.of('/mehfil');
 
-        // ═══════════════════════════════════════════════════════════
-        // Create a new thought
-        // ═══════════════════════════════════════════════════════════
-        socket.on('thought:create', async (data: {
-            userId: string;
-            authorName: string;
-            authorAvatar?: string;
-            content: string;
-            imageUrl?: string;
-        }) => {
-            try {
-                if (!data.userId || !data.content?.trim()) {
-                    console.error('Invalid thought data:', data);
-                    return;
-                }
+  mehfil.on('connection', (socket: Socket) => {
+    console.log('🔌 [MEHFIL] Client connected:', socket.id);
 
-                const thoughtId = uuidv4();
-                const now = new Date().toISOString();
-
-                await pool.query(
-                    `INSERT INTO mehfil_thoughts 
-                    (id, user_id, author_name, author_avatar, content, image_url, relatable_count, created_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, 0, $7)`,
-                    [
-                        thoughtId,
-                        data.userId,
-                        data.authorName,
-                        data.authorAvatar || null,
-                        data.content.trim(),
-                        data.imageUrl || null,
-                        now
-                    ]
-                );
-
-                const newThought = {
-                    id: thoughtId,
-                    userId: data.userId,
-                    authorName: data.authorName,
-                    authorAvatar: data.authorAvatar || null,
-                    content: data.content.trim(),
-                    imageUrl: data.imageUrl || null,
-                    relatableCount: 0,
-                    createdAt: now
-                };
-
-                // Broadcast to all connected clients
-                io.emit('thought:new', newThought);
-                console.log('✅ New thought created:', thoughtId);
-            } catch (error) {
-                console.error('Error creating thought:', error);
-            }
-        });
-
-        // ═══════════════════════════════════════════════════════════
-        // Toggle relatable reaction on a thought
-        // ═══════════════════════════════════════════════════════════
-        socket.on('thought:react', async (data: {
-            thoughtId: string;
-            userId: string;
-        }) => {
-            try {
-                if (!data.thoughtId || !data.userId) {
-                    console.error('Invalid reaction data:', data);
-                    return;
-                }
-
-                // Check if user already reacted
-                const existingReaction = await pool.query(
-                    `SELECT id FROM mehfil_reactions 
-                    WHERE thought_id = $1 AND user_id = $2`,
-                    [data.thoughtId, data.userId]
-                );
-
-                if (existingReaction.rows.length > 0) {
-                    // Remove reaction (toggle off)
-                    await pool.query(
-                        `DELETE FROM mehfil_reactions 
-                        WHERE thought_id = $1 AND user_id = $2`,
-                        [data.thoughtId, data.userId]
-                    );
-
-                    // Decrement count
-                    await pool.query(
-                        `UPDATE mehfil_thoughts 
-                        SET relatable_count = GREATEST(relatable_count - 1, 0)
-                        WHERE id = $1`,
-                        [data.thoughtId]
-                    );
-                } else {
-                    // Add reaction (toggle on)
-                    const reactionId = uuidv4();
-                    await pool.query(
-                        `INSERT INTO mehfil_reactions (id, thought_id, user_id)
-                        VALUES ($1, $2, $3)`,
-                        [reactionId, data.thoughtId, data.userId]
-                    );
-
-                    // Increment count
-                    await pool.query(
-                        `UPDATE mehfil_thoughts 
-                        SET relatable_count = relatable_count + 1
-                        WHERE id = $1`,
-                        [data.thoughtId]
-                    );
-                }
-
-                // Get updated count
-                const result = await pool.query(
-                    `SELECT relatable_count as "relatableCount" 
-                    FROM mehfil_thoughts 
-                    WHERE id = $1`,
-                    [data.thoughtId]
-                );
-
-                const newCount = result.rows[0]?.relatableCount || 0;
-
-                // Broadcast updated count to all clients
-                io.emit('thought:reaction_updated', {
-                    thoughtId: data.thoughtId,
-                    relatableCount: newCount
-                });
-
-                console.log('✅ Reaction toggled for thought:', data.thoughtId);
-            } catch (error) {
-                console.error('Error toggling reaction:', error);
-            }
-        });
-
-        // ═══════════════════════════════════════════════════════════
-        // Get user's reaction status for thoughts
-        // ═══════════════════════════════════════════════════════════
-        socket.on('thoughts:get_user_reactions', async (data: {
-            userId: string;
-            thoughtIds: string[];
-        }) => {
-            try {
-                if (!data.userId || !data.thoughtIds?.length) {
-                    socket.emit('thoughts:user_reactions', []);
-                    return;
-                }
-
-                const result = await pool.query(
-                    `SELECT thought_id as "thoughtId"
-                    FROM mehfil_reactions
-                    WHERE user_id = $1 AND thought_id = ANY($2)`,
-                    [data.userId, data.thoughtIds]
-                );
-
-                socket.emit('thoughts:user_reactions', result.rows.map(r => r.thoughtId));
-            } catch (error) {
-                console.error('Error getting user reactions:', error);
-                socket.emit('thoughts:user_reactions', []);
-            }
-        });
-
-        socket.on('disconnect', () => {
-            console.log('🔌 Mehfil client disconnected:', socket.id);
-        });
+    // Register user
+    socket.on('register', (user: { id: string; name: string; avatar: string }) => {
+      if (!user?.id) return;
+      connectedUsers.set(user.id, { ...user, socketId: socket.id });
+      console.log(`🟢 [MEHFIL] User registered: ${user.name} (${user.id})`);
+      mehfil.emit('onlineCount', connectedUsers.size);
     });
+
+    // Load thoughts
+    socket.on('loadThoughts', async (data: { page?: number; limit?: number }) => {
+      try {
+        const page = data?.page || 1;
+        const limit = data?.limit || 20;
+        const skip = (page - 1) * limit;
+
+        const thoughts = await collections.mehfilThoughts()
+          .find({})
+          .sort({ created_at: -1 })
+          .skip(skip)
+          .limit(limit)
+          .toArray();
+
+        // Get reaction info for each thought
+        const userId = [...connectedUsers.entries()]
+          .find(([_, v]) => v.socketId === socket.id)?.[0];
+
+        const thoughtIds = thoughts.map(t => t.id);
+        let userReactions: string[] = [];
+
+        if (userId && thoughtIds.length > 0) {
+          const reactions = await collections.mehfilReactions()
+            .find({ user_id: userId, thought_id: { $in: thoughtIds } })
+            .toArray();
+          userReactions = reactions.map(r => r.thought_id);
+        }
+
+        const formattedThoughts = thoughts.map(t => ({
+          isAnonymous: Boolean(t.is_anonymous),
+          id: t.id,
+          userId: t.is_anonymous ? '' : t.user_id,
+          authorName: t.is_anonymous ? 'Anonymous User' : t.author_name,
+          authorAvatar: t.is_anonymous ? null : t.author_avatar,
+          content: t.content,
+          imageUrl: t.image_url,
+          relatableCount: t.relatable_count || 0,
+          createdAt: t.created_at,
+          hasReacted: userReactions.includes(t.id)
+        }));
+
+        socket.emit('thoughts', {
+          thoughts: formattedThoughts,
+          page,
+          hasMore: thoughts.length === limit
+        });
+      } catch (err) {
+        console.error('❌ [MEHFIL] Load thoughts error:', err);
+        socket.emit('error', { message: 'Failed to load thoughts' });
+      }
+    });
+
+    // New thought
+    socket.on('newThought', async (data: { content: string; imageUrl?: string; isAnonymous?: boolean }) => {
+      try {
+        const user = [...connectedUsers.entries()]
+          .find(([_, v]) => v.socketId === socket.id);
+
+        if (!user) {
+          socket.emit('error', { message: 'Not registered' });
+          return;
+        }
+
+        const [userId, userData] = user;
+        const id = uuidv4();
+        const now = new Date();
+        const isAnonymous = Boolean(data.isAnonymous);
+
+        await collections.mehfilThoughts().insertOne({
+          id,
+          user_id: userId,
+          author_name: userData.name,
+          author_avatar: userData.avatar,
+          is_anonymous: isAnonymous,
+          content: data.content,
+          image_url: data.imageUrl || null,
+          relatable_count: 0,
+          created_at: now
+        });
+
+        const thought = {
+          isAnonymous,
+          id,
+          userId: isAnonymous ? '' : userId,
+          authorName: isAnonymous ? 'Anonymous User' : userData.name,
+          authorAvatar: isAnonymous ? null : userData.avatar,
+          content: data.content,
+          imageUrl: data.imageUrl || null,
+          relatableCount: 0,
+          createdAt: now,
+          hasReacted: false
+        };
+
+        mehfil.emit('thoughtCreated', thought);
+      } catch (err) {
+        console.error('❌ [MEHFIL] New thought error:', err);
+        socket.emit('error', { message: 'Failed to create thought' });
+      }
+    });
+
+    // Toggle reaction
+    socket.on('toggleReaction', async (data: { thoughtId: string }) => {
+      try {
+        const user = [...connectedUsers.entries()]
+          .find(([_, v]) => v.socketId === socket.id);
+
+        if (!user) return;
+        const [userId] = user;
+
+        const existing = await collections.mehfilReactions().findOne({
+          thought_id: data.thoughtId, user_id: userId
+        });
+
+        if (existing) {
+          // Remove reaction
+          await collections.mehfilReactions().deleteOne({
+            thought_id: data.thoughtId, user_id: userId
+          });
+          await collections.mehfilThoughts().updateOne(
+            { id: data.thoughtId, relatable_count: { $gt: 0 } },
+            { $inc: { relatable_count: -1 } }
+          );
+        } else {
+          // Add reaction
+          await collections.mehfilReactions().insertOne({
+            id: uuidv4(),
+            thought_id: data.thoughtId,
+            user_id: userId,
+            created_at: new Date()
+          });
+          await collections.mehfilThoughts().updateOne(
+            { id: data.thoughtId },
+            { $inc: { relatable_count: 1 } }
+          );
+        }
+
+        // Get updated count
+        const thought = await collections.mehfilThoughts().findOne({ id: data.thoughtId });
+
+        mehfil.emit('reactionUpdated', {
+          thoughtId: data.thoughtId,
+          relatableCount: thought?.relatable_count || 0,
+          userId,
+          hasReacted: !existing
+        });
+      } catch (err) {
+        console.error('❌ [MEHFIL] Toggle reaction error:', err);
+      }
+    });
+
+    // Disconnect
+    socket.on('disconnect', () => {
+      const user = [...connectedUsers.entries()]
+        .find(([_, v]) => v.socketId === socket.id);
+
+      if (user) {
+        connectedUsers.delete(user[0]);
+        console.log(`🔴 [MEHFIL] User disconnected: ${user[1].name}`);
+      }
+      mehfil.emit('onlineCount', connectedUsers.size);
+    });
+  });
+
+  return io;
 }

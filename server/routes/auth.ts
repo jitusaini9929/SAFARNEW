@@ -2,7 +2,7 @@ import { Router, Request } from 'express';
 import bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '../db';
+import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { checkPerks } from './perks';
 
@@ -102,42 +102,45 @@ router.post('/signup', async (req: Request, res) => {
 
     try {
         // Check if user exists
-        const existingResult = await db.execute({
-            sql: 'SELECT id FROM users WHERE email = ?',
-            args: [email]
-        });
-        if (existingResult.rows.length > 0) {
+        const existing = await collections.users().findOne({ email });
+        if (existing) {
             return res.status(400).json({ message: 'Email already in use' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const userId = uuidv4();
 
-        // Determine avatar: Use user-uploaded image if provided, otherwise use common default avatar
         let avatarUrl: string;
-
         if (profileImage && profileImage.startsWith('data:image')) {
-            // User uploaded a custom profile image (base64 data URL)
             avatarUrl = profileImage;
         } else {
-            // Common default avatar for all users (blue silhouette - Google style)
             avatarUrl = 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png';
         }
 
-        await db.execute({
-            sql: `INSERT INTO users (id, name, email, password_hash, avatar, exam_type, preparation_stage, gender)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            args: [userId, name, email, hashedPassword, avatarUrl, examType || null, preparationStage || null, gender || null]
+        await collections.users().insertOne({
+            id: userId,
+            name,
+            email,
+            password_hash: hashedPassword,
+            avatar: avatarUrl,
+            exam_type: examType || null,
+            preparation_stage: preparationStage || null,
+            gender: gender || null,
+            selected_perk_id: null,
+            selected_achievement_id: null,
+            created_at: new Date(),
         });
 
         // Initialize streaks
-        await db.execute({
-            sql: `INSERT INTO streaks (id, user_id, login_streak, check_in_streak, goal_completion_streak, last_active_date)
-                  VALUES (?, ?, 0, 0, 0, CURRENT_TIMESTAMP)`,
-            args: [uuidv4(), userId]
+        await collections.streaks().insertOne({
+            id: uuidv4(),
+            user_id: userId,
+            login_streak: 0,
+            check_in_streak: 0,
+            goal_completion_streak: 0,
+            last_active_date: new Date(),
         });
 
-        // Set session
         req.session.userId = userId;
 
         res.status(201).json({
@@ -165,45 +168,29 @@ router.post('/login', async (req: any, res) => {
     }
 
     try {
-        console.log('🔵 [LOGIN] Pinging database...');
-        await db.execute('SELECT 1');
-        console.log('🟢 [LOGIN] Database ping successful');
-
-        console.log('🔵 [LOGIN] Querying user (manual columns, excluding avatar)...');
-
-        // Safety wrap for DB query to see if it actually returns
-        const queryPromise = db.execute({
-            sql: 'SELECT id, email, password_hash, name, exam_type, preparation_stage, gender FROM users WHERE email = ?',
-            args: [email]
-        });
-
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('DATABASE_QUERY_TIMEOUT')), 5000)
+        console.log('🔵 [LOGIN] Querying user...');
+        const user = await collections.users().findOne(
+            { email },
+            { projection: { id: 1, email: 1, password_hash: 1, name: 1, exam_type: 1, preparation_stage: 1, gender: 1 } }
         );
 
-        const result = await Promise.race([queryPromise, timeoutPromise]) as any;
-
-        const user = result.rows[0] as any;
         console.log('🔵 [LOGIN] User found:', user ? 'Yes' : 'No');
 
-        console.log('🔵 [LOGIN] Verifying password...');
         if (!user || !(await bcrypt.compare(password, user.password_hash))) {
             console.log('🔴 [LOGIN] Invalid credentials');
             return res.status(401).json({ message: 'Invalid credentials' });
         }
         console.log('🟢 [LOGIN] Password verified');
 
-        // Set session immediately
         req.session.userId = user.id;
         console.log('🟢 [LOGIN] Session userId set:', req.session.userId);
 
-        // Update login streak (Best effort - don't block login if this fails)
+        // Update login streak (best effort)
         try {
             console.log('🔵 [LOGIN] Updating streaks...');
             await updateLoginStreak(user.id);
             console.log('🟢 [LOGIN] Streaks updated');
 
-            // Check and award perks based on current stats
             try {
                 await checkPerks(user.id, 'login');
                 console.log('🟢 [LOGIN] Perks checked');
@@ -218,7 +205,7 @@ router.post('/login', async (req: any, res) => {
             id: user.id,
             name: user.name,
             email: user.email,
-            avatar: 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png', // Placeholder for test
+            avatar: 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png',
             examType: user.exam_type,
             preparationStage: user.preparation_stage,
             gender: user.gender
@@ -226,66 +213,53 @@ router.post('/login', async (req: any, res) => {
         console.log('🟢 [LOGIN] Response sent');
     } catch (error: any) {
         console.error('🔴 [LOGIN ERROR]:', error.message || error);
-        if (error.message === 'DATABASE_QUERY_TIMEOUT') {
-            return res.status(504).json({ message: 'Database query timed out' });
-        }
         res.status(500).json({ message: 'Internal server error' });
     }
 });
 
 // Helper for streak updates
 async function updateLoginStreak(userId: string) {
-    const streakResult = await db.execute({
-        sql: 'SELECT * FROM streaks WHERE user_id = ?',
-        args: [userId]
-    });
-    const currentStreak = streakResult.rows[0] as any;
+    const currentStreak = await collections.streaks().findOne({ user_id: userId });
 
-    // Get current date in IST (UTC+5:30)
     const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in ms
+    const istOffset = 5.5 * 60 * 60 * 1000;
     const nowIST = new Date(now.getTime() + istOffset);
-    const todayIST = nowIST.toISOString().split('T')[0]; // YYYY-MM-DD
+    const todayIST = nowIST.toISOString().split('T')[0];
 
     if (currentStreak && currentStreak.last_active_date) {
         const lastActiveDate = new Date(currentStreak.last_active_date);
         const lastActiveIST = new Date(lastActiveDate.getTime() + istOffset);
         const lastDateIST = lastActiveIST.toISOString().split('T')[0];
 
-        // First login ever (streak is 0 from signup), set to 1
         if (currentStreak.login_streak === 0) {
-            await db.execute({
-                sql: `UPDATE streaks SET login_streak = 1, last_active_date = ? WHERE user_id = ?`,
-                args: [now.toISOString(), userId]
-            });
+            await collections.streaks().updateOne(
+                { user_id: userId },
+                { $set: { login_streak: 1, last_active_date: now } }
+            );
         } else if (lastDateIST === todayIST) {
-            // Already logged in today, don't increment streak
+            // Already logged in today
         } else {
-            // Check if yesterday (to maintain streak) or gap (reset streak)
             const yesterday = new Date(nowIST);
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayIST = yesterday.toISOString().split('T')[0];
 
             if (lastDateIST === yesterdayIST) {
-                // Consecutive day, increment streak
-                await db.execute({
-                    sql: `UPDATE streaks SET login_streak = login_streak + 1, last_active_date = ? WHERE user_id = ?`,
-                    args: [now.toISOString(), userId]
-                });
+                await collections.streaks().updateOne(
+                    { user_id: userId },
+                    { $inc: { login_streak: 1 }, $set: { last_active_date: now } }
+                );
             } else {
-                // Missed days, reset streak to 1
-                await db.execute({
-                    sql: `UPDATE streaks SET login_streak = 1, last_active_date = ? WHERE user_id = ?`,
-                    args: [now.toISOString(), userId]
-                });
+                await collections.streaks().updateOne(
+                    { user_id: userId },
+                    { $set: { login_streak: 1, last_active_date: now } }
+                );
             }
         }
     } else {
-        // First login ever (or missing streak record), set streak to 1
-        await db.execute({
-            sql: `UPDATE streaks SET login_streak = 1, last_active_date = ? WHERE user_id = ?`,
-            args: [now.toISOString(), userId]
-        });
+        await collections.streaks().updateOne(
+            { user_id: userId },
+            { $set: { login_streak: 1, last_active_date: now } }
+        );
     }
 }
 
@@ -312,27 +286,32 @@ router.post('/forgot-password', async (req: Request, res) => {
     }
 
     try {
-        const userResult = await db.execute({
-            sql: 'SELECT id, email FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1',
-            args: [email]
-        });
-        const user = userResult.rows[0] as any;
+        const user = await collections.users().findOne(
+            { email: { $regex: new RegExp(`^${email}$`, 'i') } },
+            { projection: { id: 1, email: 1 } }
+        );
 
         if (user) {
             const rawToken = randomBytes(32).toString('hex');
             const tokenHash = hashResetToken(rawToken);
-            const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS).toISOString();
+            const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
 
-            // Keep token table clean and invalidate any previous active tokens for this user.
-            await db.execute({
-                sql: 'DELETE FROM password_reset_tokens WHERE user_id = ? OR expires_at < NOW() OR used_at IS NOT NULL',
-                args: [user.id]
+            // Clean up old tokens
+            await collections.passwordResetTokens().deleteMany({
+                $or: [
+                    { user_id: user.id },
+                    { expires_at: { $lt: new Date() } },
+                    { used_at: { $ne: null } },
+                ]
             });
 
-            await db.execute({
-                sql: `INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at)
-                      VALUES (?, ?, ?, ?)`,
-                args: [uuidv4(), user.id, tokenHash, expiresAt]
+            await collections.passwordResetTokens().insertOne({
+                id: uuidv4(),
+                user_id: user.id,
+                token_hash: tokenHash,
+                expires_at: expiresAt,
+                used_at: null,
+                created_at: new Date(),
             });
 
             const resetLink = buildPasswordResetLink(req, rawToken);
@@ -346,7 +325,6 @@ router.post('/forgot-password', async (req: Request, res) => {
         return res.json({ message: genericMessage });
     } catch (error) {
         console.error('Forgot password error:', error);
-        // Do not expose account existence or internal state.
         return res.json({ message: genericMessage });
     }
 });
@@ -370,37 +348,33 @@ router.post('/reset-password/confirm', async (req: Request, res) => {
 
     try {
         const tokenHash = hashResetToken(token);
-        const tokenResult = await db.execute({
-            sql: `SELECT id, user_id
-                  FROM password_reset_tokens
-                  WHERE token_hash = ?
-                    AND used_at IS NULL
-                    AND expires_at > NOW()
-                  LIMIT 1`,
-            args: [tokenHash]
+        const tokenRow = await collections.passwordResetTokens().findOne({
+            token_hash: tokenHash,
+            used_at: null,
+            expires_at: { $gt: new Date() },
         });
-        const tokenRow = tokenResult.rows[0] as any;
 
         if (!tokenRow) {
             return res.status(400).json({ message: 'Invalid or expired reset token' });
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await db.execute({
-            sql: 'UPDATE users SET password_hash = ? WHERE id = ?',
-            args: [hashedPassword, tokenRow.user_id]
-        });
+        await collections.users().updateOne(
+            { id: tokenRow.user_id },
+            { $set: { password_hash: hashedPassword } }
+        );
 
-        await db.execute({
-            sql: 'UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?',
-            args: [tokenRow.id]
-        });
+        // Mark token as used
+        await collections.passwordResetTokens().updateOne(
+            { id: tokenRow.id },
+            { $set: { used_at: new Date() } }
+        );
 
-        // Invalidate any remaining active tokens for the same user.
-        await db.execute({
-            sql: 'UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL',
-            args: [tokenRow.user_id]
-        });
+        // Invalidate all other tokens for this user
+        await collections.passwordResetTokens().updateMany(
+            { user_id: tokenRow.user_id, used_at: null },
+            { $set: { used_at: new Date() } }
+        );
 
         res.json({ message: 'Password reset successfully' });
     } catch (error) {
@@ -409,7 +383,7 @@ router.post('/reset-password/confirm', async (req: Request, res) => {
     }
 });
 
-// Deprecated insecure endpoints (kept temporarily for compatibility)
+// Deprecated insecure endpoints
 router.post('/check-email', async (_req: Request, res) => {
     res.status(410).json({ message: 'Deprecated endpoint. Use /api/auth/forgot-password.' });
 });
@@ -422,39 +396,20 @@ router.post('/reset-password', async (_req: Request, res) => {
 router.get('/me', requireAuth, async (req: Request, res) => {
     console.log('🔵 [ME] Request received, session userId:', req.session.userId);
     try {
-        // Query user without avatar to avoid timeout with large base64 images
-        const userResult = await db.execute({
-            sql: 'SELECT id, email, name, exam_type, preparation_stage, gender, created_at FROM users WHERE id = ?',
-            args: [req.session.userId]
-        });
-        const user = userResult.rows[0] as any;
+        const user = await collections.users().findOne(
+            { id: req.session.userId },
+            { projection: { id: 1, email: 1, name: 1, exam_type: 1, preparation_stage: 1, gender: 1, avatar: 1, created_at: 1 } }
+        );
         console.log('🔵 [ME] User found:', user ? 'Yes' : 'No');
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Fetch avatar separately with fallback
-        let avatarUrl = 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png';
-        try {
-            const avatarResult = await db.execute({
-                sql: 'SELECT avatar FROM users WHERE id = ?',
-                args: [user.id]
-            });
-            if (avatarResult.rows.length > 0) {
-                const avatarRow = avatarResult.rows[0] as any;
-                avatarUrl = avatarRow.avatar || avatarUrl;
-            }
-        } catch (avatarError) {
-            console.warn('⚠️ [ME] Avatar fetch failed, using default');
-        }
+        const avatarUrl = user.avatar || 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png';
 
         // Get streaks
-        const streaksResult = await db.execute({
-            sql: 'SELECT * FROM streaks WHERE user_id = ?',
-            args: [user.id]
-        });
-        const streaks = streaksResult.rows[0] as any;
+        const streaks = await collections.streaks().findOne({ user_id: user.id });
 
         // Log daily activity in login_history (once per day)
         try {
@@ -462,40 +417,36 @@ router.get('/me', requireAuth, async (req: Request, res) => {
             const istOffset = 5.5 * 60 * 60 * 1000;
             const todayIST = new Date(now.getTime() + istOffset).toISOString().split('T')[0];
 
-            const historyCheck = await db.execute({
-                sql: "SELECT timestamp FROM login_history WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1",
-                args: [user.id]
-            });
+            const lastEntry = await collections.loginHistory().findOne(
+                { user_id: user.id },
+                { sort: { timestamp: -1 }, projection: { timestamp: 1 } }
+            );
 
             let shouldInsert = true;
-            if (historyCheck.rows.length > 0) {
-                const lastTimestamp = historyCheck.rows[0].timestamp as any;
+            if (lastEntry && lastEntry.timestamp) {
                 let lastDate: Date;
-
-                if (lastTimestamp instanceof Date) {
-                    lastDate = lastTimestamp;
+                if (lastEntry.timestamp instanceof Date) {
+                    lastDate = lastEntry.timestamp;
                 } else {
-                    const timestampStr = lastTimestamp as string;
+                    const timestampStr = lastEntry.timestamp as string;
                     lastDate = new Date(timestampStr + (timestampStr.includes('Z') ? '' : 'Z'));
                 }
-
                 const lastDateIST = new Date(lastDate.getTime() + istOffset).toISOString().split('T')[0];
-
                 if (lastDateIST === todayIST) {
                     shouldInsert = false;
                 }
             }
 
             if (shouldInsert) {
-                await db.execute({
-                    sql: "INSERT INTO login_history (id, user_id) VALUES (?, ?)",
-                    args: [uuidv4(), user.id]
+                await collections.loginHistory().insertOne({
+                    id: uuidv4(),
+                    user_id: user.id,
+                    timestamp: new Date(),
                 });
                 console.log('🟢 [ME] Logged daily activity for:', todayIST);
             }
         } catch (logError) {
             console.error('Failed to log daily activity:', logError);
-            // Don't block the actual response
         }
 
         res.json({
@@ -526,11 +477,11 @@ router.get('/me', requireAuth, async (req: Request, res) => {
 // Get Login History
 router.get('/login-history', requireAuth, async (req: Request, res) => {
     try {
-        const result = await db.execute({
-            sql: 'SELECT timestamp FROM login_history WHERE user_id = ? ORDER BY timestamp DESC',
-            args: [req.session.userId]
-        });
-        res.json(result.rows);
+        const rows = await collections.loginHistory()
+            .find({ user_id: req.session.userId })
+            .sort({ timestamp: -1 })
+            .toArray();
+        res.json(rows.map(r => ({ timestamp: r.timestamp })));
     } catch (error) {
         console.error('Get login history error:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -543,54 +494,30 @@ router.patch('/profile', requireAuth, async (req: Request, res) => {
     const userId = req.session.userId;
 
     try {
-        const updates: string[] = [];
-        const values: any[] = [];
+        const updates: Record<string, any> = {};
 
-        if (name !== undefined) {
-            updates.push('name = ?');
-            values.push(name);
-        }
-        if (examType !== undefined) {
-            updates.push('exam_type = ?');
-            values.push(examType);
-        }
-        if (preparationStage !== undefined) {
-            updates.push('preparation_stage = ?');
-            values.push(preparationStage);
-        }
-        if (gender !== undefined) {
-            updates.push('gender = ?');
-            values.push(gender);
-        }
-        if (avatar !== undefined) {
-            updates.push('avatar = ?');
-            values.push(avatar);
-        }
+        if (name !== undefined) updates.name = name;
+        if (examType !== undefined) updates.exam_type = examType;
+        if (preparationStage !== undefined) updates.preparation_stage = preparationStage;
+        if (gender !== undefined) updates.gender = gender;
+        if (avatar !== undefined) updates.avatar = avatar;
 
-        if (updates.length === 0) {
+        if (Object.keys(updates).length === 0) {
             return res.status(400).json({ message: 'No fields to update' });
         }
 
-        values.push(userId);
-        const sql = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
-        console.log('📝 [PROFILE UPDATE] SQL:', sql, 'Values:', values);
-        await db.execute({ sql, args: values });
+        await collections.users().updateOne({ id: userId }, { $set: updates });
 
-        // Return updated user
-        const userResult = await db.execute({
-            sql: 'SELECT * FROM users WHERE id = ?',
-            args: [userId]
-        });
-        const user = userResult.rows[0] as any;
+        const user = await collections.users().findOne({ id: userId });
 
         res.json({
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            avatar: user.avatar,
-            examType: user.exam_type,
-            preparationStage: user.preparation_stage,
-            gender: user.gender
+            id: user!.id,
+            name: user!.name,
+            email: user!.email,
+            avatar: user!.avatar,
+            examType: user!.exam_type,
+            preparationStage: user!.preparation_stage,
+            gender: user!.gender
         });
     } catch (error) {
         console.error('Update profile error:', error);

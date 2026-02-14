@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export interface Thought {
     id: string;
     userId: string;
+    isAnonymous?: boolean;
     authorName: string;
     authorAvatar?: string | null;
     content: string;

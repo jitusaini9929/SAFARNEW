@@ -1,5 +1,5 @@
 import { Router, Request } from 'express';
-import { db } from '../db';
+import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -7,11 +7,7 @@ const router = Router();
 // Get streak data for current user
 router.get('/', requireAuth, async (req: Request, res) => {
     try {
-        const result = await db.execute({
-            sql: 'SELECT * FROM streaks WHERE user_id = ?',
-            args: [req.session.userId]
-        });
-        const streak = result.rows[0] as any;
+        const streak = await collections.streaks().findOne({ user_id: req.session.userId });
 
         if (!streak) {
             return res.json({

@@ -1,564 +1,142 @@
-import { Pool } from 'pg';
+import { MongoClient, Db, Collection } from 'mongodb';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables from project root
-// Using process.cwd() for Vite compatibility
 dotenv.config({ path: path.join(process.cwd(), '.env') });
 
-// PostgreSQL connection via Neon
-// Connection string format: postgresql://user:password@host/database?sslmode=require
-const connectionString = process.env.DATABASE_URL;
+const MONGODB_URI = process.env.MONGODB_URI || '';
+const DB_NAME = process.env.MONGODB_DB_NAME || 'safar';
 
-if (!connectionString) {
-    console.warn('⚠️  DATABASE_URL not set. Database operations will fail.');
+if (!MONGODB_URI) {
+    console.warn('⚠️  MONGODB_URI not set. Database operations will fail.');
 }
 
-export const pool = new Pool({
-    connectionString,
-    // SSL configuration for Neon PostgreSQL
-    // rejectUnauthorized: false allows self-signed certificates
-    ssl: connectionString?.includes('neon.tech') ? {
-        rejectUnauthorized: false
-    } : false,
-    max: 10, // Reduced for Neon free tier limits
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 30000, // Increased to 30s for Neon cold starts
-    keepAlive: true, // Prevent connection drops
-});
+let client: MongoClient;
+let database: Db;
 
-// Helper function to test connection with retries
-async function testConnection(retries = 3, delay = 2000): Promise<boolean> {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-            await pool.query('SELECT NOW()');
-            console.log('📁 Database: PostgreSQL (Neon) connected');
-            return true;
-        } catch (err: any) {
-            console.warn(`⚠️  Database connection attempt ${attempt}/${retries} failed: ${err.message}`);
-            if (attempt < retries) {
-                console.log(`   Retrying in ${delay / 1000}s...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2; // Exponential backoff
-            }
-        }
+export function getMongoClient(): MongoClient {
+    return client;
+}
+
+export function getDb(): Db {
+    if (!database) {
+        throw new Error('Database not initialized. Call connectMongo() first.');
     }
-    console.error('❌ Database connection failed after all retries. Server will continue but DB operations may fail.');
-    return false;
+    return database;
 }
 
-// Test connection on startup (non-blocking - doesn't prevent server start)
-testConnection().catch(() => { });
-
-// Helper function to match the old interface pattern
-// This makes migration easier - routes can use db.query() similar to before
-export const db = {
-    async execute(params: string | { sql: string; args?: any[] }) {
-        // Support both string and object parameter formats
-        let sql: string;
-        let args: any[] = [];
-
-        if (typeof params === 'string') {
-            sql = params;
-        } else {
-            sql = params.sql;
-            args = params.args || [];
-        }
-
-        // Convert ? placeholders to $1, $2, $3... for PostgreSQL
-        let pgSql = sql;
-        let paramIndex = 0;
-        pgSql = pgSql.replace(/\?/g, () => `$${++paramIndex}`);
-
-        const result = await pool.query(pgSql, args);
-        return {
-            rows: result.rows,
-            rowsAffected: result.rowCount || 0
-        };
-    },
-
-    // Direct query access
-    query: pool.query.bind(pool)
+// Collection accessors
+export const collections = {
+    users: () => getDb().collection('users'),
+    moods: () => getDb().collection('moods'),
+    goals: () => getDb().collection('goals'),
+    journal: () => getDb().collection('journal'),
+    streaks: () => getDb().collection('streaks'),
+    sessions: () => getDb().collection('sessions'),
+    passwordResetTokens: () => getDb().collection('password_reset_tokens'),
+    loginHistory: () => getDb().collection('login_history'),
+    focusSessions: () => getDb().collection('focus_sessions'),
+    perkDefinitions: () => getDb().collection('perk_definitions'),
+    userPerks: () => getDb().collection('user_perks'),
+    achievementDefinitions: () => getDb().collection('achievement_definitions'),
+    userAchievements: () => getDb().collection('user_achievements'),
+    mehfilThoughts: () => getDb().collection('mehfil_thoughts'),
+    mehfilReactions: () => getDb().collection('mehfil_reactions'),
+    mehfilComments: () => getDb().collection('mehfil_comments'),
+    mehfilSaves: () => getDb().collection('mehfil_saves'),
+    mehfilReports: () => getDb().collection('mehfil_reports'),
+    mehfilShares: () => getDb().collection('mehfil_shares'),
+    mehfilFriendships: () => getDb().collection('mehfil_friendships'),
+    orders: () => getDb().collection('orders'),
+    payments: () => getDb().collection('payments'),
+    refunds: () => getDb().collection('refunds'),
+    courseEnrollments: () => getDb().collection('course_enrollments'),
+    transactionLogs: () => getDb().collection('transaction_logs'),
+    uploadedImages: () => getDb().collection('uploaded_images'),
 };
 
-// Retry wrapper for database operations
-async function withRetry<T>(
-    operation: () => Promise<T>,
-    operationName: string,
-    retries = 3,
-    delay = 2000
-): Promise<T> {
-    for (let attempt = 1; attempt <= retries; attempt++) {
+export async function connectMongo(): Promise<void> {
+    if (client) return;
+
+    const maxRetries = 3;
+    let delay = 2000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            return await operation();
+            client = new MongoClient(MONGODB_URI, {
+                connectTimeoutMS: 30000,
+                serverSelectionTimeoutMS: 30000,
+            });
+            await client.connect();
+            database = client.db(DB_NAME);
+            // Quick ping to verify
+            await database.command({ ping: 1 });
+            console.log('📁 Database: MongoDB connected');
+            return;
         } catch (err: any) {
-            console.warn(`⚠️  ${operationName} attempt ${attempt}/${retries} failed: ${err.message}`);
-            if (attempt < retries) {
+            console.warn(`⚠️  MongoDB connection attempt ${attempt}/${maxRetries} failed: ${err.message}`);
+            if (attempt < maxRetries) {
                 console.log(`   Retrying in ${delay / 1000}s...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2; // Exponential backoff
-            } else {
-                throw err;
+                delay *= 2;
             }
         }
     }
-    throw new Error(`${operationName} failed after ${retries} attempts`);
+    console.error('❌ MongoDB connection failed after all retries.');
 }
 
-// Initialize tables (PostgreSQL syntax)
-export async function initDatabase() {
-    return withRetry(async () => {
-        // Users table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            name TEXT NOT NULL,
-            avatar TEXT,
-            exam_type TEXT,
-            preparation_stage TEXT,
-            gender TEXT,
-            selected_perk_id TEXT,
-            selected_achievement_id TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
+export async function initDatabase(): Promise<void> {
+    const db = getDb();
 
-        // Moods table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS moods (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            mood TEXT NOT NULL,
-            intensity INTEGER NOT NULL,
-            notes TEXT,
-            timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
+    // Create unique indexes to enforce constraints
+    try {
+        await db.collection('users').createIndex({ email: 1 }, { unique: true });
+        await db.collection('users').createIndex({ id: 1 }, { unique: true });
+        await db.collection('streaks').createIndex({ user_id: 1 }, { unique: true });
+        await db.collection('password_reset_tokens').createIndex({ token_hash: 1 }, { unique: true });
+        await db.collection('password_reset_tokens').createIndex({ user_id: 1 });
+        await db.collection('password_reset_tokens').createIndex({ expires_at: 1 });
+        await db.collection('login_history').createIndex({ user_id: 1 });
+        await db.collection('moods').createIndex({ user_id: 1, timestamp: -1 });
+        await db.collection('goals').createIndex({ user_id: 1, created_at: -1 });
+        await db.collection('journal').createIndex({ user_id: 1, timestamp: -1 });
+        await db.collection('focus_sessions').createIndex({ user_id: 1, completed_at: -1 });
+        await db.collection('perk_definitions').createIndex({ id: 1 }, { unique: true });
+        await db.collection('user_perks').createIndex({ user_id: 1, perk_id: 1 }, { unique: true });
+        await db.collection('achievement_definitions').createIndex({ id: 1 }, { unique: true });
+        await db.collection('user_achievements').createIndex({ user_id: 1, achievement_id: 1 }, { unique: true });
+        await db.collection('mehfil_thoughts').createIndex({ user_id: 1 });
+        await db.collection('mehfil_thoughts').createIndex({ created_at: -1 });
+        await db.collection('mehfil_reactions').createIndex({ thought_id: 1, user_id: 1 }, { unique: true });
+        await db.collection('mehfil_comments').createIndex({ thought_id: 1 });
+        await db.collection('mehfil_saves').createIndex({ user_id: 1, thought_id: 1 }, { unique: true });
+        await db.collection('mehfil_reports').createIndex({ thought_id: 1 });
+        await db.collection('mehfil_shares').createIndex({ thought_id: 1 });
+        await db.collection('mehfil_friendships').createIndex({ user_id: 1, friend_id: 1 }, { unique: true });
+        await db.collection('mehfil_friendships').createIndex({ friend_id: 1 });
+        await db.collection('orders').createIndex({ razorpay_order_id: 1 }, { unique: true });
+        await db.collection('orders').createIndex({ user_id: 1 });
+        await db.collection('payments').createIndex({ razorpay_payment_id: 1 }, { unique: true });
+        await db.collection('payments').createIndex({ razorpay_order_id: 1 });
+        await db.collection('payments').createIndex({ user_id: 1 });
+        await db.collection('refunds').createIndex({ razorpay_refund_id: 1 }, { unique: true });
+        await db.collection('refunds').createIndex({ razorpay_payment_id: 1 });
+        await db.collection('course_enrollments').createIndex({ user_id: 1, course_id: 1 }, { unique: true });
+        await db.collection('transaction_logs').createIndex({ order_id: 1 });
+        await db.collection('uploaded_images').createIndex({ user_id: 1 });
 
-        // Goals table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS goals (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            text TEXT NOT NULL,
-            type TEXT NOT NULL,
-            completed BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            completed_at TIMESTAMP WITH TIME ZONE
-        )
-    `);
-
-        // Journal entries table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS journal (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            content TEXT NOT NULL,
-            timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // Streaks table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS streaks (
-            id TEXT PRIMARY KEY,
-            user_id TEXT UNIQUE NOT NULL REFERENCES users(id),
-            login_streak INTEGER DEFAULT 0,
-            check_in_streak INTEGER DEFAULT 0,
-            goal_completion_streak INTEGER DEFAULT 0,
-            last_active_date TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // Sessions table (for express-session)
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS sessions (
-            sid TEXT PRIMARY KEY NOT NULL,
-            sess TEXT NOT NULL,
-            expire TIMESTAMP WITH TIME ZONE NOT NULL
-        )
-    `);
-
-        // Password reset tokens
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS password_reset_tokens (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            token_hash TEXT UNIQUE NOT NULL,
-            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-            used_at TIMESTAMP WITH TIME ZONE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id
-        ON password_reset_tokens(user_id)
-    `);
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at
-        ON password_reset_tokens(expires_at)
-    `);
-
-        // Login/Activity history
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS login_history (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // Focus sessions table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS focus_sessions (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            duration_minutes INTEGER NOT NULL,
-            break_minutes INTEGER DEFAULT 0,
-            completed BOOLEAN DEFAULT FALSE,
-            started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            completed_at TIMESTAMP WITH TIME ZONE
-        )
-    `);
-
-        // Perk definitions table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS perk_definitions (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            description TEXT,
-            type TEXT CHECK(type IN ('aura', 'echo', 'seasonal')) NOT NULL,
-            category TEXT CHECK(category IN ('focus', 'goals', 'mood', 'streak', 'special')) NOT NULL,
-            rarity TEXT CHECK(rarity IN ('common', 'uncommon', 'rare', 'epic', 'legendary')),
-            tier INTEGER,
-            color_code TEXT,
-            criteria_json TEXT NOT NULL,
-            is_limited BOOLEAN DEFAULT FALSE,
-            available_from TEXT,
-            available_until TEXT,
-            max_recipients INTEGER,
-            display_priority INTEGER DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // User perks table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS user_perks (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            perk_id TEXT NOT NULL REFERENCES perk_definitions(id),
-            acquired_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            is_active BOOLEAN DEFAULT TRUE,
-            lost_at TIMESTAMP WITH TIME ZONE,
-            UNIQUE(user_id, perk_id)
-        )
-    `);
-
-        // Achievement definitions table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS achievement_definitions (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            description TEXT,
-            type TEXT CHECK(type IN ('badge', 'title')) NOT NULL,
-            category TEXT CHECK(category IN ('focus', 'goals', 'emotional', 'streak')) NOT NULL,
-            rarity TEXT CHECK(rarity IN ('common', 'uncommon', 'rare', 'epic', 'legendary', 'special')),
-            tier INTEGER,
-            criteria_json TEXT NOT NULL DEFAULT '{}',
-            display_priority INTEGER DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // User achievements table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS user_achievements (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            achievement_id TEXT NOT NULL REFERENCES achievement_definitions(id),
-            acquired_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            is_active BOOLEAN DEFAULT TRUE,
-            UNIQUE(user_id, achievement_id)
-        )
-    `);
-
-        // ═══════════════════════════════════════════════════════════
-        // Mehfil - Thought Sharing Platform
-        // ═══════════════════════════════════════════════════════════
-
-        // Mehfil thoughts table - stores user thoughts/posts
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS mehfil_thoughts (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            author_name TEXT NOT NULL,
-            author_avatar TEXT,
-            content TEXT NOT NULL,
-            image_url TEXT,
-            relatable_count INTEGER DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // Mehfil reactions table - tracks who reacted to which thought
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS mehfil_reactions (
-            id TEXT PRIMARY KEY,
-            thought_id TEXT NOT NULL REFERENCES mehfil_thoughts(id) ON DELETE CASCADE,
-            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            UNIQUE(thought_id, user_id)
-        )
-    `);
-
-        // Mehfil comments table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS mehfil_comments (
-            id TEXT PRIMARY KEY,
-            thought_id TEXT NOT NULL REFERENCES mehfil_thoughts(id) ON DELETE CASCADE,
-            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            content TEXT NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // Mehfil saves table (Bookmarks)
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS mehfil_saves (
-            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            thought_id TEXT NOT NULL REFERENCES mehfil_thoughts(id) ON DELETE CASCADE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            PRIMARY KEY (user_id, thought_id)
-        )
-    `);
-
-        // Mehfil reports table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS mehfil_reports (
-            id TEXT PRIMARY KEY,
-            thought_id TEXT NOT NULL REFERENCES mehfil_thoughts(id) ON DELETE CASCADE,
-            reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            reason TEXT NOT NULL,
-            status TEXT DEFAULT 'pending', 
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // Mehfil shares table (Audit/Tracking)
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS mehfil_shares (
-            id TEXT PRIMARY KEY,
-            thought_id TEXT NOT NULL REFERENCES mehfil_thoughts(id) ON DELETE CASCADE,
-            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            platform TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // Mehfil friendships/connections table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS mehfil_friendships (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            friend_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            status TEXT CHECK(status IN ('pending', 'accepted', 'rejected')) DEFAULT 'pending',
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            accepted_at TIMESTAMP WITH TIME ZONE,
-            UNIQUE(user_id, friend_id),
-            CHECK(user_id != friend_id)
-        )
-    `);
-
-        // Indexes for performance
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_mehfil_thoughts_user_id 
-        ON mehfil_thoughts(user_id)
-    `);
-
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_mehfil_thoughts_created_at 
-        ON mehfil_thoughts(created_at DESC)
-    `);
-
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_mehfil_reactions_thought_id 
-        ON mehfil_reactions(thought_id)
-    `);
-
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_mehfil_reactions_user_id 
-        ON mehfil_reactions(user_id)
-    `);
-
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_mehfil_comments_thought_id 
-        ON mehfil_comments(thought_id)
-    `);
-
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_mehfil_saves_user_id 
-        ON mehfil_saves(user_id)
-    `);
-
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_mehfil_friendships_user_id 
-        ON mehfil_friendships(user_id)
-    `);
-
-        await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_mehfil_friendships_friend_id 
-        ON mehfil_friendships(friend_id)
-    `);
-
-        // ═══════════════════════════════════════════════════════════
-        // Payment System - Razorpay Integration
-        // ═══════════════════════════════════════════════════════════
-
-        // Orders table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS orders (
-            id TEXT PRIMARY KEY,
-            razorpay_order_id TEXT UNIQUE NOT NULL,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            course_id TEXT NOT NULL,
-            amount DECIMAL(10, 2) NOT NULL,
-            currency TEXT DEFAULT 'INR',
-            status TEXT DEFAULT 'created',
-            receipt TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // Payments table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS payments (
-            id TEXT PRIMARY KEY,
-            razorpay_payment_id TEXT UNIQUE NOT NULL,
-            razorpay_order_id TEXT NOT NULL,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            amount DECIMAL(10, 2) NOT NULL,
-            currency TEXT DEFAULT 'INR',
-            status TEXT NOT NULL,
-            method TEXT,
-            email TEXT,
-            contact TEXT,
-            card_last4 TEXT,
-            card_network TEXT,
-            bank TEXT,
-            wallet TEXT,
-            vpa TEXT,
-            razorpay_signature TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            captured_at TIMESTAMP WITH TIME ZONE,
-            refunded_at TIMESTAMP WITH TIME ZONE
-        )
-    `);
-
-        // Refunds table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS refunds (
-            id TEXT PRIMARY KEY,
-            razorpay_refund_id TEXT UNIQUE NOT NULL,
-            razorpay_payment_id TEXT NOT NULL,
-            razorpay_order_id TEXT NOT NULL,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            amount DECIMAL(10, 2) NOT NULL,
-            currency TEXT DEFAULT 'INR',
-            status TEXT NOT NULL,
-            reason TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            processed_at TIMESTAMP WITH TIME ZONE
-        )
-    `);
-
-        // Course enrollments table
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS course_enrollments (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            course_id TEXT NOT NULL,
-            razorpay_order_id TEXT,
-            razorpay_payment_id TEXT,
-            enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            access_granted BOOLEAN DEFAULT FALSE,
-            expires_at TIMESTAMP WITH TIME ZONE,
-            UNIQUE(user_id, course_id)
-        )
-    `);
-
-        // Transaction logs (audit trail)
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS transaction_logs (
-            id TEXT PRIMARY KEY,
-            order_id TEXT,
-            payment_id TEXT,
-            event_type TEXT NOT NULL,
-            event_data JSONB,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        // Uploaded images table (for Mehfil image posts)
-        await pool.query(`
-        CREATE TABLE IF NOT EXISTS uploaded_images (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES users(id),
-            data TEXT NOT NULL,
-            mime_type TEXT NOT NULL,
-            size_bytes INTEGER DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        )
-    `);
-
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_uploaded_images_user_id ON uploaded_images(user_id)`);
-
-        // Payment indexes
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_razorpay_id ON orders(razorpay_order_id)`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(razorpay_order_id)`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id)`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_refunds_payment_id ON refunds(razorpay_payment_id)`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_enrollments_user_course ON course_enrollments(user_id, course_id)`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS idx_transaction_logs_order ON transaction_logs(order_id)`);
-
-    }, 'Database initialization', 3, 3000);
-}
-
-// Fix for schema mismatch - allow 'streak' category
-export async function fixAchievementSchema() {
-    return withRetry(async () => {
-        console.log('🔄 Checking achievement schema...');
-        try {
-            // Drop old constraint
-            await pool.query(`
-                ALTER TABLE achievement_definitions 
-                DROP CONSTRAINT IF EXISTS achievement_definitions_category_check
-            `);
-
-            // Add new constraint
-            await pool.query(`
-                ALTER TABLE achievement_definitions 
-                ADD CONSTRAINT achievement_definitions_category_check 
-                CHECK (category IN ('focus', 'goals', 'emotional', 'streak'))
-            `);
-
-            console.log('✅ Achievement schema updated (streak category allowed)');
-        } catch (err: any) {
-            console.warn('⚠️  Schema update warning:', err.message);
-        }
-    }, 'Schema fix', 3, 1000);
+        console.log('✅ MongoDB indexes created');
+    } catch (err: any) {
+        console.warn('⚠️  Index creation warning:', err.message);
+    }
 }
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-    pool.end().then(() => {
-        console.log('Database pool closed');
-        process.exit(0);
-    });
+    if (client) {
+        client.close().then(() => {
+            console.log('MongoDB connection closed');
+            process.exit(0);
+        });
+    }
 });

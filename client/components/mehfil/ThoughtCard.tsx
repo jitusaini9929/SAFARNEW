@@ -78,7 +78,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   useEffect(() => {
     checkSaveStatus();
     checkFriendshipStatus();
-  }, [thought.id]);
+  }, [thought.id, thought.userId, thought.isAnonymous]);
 
   // Fetch comments when opened
   useEffect(() => {
@@ -88,15 +88,21 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   }, [isCommentsOpen, thought.id]);
 
   // ── helpers ──────────────────────────────────────────
+  const toComment = (comment: any): Comment => ({
+    id: comment.id,
+    author_name: comment.authorName ?? comment.author_name ?? "Unknown",
+    author_avatar: comment.authorAvatar ?? comment.author_avatar ?? null,
+    content: comment.content,
+    created_at: comment.createdAt ?? comment.created_at,
+    user_id: comment.userId ?? comment.user_id,
+  });
 
   const checkSaveStatus = async () => {
     try {
       const userId = await getCurrentUserId();
       if (!userId) return;
 
-      const response = await fetch(
-        `${API_URL}/mehfil/interactions/${thought.id}/save/check?userId=${userId}`
-      );
+      const response = await fetch(`${API_URL}/mehfil/interactions/save/${thought.id}`);
       if (response.ok) {
         const data = await response.json();
         setIsSaved(data.saved);
@@ -107,7 +113,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   };
 
   const checkFriendshipStatus = async () => {
-    if (isOwnThought) {
+    if (isOwnThought || !thought.userId || thought.isAnonymous) {
       setFriendshipStatus("self");
       return;
     }
@@ -128,12 +134,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const fetchComments = async () => {
     setIsLoadingComments(true);
     try {
-      const response = await fetch(
-        `${API_URL}/mehfil/interactions/${thought.id}/comments`
-      );
+      const response = await fetch(`${API_URL}/mehfil/interactions/comments/${thought.id}`);
       if (response.ok) {
         const data = await response.json();
-        setComments(data);
+        setComments(Array.isArray(data?.comments) ? data.comments.map(toComment) : []);
       }
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -153,17 +157,16 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         toast.error("You must be logged in to comment");
         return;
       }
-      const response = await fetch(
-        `${API_URL}/mehfil/interactions/${thought.id}/comments`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, content: commentText }),
-        }
-      );
+      const response = await fetch(`${API_URL}/mehfil/interactions/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thoughtId: thought.id, content: commentText }),
+      });
       if (response.ok) {
-        const newComment = await response.json();
-        setComments((prev) => [...prev, newComment]);
+        const data = await response.json();
+        if (data?.comment) {
+          setComments((prev) => [...prev, toComment(data.comment)]);
+        }
         setCommentText("");
         toast.success("Comment posted!");
       } else {
@@ -182,14 +185,11 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         toast.error("You must be logged in to save posts");
         return;
       }
-      const response = await fetch(
-        `${API_URL}/mehfil/interactions/${thought.id}/save`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-        }
-      );
+      const response = await fetch(`${API_URL}/mehfil/interactions/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thoughtId: thought.id }),
+      });
       if (response.ok) {
         const data = await response.json();
         setIsSaved(data.saved);
@@ -208,14 +208,11 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         toast.error("You must be logged in to report");
         return;
       }
-      const response = await fetch(
-        `${API_URL}/mehfil/interactions/${thought.id}/report`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, reason: reportReason }),
-        }
-      );
+      const response = await fetch(`${API_URL}/mehfil/interactions/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thoughtId: thought.id, reason: reportReason }),
+      });
       if (response.ok) {
         toast.success(
           "Report submitted. Thank you for keeping the community safe."
@@ -235,10 +232,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     try {
       const userId = await getCurrentUserId();
       if (userId) {
-        fetch(`${API_URL}/mehfil/interactions/${thought.id}/share`, {
+        fetch(`${API_URL}/mehfil/interactions/share`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, platform: "share" }),
+          body: JSON.stringify({ thoughtId: thought.id, platform: "share" }),
         });
       }
 
@@ -274,7 +271,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   };
 
   const handleConnect = async () => {
-    if (isOwnThought || friendshipStatus === "self") return;
+    if (isOwnThought || friendshipStatus === "self" || !thought.userId || thought.isAnonymous) return;
     try {
       const response = await fetch(`${API_URL}/mehfil/friends/request`, {
         method: "POST",
@@ -376,7 +373,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               </DropdownMenuItem>
 
               {/* Connect+ — only on other users' posts */}
-              {!isOwnThought && friendshipStatus === "none" && (
+              {!isOwnThought && !thought.isAnonymous && friendshipStatus === "none" && (
                 <DropdownMenuItem
                   className="cursor-pointer gap-2"
                   onClick={handleConnect}
@@ -387,13 +384,13 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                   </span>
                 </DropdownMenuItem>
               )}
-              {!isOwnThought && friendshipStatus === "sent" && (
+              {!isOwnThought && !thought.isAnonymous && friendshipStatus === "sent" && (
                 <DropdownMenuItem className="cursor-pointer gap-2" disabled>
                   <UserPlus className="w-4 h-4 text-slate-400" />
                   <span className="text-slate-400">Request Sent</span>
                 </DropdownMenuItem>
               )}
-              {!isOwnThought && friendshipStatus === "accepted" && (
+              {!isOwnThought && !thought.isAnonymous && friendshipStatus === "accepted" && (
                 <DropdownMenuItem className="cursor-pointer gap-2" disabled>
                   <UserPlus className="w-4 h-4 text-emerald-600" />
                   <span className="text-emerald-600">Connected</span>

@@ -1,5 +1,5 @@
 import { Router, Request } from 'express';
-import { db } from '../db';
+import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { v4 as uuid } from 'uuid';
 
@@ -10,11 +10,16 @@ router.post('/', requireAuth, async (req: Request, res) => {
     try {
         const { durationMinutes, breakMinutes, completed } = req.body;
         const id = uuid();
+        const now = new Date();
 
-        await db.execute({
-            sql: `INSERT INTO focus_sessions (id, user_id, duration_minutes, break_minutes, completed, completed_at)
-                  VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-            args: [id, req.session.userId, durationMinutes, breakMinutes || 0, completed ? true : false]
+        await collections.focusSessions().insertOne({
+            id,
+            user_id: req.session.userId,
+            duration_minutes: durationMinutes,
+            break_minutes: breakMinutes || 0,
+            completed: completed ? true : false,
+            started_at: now,
+            completed_at: now,
         });
 
         res.json({ success: true, id });
@@ -27,57 +32,73 @@ router.post('/', requireAuth, async (req: Request, res) => {
 // Get aggregated stats for current user
 router.get('/stats', requireAuth, async (req: Request, res) => {
     try {
-        const userId = req.session.userId;
+        const userId = req.session.userId!;
 
         // Total focus time (completed sessions only)
-        const totalResult = await db.execute({
-            sql: `SELECT 
-                    COALESCE(SUM(duration_minutes), 0) as total_focus_minutes,
-                    COALESCE(SUM(break_minutes), 0) as total_break_minutes,
-                    COUNT(*) as total_sessions,
-                    SUM(CASE WHEN completed = TRUE THEN 1 ELSE 0 END) as completed_sessions
-                  FROM focus_sessions WHERE user_id = ?`,
-            args: [userId]
-        });
-        const totals = totalResult.rows[0] as any;
+        const totalPipeline = [
+            { $match: { user_id: userId } },
+            {
+                $group: {
+                    _id: null,
+                    total_focus_minutes: { $sum: '$duration_minutes' },
+                    total_break_minutes: { $sum: '$break_minutes' },
+                    total_sessions: { $sum: 1 },
+                    completed_sessions: {
+                        $sum: { $cond: [{ $eq: ['$completed', true] }, 1, 0] }
+                    }
+                }
+            }
+        ];
+        const totalResult = await collections.focusSessions().aggregate(totalPipeline).toArray();
+        const totals = totalResult[0] || { total_focus_minutes: 0, total_break_minutes: 0, total_sessions: 0, completed_sessions: 0 };
 
         // Weekly data (last 7 days)
-        const weeklyResult = await db.execute({
-            sql: `SELECT 
-                    EXTRACT(DOW FROM completed_at) as day_of_week,
-                    COALESCE(SUM(duration_minutes), 0) as minutes
-                  FROM focus_sessions 
-                  WHERE user_id = ? 
-                    AND completed_at >= NOW() - INTERVAL '7 days'
-                    AND completed = TRUE
-                  GROUP BY EXTRACT(DOW FROM completed_at)`,
-            args: [userId]
-        });
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const weeklyPipeline = [
+            {
+                $match: {
+                    user_id: userId,
+                    completed: true,
+                    completed_at: { $gte: sevenDaysAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dayOfWeek: '$completed_at' },
+                    minutes: { $sum: '$duration_minutes' }
+                }
+            }
+        ];
+        const weeklyResult = await collections.focusSessions().aggregate(weeklyPipeline).toArray();
 
-        // Convert to array indexed by day (0=Sun, 1=Mon, ..., 6=Sat)
-        const weeklyData = [0, 0, 0, 0, 0, 0, 0]; // M T W T F S S
-        for (const row of weeklyResult.rows as any[]) {
-            // Convert SQL day (0=Sun) to our format (0=Mon)
-            const sqlDay = parseInt(row.day_of_week);
-            const ourDay = sqlDay === 0 ? 6 : sqlDay - 1;
+        // Convert to array indexed by day (0=Mon, ..., 6=Sun)
+        const weeklyData = [0, 0, 0, 0, 0, 0, 0];
+        for (const row of weeklyResult) {
+            // MongoDB $dayOfWeek: 1=Sun, 2=Mon, ..., 7=Sat
+            const mongoDay = row._id as number;
+            const ourDay = mongoDay === 1 ? 6 : mongoDay - 2;
             weeklyData[ourDay] = row.minutes;
         }
 
         // Calculate focus streak (consecutive days with completed sessions)
-        const streakResult = await db.execute({
-            sql: `SELECT DISTINCT DATE(completed_at) as session_date 
-                  FROM focus_sessions 
-                  WHERE user_id = ? AND completed = TRUE
-                  ORDER BY session_date DESC`,
-            args: [userId]
-        });
+        const distinctDays = await collections.focusSessions().aggregate([
+            { $match: { user_id: userId, completed: true } },
+            {
+                $group: {
+                    _id: {
+                        $dateToString: { format: '%Y-%m-%d', date: '$completed_at' }
+                    }
+                }
+            },
+            { $sort: { _id: -1 } }
+        ]).toArray();
 
         let focusStreak = 0;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        for (const row of streakResult.rows as any[]) {
-            const sessionDate = new Date(row.session_date);
+        for (const row of distinctDays) {
+            const sessionDate = new Date(row._id);
             sessionDate.setHours(0, 0, 0, 0);
 
             const expectedDate = new Date(today);
@@ -86,7 +107,6 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             if (sessionDate.getTime() === expectedDate.getTime()) {
                 focusStreak++;
             } else if (focusStreak === 0 && sessionDate.getTime() === expectedDate.getTime() - 86400000) {
-                // Allow yesterday if no session today yet
                 focusStreak++;
             } else {
                 break;
@@ -94,14 +114,20 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
         }
 
         // Goals stats
-        const goalsResult = await db.execute({
-            sql: `SELECT 
-                    COUNT(*) as total_goals,
-                    SUM(CASE WHEN completed = TRUE THEN 1 ELSE 0 END) as completed_goals
-                  FROM goals WHERE user_id = ?`,
-            args: [userId]
-        });
-        const goals = goalsResult.rows[0] as any;
+        const goalsPipeline = [
+            { $match: { user_id: userId } },
+            {
+                $group: {
+                    _id: null,
+                    total_goals: { $sum: 1 },
+                    completed_goals: {
+                        $sum: { $cond: [{ $eq: ['$completed', true] }, 1, 0] }
+                    }
+                }
+            }
+        ];
+        const goalsResult = await collections.goals().aggregate(goalsPipeline).toArray();
+        const goals = goalsResult[0] || { total_goals: 0, completed_goals: 0 };
 
         res.json({
             totalFocusMinutes: totals.total_focus_minutes || 0,
@@ -112,7 +138,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             focusStreak,
             goalsSet: goals.total_goals || 0,
             goalsCompleted: goals.completed_goals || 0,
-            dailyGoalMinutes: 240, // 4 hours default
+            dailyGoalMinutes: 240,
             dailyGoalProgress: Math.min(100, Math.round(((totals.total_focus_minutes || 0) / 240) * 100))
         });
     } catch (error) {

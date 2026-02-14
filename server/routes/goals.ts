@@ -1,6 +1,6 @@
 import { Router, Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '../db';
+import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -8,18 +8,18 @@ const router = Router();
 // Helper function to get IST timestamp
 const getISTTimestamp = () => {
     const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+    const istOffset = 5.5 * 60 * 60 * 1000;
     return new Date(now.getTime() + istOffset).toISOString();
 };
 
 // Get all goals
 router.get('/', requireAuth, async (req: Request, res) => {
     try {
-        const result = await db.execute({
-            sql: 'SELECT * FROM goals WHERE user_id = ? ORDER BY created_at DESC',
-            args: [req.session.userId]
-        });
-        res.json(result.rows);
+        const rows = await collections.goals()
+            .find({ user_id: req.session.userId })
+            .sort({ created_at: -1 })
+            .toArray();
+        res.json(rows);
     } catch (error) {
         console.error('Get goals error:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -36,21 +36,15 @@ router.post('/', requireAuth, async (req: Request, res) => {
 
     try {
         const id = uuidv4();
-        const userId = req.session.userId;
-        const createdAt = getISTTimestamp();
+        const userId = req.session.userId!;
+        const createdAt = new Date();
 
-        await db.execute({
-            sql: `INSERT INTO goals (id, user_id, text, type, completed, created_at) VALUES (?, ?, ?, ?, FALSE, ?)`,
-            args: [id, userId, text, type, createdAt]
+        await collections.goals().insertOne({
+            id, user_id: userId, text, type, completed: false, created_at: createdAt, completed_at: null
         });
 
         res.status(201).json({
-            id,
-            userId,
-            text,
-            type,
-            completed: false,
-            createdAt: createdAt
+            id, userId, text, type, completed: false, createdAt: createdAt.toISOString()
         });
     } catch (error) {
         console.error('Create goal error:', error);
@@ -62,67 +56,63 @@ router.post('/', requireAuth, async (req: Request, res) => {
 router.patch('/:id', requireAuth, async (req: Request, res) => {
     const { id } = req.params;
     const { completed } = req.body;
-    const userId = req.session.userId;
+    const userId = req.session.userId!;
 
     try {
-        const completedAt = completed ? getISTTimestamp() : null;
+        const completedAt = completed ? new Date() : null;
 
-        const result = await db.execute({
-            sql: `UPDATE goals SET completed = ?, completed_at = ? WHERE id = ? AND user_id = ?`,
-            args: [completed, completedAt, id, userId]
-        });
+        const result = await collections.goals().updateOne(
+            { id, user_id: userId },
+            { $set: { completed, completed_at: completedAt } }
+        );
 
-        if (result.rowsAffected === 0) {
+        if (result.matchedCount === 0) {
             return res.status(404).json({ message: 'Goal not found or unauthorized' });
         }
 
         // Update goal completion streak if completed
         if (completed) {
-            const todayIST = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
+            const now = new Date();
+            const todayIST = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
+            const startOfDay = new Date(todayIST + 'T00:00:00.000Z');
+            startOfDay.setTime(startOfDay.getTime() - (5.5 * 60 * 60 * 1000));
+            const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
 
-            // Check if user already completed a goal today
-            const todayGoals = await db.execute({
-                sql: `SELECT id FROM goals WHERE user_id = ? AND completed = TRUE AND DATE(completed_at) = DATE(?)`,
-                args: [userId, todayIST]
+            const todayGoalsCount = await collections.goals().countDocuments({
+                user_id: userId,
+                completed: true,
+                completed_at: { $gte: startOfDay, $lt: endOfDay }
             });
 
-            // Only update streak if this is the first goal completion today
-            if (todayGoals.rows.length <= 1) {
-                // Get current streak data
-                const streakResult = await db.execute({
-                    sql: 'SELECT * FROM streaks WHERE user_id = ?',
-                    args: [userId]
-                });
-                const currentStreak = streakResult.rows[0] as any;
+            if (todayGoalsCount <= 1) {
+                const currentStreak = await collections.streaks().findOne({ user_id: userId });
 
                 if (currentStreak) {
-                    const lastActiveDate = currentStreak.last_active_date ? currentStreak.last_active_date.split(' ')[0].split('T')[0] : null;
+                    const lastActiveDate = currentStreak.last_active_date
+                        ? String(currentStreak.last_active_date).split(' ')[0].split('T')[0]
+                        : null;
 
-                    // Calculate yesterday's date
-                    const yesterday = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
+                    const yesterday = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
                     yesterday.setDate(yesterday.getDate() - 1);
                     const yesterdayStr = yesterday.toISOString().split('T')[0];
 
                     if (lastActiveDate === todayIST) {
-                        // Already completed goal today - increment streak count
-                        await db.execute({
-                            sql: `UPDATE streaks SET goal_completion_streak = goal_completion_streak + 1 WHERE user_id = ?`,
-                            args: [userId]
-                        });
+                        await collections.streaks().updateOne(
+                            { user_id: userId },
+                            { $inc: { goal_completion_streak: 1 } }
+                        );
                         console.log('🟢 [GOAL] Streak incremented - same day');
                     } else if (lastActiveDate === yesterdayStr || currentStreak.goal_completion_streak === 0) {
-                        // Consecutive day or first goal completion - increment
-                        await db.execute({
-                            sql: `UPDATE streaks SET goal_completion_streak = goal_completion_streak + 1 WHERE user_id = ?`,
-                            args: [userId]
-                        });
+                        await collections.streaks().updateOne(
+                            { user_id: userId },
+                            { $inc: { goal_completion_streak: 1 } }
+                        );
                         console.log('🟢 [GOAL] Streak incremented - consecutive day');
                     } else {
-                        // Missed days, reset to 1
-                        await db.execute({
-                            sql: `UPDATE streaks SET goal_completion_streak = 1 WHERE user_id = ?`,
-                            args: [userId]
-                        });
+                        await collections.streaks().updateOne(
+                            { user_id: userId },
+                            { $set: { goal_completion_streak: 1 } }
+                        );
                         console.log('🔴 [GOAL] Streak reset to 1 due to gap');
                     }
                 }
@@ -144,12 +134,9 @@ router.delete('/:id', requireAuth, async (req: Request, res) => {
     const userId = req.session.userId;
 
     try {
-        const result = await db.execute({
-            sql: 'DELETE FROM goals WHERE id = ? AND user_id = ?',
-            args: [id, userId]
-        });
+        const result = await collections.goals().deleteOne({ id, user_id: userId });
 
-        if (result.rowsAffected === 0) {
+        if (result.deletedCount === 0) {
             return res.status(404).json({ message: 'Goal not found or unauthorized' });
         }
 

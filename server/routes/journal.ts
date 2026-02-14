@@ -1,6 +1,6 @@
 import { Router, Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '../db';
+import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -8,11 +8,11 @@ const router = Router();
 // Get all journal entries
 router.get('/', requireAuth, async (req: Request, res) => {
     try {
-        const result = await db.execute({
-            sql: 'SELECT * FROM journal WHERE user_id = ? ORDER BY timestamp DESC',
-            args: [req.session.userId]
-        });
-        res.json(result.rows);
+        const rows = await collections.journal()
+            .find({ user_id: req.session.userId })
+            .sort({ timestamp: -1 })
+            .toArray();
+        res.json(rows);
     } catch (error) {
         console.error('Get journal error:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -29,18 +29,15 @@ router.post('/', requireAuth, async (req: Request, res) => {
 
     try {
         const id = uuidv4();
-        const userId = req.session.userId;
+        const userId = req.session.userId!;
+        const now = new Date();
 
-        await db.execute({
-            sql: `INSERT INTO journal (id, user_id, content) VALUES (?, ?, ?)`,
-            args: [id, userId, content]
+        await collections.journal().insertOne({
+            id, user_id: userId, content, timestamp: now
         });
 
         res.status(201).json({
-            id,
-            userId,
-            content,
-            timestamp: new Date().toISOString()
+            id, userId, content, timestamp: now.toISOString()
         });
     } catch (error) {
         console.error('Create journal error:', error);
@@ -54,12 +51,9 @@ router.delete('/:id', requireAuth, async (req: Request, res) => {
     const userId = req.session.userId;
 
     try {
-        const result = await db.execute({
-            sql: 'DELETE FROM journal WHERE id = ? AND user_id = ?',
-            args: [id, userId]
-        });
+        const result = await collections.journal().deleteOne({ id, user_id: userId });
 
-        if (result.rowsAffected === 0) {
+        if (result.deletedCount === 0) {
             return res.status(404).json({ message: 'Entry not found or unauthorized' });
         }
 
