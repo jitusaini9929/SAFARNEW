@@ -47,29 +47,34 @@ export default function CourseBanner({ user, courseId = "safar-30" }: CourseBann
 
   // Handle purchase flow
   const handlePurchase = async () => {
+    // Redirect to external course page
+    window.open("https://www.parmaracademy.in/courses/75-safar-30", "_blank");
+    return;
+
+    /* Razorpay implementation commented out
     if (!user) {
       setErrorMessage("Please sign in to purchase this course.");
       setPaymentState("error");
       return;
     }
-
+ 
     setPaymentState("loading");
     setErrorMessage("");
-
+ 
     try {
       // Step 1: Load Razorpay script
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
         throw new Error("Failed to load payment gateway. Please check your internet connection.");
       }
-
+ 
       // Step 2: Create order on server
       const orderData = await createOrder(courseId);
-
+ 
       if (!orderData.success) {
         throw new Error("Failed to create order. Please try again.");
       }
-
+ 
       // Step 3: Open Razorpay checkout
       setPaymentState("idle"); // Reset so button shows normal state while checkout is open
       openRazorpayCheckout({
@@ -89,6 +94,7 @@ export default function CourseBanner({ user, courseId = "safar-30" }: CourseBann
       setErrorMessage(error.message || "Something went wrong. Please try again.");
       setPaymentState("error");
     }
+    */
   };
 
   return (
@@ -97,8 +103,8 @@ export default function CourseBanner({ user, courseId = "safar-30" }: CourseBann
       <div
         onClick={!isPurchased ? handlePurchase : undefined}
         className={`block rounded-2xl overflow-hidden shadow-lg transition-all duration-300 ring-2 
-          ${isPurchased 
-            ? "ring-emerald-400/60 cursor-default" 
+          ${isPurchased
+            ? "ring-emerald-400/60 cursor-default"
             : "ring-cyan-400/60 hover:shadow-xl cursor-pointer hover:scale-[1.01]"
           }`}
         style={{

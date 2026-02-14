@@ -3,7 +3,7 @@ import WelcomeDialog from "./WelcomeDialog";
 import TopNavbar from "./TopNavbar";
 import LeftSidebar from "./LeftSidebar";
 import GlobalPageFooter from "./GlobalPageFooter";
-import ThemeToggle from "./ui/theme-toggle";
+
 
 interface NishthaLayoutProps {
     children: ReactNode;
@@ -36,12 +36,10 @@ export default function NishthaLayout({
     return (
         <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19] transition-colors duration-300 relative">
             {showWelcome && <WelcomeDialog onClose={handleCloseWelcome} userName={userName} />}
-            
+
             {/* Theme Toggle - Fixed Position */}
-            <div className="fixed top-4 right-4 md:top-6 md:right-6 z-50">
-                <ThemeToggle variant="icon-with-bg" />
-            </div>
-            
+
+
             <div className="flex flex-1 overflow-hidden relative">
                 <LeftSidebar />
                 <div className="flex flex-col flex-1 relative z-10 w-full overflow-hidden">

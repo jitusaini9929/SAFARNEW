@@ -5,7 +5,7 @@ import { authService } from '@/utils/authService';
 import ThoughtCard from './ThoughtCard';
 import Composer from './Composer';
 import MehfilSidebar from './MehfilSidebar';
-import { ThemeToggleContrast } from '@/components/ui/theme-toggle';
+
 import { Search, Settings, LogOut, Home, HelpCircle, Menu } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -93,7 +93,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
         newSocket.on('thoughts:list', (thoughtList) => {
             setThoughts(thoughtList);
-            
+
             // Load user reactions for these thoughts
             if (user?.id && thoughtList.length > 0) {
                 const thoughtIds = thoughtList.map((t: any) => t.id);
@@ -200,7 +200,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                     >
                         <HelpCircle className="w-5 h-5" />
                     </Button>
-                    <ThemeToggleContrast />
+
 
                     <div className="flex items-center gap-3 pl-2 ml-2 border-l border-slate-200 dark:border-slate-800">
                         <DropdownMenu>

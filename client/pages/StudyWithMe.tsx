@@ -6,7 +6,7 @@ import TasksSidebar, { type Task } from "./TasksSidebar";
 import FocusAnalytics from "./FocusAnalytics";
 import { focusService } from "@/utils/focusService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import ThemeToggle from "@/components/ui/theme-toggle";
+
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -34,19 +34,11 @@ interface FocusTheme {
 }
 
 const focusThemes: FocusTheme[] = [
+
+
     {
-        id: "autumn",
-        name: "Autumn",
-        accent: "#cd6b25ff",
-        accentRgb: "205, 107, 37",
-        gradient: "linear-gradient(135deg, #2d5016 0%, #4a7c2e 50%, #cd6b25 100%)",
-        icon: <Trees className="w-4 h-4" />,
-        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/23881-337972830_medium.mp4",
-        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/sonican-lo-fi-music-loop-sentimental-jazzy-love-473154.mp3"
-    },
-    {
-        id: "beach",
-        name: "Beach",
+        id: "serene",
+        name: "Serene",
         accent: "#1b8ec3ff",
         accentRgb: "27, 142, 195",
         gradient: "linear-gradient(135deg, #0a4d68 0%, #1b8ec3 50%, #88d4f5 100%)",
@@ -65,8 +57,8 @@ const focusThemes: FocusTheme[] = [
         musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/relaxingtime-sleep-music-vol16-195422.mp3"
     },
     {
-        id: "waterfall",
-        name: "Waterfall",
+        id: "amber",
+        name: "Amber",
         accent: "#2e7144ff",
         accentRgb: "46, 113, 68",
         gradient: "linear-gradient(135deg, #1e3a5f 0%, #2e7144 50%, #4ade80 100%)",
@@ -75,8 +67,8 @@ const focusThemes: FocusTheme[] = [
         musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/sigmamusicart-soft-background-music-468495.mp3"
     },
     {
-        id: "aurora",
-        name: "Aurora",
+        id: "solitude",
+        name: "Solitude",
         accent: "#1c527cff",
         accentRgb: "28, 82, 124",
         gradient: "linear-gradient(135deg, #1c527c 0%, #7c3aed 50%, #ec4899 100%)",
@@ -134,7 +126,8 @@ export default function StudyWithMe() {
     }, [isRunning]);
 
     // Log session when timer completes naturally
-    useEffect(() => {        if (remainingSeconds === 0 && !isRunning && mode === 'Timer' && !sessionLoggedRef.current) {
+    useEffect(() => {
+        if (remainingSeconds === 0 && !isRunning && mode === 'Timer' && !sessionLoggedRef.current) {
             sessionLoggedRef.current = true;
 
             const duration = sliderValue;
@@ -148,7 +141,7 @@ export default function StudyWithMe() {
 
             // Auto-complete current task
             if (currentTask) {
-                const updatedTasks = tasks.map(task => 
+                const updatedTasks = tasks.map(task =>
                     task.id === currentTask.id ? { ...task, completed: true } : task
                 );
                 setTasks(updatedTasks);
@@ -544,8 +537,8 @@ export default function StudyWithMe() {
             )}
 
             {/* Tasks Sidebar */}
-            <TasksSidebar 
-                isOpen={isTasksOpen} 
+            <TasksSidebar
+                isOpen={isTasksOpen}
                 onClose={() => setIsTasksOpen(false)}
                 onTasksChange={setTasks}
             />
@@ -828,8 +821,8 @@ export default function StudyWithMe() {
             {/* Floating Controls - Music & Profile */}
             <div className="fixed top-6 right-8 z-[60] flex items-center gap-3">
                 {/* Theme Toggle */}
-                <ThemeToggle variant="icon" className="text-white hover:text-white/80" />
-                
+
+
                 {/* Music Control */}
                 <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-3 py-2">
                     <button

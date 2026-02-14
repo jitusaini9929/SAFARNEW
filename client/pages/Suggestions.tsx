@@ -104,7 +104,10 @@ export default function Suggestions() {
           <section data-tour="suggestion-cards" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
             {/* Card 1 */}
-            <article className="glass-high group relative rounded-2xl overflow-hidden hover:shadow-[0_0_30px_rgba(13,148,136,0.1)] transition-all duration-500">
+            <article
+              onClick={() => navigate('/meditation')}
+              className="glass-high group relative rounded-2xl overflow-hidden hover:shadow-[0_0_30px_rgba(13,148,136,0.1)] transition-all duration-500 cursor-pointer"
+            >
               <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-[#0d9488] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
               <div className="p-8 flex flex-col h-full relative z-10">
                 <div className="w-12 h-12 bg-gradient-to-br from-[#0d9488]/20 to-transparent rounded-xl flex items-center justify-center mb-6 border border-[#0d9488]/20 group-hover:scale-110 transition-transform duration-300">

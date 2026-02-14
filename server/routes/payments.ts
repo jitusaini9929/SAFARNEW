@@ -52,7 +52,7 @@ const COURSES = [
     name: "SAFAR 30-Day Meditation Course",
     description:
       "A 30-day guided meditation journey to build a consistent practice, reduce stress, and deepen self-awareness.",
-    price: 499,
+    price: 49,
     currency: "INR",
     imageUrl: "/Banner.jpeg",
   },
