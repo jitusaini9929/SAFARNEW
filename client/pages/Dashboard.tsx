@@ -492,7 +492,7 @@ export default function Dashboard() {
                             )}
 
                             <button
-                                onClick={() => navigate('/goals')}
+                                onClick={() => navigate('/nishtha/goals')}
                                 className="w-full mt-auto bg-muted hover:bg-muted/80 text-blue-600 border border-blue-500/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group"
                             >
                                 {goals.total > 0 ? 'View Goals' : 'Set Goals'}
@@ -663,7 +663,7 @@ export default function Dashboard() {
                                     <h3 className="font-semibold text-lg text-foreground">Goal History</h3>
                                 </div>
                                 <button
-                                    onClick={() => navigate('/goals')}
+                                    onClick={() => navigate('/nishtha/goals')}
                                     className="text-xs font-bold text-primary uppercase tracking-wider hover:underline flex items-center gap-1"
                                 >
                                     View All <ArrowRight className="w-3 h-3" />
