@@ -343,7 +343,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
 
 
-        // ... inside navbar ...
+
         <div className="flex items-center gap-3">
           <ThemeToggle />
 

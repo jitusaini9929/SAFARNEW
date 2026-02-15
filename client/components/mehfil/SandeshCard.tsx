@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Loader2, Send, Plus, Link as LinkIcon, Image as ImageIcon, Bold, Italic, X, ShieldCheck } from 'lucide-react';
+import { Bell, Loader2, Send, Plus, Link as LinkIcon, Image as ImageIcon, Bold, Italic, X, ShieldCheck, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { authService } from '@/utils/authService';
 import { formatDistanceToNow } from 'date-fns';
@@ -38,6 +38,8 @@ const SandeshCard = () => {
     const [imageUrl, setImageUrl] = useState('');
     const [showImageInput, setShowImageInput] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editId, setEditId] = useState<string | null>(null);
 
     // Check if current user is admin
     useEffect(() => {
@@ -142,8 +144,11 @@ const SandeshCard = () => {
 
         setIsPosting(true);
         try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh`, {
-                method: 'POST',
+            const method = isEditing ? 'PUT' : 'POST';
+            const url = isEditing ? `${API_URL}/mehfil/sandesh/${editId}` : `${API_URL}/mehfil/sandesh`;
+
+            const res = await fetch(url, {
+                method: method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -156,11 +161,13 @@ const SandeshCard = () => {
             });
 
             if (res.ok) {
-                toast.success('Update posted successfully');
+                toast.success(isEditing ? 'Update edited successfully' : 'Update posted successfully');
                 setNewContent('');
                 setLinkMeta(null);
                 setImageUrl('');
                 setShowInput(false);
+                setIsEditing(false);
+                setEditId(null);
                 fetchSandesh();
             } else {
                 const data = await res.json();
@@ -170,6 +177,36 @@ const SandeshCard = () => {
             toast.error('Error posting update');
         } finally {
             setIsPosting(false);
+        }
+    };
+
+    const handleEdit = (sandesh: Sandesh) => {
+        setNewContent(sandesh.content);
+        setImageUrl(sandesh.image_url || '');
+        setLinkMeta(sandesh.link_meta || null);
+        setIsEditing(true);
+        setEditId(sandesh.id);
+        setShowInput(true);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this update?')) return;
+
+        try {
+            const res = await fetch(`${API_URL}/mehfil/sandesh/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (res.ok) {
+                toast.success('Update deleted successfully');
+                setSandesh(null); // Clear displayed sandesh
+                fetchSandesh(); // Refresh to get next latest if any
+            } else {
+                toast.error('Failed to delete update');
+            }
+        } catch (err) {
+            toast.error('Error deleting update');
         }
     };
 
@@ -204,6 +241,23 @@ const SandeshCard = () => {
                             className="h-8 w-8 p-0 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
                             <Plus className="w-4 h-4 text-slate-500" />
+                        </Button>
+                    )}
+                    {isEditing && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                setIsEditing(false);
+                                setEditId(null);
+                                setNewContent('');
+                                setImageUrl('');
+                                setLinkMeta(null);
+                                setShowInput(false);
+                            }}
+                            className="h-8 px-2 text-xs text-slate-500 hover:text-slate-700"
+                        >
+                            Cancel Edit
                         </Button>
                     )}
                 </div>
@@ -292,8 +346,8 @@ const SandeshCard = () => {
                             disabled={isPosting || (!newContent.trim() && !imageUrl)}
                             className="bg-teal-500 hover:bg-teal-600 text-white rounded-xl"
                         >
-                            {isPosting ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
-                            Post
+                            {isPosting ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : (isEditing ? <Pencil className="w-3 h-3 mr-1" /> : <Send className="w-3 h-3 mr-1" />)}
+                            {isEditing ? 'Update' : 'Post'}
                         </Button>
                     </div>
                 </div>
@@ -319,6 +373,27 @@ const SandeshCard = () => {
                                 </div>
                             )}
                         </div>
+
+                        {isAdmin && (
+                            <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); handleEdit(sandesh); }}
+                                    className="h-7 w-7 p-0 rounded-full bg-white/50 hover:bg-white/80 dark:bg-black/50 dark:hover:bg-black/80"
+                                >
+                                    <Pencil className="w-3 h-3 text-slate-700 dark:text-slate-300" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(sandesh.id); }}
+                                    className="h-7 w-7 p-0 rounded-full bg-white/50 hover:bg-red-100 dark:bg-black/50 dark:hover:bg-red-900/30"
+                                >
+                                    <Trash2 className="w-3 h-3 text-red-500" />
+                                </Button>
+                            </div>
+                        )}
 
                         {/* Rich Text Content */}
                         <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">

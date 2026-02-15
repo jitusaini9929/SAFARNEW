@@ -122,4 +122,77 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     }
 });
 
+// Update Sandesh (Admin only)
+router.put('/:id', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { content, importance, link_meta, image_url } = req.body;
+        const userId = (req as any).session.userId;
+
+        // Check user
+        const user = await collections.users().findOne({ id: userId });
+        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com')
+            .split(',')
+            .map(e => e.trim().toLowerCase())
+            .filter(e => e.length > 0);
+
+        if (!user || !user.email || !adminEmails.includes(user.email.toLowerCase())) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        const updateData: any = {
+            updated_at: new Date()
+        };
+
+        if (content !== undefined) updateData.content = content;
+        if (importance !== undefined) updateData.importance = importance;
+        if (link_meta !== undefined) updateData.link_meta = link_meta;
+        if (image_url !== undefined) updateData.image_url = image_url;
+
+        const result = await collections.sandeshMessages().updateOne(
+            { id: id },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ message: 'Sandesh not found' });
+        }
+
+        res.json({ message: 'Sandesh updated successfully' });
+    } catch (error) {
+        console.error('Error updating sandesh:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Delete Sandesh (Admin only)
+router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const userId = (req as any).session.userId;
+
+        // Check user
+        const user = await collections.users().findOne({ id: userId });
+        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com')
+            .split(',')
+            .map(e => e.trim().toLowerCase())
+            .filter(e => e.length > 0);
+
+        if (!user || !user.email || !adminEmails.includes(user.email.toLowerCase())) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        const result = await collections.sandeshMessages().deleteOne({ id: id });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: 'Sandesh not found' });
+        }
+
+        res.json({ message: 'Sandesh deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting sandesh:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 export const sandeshRoutes = router;
