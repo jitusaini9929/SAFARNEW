@@ -45,8 +45,8 @@ const focusThemes: FocusTheme[] = [
         accentRgb: "27, 142, 195",
         gradient: "linear-gradient(135deg, #0a4d68 0%, #1b8ec3 50%, #88d4f5 100%)",
         icon: <Waves className="w-4 h-4" />,
-        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/70796-538877060_medium.mp4",
-        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/viacheslavstarostin-calm-soft-background-music-357212.mp3"
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_2.mp4",
+        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/music_1.mp3"
     },
     {
         id: "nostalgia",
@@ -55,7 +55,7 @@ const focusThemes: FocusTheme[] = [
         accentRgb: "28, 188, 49",
         gradient: "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)",
         icon: <Sunset className="w-4 h-4" />,
-        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/11898793_3840_2160_60fps.mp4",
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_3.mp4",
         musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/relaxingtime-sleep-music-vol16-195422.mp3"
     },
     {
@@ -65,8 +65,8 @@ const focusThemes: FocusTheme[] = [
         accentRgb: "46, 113, 68",
         gradient: "linear-gradient(135deg, #1e3a5f 0%, #2e7144 50%, #4ade80 100%)",
         icon: <MoonStar className="w-4 h-4" />,
-        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/216134_medium.mp4",
-        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/sigmamusicart-soft-background-music-468495.mp3"
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_4.mp4",
+        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/music_2.mp3"
     },
     {
         id: "solitude",
@@ -75,8 +75,8 @@ const focusThemes: FocusTheme[] = [
         accentRgb: "28, 82, 124",
         gradient: "linear-gradient(135deg, #1c527c 0%, #7c3aed 50%, #ec4899 100%)",
         icon: <Sparkle className="w-4 h-4" />,
-        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/244839_medium.mp4",
-        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/vividillustrate-432hz-magic-healing-cosmic-sleep-amp-focus-frequency-361117.mp3"
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_1.mp4",
+        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/music_3.mp3"
     },
 ];
 
