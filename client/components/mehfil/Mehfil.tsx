@@ -7,7 +7,7 @@ import Composer from './Composer';
 import MehfilSidebar from './MehfilSidebar';
 import { toast } from 'sonner';
 
-import { Search, Settings, LogOut, Home, HelpCircle, Menu } from 'lucide-react';
+import { Search, Settings, LogOut, Home, Menu } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -18,9 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { useGuidedTour } from "@/contexts/GuidedTourContext";
-import { mehfilTour } from "@/components/guided-tour/tourSteps";
-import { TourPrompt } from "@/components/guided-tour";
+
 
 interface MehfilProps {
   backendUrl?: string;
@@ -46,7 +44,7 @@ const ROOM_CONFIG: Record<MehfilRoom, {
     chipClass: 'from-teal-500 to-cyan-500',
   },
   REFLECTIVE: {
-    title: 'Zen Corner',
+    title: 'Thoughts',
     subtitle: 'Share what you are feeling and support each other with empathy.',
     placeholder: "How are you feeling? Share what's on your mind...",
     chipClass: 'from-indigo-500 to-violet-500',
@@ -107,7 +105,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     userIdRef.current = user?.id;
   }, [user?.id]);
 
-  const { startTour } = useGuidedTour();
+
 
   const applyPostingBanState = (payload?: PostingBanPayload | null) => {
     if (!payload?.isActive) {
@@ -207,7 +205,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     });
 
     newSocket.on('thoughtRerouted', ({ room }) => {
-      const destination = room === 'REFLECTIVE' ? 'Zen Corner' : 'Academic Hall';
+      const destination = room === 'REFLECTIVE' ? 'Thoughts' : 'Academic Hall';
       toast.info(`Your thought was routed to ${destination}.`);
     });
 
@@ -339,14 +337,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             <Menu className="w-5 h-5" />
           </button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => startTour(mehfilTour)}
-            className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
-          >
-            <HelpCircle className="w-5 h-5" />
-          </Button>
+
 
           <div className="flex items-center gap-3 pl-2 ml-2 border-l border-slate-200 dark:border-slate-800">
             <DropdownMenu>
@@ -384,15 +375,14 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
       <div className="w-full max-w-4xl mx-auto px-6 pt-28 pb-12">
         <main className="scrollbar-blend">
-          <section className="mb-6 rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 p-4 backdrop-blur-xl">
+          <section className="mb-6 rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 p-4 backdrop-blur-xl flex flex-col items-center text-center">
             <div className="flex items-center gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/70 rounded-2xl w-fit">
               {(['ACADEMIC', 'REFLECTIVE'] as MehfilRoom[]).map((room) => (
                 <button
                   key={room}
                   onClick={() => setActiveRoom(room)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                    room === activeRoom ? roomPalette.tabActive : roomPalette.tabIdle
-                  }`}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${room === activeRoom ? roomPalette.tabActive : roomPalette.tabIdle
+                    }`}
                 >
                   {ROOM_CONFIG[room].title}
                 </button>
@@ -433,7 +423,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       </div>
 
       <MehfilSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <TourPrompt tour={mehfilTour} featureName="Mehfil" />
+
 
       {postingBan?.isActive && (
         <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">

@@ -111,7 +111,7 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRo
                 ) : (
                   <>
                     <Send className="w-3.5 h-3.5" />
-                    {activeRoom === 'REFLECTIVE' ? 'Share to Zen Corner' : 'Share to Academic Hall'}
+                    {activeRoom === 'REFLECTIVE' ? 'Share to Thoughts' : 'Share to Academic Hall'}
                   </>
                 )}
               </button>

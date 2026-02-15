@@ -8,7 +8,6 @@ import {
   Bookmark,
   Flag,
   Send,
-  UserPlus,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -64,9 +63,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const [isSaved, setIsSaved] = useState(false);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState("spam");
-  const [friendshipStatus, setFriendshipStatus] = useState<
-    "none" | "sent" | "received" | "accepted" | "self"
-  >("none");
+
 
   const getCurrentUserId = async () => {
     const auth = await authService.getCurrentUser();
@@ -77,7 +74,6 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   // Check save + friendship status on mount
   useEffect(() => {
     checkSaveStatus();
-    checkFriendshipStatus();
   }, [thought.id, thought.userId, thought.isAnonymous]);
 
   // Fetch comments when opened
@@ -112,24 +108,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     }
   };
 
-  const checkFriendshipStatus = async () => {
-    if (isOwnThought || !thought.userId || thought.isAnonymous) {
-      setFriendshipStatus("self");
-      return;
-    }
-    try {
-      const response = await fetch(
-        `${API_URL}/mehfil/friends/status/${thought.userId}`,
-        { credentials: "include" }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setFriendshipStatus(data.status);
-      }
-    } catch (error) {
-      console.error("Error checking friendship status:", error);
-    }
-  };
+
 
   const fetchComments = async () => {
     setIsLoadingComments(true);
@@ -270,27 +249,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     }
   };
 
-  const handleConnect = async () => {
-    if (isOwnThought || friendshipStatus === "self" || !thought.userId || thought.isAnonymous) return;
-    try {
-      const response = await fetch(`${API_URL}/mehfil/friends/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ friendId: thought.userId }),
-        credentials: "include",
-      });
-      if (response.ok) {
-        toast.success("Friend request sent!");
-        setFriendshipStatus("sent");
-      } else {
-        const err = await response.json();
-        toast.error(err.error || "Failed to send friend request");
-      }
-    } catch (error) {
-      console.error("Error sending friend request:", error);
-      toast.error("Failed to send friend request");
-    }
-  };
+
 
   // ── formatting helpers ──────────────────────────────
 
@@ -313,7 +272,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     return name ? name.substring(0, 2).toUpperCase() : "??";
   };
 
-  const categoryLabel = thought.category === "REFLECTIVE" ? "Zen Corner" : "Academic Hall";
+  const categoryLabel = thought.category === "REFLECTIVE" ? "Thoughts" : "Academic Hall";
   const categoryClass =
     thought.category === "REFLECTIVE"
       ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
@@ -381,30 +340,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 <span>Share</span>
               </DropdownMenuItem>
 
-              {/* Connect+ — only on other users' posts */}
-              {!isOwnThought && !thought.isAnonymous && friendshipStatus === "none" && (
-                <DropdownMenuItem
-                  className="cursor-pointer gap-2"
-                  onClick={handleConnect}
-                >
-                  <UserPlus className="w-4 h-4 text-teal-600" />
-                  <span className="text-teal-600 font-semibold">
-                    Connect +
-                  </span>
-                </DropdownMenuItem>
-              )}
-              {!isOwnThought && !thought.isAnonymous && friendshipStatus === "sent" && (
-                <DropdownMenuItem className="cursor-pointer gap-2" disabled>
-                  <UserPlus className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-400">Request Sent</span>
-                </DropdownMenuItem>
-              )}
-              {!isOwnThought && !thought.isAnonymous && friendshipStatus === "accepted" && (
-                <DropdownMenuItem className="cursor-pointer gap-2" disabled>
-                  <UserPlus className="w-4 h-4 text-emerald-600" />
-                  <span className="text-emerald-600">Connected</span>
-                </DropdownMenuItem>
-              )}
+
 
               <Separator className="my-1" />
               <DropdownMenuItem
@@ -439,11 +375,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
           <div className="flex items-center gap-3">
             <button
               onClick={onReact}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                hasReacted
-                  ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-2 ring-rose-200 dark:ring-rose-500/20"
-                  : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-rose-500"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${hasReacted
+                ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-2 ring-rose-200 dark:ring-rose-500/20"
+                : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-rose-500"
+                }`}
             >
               <Heart
                 className={`w-4 h-4 transition-all ${hasReacted ? "fill-current" : ""}`}
@@ -453,11 +388,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
             <button
               onClick={() => setIsCommentsOpen(!isCommentsOpen)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                isCommentsOpen
-                  ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-200 dark:ring-teal-500/20"
-                  : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-500"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${isCommentsOpen
+                ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-200 dark:ring-teal-500/20"
+                : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-500"
+                }`}
             >
               <MessageCircle className="w-4 h-4" />
               Comment {comments.length > 0 && `(${comments.length})`}

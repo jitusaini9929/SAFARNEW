@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Bookmark, BarChart3, Shield, X, Loader2 } from 'lucide-react';
+import { Bookmark, BarChart3, Shield, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -10,15 +10,7 @@ import ThoughtCard from './ThoughtCard';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
-type SidebarView = 'friends' | 'saved' | 'analytics' | 'privacy' | null;
-
-interface Friend {
-  id: string;
-  name: string;
-  avatar: string | null;
-  status: 'pending' | 'accepted' | 'requested';
-  created_at: string;
-}
+type SidebarView = 'saved' | 'analytics' | 'privacy' | null;
 
 interface UserAnalytics {
   totalThoughts: number;
@@ -26,7 +18,6 @@ interface UserAnalytics {
   totalComments: number;
   totalSaves: number;
   totalShares: number;
-  friendsCount: number;
   joinedDate: string;
 }
 
@@ -37,7 +28,6 @@ interface MehfilSidebarProps {
 
 const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
   const [activeView, setActiveView] = useState<SidebarView>(null);
-  const [friends, setFriends] = useState<Friend[]>([]);
   const [savedPosts, setSavedPosts] = useState<Thought[]>([]);
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,37 +35,19 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen && !activeView) {
-      setActiveView('friends');
+      setActiveView('saved');
     }
   }, [isOpen]);
 
   useEffect(() => {
-    if (activeView === 'friends') {
-      fetchFriends();
-    } else if (activeView === 'saved') {
+    if (activeView === 'saved') {
       fetchSavedPosts();
     } else if (activeView === 'analytics') {
       fetchAnalytics();
     }
   }, [activeView]);
 
-  const fetchFriends = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/mehfil/friends`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFriends(data);
-      }
-    } catch (error) {
-      console.error('Error fetching friends:', error);
-      toast.error('Failed to load friends');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const fetchSavedPosts = async () => {
     setLoading(true);
@@ -114,35 +86,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleAcceptFriend = async (friendshipId: string) => {
-    try {
-      const response = await fetch(`${API_URL}/mehfil/friends/${friendshipId}/accept`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        toast.success('Friend request accepted!');
-        fetchFriends();
-      }
-    } catch (error) {
-      toast.error('Failed to accept friend request');
-    }
-  };
 
-  const handleRemoveFriend = async (friendshipId: string) => {
-    try {
-      const response = await fetch(`${API_URL}/mehfil/friends/${friendshipId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        toast.success('Friend removed');
-        fetchFriends();
-      }
-    } catch (error) {
-      toast.error('Failed to remove friend');
-    }
-  };
 
   const handleReact = async (thoughtId: string) => {
     // Toggle reaction optimistically
@@ -183,15 +127,6 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
         {/* Navigation Tabs */}
         <div className="flex items-center gap-2 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 overflow-x-auto scrollbar-hide">
           <Button
-            variant={activeView === 'friends' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveView('friends')}
-            className="min-w-fit gap-2"
-          >
-            <Users className="w-4 h-4" />
-            Friends
-          </Button>
-          <Button
             variant={activeView === 'saved' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveView('saved')}
@@ -228,68 +163,6 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
             </div>
           ) : (
             <>
-              {/* Friends View */}
-              {activeView === 'friends' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                      Connections ({friends.length})
-                    </h3>
-                  </div>
-
-                  {friends.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Users className="w-16 h-16 mx-auto text-slate-300 dark:text-slate-700 mb-4" />
-                      <p className="text-slate-500 dark:text-slate-400 text-sm">
-                        No friends yet. Connect with others by clicking "Connect +" on their posts!
-                      </p>
-                    </div>
-                  ) : (
-                    friends.map((friend) => (
-                      <div
-                        key={friend.id}
-                        className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                      >
-                        <Avatar className="w-12 h-12">
-                          <AvatarImage src={friend.avatar || undefined} />
-                          <AvatarFallback className="bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400 font-bold">
-                            {friend.name?.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm text-slate-900 dark:text-white truncate">
-                            {friend.name}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {friend.status === 'pending' ? 'Pending request' :
-                              friend.status === 'requested' ? 'Sent request' : 'Connected'}
-                          </p>
-                        </div>
-                        {friend.status === 'pending' && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleAcceptFriend(friend.id)}
-                            className="bg-teal-500 hover:bg-teal-600"
-                          >
-                            Accept
-                          </Button>
-                        )}
-                        {friend.status === 'accepted' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleRemoveFriend(friend.id)}
-                            className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-
               {/* Saved Posts View */}
               {activeView === 'saved' && (
                 <div className="space-y-6">
@@ -371,14 +244,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
-                      <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-400">
-                        {analytics.friendsCount}
-                      </p>
-                      <p className="text-xs text-emerald-600 dark:text-emerald-500 font-medium mt-1">
-                        Friends
-                      </p>
-                    </div>
+
                   </div>
 
                   <Separator className="my-6" />
@@ -424,7 +290,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
                   <section>
                     <h4 className="font-bold text-slate-900 dark:text-white mb-2">3. Data Collection</h4>
                     <p className="leading-relaxed">
-                      We collect only essential data: your posts, comments, reactions, and friend connections.
+                      We collect only essential data: your posts, comments, and reactions.
                       This data helps improve your experience and is stored securely.
                     </p>
                   </section>
@@ -442,7 +308,6 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
                     <p className="leading-relaxed">
                       • Request data deletion<br />
                       • Export your data<br />
-                      • Control who can connect with you<br />
                       • Report inappropriate content
                     </p>
                   </section>
