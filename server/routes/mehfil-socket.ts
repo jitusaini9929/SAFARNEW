@@ -35,6 +35,8 @@ const ROOM_ORDER: MehfilRoom[] = ['ACADEMIC', 'REFLECTIVE'];
 const MIN_THOUGHT_LENGTH = 15;
 const BULLSHIT_TTL_HOURS = Number(process.env.MEHFIL_BULLSHIT_TTL_HOURS || 24);
 const MAX_SPAM_STRIKES = Math.max(1, Number(process.env.MEHFIL_SPAM_STRIKE_LIMIT || 2));
+const DEFAULT_USER_POST_TTL_MINUTES = Math.max(0, Number(process.env.MEHFIL_DEFAULT_POST_TTL_MINUTES || 0));
+const POSTING_BAN_MESSAGE = 'you have been banned from posting messages';
 const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '').trim();
 const GROQ_MODEL = process.env.MEHFIL_GROQ_MODEL || 'llama-3.1-8b-instant';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -78,6 +80,12 @@ function normalizeCategory(category?: string | null): MehfilCategory {
 function clampScore(value: number): number {
   if (!Number.isFinite(value)) return 0.5;
   return Math.max(0, Math.min(1, value));
+}
+
+function normalizePostTtlMinutes(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.max(1, Math.floor(parsed));
 }
 
 function cleanModelJson(raw: string): string {
@@ -254,9 +262,10 @@ async function storeFlaggedThought(input: {
   imageUrl?: string | null;
   isAnonymous: boolean;
   moderation: ModerationResult;
+  customExpiresAt?: Date | null;
 }) {
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + BULLSHIT_TTL_HOURS * 60 * 60 * 1000);
+  const expiresAt = input.customExpiresAt || new Date(now.getTime() + BULLSHIT_TTL_HOURS * 60 * 60 * 1000);
 
   await collections.mehfilThoughts().insertOne({
     id: uuidv4(),
@@ -276,6 +285,43 @@ async function storeFlaggedThought(input: {
     is_toxic: input.moderation.isToxic,
     expires_at: expiresAt,
   });
+}
+
+function getActivePostingBan(user: any) {
+  if (user?.mehfil_banned_forever) {
+    return {
+      isActive: true,
+      isPermanent: true,
+      bannedUntil: null as Date | null,
+      message: POSTING_BAN_MESSAGE,
+    };
+  }
+
+  const bannedUntil = user?.mehfil_banned_until ? new Date(user.mehfil_banned_until) : null;
+  if (bannedUntil && bannedUntil.getTime() > Date.now()) {
+    return {
+      isActive: true,
+      isPermanent: false,
+      bannedUntil,
+      message: POSTING_BAN_MESSAGE,
+    };
+  }
+
+  return {
+    isActive: false,
+    isPermanent: false,
+    bannedUntil: null as Date | null,
+    message: POSTING_BAN_MESSAGE,
+  };
+}
+
+function toBanPayload(ban: { isActive: boolean; isPermanent: boolean; bannedUntil: Date | null; message: string }) {
+  return {
+    isActive: ban.isActive,
+    isPermanent: ban.isPermanent,
+    bannedUntil: ban.bannedUntil ? ban.bannedUntil.toISOString() : null,
+    message: ban.message,
+  };
 }
 
 export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocketOptions) {
@@ -304,7 +350,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
 
     console.log('[MEHFIL] Client connected:', socket.id);
 
-    socket.on('register', (user: { id: string; name: string; avatar: string }) => {
+    socket.on('register', async (user: { id: string; name: string; avatar: string }) => {
       if (!user?.id) return;
 
       connectedUsers.set(user.id, {
@@ -319,6 +365,47 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
 
       console.log(`[MEHFIL] User registered: ${user.name} (${user.id})`);
       mehfil.emit('onlineCount', connectedUsers.size);
+
+      try {
+        const userProfile = await collections.users().findOne(
+          { id: user.id },
+          {
+            projection: {
+              mehfil_banned_until: 1,
+              mehfil_banned_forever: 1,
+            },
+          },
+        );
+
+        const activeBan = getActivePostingBan(userProfile);
+        if (activeBan.isActive) {
+          socket.emit('postingBanStatus', toBanPayload(activeBan));
+        }
+      } catch (error) {
+        console.error('[MEHFIL] Failed to fetch posting ban status on register:', error);
+      }
+    });
+
+    socket.on('checkPostingBan', async () => {
+      try {
+        const userId = socketToUser.get(socket.id);
+        if (!userId) return;
+
+        const userProfile = await collections.users().findOne(
+          { id: userId },
+          {
+            projection: {
+              mehfil_banned_until: 1,
+              mehfil_banned_forever: 1,
+            },
+          },
+        );
+
+        const activeBan = getActivePostingBan(userProfile);
+        socket.emit('postingBanStatus', toBanPayload(activeBan));
+      } catch (error) {
+        console.error('[MEHFIL] Failed to check posting ban:', error);
+      }
     });
 
     socket.on('joinRoom', (data: { room?: string }) => {
@@ -422,14 +509,41 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
               is_shadow_banned: 1,
               spam_strike_count: 1,
               mehfil_moderation_exempt: 1,
+              mehfil_post_ttl_minutes: 1,
+              mehfil_banned_until: 1,
+              mehfil_banned_forever: 1,
             },
           },
         );
+
+        const activeBan = getActivePostingBan(userProfile);
+        if (activeBan.isActive) {
+          socket.emit('postingBanStatus', toBanPayload(activeBan));
+          socket.emit('thoughtRejected', {
+            message: POSTING_BAN_MESSAGE,
+            ban: toBanPayload(activeBan),
+          });
+          return;
+        }
+
+        if (userProfile?.mehfil_banned_until && new Date(userProfile.mehfil_banned_until).getTime() <= Date.now()) {
+          await collections.users().updateOne(
+            { id: userId },
+            {
+              $set: { mehfil_banned_until: null },
+              $unset: { mehfil_banned_reason: "", mehfil_banned_at: "" },
+            },
+          );
+        }
 
         const userEmail = String(userProfile?.email || '').toLowerCase();
         const isModerationExempt =
           Boolean(userProfile?.mehfil_moderation_exempt) ||
           MODERATION_EXEMPT_EMAILS.has(userEmail);
+        const userPostTtlMinutes =
+          normalizePostTtlMinutes(userProfile?.mehfil_post_ttl_minutes) || DEFAULT_USER_POST_TTL_MINUTES;
+        const customExpiryForUser =
+          userPostTtlMinutes > 0 ? new Date(Date.now() + userPostTtlMinutes * 60 * 1000) : null;
 
         if (userProfile?.is_shadow_banned && !isModerationExempt) {
           socket.emit('thoughtAccepted', { message: 'Thought shared successfully.' });
@@ -454,6 +568,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
             imageUrl: data?.imageUrl || null,
             isAnonymous,
             moderation,
+            customExpiresAt: customExpiryForUser,
           });
 
           if (isModerationExempt) {
@@ -492,6 +607,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
               category: 'BULLSHIT',
               aiScore: clampScore(moderation.aiScore),
             },
+            customExpiresAt: customExpiryForUser,
           });
 
           if (isModerationExempt) {
@@ -534,7 +650,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           status: 'approved',
           moderation_reason: moderation.reasoning,
           is_toxic: false,
-          expires_at: null,
+          expires_at: customExpiryForUser,
         });
 
         const thought = {

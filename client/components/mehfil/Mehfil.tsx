@@ -26,6 +26,13 @@ interface MehfilProps {
   backendUrl?: string;
 }
 
+interface PostingBanPayload {
+  isActive: boolean;
+  isPermanent: boolean;
+  bannedUntil: string | null;
+  message: string;
+}
+
 const ROOM_CONFIG: Record<MehfilRoom, {
   title: string;
   subtitle: string;
@@ -53,6 +60,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeRoom, setActiveRoom] = useState<MehfilRoom>('ACADEMIC');
+  const [postingBan, setPostingBan] = useState<PostingBanPayload | null>(null);
+  const [banRemainingMs, setBanRemainingMs] = useState(0);
 
   const userIdRef = useRef<string | undefined>(undefined);
 
@@ -100,6 +109,51 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
   const { startTour } = useGuidedTour();
 
+  const applyPostingBanState = (payload?: PostingBanPayload | null) => {
+    if (!payload?.isActive) {
+      setPostingBan(null);
+      setBanRemainingMs(0);
+      return;
+    }
+
+    setPostingBan(payload);
+    if (payload.isPermanent || !payload.bannedUntil) {
+      setBanRemainingMs(Infinity);
+      return;
+    }
+
+    const remaining = new Date(payload.bannedUntil).getTime() - Date.now();
+    setBanRemainingMs(Math.max(0, remaining));
+  };
+
+  const formatBanRemaining = (remainingMs: number) => {
+    const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  };
+
+  useEffect(() => {
+    if (!postingBan?.isActive || postingBan.isPermanent || !postingBan.bannedUntil) return;
+
+    const updateRemaining = () => {
+      const next = new Date(postingBan.bannedUntil as string).getTime() - Date.now();
+      if (next <= 0) {
+        setBanRemainingMs(0);
+        setPostingBan(null);
+        return;
+      }
+      setBanRemainingMs(next);
+    };
+
+    updateRemaining();
+    const timer = window.setInterval(updateRemaining, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [postingBan?.isActive, postingBan?.isPermanent, postingBan?.bannedUntil]);
+
   useEffect(() => {
     const socketUrl = backendUrl || window.location.origin;
     const newSocket = io(`${socketUrl}/mehfil`, {
@@ -138,7 +192,17 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       }
     });
 
-    newSocket.on('thoughtRejected', ({ message }) => {
+    newSocket.on('postingBanStatus', (payload: PostingBanPayload) => {
+      applyPostingBanState(payload);
+    });
+
+    newSocket.on('thoughtRejected', ({ message, ban }) => {
+      if (ban?.isActive) {
+        applyPostingBanState(ban);
+        toast.error(message || ban.message || "you have been banned from posting messages");
+        return;
+      }
+
       toast.warning(message || "Thought doesn't meet community guidelines.");
     });
 
@@ -174,6 +238,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
           name: user.name || 'User',
           avatar: user.avatar || '',
         });
+        socket.emit('checkPostingBan');
       }
 
       socket.emit('joinRoom', { room: activeRoom });
@@ -369,6 +434,28 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
       <MehfilSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <TourPrompt tour={mehfilTour} featureName="Mehfil" />
+
+      {postingBan?.isActive && (
+        <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/20 bg-slate-950/90 text-white p-6 shadow-2xl">
+            <h3 className="text-xl font-bold">Posting Restricted</h3>
+            <p className="mt-2 text-slate-200">you have been banned from posting messages</p>
+            {postingBan.isPermanent ? (
+              <p className="mt-4 text-sm text-rose-300 font-semibold">Ban duration: Permanent</p>
+            ) : (
+              <div className="mt-4 rounded-2xl bg-slate-800/70 border border-slate-700 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Time Remaining</p>
+                <p className="mt-1 text-2xl font-extrabold text-amber-300 tabular-nums">
+                  {formatBanRemaining(banRemainingMs)}
+                </p>
+              </div>
+            )}
+            <p className="mt-4 text-xs text-slate-400">
+              You can still read thoughts, but posting is blocked until unban.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

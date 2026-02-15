@@ -1,8 +1,7 @@
 import { MongoClient, Db, Collection } from 'mongodb';
-import dotenv from 'dotenv';
-import path from 'path';
+import { loadEnv } from './load-env';
 
-dotenv.config({ path: path.join(process.cwd(), '.env') });
+loadEnv();
 
 const MONGODB_URI = process.env.MONGODB_URI || '';
 const DB_NAME = process.env.MONGODB_DB_NAME || 'safar';
@@ -97,6 +96,7 @@ export async function initDatabase(): Promise<void> {
         await db.collection('users').createIndex({ email: 1 }, { unique: true });
         await db.collection('users').createIndex({ id: 1 }, { unique: true });
         await db.collection('users').createIndex({ is_shadow_banned: 1, spam_strike_count: 1 });
+        await db.collection('users').createIndex({ mehfil_banned_forever: 1, mehfil_banned_until: 1, mehfil_ban_level: 1 });
         await db.collection('streaks').createIndex({ user_id: 1 }, { unique: true });
         await db.collection('password_reset_tokens').createIndex({ token_hash: 1 }, { unique: true });
         await db.collection('password_reset_tokens').createIndex({ user_id: 1 });
@@ -125,6 +125,7 @@ export async function initDatabase(): Promise<void> {
         await db.collection('mehfil_comments').createIndex({ thought_id: 1 });
         await db.collection('mehfil_saves').createIndex({ user_id: 1, thought_id: 1 }, { unique: true });
         await db.collection('mehfil_reports').createIndex({ thought_id: 1 });
+        await db.collection('mehfil_reports').createIndex({ thought_id: 1, reporter_id: 1 });
         await db.collection('mehfil_shares').createIndex({ thought_id: 1 });
         await db.collection('mehfil_friendships').createIndex({ user_id: 1, friend_id: 1 }, { unique: true });
         await db.collection('mehfil_friendships').createIndex({ friend_id: 1 });
