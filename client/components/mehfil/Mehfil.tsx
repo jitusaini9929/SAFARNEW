@@ -5,6 +5,7 @@ import { authService } from '@/utils/authService';
 import ThoughtCard from './ThoughtCard';
 import Composer from './Composer';
 import MehfilSidebar from './MehfilSidebar';
+import SandeshCard from './SandeshCard';
 import { toast } from 'sonner';
 
 import { Search, Settings, LogOut, Home, Menu } from 'lucide-react';
@@ -373,7 +374,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         </div>
       </nav>
 
-      <div className="w-full max-w-4xl mx-auto px-6 pt-28 pb-12">
+      <div className="w-full max-w-7xl mx-auto px-6 pt-28 pb-12">
         <main className="scrollbar-blend">
           <section className="mb-6 rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 p-4 backdrop-blur-xl flex flex-col items-center text-center">
             <div className="flex items-center gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/70 rounded-2xl w-fit">
@@ -393,32 +394,71 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             </p>
           </section>
 
-          <Composer
-            onSendThought={handleSendThought}
-            userAvatar={user?.avatar}
-            activeRoom={activeRoom}
-            placeholder={ROOM_CONFIG[activeRoom].placeholder}
-          />
 
-          <div className="space-y-6">
-            {filteredThoughts.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-slate-400 text-lg">
-                  No thoughts in {ROOM_CONFIG[activeRoom].title} yet. Start the conversation.
-                </p>
-              </div>
-            ) : (
-              filteredThoughts.map((thought) => (
-                <ThoughtCard
-                  key={thought.id}
-                  thought={thought}
-                  onReact={() => handleReact(thought.id)}
-                  hasReacted={userReactions.has(thought.id)}
-                  isOwnThought={thought.userId === user?.id}
-                />
-              ))
-            )}
+          {/* Background Blobs */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+            <div className="absolute rounded-full blur-[120px] -z-10 opacity-60 bg-teal-200 w-[600px] h-[600px] -top-48 -left-24 dark:bg-teal-900/20"></div>
+            <div className="absolute rounded-full blur-[120px] -z-10 opacity-60 bg-indigo-200 w-[500px] h-[500px] top-1/2 -right-24 dark:bg-indigo-900/20"></div>
+            <div className="absolute rounded-full blur-[120px] -z-10 opacity-60 bg-purple-100 w-[400px] h-[400px] bottom-0 left-1/4 dark:bg-purple-900/20"></div>
+            <div className="absolute rounded-full blur-[120px] -z-10 opacity-60 bg-emerald-100 w-[300px] h-[300px] top-1/4 right-1/3 opacity-40 dark:bg-emerald-900/20"></div>
           </div>
+
+
+          {/* Main Layout Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto relative z-10">
+
+            {/* Center Feed - Spans 8 columns */}
+            <main className="lg:col-span-8 flex flex-col gap-6">
+
+              <div className="backdrop-blur-2xl bg-white/40 dark:bg-black/40 border border-white/40 dark:border-white/10 shadow-glass rounded-[2rem] p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
+                <div className="mb-6">
+                  <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">Community Space</h1>
+                  <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
+                    The student lounge for unfiltered thoughts and academic life-hacks.
+                  </p>
+                </div>
+
+                <Composer
+                  onSendThought={handleSendThought}
+                  userAvatar={user?.avatar}
+                  activeRoom={activeRoom}
+                  placeholder={ROOM_CONFIG[activeRoom].placeholder}
+                />
+              </div>
+
+              {/* Mobile Sandesh (only visible on small screens) */}
+              <div className="lg:hidden">
+                <SandeshCard />
+              </div>
+
+              <div className="space-y-6">
+                {filteredThoughts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-slate-400 text-lg">
+                      No thoughts in {ROOM_CONFIG[activeRoom].title} yet. Start the conversation.
+                    </p>
+                  </div>
+                ) : (
+                  filteredThoughts.map((thought) => (
+                    <ThoughtCard
+                      key={thought.id}
+                      thought={thought}
+                      onReact={() => handleReact(thought.id)}
+                      hasReacted={userReactions.has(thought.id)}
+                      isOwnThought={thought.userId === user?.id}
+                    />
+                  ))
+                )}
+              </div>
+            </main>
+
+            {/* Right Sidebar - Sandesh (visible on large screens, sticky) - Spans 4 columns */}
+            <aside className="hidden lg:block lg:col-span-4 lg:sticky lg:top-28 h-fit">
+              <SandeshCard />
+            </aside>
+
+          </div>
+
         </main>
       </div>
 

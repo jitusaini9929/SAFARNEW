@@ -56,6 +56,7 @@ export const collections = {
     courseEnrollments: () => getDb().collection('course_enrollments'),
     transactionLogs: () => getDb().collection('transaction_logs'),
     uploadedImages: () => getDb().collection('uploaded_images'),
+    sandeshMessages: () => getDb().collection('sandesh_messages'),
 };
 
 export async function connectMongo(): Promise<void> {

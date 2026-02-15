@@ -24,7 +24,7 @@ import mehfilSocialRouter from "./routes/mehfil-social";
 
 type SessionStoreCallback = (err?: unknown, data?: unknown) => void;
 type SessionRedisClient = ReturnType<typeof createClient>;
-const MEHFIL_PAUSED = process.env.MEHFIL_PAUSED === "true";
+const MEHFIL_PAUSED = false;
 const MEHFIL_PAUSED_MESSAGE = "Due to irrelevant and spam posts . Mehfil is currently not accessible . We are working on it and notify shortly";
 
 const RETRYABLE_REDIS_ERROR_CODES = new Set([
@@ -307,17 +307,9 @@ export async function createServer() {
   app.use("/api/payments", paymentRoutes);
   app.use("/api/upload", uploadRoutes);
   app.use("/api/images", imageServeRouter);
-  if (MEHFIL_PAUSED) {
-    app.use("/api/mehfil/interactions", (_req, res) => {
-      return res.status(503).json({ message: MEHFIL_PAUSED_MESSAGE });
-    });
-    app.use("/api/mehfil", (_req, res) => {
-      return res.status(503).json({ message: MEHFIL_PAUSED_MESSAGE });
-    });
-  } else {
-    app.use("/api/mehfil/interactions", mehfilInteractionRoutes);
-    app.use("/api/mehfil", mehfilSocialRouter);
-  }
+  app.use("/api/mehfil/interactions", mehfilInteractionRoutes);
+  app.use("/api/mehfil/sandesh", (await import("./routes/sandesh")).sandeshRoutes);
+  app.use("/api/mehfil", mehfilSocialRouter);
 
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";
