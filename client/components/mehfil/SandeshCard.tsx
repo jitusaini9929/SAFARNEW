@@ -41,30 +41,19 @@ const SandeshCard = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
 
-    // Check if current user is admin
-    useEffect(() => {
-        const checkAdmin = async () => {
-            try {
-                const currentUser = await authService.getCurrentUser();
-                const email = currentUser?.user?.email;
-                const adminEmails = ['steve123@example.com', 'safarparmar0@gmail.com'];
 
-                if (email && adminEmails.includes(email.toLowerCase())) {
-                    setIsAdmin(true);
-                }
-            } catch (err) {
-                console.error('Error checking admin status', err);
-            }
-        };
-        checkAdmin();
-    }, []);
 
     const fetchSandesh = async () => {
         try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh`);
+            const res = await fetch(`${API_URL}/mehfil/sandesh`, { credentials: 'include' });
             if (res.ok) {
                 const data = await res.json();
                 setSandesh(data.sandesh);
+
+                // Update admin status from backend source of truth
+                if (typeof data.isAdmin === 'boolean') {
+                    setIsAdmin(data.isAdmin);
+                }
 
                 // Check for new announcement
                 if (data.sandesh) {
@@ -83,6 +72,9 @@ const SandeshCard = () => {
 
     useEffect(() => {
         fetchSandesh();
+        // Poll every 30 seconds for updates
+        const intervalId = setInterval(fetchSandesh, 30000);
+        return () => clearInterval(intervalId);
     }, []);
 
     const markAsRead = () => {

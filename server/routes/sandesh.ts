@@ -7,8 +7,25 @@ import { v4 as uuidv4 } from 'uuid';
 const router = Router();
 
 // Get latest Sandesh
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
     try {
+        let isAdmin = false;
+
+        // Check if user is logged in and is admin (even for public GET route if we want to show admin controls)
+        // Note: requireAuth isn't middleware here, so we check session manually if present
+        if ((req as any).session && (req as any).session.userId) {
+            const userId = (req as any).session.userId;
+            const user = await collections.users().findOne({ id: userId });
+            const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com')
+                .split(',')
+                .map(e => e.trim().toLowerCase())
+                .filter(e => e.length > 0);
+
+            if (user && user.email && adminEmails.includes(user.email.toLowerCase())) {
+                isAdmin = true;
+            }
+        }
+
         const sandesh = await collections.sandeshMessages()
             .find({})
             .sort({ created_at: -1 })
@@ -17,11 +34,12 @@ router.get('/', async (_req: Request, res: Response) => {
 
         // If no sandesh, return null
         if (!sandesh || sandesh.length === 0) {
-            return res.json({ sandesh: null });
+            return res.json({ sandesh: null, isAdmin });
         }
 
         res.json({
-            sandesh: sandesh[0]
+            sandesh: sandesh[0],
+            isAdmin
         });
     } catch (error) {
         console.error('Error fetching sandesh:', error);
