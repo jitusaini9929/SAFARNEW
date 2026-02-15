@@ -8,6 +8,7 @@ import { TimerCard } from "@/components/focus/TimerCard";
 import { useFocus } from "@/contexts/FocusContext";
 import { focusService } from "@/utils/focusService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ThemeToggle from "@/components/ui/theme-toggle";
 
 import {
     DropdownMenu,
@@ -706,6 +707,7 @@ export default function StudyWithMe() {
             {/* Floating Controls - Music & Profile */}
             <div className="fixed top-6 right-8 z-[60] flex items-center gap-3">
                 {/* Theme Toggle */}
+                <ThemeToggle className="bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 hover:text-white" />
 
 
                 {/* Music Control */}
@@ -759,10 +761,10 @@ export default function StudyWithMe() {
                 {/* Profile Icon */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="rounded-full h-10 w-10 p-0 hover:bg-white/10 border border-white/20 bg-white/10 backdrop-blur-md">
-                            <Avatar className="h-9 w-9 border-2 border-white shadow-sm">
-                                <AvatarImage src={user?.avatar} alt={user?.name || 'User'} />
-                                <AvatarFallback className="text-white font-bold" style={{ backgroundColor: currentTheme.accent }}>
+                        <Button variant="ghost" className="rounded-xl h-[52px] w-[52px] p-0 hover:bg-white/10 border border-white/20 bg-white/10 backdrop-blur-md">
+                            <Avatar className="h-[52px] w-[52px] rounded-lg border-2 border-white shadow-sm">
+                                <AvatarImage src={user?.avatar} alt={user?.name || 'User'} className="rounded-lg" />
+                                <AvatarFallback className="rounded-lg text-white font-bold" style={{ backgroundColor: currentTheme.accent }}>
                                     {user?.name ? user.name[0].toUpperCase() : 'G'}
                                 </AvatarFallback>
                             </Avatar>

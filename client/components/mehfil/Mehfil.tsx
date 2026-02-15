@@ -7,6 +7,7 @@ import Composer from './Composer';
 import MehfilSidebar from './MehfilSidebar';
 import SandeshCard from './SandeshCard';
 import { toast } from 'sonner';
+import ThemeToggle from '@/components/ui/theme-toggle';
 
 import { Search, Settings, LogOut, Home, Menu } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -340,7 +341,12 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
           />
         </div>
 
+
+
+        // ... inside navbar ...
         <div className="flex items-center gap-3">
+          <ThemeToggle />
+
           <Link to="/landing" className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors" title="Home">
             <Home className="w-5 h-5" />
           </Link>
@@ -365,9 +371,9 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                     </p>
                     <p className="text-[10px] text-slate-500 font-semibold mt-0.5 tracking-wide uppercase">Member</p>
                   </div>
-                  <Avatar className="w-10 h-10 border-2 border-white dark:border-slate-700 shadow-sm cursor-pointer transition-transform group-hover:scale-105">
-                    <AvatarImage src={user?.avatar} />
-                    <AvatarFallback className="bg-teal-100 text-teal-700 font-bold">
+                  <Avatar className="w-[52px] h-[52px] rounded-xl border-2 border-white dark:border-slate-700 shadow-sm cursor-pointer transition-transform group-hover:scale-105">
+                    <AvatarImage src={user?.avatar} className="rounded-xl" />
+                    <AvatarFallback className="rounded-xl bg-teal-100 text-teal-700 font-bold">
                       {user?.name?.[0]?.toUpperCase() || 'G'}
                     </AvatarFallback>
                   </Avatar>

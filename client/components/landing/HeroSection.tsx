@@ -92,10 +92,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
 
                         {/* Conditional: Sign In Button vs Profile Avatar */}
                         {user ? (
-                            <Link to="/profile" className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-md flex items-center justify-center p-0.5 border-2 border-amber-300/30 dark:border-slate-600 shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:border-amber-400 dark:hover:border-slate-500 transition-all duration-300 cursor-pointer overflow-hidden">
+                            <Link to="/profile" className="w-[52px] h-[52px] rounded-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md flex items-center justify-center p-0.5 border-2 border-amber-300/30 dark:border-slate-600 shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:border-amber-400 dark:hover:border-slate-500 transition-all duration-300 cursor-pointer overflow-hidden">
                                 <img
                                     alt="User Avatar"
-                                    className="w-full h-full rounded-full object-cover object-top"
+                                    className="w-full h-full rounded-lg object-cover object-top"
                                     src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDpC23e9Ij3Kzg310AyhS08hUZzUO5wS83FP5YrPuwjRF6AdxBcC0qMEWdFAJiBHiiKEpJHNEbk9vqBSUUAUjgF2APRS9xFACSDScYRjzU5e2Jdzerz_s7hmwhryXd5GYbqUBly6WOzSLclpR9PSy-7IzNLc4H3bsD04CkD_UDuiADxphkdk_S6XJUWlkbEJLC8p79msm7_L_2qzmoVs8sriSKSPq99rcz8ANuarcX1JwGcgGg6NcLBVgUPi59TaljhiM80PD-94ds"}
                                 />
                             </Link>
@@ -128,15 +128,15 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                     {/* Dark film for light mode text contrast */}
                     <div className="absolute inset-0 bg-black/35 dark:bg-transparent z-[6]"></div>
 
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-50/60 via-slate-50/40 to-transparent dark:from-midnight/80 dark:via-midnight/60 dark:to-transparent/20 z-10"></div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-50/70 via-slate-50/30 to-transparent dark:from-midnight/80 dark:via-transparent dark:to-transparent z-10"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-50/40 via-slate-50/20 to-transparent dark:from-midnight/80 dark:via-midnight/60 dark:to-transparent/20 z-10"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-50/50 via-slate-50/10 to-transparent dark:from-midnight/80 dark:via-transparent dark:to-transparent z-10"></div>
                 </div>
                 <div className="relative z-20 w-full max-w-[1400px] px-6 md:px-8 mt-24 md:mt-12">
                     <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 drop-shadow-2xl">
                         <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif">Where preparation meets care—</span>
                         <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif mt-2">A kinder way to move Forward</span>
                     </h1>
-                    <p className="text-base md:text-lg lg:text-xl text-slate-600 dark:text-slate-300 mb-10 md:mb-12 max-w-xl md:max-w-2xl leading-relaxed">
+                    <p className="text-base md:text-lg lg:text-xl text-slate-800 dark:text-slate-100 font-bold mb-10 md:mb-12 max-w-xl md:max-w-2xl leading-relaxed">
                         A thoughtfully designed space to support your studies, consistency, and emotional well-being — all in one place.
                         Safar helps students stay focused, emotionally steady, and connected — especially when preparation feels heavy. Because "Your marks matter, but so does your mind"
                     </p>

@@ -29,17 +29,64 @@ router.get('/', async (_req: Request, res: Response) => {
     }
 });
 
+// Helper to extract meta tags
+const fetchUrlMetadata = async (url: string) => {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+        const response = await fetch(url, {
+            signal: controller.signal,
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SandeshBot/1.0)' }
+        });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) return null;
+
+        const html = await response.text();
+
+        const getMeta = (name: string) => {
+            const match = html.match(new RegExp(`<meta[^>]+(?:name|property)=["']${name}["'][^>]+content=["']([^"']+)["']`, 'i'));
+            return match ? match[1] : null;
+        };
+
+        const title = getMeta('og:title') || getMeta('twitter:title') || html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1];
+        const description = getMeta('og:description') || getMeta('twitter:description') || getMeta('description');
+        const image = getMeta('og:image') || getMeta('twitter:image');
+
+        if (!title && !description && !image) return null;
+
+        return { title, description, image, url };
+    } catch (error) {
+        console.error('Error fetching URL metadata:', error);
+        return null;
+    }
+};
+
+// Preview Route
+router.post('/preview', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const { url } = req.body;
+        if (!url) return res.status(400).json({ message: 'URL is required' });
+
+        const metadata = await fetchUrlMetadata(url);
+        res.json({ metadata });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch preview' });
+    }
+});
+
 // Post new Sandesh (Admin only)
 router.post('/', requireAuth, async (req: Request, res: Response) => {
     try {
-        const { content, importance = 'normal' } = req.body;
+        const { content, importance = 'normal', link_meta, image_url } = req.body;
         const userId = (req as any).session.userId;
 
         // Check if user is admin
         const user = await collections.users().findOne({ id: userId });
 
         // Split and trim admin emails from env var
-        const adminEmails = (process.env.ADMIN_EMAILS || '')
+        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com')
             .split(',')
             .map(e => e.trim().toLowerCase())
             .filter(e => e.length > 0);
@@ -49,14 +96,16 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
             return res.status(403).json({ message: 'Unauthorized: Admin access required' });
         }
 
-        if (!content) {
-            return res.status(400).json({ message: 'Content is required' });
+        if (!content && !image_url) {
+            return res.status(400).json({ message: 'Content or Image is required' });
         }
 
         const newSandesh = {
             id: uuidv4(),
             content,
             importance, // 'normal' | 'high'
+            link_meta, // { title, description, image, url }
+            image_url,
             author_id: userId,
             created_at: new Date()
         };

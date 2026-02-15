@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, Loader2, Send, Plus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Bell, Loader2, Send, Plus, Link as LinkIcon, Image as ImageIcon, Bold, Italic, X, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { authService } from '@/utils/authService';
 import { formatDistanceToNow } from 'date-fns';
@@ -7,11 +7,20 @@ import { toast } from 'sonner';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
+interface LinkMeta {
+    title: string;
+    description: string;
+    image: string;
+    url: string;
+}
+
 interface Sandesh {
     id: string;
     content: string;
     importance: 'normal' | 'high';
     created_at: string;
+    link_meta?: LinkMeta;
+    image_url?: string;
 }
 
 const SandeshCard = () => {
@@ -23,13 +32,20 @@ const SandeshCard = () => {
     const [showInput, setShowInput] = useState(false);
     const [hasUnread, setHasUnread] = useState(false);
 
+    // New State
+    const [linkMeta, setLinkMeta] = useState<LinkMeta | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [imageUrl, setImageUrl] = useState('');
+    const [showImageInput, setShowImageInput] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
     // Check if current user is admin
     useEffect(() => {
         const checkAdmin = async () => {
             try {
                 const currentUser = await authService.getCurrentUser();
                 const email = currentUser?.user?.email;
-                const adminEmails = ['steve123@example.com'];
+                const adminEmails = ['steve123@example.com', 'safarparmar0@gmail.com'];
 
                 if (email && adminEmails.includes(email.toLowerCase())) {
                     setIsAdmin(true);
@@ -74,8 +90,55 @@ const SandeshCard = () => {
         }
     };
 
+    const handleUrlDetection = async (text: string) => {
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const match = text.match(urlRegex);
+
+        if (match && !linkMeta && !previewLoading) {
+            const url = match[0];
+            setPreviewLoading(true);
+            try {
+                const res = await fetch(`${API_URL}/mehfil/sandesh/preview`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url }),
+                    credentials: 'include'
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.metadata) setLinkMeta(data.metadata);
+                }
+            } catch (err) {
+                console.error('Failed to fetch preview', err);
+            } finally {
+                setPreviewLoading(false);
+            }
+        } else if (!match) {
+            setLinkMeta(null);
+        }
+    };
+
+    const insertText = (before: string, after: string = '') => {
+        if (!textareaRef.current) return;
+
+        const start = textareaRef.current.selectionStart;
+        const end = textareaRef.current.selectionEnd;
+        const text = newContent;
+
+        const newText = text.substring(0, start) + before + text.substring(start, end) + after + text.substring(end);
+        setNewContent(newText);
+
+        // Reset cursor position
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+                textareaRef.current.setSelectionRange(start + before.length, end + before.length);
+            }
+        }, 0);
+    };
+
     const handlePost = async () => {
-        if (!newContent.trim()) return;
+        if (!newContent.trim() && !imageUrl) return;
 
         setIsPosting(true);
         try {
@@ -84,13 +147,19 @@ const SandeshCard = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ content: newContent }),
+                body: JSON.stringify({
+                    content: newContent,
+                    link_meta: linkMeta,
+                    image_url: imageUrl
+                }),
                 credentials: 'include', // Important for session cookie
             });
 
             if (res.ok) {
                 toast.success('Update posted successfully');
                 setNewContent('');
+                setLinkMeta(null);
+                setImageUrl('');
                 setShowInput(false);
                 fetchSandesh();
             } else {
@@ -108,7 +177,7 @@ const SandeshCard = () => {
 
     return (
         <div
-            className="backdrop-blur-2xl bg-white/40 dark:bg-black/40 border border-white/40 dark:border-white/10 shadow-glass rounded-[2rem] p-6 h-fit transition-all duration-300 hover:shadow-glass-hover group"
+            className="backdrop-blur-3xl bg-white/60 dark:bg-[#0a0a0a]/60 border border-white/40 dark:border-white/10 shadow-glass rounded-[2rem] p-5 min-h-[500px] w-full lg:w-[108%] -ml-[4%] transition-all duration-300 hover:shadow-glass-hover group relative z-10"
             onClick={markAsRead}
             onMouseEnter={markAsRead}
         >
@@ -142,17 +211,85 @@ const SandeshCard = () => {
 
             {showInput && (
                 <div className="mb-6 animate-in slide-in-from-top-2 bg-white/40 dark:bg-black/20 p-4 rounded-2xl border border-white/20">
+                    <div className="flex gap-2 mb-2 pb-2 border-b border-white/10">
+                        <Button variant="ghost" size="sm" onClick={() => insertText('**', '**')} className="h-8 w-8 p-0" title="Bold">
+                            <Bold className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => insertText('*', '*')} className="h-8 w-8 p-0" title="Italic">
+                            <Italic className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setShowImageInput(!showImageInput)} className={`h-8 w-8 p-0 ${showImageInput ? 'bg-teal-500/20 text-teal-500' : ''}`} title="Add Image">
+                            <ImageIcon className="w-4 h-4" />
+                        </Button>
+                    </div>
+
+                    {showImageInput && (
+                        <div className="mb-3 relative">
+                            <input
+                                type="text"
+                                value={imageUrl}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    const ytMatch = val.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                    if (ytMatch && ytMatch[1]) {
+                                        setImageUrl(`https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg`);
+                                    } else {
+                                        setImageUrl(val);
+                                    }
+                                }}
+                                placeholder="Paste image URL..."
+                                className="w-full text-xs p-2 rounded-lg bg-black/5 dark:bg-white/5 border border-white/10 focus:ring-0"
+                            />
+                            {imageUrl && (
+                                <button onClick={() => setImageUrl('')} className="absolute right-2 top-1/2 -translate-y-1/2">
+                                    <X className="w-3 h-3 text-slate-400 hover:text-red-400" />
+                                </button>
+                            )}
+                        </div>
+                    )}
+
                     <textarea
+                        ref={textareaRef}
                         value={newContent}
-                        onChange={(e) => setNewContent(e.target.value)}
-                        placeholder="Write an update..."
+                        onChange={(e) => {
+                            setNewContent(e.target.value);
+                            handleUrlDetection(e.target.value);
+                        }}
+                        placeholder="Write an update... (supports markdown)"
                         className="w-full text-sm p-3 rounded-xl bg-transparent border-0 focus:ring-0 placeholder-slate-400 resize-none min-h-[80px] text-slate-800 dark:text-slate-200"
                     />
+
+                    {previewLoading && (
+                        <div className="my-2 flex items-center gap-2 text-xs text-slate-400 animate-pulse">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Loading preview...</span>
+                        </div>
+                    )}
+
+                    {linkMeta && (
+                        <div className="my-2 rounded-xl border border-white/10 bg-black/5 dark:bg-white/5 overflow-hidden flex relative group">
+                            <button
+                                onClick={() => setLinkMeta(null)}
+                                className="absolute top-1 right-1 p-1 bg-black/50 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                            {linkMeta.image && (
+                                <img src={linkMeta.image} alt="" className="w-24 h-24 object-cover" />
+                            )}
+                            <div className="p-3 flex-1 min-w-0">
+                                <p className="font-bold text-xs truncate text-slate-800 dark:text-slate-200">{linkMeta.title}</p>
+                                <p className="text-[10px] text-slate-500 line-clamp-2 mt-1">{linkMeta.description}</p>
+                                <p className="text-[10px] text-teal-500 mt-1 truncate">{new URL(linkMeta.url).hostname}</p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex justify-end pt-2 border-t border-white/10 mt-2">
                         <Button
                             size="sm"
                             onClick={handlePost}
-                            disabled={isPosting || !newContent.trim()}
+                            disabled={isPosting || (!newContent.trim() && !imageUrl)}
                             className="bg-teal-500 hover:bg-teal-600 text-white rounded-xl"
                         >
                             {isPosting ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
@@ -162,31 +299,102 @@ const SandeshCard = () => {
                 </div>
             )}
 
-            <div className="space-y-4 pr-1">
+            <div className="space-y-4 pr-1 h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                 {sandesh ? (
-                    <div className="backdrop-blur-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 rounded-2xl p-5 border border-white/20 group hover:-translate-y-1">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-emerald-400 flex items-center justify-center text-white text-xs font-bold shadow-md">
-                                AD
+                    <div className="backdrop-blur-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 rounded-2xl p-6 border border-white/20 group hover:-translate-y-1 shadow-lg">
+
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-emerald-600 flex items-center justify-center text-white shadow-lg ring-2 ring-white/20">
+                                <ShieldCheck className="w-5 h-5" />
                             </div>
                             <div className="flex-grow">
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Admin</p>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Parmar Sir</p>
                                 <p className="text-[10px] text-slate-400 font-medium">
                                     {formatDistanceToNow(new Date(sandesh.created_at), { addSuffix: true })}
                                 </p>
                             </div>
+                            {sandesh.importance === 'high' && (
+                                <div className="bg-red-500/10 dark:bg-red-500/20 rounded-lg p-2">
+                                    <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-tighter">Important</span>
+                                </div>
+                            )}
                         </div>
-                        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                            {sandesh.content}
-                        </p>
-                        {sandesh.importance === 'high' && (
-                            <div className="mt-3 bg-red-500/10 dark:bg-red-500/20 rounded-lg p-2.5 inline-block">
-                                <span className="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-tighter">Important</span>
-                            </div>
+
+                        {/* Rich Text Content */}
+                        <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                            {sandesh.content.split('\n').map((line, i) => (
+                                <p key={i} className="mb-2" dangerouslySetInnerHTML={{
+                                    __html: line
+                                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-teal-500 hover:underline break-all">$1</a>')
+                                }} />
+                            ))}
+                        </div>
+
+                        {/* Attached Image */}
+                        {/* Attached Image */}
+                        {sandesh.image_url && (() => {
+                            const ytMatch = sandesh.image_url.match(/(?:https:\/\/img\.youtube\.com\/vi\/)([a-zA-Z0-9_-]{11})\//);
+                            const videoUrl = ytMatch ? `https://www.youtube.com/watch?v=${ytMatch[1]}` : null;
+
+                            const ImageComponent = (
+                                <img
+                                    src={sandesh.image_url}
+                                    alt="Attachment"
+                                    className="w-full h-auto object-cover max-h-60 group-hover:scale-105 transition-transform duration-500"
+                                    onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        e.currentTarget.parentElement!.style.display = 'none';
+                                    }}
+                                />
+                            );
+
+                            return (
+                                <div className="mt-3 rounded-xl overflow-hidden border border-white/10 relative">
+                                    {videoUrl ? (
+                                        <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="block relative group/image">
+                                            {ImageComponent}
+                                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover/image:opacity-100 transition-opacity">
+                                                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
+                                                    <div className="w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-white border-b-[8px] border-b-transparent ml-1"></div>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    ) : (
+                                        ImageComponent
+                                    )}
+                                </div>
+                            );
+                        })()}
+
+                        {/* Link Preview Card */}
+                        {sandesh.link_meta && (
+                            <a
+                                href={sandesh.link_meta.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-3 block rounded-xl border border-white/10 bg-black/5 dark:bg-white/5 overflow-hidden hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                            >
+                                {sandesh.link_meta.image && (
+                                    <div className="h-32 w-full overflow-hidden">
+                                        <img src={sandesh.link_meta.image} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
+                                <div className="p-3">
+                                    <p className="font-bold text-sm truncate text-slate-800 dark:text-slate-200">{sandesh.link_meta.title}</p>
+                                    <p className="text-xs text-slate-500 line-clamp-2 mt-1">{sandesh.link_meta.description}</p>
+                                    <p className="text-[10px] text-teal-500 mt-2 truncate flex items-center gap-1">
+                                        <LinkIcon className="w-3 h-3" />
+                                        {new URL(sandesh.link_meta.url).hostname}
+                                    </p>
+                                </div>
+                            </a>
                         )}
                     </div>
                 ) : (
-                    <div className="text-center py-8 text-slate-400 text-sm italic">
+                    <div className="text-center py-12 text-slate-400 text-sm italic flex flex-col items-center gap-2">
+                        <Bell className="w-8 h-8 opacity-20" />
                         No active announcements.
                     </div>
                 )}

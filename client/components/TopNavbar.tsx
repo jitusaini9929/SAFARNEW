@@ -14,6 +14,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import safarLogo from "@/assets/safar-logo.png.jpeg";
 import { useState } from "react";
+import ThemeToggle from "@/components/ui/theme-toggle";
 
 interface TopNavbarProps {
   userName?: string;
@@ -87,14 +88,15 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
           {/* Right side - Theme Toggle and User Avatar */}
           <div className="flex items-center gap-3">
             {/* Theme Toggle Button */}
+            <ThemeToggle />
 
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="rounded-full h-[52px] w-[52px] p-0 hover:bg-slate-100 dark:hover:bg-white/10">
-                  <Avatar className="h-[52px] w-[52px] border border-[#6EE7B7]/30">
-                    <AvatarImage src={userAvatar} alt={userName} />
-                    <AvatarFallback className="bg-gradient-to-br from-[#6EE7B7] to-teal-600 text-black font-bold">
+                <Button variant="ghost" className="rounded-xl h-[52px] w-[52px] p-0 hover:bg-slate-100 dark:hover:bg-white/10">
+                  <Avatar className="h-[52px] w-[52px] rounded-xl border border-[#6EE7B7]/30">
+                    <AvatarImage src={userAvatar} alt={userName} className="rounded-xl" />
+                    <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#6EE7B7] to-teal-600 text-black font-bold">
                       {userName
                         .split(" ")
                         .map((n) => n[0])

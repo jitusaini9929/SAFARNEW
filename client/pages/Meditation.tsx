@@ -3,6 +3,7 @@ import BreathingVisualizer from "@/components/meditation/BreathingVisualizer";
 import { useNavigate } from "react-router-dom";
 import meditationBg from "@/assets/meditation-bg.jpg";
 import { authService } from "@/utils/authService";
+import ThemeToggle from "@/components/ui/theme-toggle";
 
 import {
     ArrowLeft,
@@ -266,14 +267,17 @@ export default function Meditation() {
                 <div className="flex items-center gap-2">
                     <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Meditation</span>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => startTour(meditationTour)}
-                    className="gap-2"
-                >
-                    <HelpCircle className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-3">
+                    <ThemeToggle />
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startTour(meditationTour)}
+                        className="gap-2"
+                    >
+                        <HelpCircle className="w-4 h-4" />
+                    </Button>
+                </div>
             </header>
 
             {/* ═══════════════════════════════════════════════════════ */}
