@@ -114,26 +114,24 @@ const SandeshCard = () => {
         >
             <div className="flex items-center justify-between mb-8 px-2">
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span className="p-2 bg-teal-500/10 dark:bg-teal-400/10 rounded-xl">
-                        <Bell className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                    <span className="p-2 bg-teal-500/10 dark:bg-teal-400/10 rounded-xl relative">
+                        <Bell className={`w-5 h-5 text-teal-600 dark:text-teal-400 ${hasUnread ? 'animate-swing' : ''}`} />
+                        {hasUnread && (
+                            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse"></span>
+                        )}
                     </span>
                     Sandesh
                 </h2>
 
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-teal-500/10 dark:bg-teal-400/10 px-3 py-1.5 rounded-full">
-                        <div className="relative flex h-2 w-2 mr-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
-                        </div>
-                        <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase tracking-widest">Live</span>
-                    </div>
-
                     {isAdmin && (
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setShowInput(!showInput)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowInput(!showInput);
+                            }}
                             className="h-8 w-8 p-0 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
                             <Plus className="w-4 h-4 text-slate-500" />

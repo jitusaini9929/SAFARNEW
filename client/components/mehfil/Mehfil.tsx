@@ -106,6 +106,21 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     userIdRef.current = user?.id;
   }, [user?.id]);
 
+  const isPaused = import.meta.env.MEHFIL_PAUSED === 'true';
+
+  if (isPaused) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-indigo-500 animate-pulse">
+            Mehfil under construction
+          </h1>
+          <p className="text-slate-400 text-lg">Check back soon</p>
+        </div>
+      </div>
+    );
+  }
+
 
 
   const applyPostingBanState = (payload?: PostingBanPayload | null) => {
