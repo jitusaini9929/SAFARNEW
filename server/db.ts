@@ -96,6 +96,7 @@ export async function initDatabase(): Promise<void> {
     try {
         await db.collection('users').createIndex({ email: 1 }, { unique: true });
         await db.collection('users').createIndex({ id: 1 }, { unique: true });
+        await db.collection('users').createIndex({ is_shadow_banned: 1, spam_strike_count: 1 });
         await db.collection('streaks').createIndex({ user_id: 1 }, { unique: true });
         await db.collection('password_reset_tokens').createIndex({ token_hash: 1 }, { unique: true });
         await db.collection('password_reset_tokens').createIndex({ user_id: 1 });
@@ -118,6 +119,26 @@ export async function initDatabase(): Promise<void> {
         await db.collection('user_achievements').createIndex({ user_id: 1, achievement_id: 1 }, { unique: true });
         await db.collection('mehfil_thoughts').createIndex({ user_id: 1 });
         await db.collection('mehfil_thoughts').createIndex({ created_at: -1 });
+        await db.collection('mehfil_thoughts').createIndex({ category: 1, status: 1, created_at: -1 });
+        await db.collection('mehfil_thoughts').createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
+        await db.collection('mehfil_reactions').createIndex({ thought_id: 1, user_id: 1 }, { unique: true });
+        await db.collection('mehfil_comments').createIndex({ thought_id: 1 });
+        await db.collection('mehfil_saves').createIndex({ user_id: 1, thought_id: 1 }, { unique: true });
+        await db.collection('mehfil_reports').createIndex({ thought_id: 1 });
+        await db.collection('mehfil_shares').createIndex({ thought_id: 1 });
+        await db.collection('mehfil_friendships').createIndex({ user_id: 1, friend_id: 1 }, { unique: true });
+        await db.collection('mehfil_friendships').createIndex({ friend_id: 1 });
+        await db.collection('orders').createIndex({ razorpay_order_id: 1 }, { unique: true });
+        await db.collection('orders').createIndex({ user_id: 1 });
+        await db.collection('payments').createIndex({ razorpay_payment_id: 1 }, { unique: true });
+        await db.collection('payments').createIndex({ razorpay_order_id: 1 });
+        await db.collection('payments').createIndex({ user_id: 1 });
+        await db.collection('refunds').createIndex({ razorpay_refund_id: 1 }, { unique: true });
+        await db.collection('refunds').createIndex({ razorpay_payment_id: 1 });
+        await db.collection('course_enrollments').createIndex({ user_id: 1, course_id: 1 }, { unique: true });
+        await db.collection('transaction_logs').createIndex({ order_id: 1 });
+        await db.collection('uploaded_images').createIndex({ user_id: 1 });
+
         await db.collection('mehfil_reactions').createIndex({ thought_id: 1, user_id: 1 }, { unique: true });
         await db.collection('mehfil_comments').createIndex({ thought_id: 1 });
         await db.collection('mehfil_saves').createIndex({ user_id: 1, thought_id: 1 }, { unique: true });
@@ -141,13 +162,3 @@ export async function initDatabase(): Promise<void> {
         console.warn('⚠️  Index creation warning:', err.message);
     }
 }
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-    if (client) {
-        client.close().then(() => {
-            console.log('MongoDB connection closed');
-            process.exit(0);
-        });
-    }
-});

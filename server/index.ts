@@ -24,7 +24,7 @@ import mehfilSocialRouter from "./routes/mehfil-social";
 
 type SessionStoreCallback = (err?: unknown, data?: unknown) => void;
 type SessionRedisClient = ReturnType<typeof createClient>;
-const MEHFIL_PAUSED = process.env.MEHFIL_PAUSED !== "false";
+const MEHFIL_PAUSED = process.env.MEHFIL_PAUSED === "true";
 const MEHFIL_PAUSED_MESSAGE = "Due to irrelevant and spam posts . Mehfil is currently not accessible . We are working on it and notify shortly";
 
 const RETRYABLE_REDIS_ERROR_CODES = new Set([

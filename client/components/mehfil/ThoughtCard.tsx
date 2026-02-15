@@ -294,8 +294,8 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
   // ── formatting helpers ──────────────────────────────
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatTime = (dateInput: string | Date) => {
+    const date = new Date(dateInput);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -312,6 +312,12 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const getInitials = (name: string) => {
     return name ? name.substring(0, 2).toUpperCase() : "??";
   };
+
+  const categoryLabel = thought.category === "REFLECTIVE" ? "Zen Corner" : "Academic Hall";
+  const categoryClass =
+    thought.category === "REFLECTIVE"
+      ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
+      : "bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300";
 
   // ── render ──────────────────────────────────────────
 
@@ -342,6 +348,9 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-slate-400 font-medium">
                   {formatTime(thought.createdAt)}
+                </span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${categoryClass}`}>
+                  {categoryLabel}
                 </span>
               </div>
             </div>

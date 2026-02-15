@@ -29,7 +29,13 @@ mehfilSocialRouter.get("/saved-posts", async (req: any, res: Response) => {
 
     // Get thoughts
     const thoughts = await collections.mehfilThoughts()
-      .find({ id: { $in: thoughtIds } })
+      .find({
+        id: { $in: thoughtIds },
+        $and: [
+          { $or: [{ status: 'approved' }, { status: { $exists: false } }] },
+          { $or: [{ expires_at: { $exists: false } }, { expires_at: null }, { expires_at: { $gt: new Date() } }] },
+        ],
+      })
       .toArray();
     const thoughtMap = new Map(thoughts.map(t => [t.id, t]));
 
@@ -48,6 +54,9 @@ mehfilSocialRouter.get("/saved-posts", async (req: any, res: Response) => {
           imageUrl: t.image_url,
           relatableCount: t.relatable_count || 0,
           createdAt: t.created_at,
+          category: t.category || 'ACADEMIC',
+          aiTags: Array.isArray(t.ai_tags) ? t.ai_tags : [],
+          aiScore: typeof t.ai_score === 'number' ? t.ai_score : null,
           savedAt: s.created_at,
         };
       })

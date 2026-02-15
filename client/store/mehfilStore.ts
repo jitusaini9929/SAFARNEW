@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 
+export type MehfilRoom = 'ACADEMIC' | 'REFLECTIVE';
+export type MehfilCategory = MehfilRoom | 'BULLSHIT';
+
 export interface Thought {
     id: string;
     userId: string;
@@ -9,7 +12,10 @@ export interface Thought {
     content: string;
     imageUrl?: string | null;
     relatableCount: number;
-    createdAt: string;
+    createdAt: string | Date;
+    category?: MehfilCategory;
+    aiTags?: string[];
+    aiScore?: number | null;
 }
 
 interface MehfilStore {
@@ -19,6 +25,7 @@ interface MehfilStore {
     addThought: (thought: Thought) => void;
     updateRelatableCount: (thoughtId: string, count: number) => void;
     toggleUserReaction: (thoughtId: string) => void;
+    setUserReaction: (thoughtId: string, hasReacted: boolean) => void;
     setUserReactions: (thoughtIds: string[]) => void;
 }
 
@@ -40,6 +47,15 @@ export const useMehfilStore = create<MehfilStore>((set) => ({
             newReactions.delete(thoughtId);
         } else {
             newReactions.add(thoughtId);
+        }
+        return { userReactions: newReactions };
+    }),
+    setUserReaction: (thoughtId, hasReacted) => set((state) => {
+        const newReactions = new Set(state.userReactions);
+        if (hasReacted) {
+            newReactions.add(thoughtId);
+        } else {
+            newReactions.delete(thoughtId);
         }
         return { userReactions: newReactions };
     }),

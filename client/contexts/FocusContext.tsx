@@ -62,7 +62,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const [isPiPActive, setIsPiPActive] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const animationFrameRef = useRef<number>();
+    const pipIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     // Check Auth
     useEffect(() => {
@@ -162,10 +162,6 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         ctx.font = "22px sans-serif";
         ctx.fillStyle = "#94a3b8";
         ctx.fillText(running ? "Running" : "Paused", 250, 375);
-
-        if (document.pictureInPictureElement) {
-            animationFrameRef.current = requestAnimationFrame(drawToCanvas);
-        }
     }, []);
 
     // PiP Toggle
@@ -180,7 +176,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
                 setIsPiPActive(false);
-                if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+                if (pipIntervalRef.current) {
+                    clearInterval(pipIntervalRef.current);
+                    pipIntervalRef.current = undefined;
+                }
             } else {
                 // Initialize Canvas
                 if (!canvasRef.current) {
@@ -202,7 +201,15 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 await videoRef.current.requestPictureInPicture();
                 setIsPiPActive(true);
 
-                drawToCanvas();
+                // Start Interval Loop (500ms)
+                drawToCanvas(); // Draw once immediately
+                pipIntervalRef.current = setInterval(() => {
+                    drawToCanvas();
+                    // Keep video playing if it paused (Android background behavior)
+                    if (videoRef.current?.paused) {
+                        videoRef.current.play().catch(() => { });
+                    }
+                }, 500);
             }
         } catch (err) {
             console.error("PiP Error:", err);
@@ -213,11 +220,19 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const onLeavePiP = () => {
             setIsPiPActive(false);
-            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            if (pipIntervalRef.current) {
+                clearInterval(pipIntervalRef.current);
+                pipIntervalRef.current = undefined;
+            }
         };
         const videoEl = videoRef.current;
         videoEl?.addEventListener("leavepictureinpicture", onLeavePiP);
-        return () => videoEl?.removeEventListener("leavepictureinpicture", onLeavePiP);
+        return () => {
+            videoEl?.removeEventListener("leavepictureinpicture", onLeavePiP);
+            if (pipIntervalRef.current) {
+                clearInterval(pipIntervalRef.current);
+            }
+        };
     }, []);
 
     // Controls
