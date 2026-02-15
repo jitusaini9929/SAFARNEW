@@ -48,10 +48,11 @@ export default function ForgotPassword() {
 
         setIsLoading(true);
         try {
-            await authService.requestPasswordReset(email);
+            const message = await authService.requestPasswordReset(email);
             setEmailSent(true);
-            toast.success("If an account exists, a reset link has been sent.");
+            toast.success(message);
         } catch (err: any) {
+            setEmailSent(false);
             setError(err.message || "Failed to send reset link");
         } finally {
             setIsLoading(false);
@@ -130,7 +131,10 @@ export default function ForgotPassword() {
                                     type="email"
                                     placeholder="your.email@example.com"
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={(e) => setEmail(e.target.value.toLowerCase())}
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    spellCheck={false}
                                     disabled={isLoading}
                                     className="border-input focus:border-primary focus:ring-primary/20"
                                 />
@@ -138,7 +142,7 @@ export default function ForgotPassword() {
 
                             {emailSent && !error && (
                                 <div className="p-3 rounded-lg bg-primary/10 text-primary text-sm">
-                                    Check your inbox for the reset link. If the account exists, the email will arrive shortly.
+                                    Check your inbox for the reset link.
                                 </div>
                             )}
 

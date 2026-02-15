@@ -2,6 +2,7 @@ import { Router, Request } from 'express';
 import bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import nodemailer from 'nodemailer';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { checkPerks } from './perks';
@@ -10,6 +11,46 @@ const router = Router();
 const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const PASSWORD_RESET_MIN_PASSWORD_LENGTH = 8;
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const ALLOWED_SIGNUP_DOMAINS = new Set(['gmail.com', 'outlook.com']);
+const SIGNUP_EMAIL_EXCEPTION = 'steve123@example.com';
+
+function normalizeEmail(input: unknown): string {
+    return String(input || '').trim().toLowerCase();
+}
+
+function isValidEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isAllowedSignupEmail(email: string): boolean {
+    if (email === SIGNUP_EMAIL_EXCEPTION) return true;
+    const domain = email.split('@')[1] || '';
+    return ALLOWED_SIGNUP_DOMAINS.has(domain);
+}
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function findUserByEmailInsensitive(
+    email: string,
+    projection?: Record<string, 0 | 1>
+) {
+    const escapedEmail = escapeRegExp(email);
+    const exactRegex = new RegExp(`^${escapedEmail}$`, 'i');
+    const looseRegex = new RegExp(`^\\s*${escapedEmail}\\s*$`, 'i');
+
+    return collections.users().findOne(
+        {
+            $or: [
+                { email },
+                { email: exactRegex },
+                { email: looseRegex },
+            ],
+        },
+        projection ? { projection } : undefined
+    );
+}
 
 function isRateLimited(key: string, limit: number, windowMs: number) {
     const now = Date.now();
@@ -59,50 +100,58 @@ function buildPasswordResetLink(req: Request, token: string) {
 }
 
 async function sendPasswordResetEmail(email: string, resetLink: string) {
-    const resendApiKey = process.env.RESEND_API_KEY;
-    const resendFrom = process.env.RESEND_FROM_EMAIL;
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    const gmailFrom = process.env.GMAIL_FROM_EMAIL || `SAFAR Support <${gmailUser}>`;
+    const smtpHost = process.env.GMAIL_SMTP_HOST || 'smtp.gmail.com';
+    const smtpPort = Number(process.env.GMAIL_SMTP_PORT || 465);
+
     const subject = 'Reset your SAFAR password';
     const text = `Reset your SAFAR password using this link: ${resetLink}\nThis link expires in 1 hour.`;
+    const html = `<p>Reset your SAFAR password:</p><p><a href="${resetLink}">${resetLink}</a></p><p>This link expires in 1 hour.</p>`;
 
-    if (!resendApiKey || !resendFrom) {
-        console.warn('[PASSWORD RESET] Email provider not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL.');
-        console.log(`[PASSWORD RESET] To: ${email}`);
-        console.log(`[PASSWORD RESET] Link: ${resetLink}`);
-        return;
+    if (!gmailUser || !gmailPass) {
+        throw new Error('No email service configured. Set GMAIL_USER and GMAIL_APP_PASSWORD.');
     }
 
-    const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${resendApiKey}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            from: resendFrom,
-            to: [email],
-            subject,
-            text,
-            html: `<p>Reset your SAFAR password:</p><p><a href="${resetLink}">${resetLink}</a></p><p>This link expires in 1 hour.</p>`
-        })
+    console.log('[PASSWORD RESET] Sending email via Gmail SMTP...');
+    const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+            user: gmailUser,
+            pass: gmailPass
+        }
     });
 
-    if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Resend error: ${response.status} ${errorBody}`);
-    }
+    const info = await transporter.sendMail({
+        from: gmailFrom,
+        to: email,
+        subject,
+        text,
+        html
+    });
+
+    console.log('[PASSWORD RESET] Email sent via Gmail:', info.messageId);
 }
 
 // Signup
 router.post('/signup', async (req: Request, res) => {
-    const { name, email, password, examType, preparationStage, gender, profileImage } = req.body;
+    const { name, password, examType, preparationStage, gender, profileImage } = req.body;
+    const normalizedEmail = normalizeEmail(req.body?.email);
 
-    if (!name || !email || !password) {
+    if (!name || !normalizedEmail || !password) {
         return res.status(400).json({ message: 'Missing required fields' });
     }
 
+    if (!isValidEmail(normalizedEmail)) {
+        return res.status(400).json({ message: 'Please enter a valid email address' });
+    }
+
     try {
-        // Check if user exists
-        const existing = await collections.users().findOne({ email });
+        // Check if user exists (case-insensitive)
+        const existing = await findUserByEmailInsensitive(normalizedEmail, { id: 1 });
         if (existing) {
             return res.status(400).json({ message: 'Email already in use' });
         }
@@ -120,7 +169,7 @@ router.post('/signup', async (req: Request, res) => {
         await collections.users().insertOne({
             id: userId,
             name,
-            email,
+            email: normalizedEmail,
             password_hash: hashedPassword,
             avatar: avatarUrl,
             exam_type: examType || null,
@@ -146,7 +195,7 @@ router.post('/signup', async (req: Request, res) => {
         res.status(201).json({
             id: userId,
             name,
-            email,
+            email: normalizedEmail,
             avatar: avatarUrl,
             examType,
             preparationStage,
@@ -160,63 +209,152 @@ router.post('/signup', async (req: Request, res) => {
 
 // Login
 router.post('/login', async (req: any, res) => {
-    console.log('🔵 [LOGIN] Request received:', { email: req.body.email });
-    const { email, password } = req.body;
+    console.log('[LOGIN] Request received:', { email: req.body.email });
+    const normalizedEmail = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || '');
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
         return res.status(400).json({ message: 'Missing credentials' });
     }
 
+    if (!isValidEmail(normalizedEmail)) {
+        return res.status(400).json({ message: 'Please enter a valid email address' });
+    }
+
+    if (!isAllowedSignupEmail(normalizedEmail)) {
+        return res.status(400).json({
+            message: 'Registration is currently allowed only with Gmail or Outlook email addresses.'
+        });
+    }
+
     try {
-        console.log('🔵 [LOGIN] Querying user...');
-        const user = await collections.users().findOne(
-            { email },
-            { projection: { id: 1, email: 1, password_hash: 1, name: 1, exam_type: 1, preparation_stage: 1, gender: 1 } }
-        );
+        console.log('[LOGIN] Querying user candidates...');
+        const escapedEmail = escapeRegExp(normalizedEmail);
+        const exactRegex = new RegExp(`^${escapedEmail}$`, 'i');
+        const looseRegex = new RegExp(`^\\s*${escapedEmail}\\s*$`, 'i');
 
-        console.log('🔵 [LOGIN] User found:', user ? 'Yes' : 'No');
+        const candidates = await collections.users()
+            .find(
+                {
+                    $or: [
+                        { email: normalizedEmail },
+                        { email: exactRegex },
+                        { email: looseRegex },
+                    ],
+                },
+                {
+                    projection: {
+                        id: 1,
+                        email: 1,
+                        password_hash: 1,
+                        password: 1,
+                        name: 1,
+                        exam_type: 1,
+                        preparation_stage: 1,
+                        gender: 1,
+                        created_at: 1,
+                    },
+                }
+            )
+            .sort({ created_at: -1 })
+            .limit(20)
+            .toArray();
 
-        if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-            console.log('🔴 [LOGIN] Invalid credentials');
+        console.log('[LOGIN] Candidate count:', candidates.length);
+
+        let authenticatedUser: any = null;
+        let usedLegacyPassword = false;
+
+        for (const candidate of candidates) {
+            let passwordMatches = false;
+
+            if (typeof candidate.password_hash === 'string' && candidate.password_hash) {
+                try {
+                    passwordMatches = await bcrypt.compare(password, candidate.password_hash);
+                } catch (compareError) {
+                    console.error('[LOGIN] bcrypt compare failed for candidate (non-fatal):', compareError);
+                }
+            }
+
+            // Legacy fallback for historical rows that may have stored plain "password" field.
+            if (!passwordMatches && typeof (candidate as any).password === 'string' && (candidate as any).password) {
+                passwordMatches = password === (candidate as any).password;
+                if (passwordMatches) {
+                    usedLegacyPassword = true;
+                }
+            }
+
+            if (passwordMatches) {
+                authenticatedUser = candidate;
+                break;
+            }
+        }
+
+        if (!authenticatedUser) {
+            console.log('[LOGIN] Invalid credentials');
             return res.status(401).json({ message: 'Invalid credentials' });
         }
-        console.log('🟢 [LOGIN] Password verified');
+        console.log('[LOGIN] Password verified');
 
-        req.session.userId = user.id;
-        console.log('🟢 [LOGIN] Session userId set:', req.session.userId);
+        if (usedLegacyPassword) {
+            try {
+                const upgradedHash = await bcrypt.hash(password, 10);
+                await collections.users().updateOne(
+                    { id: authenticatedUser.id },
+                    {
+                        $set: { password_hash: upgradedHash, email: normalizedEmail },
+                        $unset: { password: '' }
+                    }
+                );
+            } catch (migrationError) {
+                console.error('[LOGIN] Legacy password migration failed (non-fatal):', migrationError);
+            }
+        }
+
+        // Normalize stored email after successful login so future lookups are consistent.
+        if (String((authenticatedUser as any).email || '') !== normalizedEmail) {
+            try {
+                await collections.users().updateOne({ id: (authenticatedUser as any).id }, { $set: { email: normalizedEmail } });
+                (authenticatedUser as any).email = normalizedEmail;
+            } catch (emailUpdateError) {
+                console.error('[LOGIN] Email normalization update failed (non-fatal):', emailUpdateError);
+            }
+        }
+
+        req.session.userId = authenticatedUser.id;
+        console.log('[LOGIN] Session userId set:', req.session.userId);
 
         // Update login streak (best effort)
         try {
-            console.log('🔵 [LOGIN] Updating streaks...');
-            await updateLoginStreak(user.id);
-            console.log('🟢 [LOGIN] Streaks updated');
+            console.log('[LOGIN] Updating streaks...');
+            await updateLoginStreak(authenticatedUser.id);
+            console.log('[LOGIN] Streaks updated');
 
             try {
-                await checkPerks(user.id, 'login');
-                console.log('🟢 [LOGIN] Perks checked');
+                await checkPerks(authenticatedUser.id, 'login');
+                console.log('[LOGIN] Perks checked');
             } catch (perkError) {
-                console.error('🟠 [LOGIN] Perk check failed (non-fatal):', perkError);
+                console.error('[LOGIN] Perk check failed (non-fatal):', perkError);
             }
         } catch (streakError) {
-            console.error('🟠 [LOGIN] Streak update failed (non-fatal):', streakError);
+            console.error('[LOGIN] Streak update failed (non-fatal):', streakError);
         }
 
         res.json({
-            id: user.id,
-            name: user.name,
-            email: user.email,
+            id: authenticatedUser.id,
+            name: authenticatedUser.name,
+            email: authenticatedUser.email,
             avatar: 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png',
-            examType: user.exam_type,
-            preparationStage: user.preparation_stage,
-            gender: user.gender
+            examType: authenticatedUser.exam_type,
+            preparationStage: authenticatedUser.preparation_stage,
+            gender: authenticatedUser.gender
         });
-        console.log('🟢 [LOGIN] Response sent');
+        console.log('[LOGIN] Response sent');
     } catch (error: any) {
-        console.error('🔴 [LOGIN ERROR]:', error.message || error);
+        console.error('[LOGIN ERROR]:', error.message || error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
-
 // Helper for streak updates
 async function updateLoginStreak(userId: string) {
     const currentStreak = await collections.streaks().findOne({ user_id: userId });
@@ -278,54 +416,63 @@ router.post('/logout', (req: Request, res) => {
 router.post('/forgot-password', async (req: Request, res) => {
     if (applyRateLimit(req, res, 'forgot-password', 5, 15 * 60 * 1000)) return;
 
-    const email = String(req.body?.email || '').trim().toLowerCase();
-    const genericMessage = 'If an account exists for that email, a reset link has been sent.';
+    const email = normalizeEmail(req.body?.email);
 
-    if (!email || !email.includes('@')) {
-        return res.json({ message: genericMessage });
+    if (!email || !isValidEmail(email)) {
+        return res.status(400).json({ message: 'Please enter a valid email address' });
     }
 
     try {
-        const user = await collections.users().findOne(
-            { email: { $regex: new RegExp(`^${email}$`, 'i') } },
-            { projection: { id: 1, email: 1 } }
+        const user = await findUserByEmailInsensitive(
+            email,
+            { id: 1, email: 1 }
         );
 
-        if (user) {
-            const rawToken = randomBytes(32).toString('hex');
-            const tokenHash = hashResetToken(rawToken);
-            const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
-
-            // Clean up old tokens
-            await collections.passwordResetTokens().deleteMany({
-                $or: [
-                    { user_id: user.id },
-                    { expires_at: { $lt: new Date() } },
-                    { used_at: { $ne: null } },
-                ]
+        if (!user) {
+            return res.status(404).json({
+                message: 'The account has not been registered, please register first.'
             });
-
-            await collections.passwordResetTokens().insertOne({
-                id: uuidv4(),
-                user_id: user.id,
-                token_hash: tokenHash,
-                expires_at: expiresAt,
-                used_at: null,
-                created_at: new Date(),
-            });
-
-            const resetLink = buildPasswordResetLink(req, rawToken);
-            try {
-                await sendPasswordResetEmail(String(user.email || email), resetLink);
-            } catch (sendError) {
-                console.error('Password reset email send failed:', sendError);
-            }
         }
 
-        return res.json({ message: genericMessage });
+        const rawToken = randomBytes(32).toString('hex');
+        const tokenHash = hashResetToken(rawToken);
+        const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
+        const tokenId = uuidv4();
+
+        // Clean up old tokens
+        await collections.passwordResetTokens().deleteMany({
+            $or: [
+                { user_id: user.id },
+                { expires_at: { $lt: new Date() } },
+                { used_at: { $ne: null } },
+            ]
+        });
+
+        await collections.passwordResetTokens().insertOne({
+            id: tokenId,
+            user_id: user.id,
+            token_hash: tokenHash,
+            expires_at: expiresAt,
+            used_at: null,
+            created_at: new Date(),
+        });
+
+        const resetLink = buildPasswordResetLink(req, rawToken);
+
+        try {
+            await sendPasswordResetEmail(String((user as any).email || email), resetLink);
+        } catch (sendError) {
+            await collections.passwordResetTokens().deleteOne({ id: tokenId });
+            console.error('Password reset email send failed:', sendError);
+            return res.status(503).json({
+                message: 'Password reset email service is temporarily unavailable. Please try again shortly.'
+            });
+        }
+
+        return res.json({ message: 'Reset link sent. Please check your email inbox.' });
     } catch (error) {
         console.error('Forgot password error:', error);
-        return res.json({ message: genericMessage });
+        return res.status(500).json({ message: 'Failed to process password reset request' });
     }
 });
 
@@ -526,3 +673,4 @@ router.patch('/profile', requireAuth, async (req: Request, res) => {
 });
 
 export const authRoutes = router;
+

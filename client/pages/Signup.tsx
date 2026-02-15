@@ -14,6 +14,15 @@ import { authService } from "@/utils/authService";
 import nishthaLogo from "@/assets/nishtha-logo.jpg";
 import { toast } from "sonner";
 
+const ALLOWED_SIGNUP_DOMAINS = new Set(["gmail.com", "outlook.com"]);
+const SIGNUP_EMAIL_EXCEPTION = "steve123@example.com";
+
+function isAllowedSignupEmail(email: string): boolean {
+  if (email === SIGNUP_EMAIL_EXCEPTION) return true;
+  const domain = email.split("@")[1] || "";
+  return ALLOWED_SIGNUP_DOMAINS.has(domain);
+}
+
 export default function Signup() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
@@ -51,6 +60,12 @@ export default function Signup() {
 
     if (!email.includes("@")) {
       setError("Please enter a valid email");
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isAllowedSignupEmail(normalizedEmail)) {
+      setError("Registration is currently allowed only with Gmail or Outlook email addresses.");
       return;
     }
 
@@ -140,7 +155,10 @@ export default function Signup() {
                 type="email"
                 placeholder="your.email@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value.toLowerCase())}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 disabled={isLoading}
                 className="border-input focus:border-primary focus:ring-primary/20"
               />

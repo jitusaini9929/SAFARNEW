@@ -4,6 +4,15 @@ import { authService } from "@/utils/authService";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 
+const ALLOWED_SIGNUP_DOMAINS = new Set(["gmail.com", "outlook.com"]);
+const SIGNUP_EMAIL_EXCEPTION = "steve123@example.com";
+
+function isAllowedSignupEmail(email: string): boolean {
+    if (email === SIGNUP_EMAIL_EXCEPTION) return true;
+    const domain = email.split("@")[1] || "";
+    return ALLOWED_SIGNUP_DOMAINS.has(domain);
+}
+
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -96,6 +105,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
 
         if (!email.includes("@")) {
             setError("Please enter a valid email");
+            return;
+        }
+
+        const normalizedEmail = email.trim().toLowerCase();
+        if (!isAllowedSignupEmail(normalizedEmail)) {
+            setError("Registration is currently allowed only with Gmail or Outlook email addresses.");
             return;
         }
 
@@ -245,8 +260,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                     <input
                                         type="email"
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        onChange={(e) => setEmail(e.target.value.toLowerCase())}
                                         placeholder="Enter your email"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        spellCheck={false}
                                         disabled={isLoading}
                                         className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all"
                                     />
@@ -341,8 +359,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                     <input
                                         type="email"
                                         value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        onChange={(e) => setEmail(e.target.value.toLowerCase())}
                                         placeholder="your.email@example.com"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        spellCheck={false}
                                         disabled={isLoading}
                                         className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-sm"
                                     />

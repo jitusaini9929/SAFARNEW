@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
-import { Moon, Sun, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music } from "lucide-react";
+import { FocusAnalytics } from "@/components/focus/FocusAnalytics";
+import { Moon, Sun, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
 import TasksSidebar, { type Task } from "./TasksSidebar";
-import FocusAnalytics from "./FocusAnalytics";
+import { TimerCard } from "@/components/focus/TimerCard";
+import { useFocus } from "@/contexts/FocusContext";
 import { focusService } from "@/utils/focusService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -81,17 +83,32 @@ const focusThemes: FocusTheme[] = [
 export default function StudyWithMe() {
     const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
-    const [mode, setMode] = useState<"Timer" | "short" | "long">("Timer");
+    const {
+        timerState,
+        toggleTimer,
+        resetTimer,
+        togglePiP,
+        isPiPActive,
+        setMode,
+        setTimerDuration,
+        setBreakDuration
+    } = useFocus(); // Use Context
+
+    // Destructure from Context State
+    const { minutes, seconds, isRunning, mode, totalSeconds, remainingSeconds } = timerState;
+
+    // Local UI state (not shared)
     const [sliderValue, setSliderValue] = useState(25);
     const [breakSliderValue, setBreakSliderValue] = useState(5);
-    const [minutes, setMinutes] = useState(25);
-    const [seconds, setSeconds] = useState(0);
-    const [isRunning, setIsRunning] = useState(false);
-    const [totalSeconds, setTotalSeconds] = useState(25 * 60);
-    const [remainingSeconds, setRemainingSeconds] = useState(25 * 60);
     const [isTasksOpen, setIsTasksOpen] = useState(false);
     const [showAnalytics, setShowAnalytics] = useState(false);
-    const sessionLoggedRef = useRef(false);
+
+    // Sync slider with global state if needed, or just let slider drive global
+    useEffect(() => {
+        if (mode === 'Timer') setSliderValue(Math.floor(totalSeconds / 60));
+        if (mode === 'short') setBreakSliderValue(Math.floor(totalSeconds / 60));
+    }, [mode, totalSeconds]);
+
 
     // New states for theme and sidebar
     const [currentTheme, setCurrentTheme] = useState<FocusTheme>(focusThemes[0]);
@@ -116,30 +133,13 @@ export default function StudyWithMe() {
         if (params.get('view') === 'analytics') {
             setShowAnalytics(true);
         }
-    }, []);
+    }, [window.location.search]);
 
-    // Reset log ref when timer starts
+    // Auto-complete task on session end (listening to context state)
     useEffect(() => {
-        if (isRunning) {
-            sessionLoggedRef.current = false;
-        }
-    }, [isRunning]);
-
-    // Log session when timer completes naturally
-    useEffect(() => {
-        if (remainingSeconds === 0 && !isRunning && mode === 'Timer' && !sessionLoggedRef.current) {
-            sessionLoggedRef.current = true;
-
-            const duration = sliderValue;
-            focusService.logSession({
-                durationMinutes: duration,
-                breakMinutes: 0,
-                completed: true
-            }).then(() => {
-                console.log('Session logged successfully');
-            }).catch(e => console.error('Log failed', e));
-
-            // Auto-complete current task
+        if (remainingSeconds === 0 && !isRunning && mode === 'Timer') {
+            // Auto-complete current task logic
+            // Note: Logging is handled by Context
             if (currentTask) {
                 const updatedTasks = tasks.map(task =>
                     task.id === currentTask.id ? { ...task, completed: true } : task
@@ -148,7 +148,7 @@ export default function StudyWithMe() {
                 localStorage.setItem(user?.id ? `focus-tasks-${user.id}` : 'focus-tasks', JSON.stringify(updatedTasks));
             }
         }
-    }, [remainingSeconds, isRunning, mode, sliderValue, currentTask, tasks]);
+    }, [remainingSeconds, isRunning, mode, currentTask, tasks, user]);
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -166,7 +166,6 @@ export default function StudyWithMe() {
 
     // Guided tour integration
     const { startTour } = useGuidedTour();
-
 
     const handleLogout = async () => {
         try {
@@ -187,76 +186,30 @@ export default function StudyWithMe() {
         long: { minutes: 15, label: "Long break" },
     };
 
-    useEffect(() => {
-        let interval: NodeJS.Timeout | null = null;
-        if (isRunning && remainingSeconds > 0) {
-            interval = setInterval(() => {
-                setRemainingSeconds((prev) => prev - 1);
-            }, 1000);
-        } else if (remainingSeconds === 0) {
-            setIsRunning(false);
-        }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [isRunning, remainingSeconds]);
-
-    useEffect(() => {
-        const mins = Math.floor(remainingSeconds / 60);
-        const secs = remainingSeconds % 60;
-        setMinutes(mins);
-        setSeconds(secs);
-    }, [remainingSeconds]);
+    // Removed local timer Effects (handled by FocusContext)
 
     const handleModeChange = (newMode: "Timer" | "short" | "long") => {
         setMode(newMode);
-        const newMinutes = modeSettings[newMode].minutes;
-        setTotalSeconds(newMinutes * 60);
-        setRemainingSeconds(newMinutes * 60);
-        setSliderValue(newMinutes);
-        setIsRunning(false);
     };
 
     const handleSliderChange = (value: number) => {
         setSliderValue(value);
-        if (mode === 'Timer') {
-            setTotalSeconds(value * 60);
-            setRemainingSeconds(value * 60);
-            setIsRunning(false);
-        }
+        setTimerDuration(value);
     };
 
     const handleBreakSliderChange = (value: number) => {
         setBreakSliderValue(value);
-        if (mode === 'short') {
-            setTotalSeconds(value * 60);
-            setRemainingSeconds(value * 60);
-            setIsRunning(false);
-        }
+        setBreakDuration(value);
     };
 
-    const toggleTimer = () => {
-        setIsRunning(!isRunning);
-    };
+    // Removed local toggleTimer, resetTimer, formatTime
 
-    const resetTimer = () => {
-        setIsRunning(false);
-        setRemainingSeconds(totalSeconds);
-    };
-
-    const formatTime = (mins: number, secs: number) => {
-        return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    };
-
-    const progress = ((totalSeconds - remainingSeconds) / totalSeconds) * 100;
+    // Derived progress
+    const progress = totalSeconds > 0 ? ((totalSeconds - remainingSeconds) / totalSeconds) * 100 : 0;
 
     const handleSetTimer = (minutes: number) => {
         setSliderValue(minutes);
-        setMinutes(minutes);
-        setSeconds(0);
-        setTotalSeconds(minutes * 60);
-        setRemainingSeconds(minutes * 60);
-        setIsRunning(false);
+        setTimerDuration(minutes);
         setMode("Timer");
         setShowAnalytics(false);
     };
@@ -546,93 +499,24 @@ export default function StudyWithMe() {
 
             {/* Main Content or Analytics */}
             {showAnalytics ? (
-                <div className="flex-1 overflow-auto bg-white dark:bg-slate-950 relative z-30">
-                    <FocusAnalytics
-                        onBack={() => setShowAnalytics(false)}
-                        onSetTimer={handleSetTimer}
-                    />
+                <div className="flex-1 overflow-auto bg-white dark:bg-slate-950 relative z-30 flex flex-col items-center justify-center p-4">
+                    <FocusAnalytics />
                 </div>
             ) : (
                 <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
                     {/* Timer Card */}
-                    <div
-                        className="w-full max-w-2xl rounded-3xl p-8 md:p-12 text-center shadow-2xl relative overflow-hidden transition-all duration-300 border-4 bg-white/20 dark:bg-slate-900/50 backdrop-blur-md"
-                        style={{ borderColor: currentTheme.accent }}
-                    >
-                        {/* Decorative Nature Icons */}
-                        <Leaf className="absolute -bottom-10 -right-10 w-32 h-32 opacity-10 rotate-45 pointer-events-none" style={{ color: currentTheme.accent }} />
-                        <Sparkles className="absolute top-10 -left-10 w-24 h-24 opacity-5 -rotate-12 pointer-events-none" style={{ color: currentTheme.accent }} />
-
-                        {/* Mode Tabs */}
-                        <div data-tour="mode-tabs" className="inline-flex bg-muted/50 p-2 rounded-full mb-12 backdrop-blur-sm relative z-20">
-                            {(["Timer", "short", "long"] as const).map((m) => (
-                                <button
-                                    key={m}
-                                    onClick={() => handleModeChange(m)}
-                                    className={`px-4 py-2 md:px-8 md:py-3 rounded-full text-sm md:text-base font-semibold transition-all ${mode === m
-                                        ? "text-white shadow-lg"
-                                        : "text-muted-foreground hover:text-foreground"
-                                        }`}
-                                    style={mode === m ? {
-                                        backgroundColor: currentTheme.accent,
-                                        boxShadow: `0 0 20px ${currentTheme.accent}66`
-                                    } : {}}
-                                >
-                                    {modeSettings[m].label}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Timer Display */}
-                        <div data-tour="timer-display" className="text-6xl md:text-8xl lg:text-9xl leading-none font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-foreground to-muted-foreground tracking-tight mb-8 md:mb-12 drop-shadow-xl font-['Poppins']">
-                            {formatTime(minutes, seconds)}
-                        </div>
-
-                        {/* Current Task Display */}
-                        {currentTask && (
-                            <div className="mb-6 md:mb-8 px-4 py-3 rounded-xl bg-white/30 dark:bg-slate-800/30 backdrop-blur-sm border-2 border-white/20 max-w-md mx-auto">
-                                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-semibold">Current Task</div>
-                                <div className="text-sm md:text-base font-medium text-foreground flex items-center gap-2">
-                                    <Target className="w-4 h-4" style={{ color: currentTheme.accent }} />
-                                    {currentTask.text}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Control Buttons */}
-                        <div className="flex items-center justify-center gap-4">
-                            <button
-                                onClick={resetTimer}
-                                className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:opacity-80 transition-all"
-                                style={{ '--hover-color': currentTheme.accent } as React.CSSProperties}
-                            >
-                                <RotateCcw className="w-5 h-5" />
-                            </button>
-
-                            <button
-                                data-tour="start-button"
-                                onClick={toggleTimer}
-                                className="group relative px-8 py-4 md:px-16 md:py-5 text-white text-lg md:text-xl font-bold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden"
-                                style={{
-                                    backgroundColor: currentTheme.accent,
-                                    boxShadow: `0 0 30px ${currentTheme.accent}50`
-                                }}
-                            >
-                                <span className="relative z-10 uppercase tracking-widest flex items-center gap-3">
-                                    {isRunning ? (
-                                        <>
-                                            <Pause className="w-6 h-6" /> Pause
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Play className="w-6 h-6" /> Start
-                                        </>
-                                    )}
-                                </span>
-                                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                            </button>
-                        </div>
-                    </div>
+                    <TimerCard
+                        minutes={minutes}
+                        seconds={seconds}
+                        isRunning={isRunning}
+                        mode={mode}
+                        currentTheme={currentTheme}
+                        currentTask={currentTask}
+                        onToggle={toggleTimer}
+                        onReset={resetTimer}
+                        onTogglePiP={togglePiP}
+                        isPiPActive={isPiPActive}
+                    />
 
                     {/* Progress Section */}
                     <div className="w-full max-w-lg mt-16 relative">
@@ -859,6 +743,18 @@ export default function StudyWithMe() {
                         title="Volume"
                     />
                 </div>
+
+                {/* Analytics Toggle */}
+                <button
+                    onClick={() => setShowAnalytics(!showAnalytics)}
+                    className={`p-2 rounded-full border border-white/20 transition-all ${showAnalytics
+                        ? "bg-white text-slate-900 shadow-lg"
+                        : "bg-white/10 text-white hover:bg-white/20 backdrop-blur-md"
+                        }`}
+                    title={showAnalytics ? "Show Timer" : "Show Analytics"}
+                >
+                    {showAnalytics ? <LayoutDashboard className="w-5 h-5" /> : <BarChart2 className="w-5 h-5" />}
+                </button>
 
                 {/* Profile Icon */}
                 <DropdownMenu>
