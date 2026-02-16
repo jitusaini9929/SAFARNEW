@@ -9,7 +9,10 @@ export function FocusAnalytics() {
 
     useEffect(() => {
         focusService.getStats()
-            .then(data => setStats(data))
+            .then(data => {
+                console.log('[FocusAnalytics] Fetched stats:', data);
+                setStats(data);
+            })
             .catch(err => console.error(err))
             .finally(() => setLoading(false));
     }, []);

@@ -47,6 +47,8 @@ export const focusService = {
                 })
             });
 
+            console.log('[focusService] Logging session:', session);
+
             if (!response.ok) {
                 throw new Error('Failed to log session');
             }

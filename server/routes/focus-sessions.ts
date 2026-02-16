@@ -170,7 +170,13 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
         const goals = goalsResult[0] || { total_goals: 0, completed_goals: 0 };
 
         res.json({
-            totalFocusMinutes: totals.total_focus_minutes || 0,
+            totalFocusMinutes: (() => {
+                // DEBUG: Analytics
+                console.log(`[FocusStats] User: ${userId}`, {
+                    totals, weeklyData, focusStreak, goals
+                });
+                return totals.total_focus_minutes || 0;
+            })(),
             totalBreakMinutes: totals.total_break_minutes || 0,
             totalSessions: totals.total_sessions || 0,
             completedSessions: totals.completed_sessions || 0,
