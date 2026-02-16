@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { MehfilRoom } from '@/store/mehfilStore';
 
+type MehfilFeedRoom = MehfilRoom | 'ALL';
+
 interface ComposerProps {
-  onSendThought: (content: string, isAnonymous: boolean, room: MehfilRoom) => Promise<void> | void;
+  onSendThought: (content: string, isAnonymous: boolean, room: MehfilFeedRoom) => Promise<void> | void;
   userAvatar?: string | null;
-  activeRoom: MehfilRoom;
+  activeRoom: MehfilFeedRoom;
   placeholder: string;
 }
 
-const MAX_CHARS = 500;
+const MAX_CHARS = 5000;
 const MIN_CHARS = 15;
 
 const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRoom, placeholder }) => {
@@ -111,7 +113,11 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRo
                 ) : (
                   <>
                     <Send className="w-3.5 h-3.5" />
-                    {activeRoom === 'REFLECTIVE' ? 'Share to Thoughts' : 'Share to Academic Hall'}
+                    {activeRoom === 'REFLECTIVE'
+                      ? 'Share to Thoughts'
+                      : activeRoom === 'ALL'
+                        ? 'Share to Mehfil'
+                        : 'Share to Academic Hall'}
                   </>
                 )}
               </button>

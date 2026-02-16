@@ -15,6 +15,7 @@ import { streakRoutes } from "./routes/streaks";
 import { focusSessionRoutes } from "./routes/focus-sessions";
 import { focusOverlayRoutes } from "./routes/focus-overlay";
 import { achievementRoutes, seedAchievementDefinitions } from "./routes/achievements";
+import { analyticsRoutes } from "./routes/analytics";
 import { connectMongo, initDatabase } from "./db";
 import { setupMehfilSocket } from "./routes/mehfil-socket";
 import { paymentRoutes } from "./routes/payments";
@@ -304,6 +305,7 @@ export async function createServer() {
   app.use("/api/focus-sessions", focusSessionRoutes);
   app.use("/api/focus-overlay", focusOverlayRoutes);
   app.use("/api/achievements", achievementRoutes);
+  app.use("/api/analytics", analyticsRoutes);
   app.use("/api/payments", paymentRoutes);
   app.use("/api/upload", uploadRoutes);
   app.use("/api/images", imageServeRouter);
@@ -340,4 +342,3 @@ export async function createServer() {
 
   return { app, httpServer, io };
 }
-

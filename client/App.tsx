@@ -22,6 +22,7 @@ import CheckIn from "./pages/CheckIn";
 import Journal from "./pages/Journal";
 import Goals from "./pages/Goals";
 import Streaks from "./pages/Streaks";
+import Analytics from "./pages/Analytics";
 import Suggestions from "./pages/Suggestions";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -150,6 +151,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Suggestions />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="analytics"
+                  element={
+                    <ProtectedRoute>
+                      <Analytics />
                     </ProtectedRoute>
                   }
                 />

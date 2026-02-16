@@ -14,7 +14,10 @@ import {
     TrendingUp,
     Trash2,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Calendar,
+    RotateCcw,
+    Archive
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -26,54 +29,80 @@ import {
     ResponsiveContainer
 } from "recharts";
 
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 type GoalWithMeta = Goal & {
-    created_at?: string;
     completed_at?: string | null;
-    expires_at?: string;
-    expiresAt?: string;
+    scheduled_date?: string | null;
+    scheduledDate?: string | null;
 };
 
-const getGoalCreatedAt = (goal: GoalWithMeta) => {
-    return new Date(goal.created_at || goal.createdAt || Date.now());
+const toLocalDateInputValue = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
 };
 
-const getGoalExpiresAt = (goal: GoalWithMeta) => {
-    if (goal.expires_at) return new Date(goal.expires_at);
-    if (goal.expiresAt) return new Date(goal.expiresAt);
+const parseGoalDate = (raw: string | null | undefined) => {
+    if (!raw) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        const [year, month, day] = raw.split("-").map(Number);
+        return new Date(year, month - 1, day);
+    }
 
-    const createdAt = getGoalCreatedAt(goal);
-    const createdDayIST = new Date(createdAt.getTime() + IST_OFFSET_MS).toISOString().split("T")[0];
-    const startOfDayUTC = new Date(`${createdDayIST}T00:00:00.000Z`);
-    startOfDayUTC.setTime(startOfDayUTC.getTime() - IST_OFFSET_MS);
-    return new Date(startOfDayUTC.getTime() + DAY_MS);
+    const parsed = new Date(raw);
+    if (!Number.isFinite(parsed.getTime())) return null;
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
 };
 
-const formatRemainingTime = (ms: number) => {
-    if (ms <= 0) return "00:00:00";
-    const totalSeconds = Math.floor(ms / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+const formatScheduledDate = (dateStr: string | null | undefined) => {
+    const date = parseGoalDate(dateStr);
+    if (!date) return "";
 
-    const hh = String(hours).padStart(2, "0");
-    const mm = String(minutes).padStart(2, "0");
-    const ss = String(seconds).padStart(2, "0");
-    return `${hh}:${mm}:${ss}`;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (date.getTime() === today.getTime()) return "Today";
+    if (date.getTime() === tomorrow.getTime()) return "Tomorrow";
+
+    return date.toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" });
+};
+
+const getDatePickerConstraints = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxDate = new Date();
+    maxDate.setHours(0, 0, 0, 0);
+    maxDate.setDate(maxDate.getDate() + 7);
+
+    return {
+        min: toLocalDateInputValue(today),
+        max: toLocalDateInputValue(maxDate),
+    };
 };
 
 export default function Goals() {
     const [user, setUser] = useState<any>(null);
     const [goals, setGoals] = useState<Goal[]>([]);
+    const [rolloverPrompts, setRolloverPrompts] = useState<Goal[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [isAdding, setIsAdding] = useState(false);
     const [newGoal, setNewGoal] = useState("");
     const [goalType, setGoalType] = useState("daily");
+    const [scheduledDate, setScheduledDate] = useState("");
     const [victoriesPage, setVictoriesPage] = useState(0);
-    const [nowMs, setNowMs] = useState(Date.now());
     const victoriesPerPage = 3;
+    const dateConstraints = getDatePickerConstraints();
+
+    const refreshGoalsData = async () => {
+        const [allGoals, prompts] = await Promise.all([
+            dataService.getGoals(),
+            dataService.getGoalRolloverPrompts(),
+        ]);
+        setGoals(allGoals);
+        setRolloverPrompts(prompts);
+    };
 
     useEffect(() => {
         const init = async () => {
@@ -81,8 +110,7 @@ export default function Goals() {
                 const userData = await authService.getCurrentUser();
                 if (userData?.user) {
                     setUser(userData.user);
-                    const allGoals = await dataService.getGoals();
-                    setGoals(allGoals);
+                    await refreshGoalsData();
                 }
             } catch (error) {
                 console.error("Failed to load goals", error);
@@ -91,28 +119,14 @@ export default function Goals() {
         init();
     }, []);
 
-    useEffect(() => {
-        const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
-        return () => window.clearInterval(timer);
-    }, []);
-
-    const getGoalRemainingMs = (goal: Goal) => {
-        const expiresAt = getGoalExpiresAt(goal as GoalWithMeta);
-        return expiresAt.getTime() - nowMs;
-    };
-
-    const isGoalExpired = (goal: Goal) => {
-        if (goal.completed) return false;
-        return getGoalRemainingMs(goal) <= 0;
-    };
-
     const handleAddGoal = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newGoal.trim()) return;
         try {
-            const added = await dataService.addGoal(newGoal, goalType);
-            setGoals((prev) => [added, ...prev]);
+            await dataService.addGoal(newGoal, goalType, scheduledDate || undefined);
+            await refreshGoalsData();
             setNewGoal("");
+            setScheduledDate("");
             setIsAdding(false);
             toast.success("Goal created!");
         } catch (error: any) {
@@ -121,32 +135,30 @@ export default function Goals() {
     };
 
     const handleToggleGoal = async (goal: Goal) => {
-        if (!goal.completed && isGoalExpired(goal)) {
-            toast.error("Goal timer expired. Create a new goal for today.");
-            return;
-        }
-
         try {
             const newStatus = !goal.completed;
             await dataService.updateGoal(goal.id, newStatus);
-            const completedAt = newStatus ? new Date().toISOString() : null;
-            setGoals((prev) =>
-                prev.map((g) =>
-                    g.id === goal.id
-                        ? { ...g, completed: newStatus, completed_at: completedAt, completedAt: completedAt || undefined }
-                        : g
-                )
-            );
-            if (newStatus) toast.success("Goal completed! 🎉");
+            await refreshGoalsData();
+            if (newStatus) toast.success("Goal completed!");
         } catch (error: any) {
             toast.error(error?.message || "Failed to update goal");
+        }
+    };
+
+    const handleRolloverAction = async (goalId: string, action: "retry" | "archive") => {
+        try {
+            await dataService.respondToGoalRollover(goalId, action);
+            await refreshGoalsData();
+            toast.success(action === "retry" ? "Goal continued for tomorrow!" : "Goal archived");
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to process goal");
         }
     };
 
     const handleDeleteGoal = async (goalId: string) => {
         try {
             await dataService.deleteGoal(goalId);
-            setGoals((prev) => prev.filter(g => g.id !== goalId));
+            await refreshGoalsData();
             toast.success("Goal deleted");
         } catch (error: any) {
             toast.error(error?.message || "Failed to delete goal");
@@ -154,8 +166,13 @@ export default function Goals() {
     };
 
     // Derived Logic
-    const filteredGoals = goals.filter(g =>
-        g.text.toLowerCase().includes(searchQuery.toLowerCase())
+    const rolloverPromptIds = new Set(rolloverPrompts.map((goal) => goal.id));
+    const filteredGoals = goals.filter((goal) => {
+        if (rolloverPromptIds.has(goal.id)) return false;
+        return goal.text.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+    const filteredRolloverPrompts = rolloverPrompts.filter((goal) =>
+        goal.text.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const dailyGoals = goals.filter(g => g.type === "daily");
@@ -171,7 +188,7 @@ export default function Goals() {
         const count = goals.filter(g => {
             if (!g.completed) return false;
             // Use completed_at if available, otherwise fall back to createdAt
-            const completedDate = new Date((g as any).completed_at || g.createdAt || Date.now());
+            const completedDate = new Date((g as GoalWithMeta).completed_at || g.completedAt || g.createdAt || Date.now());
             return completedDate.toDateString() === d.toDateString();
         }).length;
         return { day: dayName, goals: count };
@@ -181,8 +198,8 @@ export default function Goals() {
     const allCompletedGoals = goals
         .filter(g => g.completed)
         .sort((a, b) => {
-            const aDate = new Date((a as any).completed_at || a.createdAt || 0);
-            const bDate = new Date((b as any).completed_at || b.createdAt || 0);
+            const aDate = new Date((a as GoalWithMeta).completed_at || a.completedAt || a.createdAt || 0);
+            const bDate = new Date((b as GoalWithMeta).completed_at || b.completedAt || b.createdAt || 0);
             return bDate.getTime() - aDate.getTime(); // Descending
         });
 
@@ -235,7 +252,7 @@ export default function Goals() {
                                     data-tour="add-goal"
                                     className={`
                                     bg-white dark:bg-[#111827] border-2 border-[#2E7D73]/30 hover:border-[#2E7D73] rounded-2xl p-6 
-                                    flex flex-col justify-center items-center cursor-pointer transition-all duration-300 group min-h-[160px]
+                                    flex flex-col justify-center items-center cursor-pointer transition-all duration-300 group min-h-[180px]
                                     ${isAdding ? 'ring-2 ring-[#2E7D73]/20' : ''}
                                 `}
                                     onClick={() => !isAdding && setIsAdding(true)}
@@ -252,6 +269,23 @@ export default function Goals() {
                                                 onBlur={() => !newGoal && setIsAdding(false)}
                                                 onKeyDown={(e) => e.key === 'Escape' && setIsAdding(false)}
                                             />
+                                            
+                                            {/* Schedule for future date */}
+                                            <div className="flex flex-col gap-2">
+                                                <label className="text-[10px] text-gray-500 dark:text-gray-400 text-center">
+                                                    Schedule for (optional)
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    min={dateConstraints.min}
+                                                    max={dateConstraints.max}
+                                                    value={scheduledDate}
+                                                    onChange={(e) => setScheduledDate(e.target.value)}
+                                                    className="w-full text-xs bg-muted px-2 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 outline-none cursor-pointer dark:bg-gray-700 dark:text-white text-center"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                            </div>
+                                            
                                             <div className="flex justify-center gap-2">
                                                 <select
                                                     value={goalType}
@@ -282,9 +316,12 @@ export default function Goals() {
                                 </div>
 
                                 {filteredGoals.map((goal) => {
-                                    const remainingMs = getGoalRemainingMs(goal);
-                                    const expired = !goal.completed && remainingMs <= 0;
-                                    const timerLabel = formatRemainingTime(remainingMs);
+                                    const lifecycleStatus = (goal as any).lifecycle_status || (goal as any).lifecycleStatus || "active";
+                                    const isArchived = lifecycleStatus === "abandoned" || lifecycleStatus === "rolled_over";
+                                    const isMissed = lifecycleStatus === "missed";
+                                    const scheduledDateValue = (goal as any).scheduled_date || (goal as any).scheduledDate;
+                                    const isScheduled = Boolean(scheduledDateValue) && !goal.completed;
+                                    const completeDisabled = isArchived || isMissed;
 
                                     return (
                                         <div key={goal.id} data-tour="goal-cards" className="relative group bg-white dark:bg-[#111827] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 flex flex-col justify-between min-h-[160px]">
@@ -296,11 +333,11 @@ export default function Goals() {
                                                 <div className="flex items-center gap-2 shrink-0 ml-3">
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleToggleGoal(goal); }}
-                                                        disabled={expired}
-                                                        title={expired ? "Goal expired" : "Mark complete"}
+                                                        disabled={completeDisabled}
+                                                        title={isArchived ? "Goal archived" : isMissed ? "Goal missed. Use Continue Tomorrow." : "Mark complete"}
                                                         className={`rounded-md border-2 w-6 h-6 flex items-center justify-center transition-all ${goal.completed
                                                             ? 'bg-green-500 border-green-500 text-white'
-                                                            : expired
+                                                            : completeDisabled
                                                                 ? 'border-red-300 dark:border-red-600 text-transparent cursor-not-allowed opacity-60'
                                                                 : 'border-gray-300 dark:border-gray-600 hover:border-green-500 text-transparent'
                                                             }`}
@@ -320,27 +357,92 @@ export default function Goals() {
                                             <div className="mb-3">
                                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider gap-1.5 ${goal.completed
                                                     ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
-                                                    : expired
-                                                        ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
+                                                    : isArchived
+                                                        ? 'bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300'
+                                                        : isMissed
+                                                            ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
                                                         : 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
                                                     }`}>
                                                     {goal.completed ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                                    {goal.completed ? "Completed" : expired ? "Expired" : "In Progress"}
+                                                    {goal.completed
+                                                        ? "Completed"
+                                                        : lifecycleStatus === "rolled_over"
+                                                            ? "Rolled Over"
+                                                            : lifecycleStatus === "abandoned"
+                                                                ? "Abandoned"
+                                                                : lifecycleStatus === "missed"
+                                                                    ? "Missed"
+                                                                : "Active"}
                                                 </span>
                                             </div>
 
                                             <div className="flex items-center justify-between text-xs">
-                                                <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                                                    <Clock className="w-3 h-3" />
-                                                    Time Left
-                                                </span>
-                                                <span className={`font-semibold ${goal.completed ? 'text-green-600 dark:text-green-400' : expired ? 'text-red-600 dark:text-red-400' : 'text-[#2E7D73]'}`}>
-                                                    {goal.completed ? "Done" : timerLabel}
-                                                </span>
+                                                {isScheduled ? (
+                                                    <>
+                                                        <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                                            <Calendar className="w-3 h-3" />
+                                                            Scheduled
+                                                        </span>
+                                                        <span className="font-semibold text-[#2E7D73]">
+                                                            {formatScheduledDate(scheduledDateValue)}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                                            <Clock className="w-3 h-3" />
+                                                            Type
+                                                        </span>
+                                                        <span className="font-semibold text-[#2E7D73]">
+                                                            {goal.type === 'weekly' ? 'Weekly' : 'Daily'}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     );
                                 })}
+
+                                {/* Rollover Prompts - Missed Goals */}
+                                {filteredRolloverPrompts.map((goal) => (
+                                    <div key={`rollover-${goal.id}`} className="relative group bg-white dark:bg-[#111827] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 rounded-2xl p-6 border-2 border-red-200 dark:border-red-800 flex flex-col justify-between min-h-[160px]">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <h3 className="font-bold text-lg leading-tight line-clamp-2 text-gray-900 dark:text-white">
+                                                {goal.text}
+                                            </h3>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteGoal(goal.id); }}
+                                                className="rounded-md w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                title="Delete goal"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider gap-1.5 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400">
+                                                <Clock className="w-3 h-3" />
+                                                Missed
+                                            </span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleRolloverAction(goal.id, "retry")}
+                                                className="flex-1 flex items-center justify-center gap-1.5 bg-[#2E7D73] text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-[#25665e] transition-colors"
+                                            >
+                                                <RotateCcw className="w-3 h-3" />
+                                                Continue Tomorrow
+                                            </button>
+                                            <button
+                                                onClick={() => handleRolloverAction(goal.id, "archive")}
+                                                className="flex items-center justify-center gap-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                            >
+                                                <Archive className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 
@@ -419,7 +521,7 @@ export default function Goals() {
                                             </AreaChart>
                                         </ResponsiveContainer>
                                     </div>
-                                    <p className="text-[10px] text-gray-400 text-center mt-4">Stay consistent! Complete at least 1 goal daily 🎯</p>
+                                    <p className="text-[10px] text-gray-400 text-center mt-4">Stay consistent! Complete at least 1 goal daily.</p>
                                 </div>
                             </div>
 
@@ -473,3 +575,5 @@ export default function Goals() {
         </NishthaLayout>
     );
 }
+
+

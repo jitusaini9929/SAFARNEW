@@ -5,13 +5,14 @@ import { collections } from '../db';
 
 type MehfilCategory = 'ACADEMIC' | 'REFLECTIVE' | 'BULLSHIT';
 type MehfilRoom = 'ACADEMIC' | 'REFLECTIVE';
+type MehfilFeedRoom = MehfilRoom | 'ALL';
 
 interface MehfilUser {
   id: string;
   name: string;
   avatar: string;
   socketId: string;
-  activeRoom: MehfilRoom;
+  activeRoom: MehfilFeedRoom;
 }
 
 interface MehfilSocketOptions {
@@ -33,6 +34,7 @@ const socketToUser = new Map<string, string>();
 const DEFAULT_ROOM: MehfilRoom = 'ACADEMIC';
 const ROOM_ORDER: MehfilRoom[] = ['ACADEMIC', 'REFLECTIVE'];
 const MIN_THOUGHT_LENGTH = 15;
+const MAX_THOUGHT_LENGTH = 5000;
 const BULLSHIT_TTL_HOURS = Number(process.env.MEHFIL_BULLSHIT_TTL_HOURS || 24);
 const MAX_SPAM_STRIKES = Math.max(1, Number(process.env.MEHFIL_SPAM_STRIKE_LIMIT || 2));
 const DEFAULT_USER_POST_TTL_MINUTES = Math.max(0, Number(process.env.MEHFIL_DEFAULT_POST_TTL_MINUTES || 0));
@@ -47,18 +49,26 @@ const MODERATION_EXEMPT_EMAILS = new Set(
     .filter(Boolean),
 );
 
-const GROQ_SYSTEM_PROMPT = `You are the Content Architect for "Mehfil," a high-quality community for students.
+const GROQ_SYSTEM_PROMPT = `You are the Content Architect for "Mehfil," a support community for students.
 
-Goal: Classify the user's input into one of three silos:
-1. ACADEMIC: Study strategies, specific subjects, exam prep, or career guidance.
-2. REFLECTIVE: Deep thoughts, sharing stress, mental health vents, or seeking support.
+Goal: Classify the user's input into one of three silos.
+Context: Users are students dealing with study pressure, family issues, financial struggles, and career anxiety. They speak English, Hindi, and Hinglish.
+
+Categories:
+1. ACADEMIC: Study strategies, specific subjects, exam prep, results, or career guidance.
+2. REFLECTIVE: Deep thoughts, personal stories, venting about family/life/money, mental health, seeking support, or sharing struggles.
+   - PRIORITY RULE: If a post contains BOTH academic context (teachers, subjects, exams) AND personal/emotional struggle (family pressure, money, breakup, depression), ALWAYS classify as **REFLECTIVE**.
+   - HIGH-SIGNAL KEYWORDS: "suicide", "want to die", "parents pressure", "parents don't allow", "no support", "beat me", "breakup", "giving up".
+   - ALLOW: Long rants, sad stories, mentions of suicidal thoughts (seeking support), family fights, financial helplessness.
+   - THESE ARE NOT TOXIC. They are cries for help or support.
 3. BULLSHIT: Low-effort noise, spam, abuse, or irrelevant gibberish.
+   - STRICTLY BLOCK: Hate speech, sexual harassment, "creepy" DMs/seduction, NSFW content, threats, or severe toxicity.
 
 Output Requirement: Respond ONLY with a JSON object:
 {
   "category": "ACADEMIC" | "REFLECTIVE" | "BULLSHIT",
   "reasoning": "1-sentence explanation",
-  "is_toxic": boolean,
+  "is_toxic": boolean, // TRUE only for hate speech, abuse, sexual content, or threats. FALSE for depression/struggle.
   "suggested_tags": ["tag1", "tag2"]
 }`;
 
@@ -66,8 +76,23 @@ function toRoomName(room: MehfilRoom): string {
   return `room:${room.toLowerCase()}`;
 }
 
+function normalizeFeedRoom(room?: string | null): MehfilFeedRoom {
+  if (room === 'ALL') return 'ALL';
+  if (room === 'REFLECTIVE') return 'REFLECTIVE';
+  return 'ACADEMIC';
+}
+
 function normalizeRoom(room?: string | null): MehfilRoom {
   return room === 'REFLECTIVE' ? 'REFLECTIVE' : 'ACADEMIC';
+}
+
+function joinSocketFeedRoom(socket: Socket, room: MehfilFeedRoom) {
+  ROOM_ORDER.forEach((roomId) => socket.leave(toRoomName(roomId)));
+  if (room === 'ALL') {
+    ROOM_ORDER.forEach((roomId) => socket.join(toRoomName(roomId)));
+    return;
+  }
+  socket.join(toRoomName(room));
 }
 
 function normalizeCategory(category?: string | null): MehfilCategory {
@@ -219,11 +244,13 @@ async function classifyThought(content: string): Promise<ModerationResult> {
   }
 }
 
-function buildThoughtQuery(room: MehfilRoom) {
+function buildThoughtQuery(room: MehfilFeedRoom) {
   const categoryFilter =
-    room === 'ACADEMIC'
-      ? { $or: [{ category: 'ACADEMIC' }, { category: { $exists: false } }] }
-      : { category: 'REFLECTIVE' };
+    room === 'ALL'
+      ? { $or: [{ category: 'ACADEMIC' }, { category: 'REFLECTIVE' }, { category: { $exists: false } }] }
+      : room === 'ACADEMIC'
+        ? { $or: [{ category: 'ACADEMIC' }, { category: { $exists: false } }] }
+        : { category: 'REFLECTIVE' };
 
   return {
     $and: [
@@ -409,11 +436,10 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
     });
 
     socket.on('joinRoom', (data: { room?: string }) => {
-      const room = normalizeRoom(data?.room);
+      const room = normalizeFeedRoom(data?.room);
       const userId = socketToUser.get(socket.id);
 
-      ROOM_ORDER.forEach((roomId) => socket.leave(toRoomName(roomId)));
-      socket.join(toRoomName(room));
+      joinSocketFeedRoom(socket, room);
 
       if (userId) {
         const existing = connectedUsers.get(userId);
@@ -430,7 +456,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const page = data?.page || 1;
         const limit = Math.min(data?.limit || 20, 50);
         const skip = (page - 1) * limit;
-        const room = normalizeRoom(data?.room);
+        const room = normalizeFeedRoom(data?.room);
 
         const thoughts = await collections.mehfilThoughts()
           .find(buildThoughtQuery(room))
@@ -591,6 +617,11 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           return;
         }
 
+        if (content.length > MAX_THOUGHT_LENGTH) {
+          socket.emit('error', { message: `Thought must be under ${MAX_THOUGHT_LENGTH} characters.` });
+          return;
+        }
+
         const moderation = await classifyThought(content);
         const isBullshit = moderation.category === 'BULLSHIT' || moderation.isToxic;
 
@@ -733,6 +764,109 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         socket.broadcast.to(toRoomName(room)).emit('reactionUpdated', payload);
       } catch (err) {
         console.error('[MEHFIL] Toggle reaction error:', err);
+      }
+    });
+
+    socket.on('deleteThought', async (data: { thoughtId: string }) => {
+      try {
+        const userId = socketToUser.get(socket.id);
+        if (!userId) return;
+
+        const thought = await collections.mehfilThoughts().findOne({ id: data.thoughtId });
+        if (!thought) {
+          socket.emit('error', { message: 'Thought not found' });
+          return;
+        }
+
+        if (thought.user_id !== userId) {
+          socket.emit('error', { message: 'You can only delete your own thoughts' });
+          return;
+        }
+
+        await collections.mehfilThoughts().deleteOne({ id: data.thoughtId });
+
+        // Broadcast deletion event
+        const room = normalizeRoom(thought.category || 'ACADEMIC');
+        mehfil.to(toRoomName(room)).emit('thoughtDeleted', { thoughtId: data.thoughtId });
+        socket.emit('thoughtDeleted', { thoughtId: data.thoughtId }); // Ensure sender gets it too
+
+      } catch (err) {
+        console.error('[MEHFIL] Delete thought error:', err);
+        socket.emit('error', { message: 'Failed to delete thought' });
+      }
+    });
+
+    socket.on('editThought', async (data: { thoughtId: string; content: string }) => {
+      try {
+        const userId = socketToUser.get(socket.id);
+        if (!userId) return;
+
+        const thoughtId = String(data?.thoughtId || '').trim();
+        const content = String(data?.content || '').trim();
+
+        if (!thoughtId) {
+          socket.emit('error', { message: 'Thought id is required' });
+          return;
+        }
+        if (!content) {
+          socket.emit('error', { message: 'Thought content is required' });
+          return;
+        }
+        if (content.length < MIN_THOUGHT_LENGTH) {
+          socket.emit('error', { message: `Thought must be at least ${MIN_THOUGHT_LENGTH} characters.` });
+          return;
+        }
+        if (content.length > MAX_THOUGHT_LENGTH) {
+          socket.emit('error', { message: `Thought must be under ${MAX_THOUGHT_LENGTH} characters.` });
+          return;
+        }
+
+        const thought = await collections.mehfilThoughts().findOne({ id: thoughtId });
+        if (!thought) {
+          socket.emit('error', { message: 'Thought not found' });
+          return;
+        }
+
+        if (thought.user_id !== userId) {
+          socket.emit('error', { message: 'You can only edit your own thoughts' });
+          return;
+        }
+
+        const updatedAt = new Date();
+        await collections.mehfilThoughts().updateOne(
+          { id: thoughtId },
+          {
+            $set: {
+              content,
+              updated_at: updatedAt,
+            },
+          },
+        );
+
+        const updatedThought = await collections.mehfilThoughts().findOne({ id: thoughtId });
+        if (!updatedThought) return;
+
+        const room = normalizeRoom(updatedThought.category || 'ACADEMIC');
+        const payload = {
+          isAnonymous: Boolean(updatedThought.is_anonymous),
+          id: updatedThought.id,
+          userId: updatedThought.is_anonymous ? '' : updatedThought.user_id,
+          authorName: updatedThought.is_anonymous ? 'Anonymous User' : updatedThought.author_name,
+          authorAvatar: updatedThought.is_anonymous ? null : updatedThought.author_avatar,
+          content: updatedThought.content,
+          imageUrl: updatedThought.image_url,
+          relatableCount: updatedThought.relatable_count || 0,
+          createdAt: updatedThought.created_at,
+          category: normalizeCategory(updatedThought.category || 'ACADEMIC'),
+          aiTags: Array.isArray(updatedThought.ai_tags) ? updatedThought.ai_tags : [],
+          aiScore: typeof updatedThought.ai_score === 'number' ? updatedThought.ai_score : null,
+        };
+
+        socket.emit('thoughtUpdated', payload);
+        socket.broadcast.to(toRoomName(room)).emit('thoughtUpdated', payload);
+      } catch (err) {
+        console.error('[MEHFIL] Edit thought error:', err);
+        socket.emit('error', { message: 'Failed to edit thought' });
       }
     });
 

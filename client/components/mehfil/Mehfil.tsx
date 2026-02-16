@@ -26,6 +26,8 @@ interface MehfilProps {
   backendUrl?: string;
 }
 
+type MehfilFeedRoom = MehfilRoom | 'ALL';
+
 interface PostingBanPayload {
   isActive: boolean;
   isPermanent: boolean;
@@ -33,12 +35,18 @@ interface PostingBanPayload {
   message: string;
 }
 
-const ROOM_CONFIG: Record<MehfilRoom, {
+const ROOM_CONFIG: Record<MehfilFeedRoom, {
   title: string;
   subtitle: string;
   placeholder: string;
   chipClass: string;
 }> = {
+  ALL: {
+    title: 'All',
+    subtitle: 'See all approved posts from both Academic Hall and Thoughts in one feed.',
+    placeholder: 'Share what is on your mind. AI will route it to the right section...',
+    chipClass: 'from-slate-600 to-slate-800',
+  },
   ACADEMIC: {
     title: 'Academic Hall',
     subtitle: 'Ask questions, share exam strategy, and help each other improve.',
@@ -59,7 +67,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [user, setUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activeRoom, setActiveRoom] = useState<MehfilRoom>('ACADEMIC');
+  const [activeRoom, setActiveRoom] = useState<MehfilFeedRoom>('ACADEMIC');
   const [postingBan, setPostingBan] = useState<PostingBanPayload | null>(null);
   const [banRemainingMs, setBanRemainingMs] = useState(0);
 
@@ -70,6 +78,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     userReactions,
     setThoughts,
     addThought,
+    updateThought,
+    removeThought,
     updateRelatableCount,
     setUserReaction,
     setUserReactions,
@@ -198,6 +208,15 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       addThought(thought);
     });
 
+    newSocket.on('thoughtUpdated', (thought) => {
+      updateThought(thought);
+    });
+
+
+    newSocket.on('thoughtDeleted', ({ thoughtId }) => {
+      removeThought(thoughtId); // You need to ensure removeThought is available in your store
+    });
+
     newSocket.on('reactionUpdated', ({ thoughtId, relatableCount, userId, hasReacted }) => {
       updateRelatableCount(thoughtId, relatableCount);
       if (userIdRef.current && userId === userIdRef.current) {
@@ -241,7 +260,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     return () => {
       newSocket.close();
     };
-  }, [backendUrl, setThoughts, addThought, updateRelatableCount, setUserReactions, setUserReaction]);
+  }, [backendUrl, setThoughts, addThought, updateThought, removeThought, updateRelatableCount, setUserReactions, setUserReaction]);
 
   useEffect(() => {
     if (!socket) return;
@@ -270,23 +289,35 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     };
   }, [socket, user?.id, user?.name, user?.avatar, activeRoom]);
 
-  const handleSendThought = async (content: string, isAnonymous: boolean, room: MehfilRoom) => {
+  const handleSendThought = async (content: string, isAnonymous: boolean, room: MehfilFeedRoom) => {
     if (!socket || !user) {
       toast.error('Unable to post right now. Please refresh and retry.');
       return;
     }
 
+    const requestedRoom: MehfilRoom = room === 'ALL' ? 'ACADEMIC' : room;
+
     socket.emit('newThought', {
       content,
       imageUrl: null,
       isAnonymous,
-      room,
+      room: requestedRoom,
     });
   };
 
   const handleReact = (thoughtId: string) => {
     if (!socket || !user) return;
     socket.emit('toggleReaction', { thoughtId });
+  };
+
+  const handleDelete = (thoughtId: string) => {
+    if (!socket || !user) return;
+    socket.emit('deleteThought', { thoughtId });
+  };
+
+  const handleEdit = (thoughtId: string, content: string) => {
+    if (!socket || !user) return;
+    socket.emit('editThought', { thoughtId, content });
   };
 
   const filteredThoughts = thoughts.filter((t) =>
@@ -399,7 +430,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         <main className="scrollbar-blend">
           <section className="mb-6 rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 p-4 backdrop-blur-xl flex flex-col items-center text-center">
             <div className="flex items-center gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/70 rounded-2xl w-fit">
-              {(['ACADEMIC', 'REFLECTIVE'] as MehfilRoom[]).map((room) => (
+              {(['ALL', 'ACADEMIC', 'REFLECTIVE'] as MehfilFeedRoom[]).map((room) => (
                 <button
                   key={room}
                   onClick={() => setActiveRoom(room)}
@@ -465,6 +496,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                       key={thought.id}
                       thought={thought}
                       onReact={() => handleReact(thought.id)}
+                      onEdit={handleEdit}
+                      onDelete={() => handleDelete(thought.id)}
                       hasReacted={userReactions.has(thought.id)}
                       isOwnThought={thought.userId === user?.id}
                     />

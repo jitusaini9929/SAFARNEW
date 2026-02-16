@@ -1,0 +1,72 @@
+<svg width="600" height="600" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <path id="starShape" d="M0,-180 L42.3,-58.2 L171.2,-58.2 L66.9,17.6 L106.8,139.4 L0,61.8 L-106.8,139.4 L-66.9,17.6 L-171.2,-58.2 L-42.3,-58.2 Z" />
+
+    <linearGradient id="primaryGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D4AF37" />
+      <stop offset="25%" stop-color="#F9F1D0" /> <stop offset="50%" stop-color="#FFD700" />
+      <stop offset="75%" stop-color="#B8860B" />
+      <stop offset="100%" stop-color="#8B6508" /> </linearGradient>
+
+    <linearGradient id="edgeGold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#AA771C" />
+      <stop offset="50%" stop-color="#8B6508" />
+      <stop offset="100%" stop-color="#4E360B" />
+    </linearGradient>
+
+    <linearGradient id="shineSweep" gradientUnits="userSpaceOnUse" x1="-300" y1="-300" x2="-100" y2="-100">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <animate attributeName="x1" from="-500" to="600" dur="2.2s" repeatCount="indefinite" />
+      <animate attributeName="y1" from="-500" to="600" dur="2.2s" repeatCount="indefinite" />
+      <animate attributeName="x2" from="-200" to="900" dur="2.2s" repeatCount="indefinite" />
+      <animate attributeName="y2" from="-200" to="900" dur="2.2s" repeatCount="indefinite" />
+    </linearGradient>
+
+    <filter id="softChunkyMain" x="-50%" y="-50%" width="200%" height="200%">
+      <feMorphology operator="dilate" radius="15" in="SourceAlpha" result="thick"/>
+      <feGaussianBlur stdDeviation="12" in="thick" result="rounded"/>
+      
+      <feSpecularLighting surfaceScale="15" specularConstant="1.2" specularExponent="15" lighting-color="#ffffff" in="rounded" result="spec">
+        <fePointLight x="-500" y="-1000" z="800"/>
+      </feSpecularLighting>
+      
+      <feComposite in="spec" in2="SourceAlpha" operator="in" result="gloss"/>
+      <feComposite in="SourceGraphic" in2="gloss" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"/>
+      
+      <feDropShadow dx="0" dy="25" stdDeviation="15" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+
+    <filter id="softChunkyBack" x="-50%" y="-50%" width="200%" height="200%">
+      <feMorphology operator="dilate" radius="28" in="SourceAlpha" result="outerFat"/>
+      <feGaussianBlur stdDeviation="18" in="outerFat" result="outerBlur"/>
+      
+      <feSpecularLighting surfaceScale="5" specularConstant="0.8" specularExponent="5" lighting-color="#FFFACD" in="outerBlur" result="edgeSpec">
+        <fePointLight x="500" y="500" z="300"/>
+      </feSpecularLighting>
+      <feComposite in="edgeSpec" in2="outerFat" operator="in"/>
+    </filter>
+  </defs>
+
+  <circle cx="250" cy="250" r="230" fill="rgba(255,215,0,0.03)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+
+  <g transform="translate(250, 250)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="30s" repeatCount="indefinite"/>
+      
+      <use href="#starShape" fill="url(#edgeGold)" filter="url(#softChunkyBack)"/>
+      
+      <use href="#starShape" fill="url(#primaryGold)" filter="url(#softChunkyMain)"/>
+      
+      <use href="#starShape" fill="url(#shineSweep)" style="mix-blend-mode: overlay;"/>
+    </g>
+
+    <g opacity="0.7">
+      <circle r="2" fill="#FFFACD"><animate attributeName="cx" values="-220;220;-220" dur="9s" repeatCount="indefinite"/><animate attributeName="cy" values="-120;120;-120" dur="11s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;1;0" dur="5s" repeatCount="indefinite"/></circle>
+      <circle r="1.5" fill="#FFD700"><animate attributeName="cx" values="180;-180;180" dur="13s" repeatCount="indefinite"/><animate attributeName="cy" values="150;-150;150" dur="16s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0.8;0" dur="7s" repeatCount="indefinite"/></circle>
+      <circle r="2.5" fill="#FFFFFF"><animate attributeName="cx" values="80;-80;80" dur="2s" repeatCount="indefinite"/><animate attributeName="cy" values="-50;50;-50" dur="3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0.6;0" dur="2.5s" repeatCount="indefinite"/></circle>
+    </g>
+  </g>
+  
+  </svg>

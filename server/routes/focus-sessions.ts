@@ -8,19 +8,59 @@ const router = Router();
 // Log a completed focus session
 router.post('/', requireAuth, async (req: Request, res) => {
     try {
-        const { durationMinutes, breakMinutes, completed } = req.body;
+        const {
+            durationMinutes,
+            breakMinutes,
+            completed,
+            associatedGoalId,
+            interrupted,
+            preStudyMood,
+            postStudyMood,
+            moodScore,
+        } = req.body;
         const id = uuid();
         const now = new Date();
+        const dateKey = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
+        const completedBool = completed ? true : false;
+        const interruptedBool = interrupted ? true : false;
 
         await collections.focusSessions().insertOne({
             id,
             user_id: req.session.userId,
             duration_minutes: durationMinutes,
             break_minutes: breakMinutes || 0,
-            completed: completed ? true : false,
+            completed: completedBool,
+            associated_goal_id: associatedGoalId || null,
+            interrupted: interruptedBool,
             started_at: now,
             completed_at: now,
         });
+
+        await collections.focusSessionLogs().insertOne({
+            id: uuid(),
+            user_id: req.session.userId,
+            duration_minutes: durationMinutes,
+            associated_goal_id: associatedGoalId || null,
+            interrupted: interruptedBool,
+            completed: completedBool,
+            timestamp: now,
+            date_key: dateKey,
+            created_at: new Date(),
+        });
+
+        if (preStudyMood || postStudyMood || moodScore !== undefined) {
+            await collections.moodSnapshots().insertOne({
+                id: uuid(),
+                user_id: req.session.userId,
+                mood_score: Number.isFinite(Number(moodScore)) ? Number(moodScore) : null,
+                pre_study_mood: preStudyMood || null,
+                post_study_mood: postStudyMood || null,
+                timestamp: now,
+                date_key: dateKey,
+                source: 'focus_session',
+                created_at: new Date(),
+            });
+        }
 
         res.json({ success: true, id });
     } catch (error) {

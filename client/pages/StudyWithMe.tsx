@@ -281,7 +281,7 @@ export default function StudyWithMe() {
 
     return (
         <div
-            className="flex h-[100dvh] overflow-hidden bg-background text-foreground font-sans transition-colors duration-300"
+            className="flex min-h-[100dvh] overflow-y-auto overflow-x-hidden bg-background text-foreground font-sans transition-colors duration-300 relative"
             style={{ '--theme-accent': currentTheme.accent, '--theme-accent-rgb': currentTheme.accentRgb } as React.CSSProperties}
         >
             {/* Video Background */}
@@ -504,7 +504,7 @@ export default function StudyWithMe() {
                     <FocusAnalytics />
                 </div>
             ) : (
-                <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
+                <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 min-h-full">
                     {/* Timer Card */}
                     <TimerCard
                         minutes={minutes}
@@ -577,6 +577,14 @@ export default function StudyWithMe() {
                     {/* Mobile Controls */}
                     <div className="lg:hidden fixed bottom-4 left-4 right-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                         <div className="flex items-center justify-between">
+                            <button
+                                onClick={() => setIsTasksOpen(true)}
+                                className="p-3 rounded-xl bg-muted hover:bg-muted/80 transition-colors"
+                                title="Add task"
+                                aria-label="Add task"
+                            >
+                                <Plus className="w-5 h-5" style={{ color: currentTheme.accent }} />
+                            </button>
 
                             <div className="flex-1 mx-4">
                                 <input

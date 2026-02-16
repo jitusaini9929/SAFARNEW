@@ -8,6 +8,8 @@ import {
   Bookmark,
   Flag,
   Send,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -36,6 +38,8 @@ const API_URL = import.meta.env.VITE_API_URL || "/api";
 interface ThoughtCardProps {
   thought: Thought;
   onReact: () => void;
+  onEdit?: (thoughtId: string, content: string) => void;
+  onDelete?: () => void;
   hasReacted: boolean;
   isOwnThought?: boolean;
 }
@@ -52,10 +56,15 @@ interface Comment {
 const ThoughtCard: React.FC<ThoughtCardProps> = ({
   thought,
   onReact,
+  onEdit,
+  onDelete,
   hasReacted,
   isOwnThought = false,
 }) => {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editText, setEditText] = useState(thought.content);
   const [commentText, setCommentText] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -75,6 +84,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   useEffect(() => {
     checkSaveStatus();
   }, [thought.id, thought.userId, thought.isAnonymous]);
+
+  useEffect(() => {
+    setEditText(thought.content);
+  }, [thought.content]);
 
   // Fetch comments when opened
   useEffect(() => {
@@ -249,6 +262,21 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     }
   };
 
+  const handleEdit = () => {
+    const trimmed = editText.trim();
+    if (trimmed.length < 15) {
+      toast.error("Post must be at least 15 characters");
+      return;
+    }
+    if (trimmed.length > 5000) {
+      toast.error("Post must be under 5000 characters");
+      return;
+    }
+    onEdit?.(thought.id, trimmed);
+    setIsEditDialogOpen(false);
+    toast.success("Post update submitted");
+  };
+
 
 
   // ── formatting helpers ──────────────────────────────
@@ -340,7 +368,25 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 <span>Share</span>
               </DropdownMenuItem>
 
-
+              {isOwnThought && onDelete && (
+                <>
+                  <DropdownMenuItem
+                    className="cursor-pointer gap-2"
+                    onClick={() => setIsEditDialogOpen(true)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                    <span>Edit Post</span>
+                  </DropdownMenuItem>
+                  <Separator className="my-1" />
+                  <DropdownMenuItem
+                    className="cursor-pointer gap-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-900/20"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Post</span>
+                  </DropdownMenuItem>
+                </>
+              )}
 
               <Separator className="my-1" />
               <DropdownMenuItem
@@ -516,6 +562,60 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
               Submit Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Post?</DialogTitle>
+          </DialogHeader>
+          <p className="py-4 text-slate-600 dark:text-slate-300">
+            Are you sure you want to delete this post? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                onDelete?.();
+                setIsDeleteDialogOpen(false);
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Post</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value.slice(0, 5000))}
+              className="w-full min-h-[160px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+              placeholder="Update your post..."
+            />
+            <div className="mt-2 text-right text-[11px] text-slate-400">
+              {editText.length} / 5000
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEdit} className="bg-teal-600 hover:bg-teal-700 text-white">
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

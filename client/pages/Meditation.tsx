@@ -119,10 +119,21 @@ const sessions: Session[] = [
 
 const exercises = sessions; // Alias for mobile view compatibility
 
+const defaultDhyanSession: Session = {
+    id: "dhyan-custom",
+    title: "Dhyan",
+    duration: 5,
+    description: "A mindful space to breathe, relax, and restore inner calm through guided breathing techniques.",
+    longDescription: "A custom meditation session to focus on your breath and find inner peace.",
+    type: "silent",
+    steps: [],
+    cycle: undefined
+};
+
 export default function Meditation() {
     const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
-    const [selectedSession, setSelectedSession] = useState<Session>(sessions[0]);
+    const [selectedSession, setSelectedSession] = useState<Session>(defaultDhyanSession);
     const [isActive, setIsActive] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [timeLeft, setTimeLeft] = useState(selectedSession.duration * 60);
@@ -132,6 +143,13 @@ export default function Meditation() {
     const [showSessionList, setShowSessionList] = useState(false);
     const [showExercises, setShowExercises] = useState(false);
 
+
+
+    // Custom Dhyan Timer State
+    const [sliderValue, setSliderValue] = useState(5); // Default 5 mins
+
+    // Audio Ref
+    const audioRef = useRef<HTMLAudioElement | null>(null);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const breathTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -154,24 +172,54 @@ export default function Meditation() {
 
     useEffect(() => {
         // When session changes, reset but don't close instructions if user clicked a card
-        setTimeLeft(selectedSession.duration * 60);
+        if (selectedSession.id === "dhyan-custom") {
+            setTimeLeft(sliderValue * 60);
+        } else {
+            setTimeLeft(selectedSession.duration * 60);
+        }
         setIsActive(false);
         setBreathPhase("inhale");
-    }, [selectedSession]);
+
+        // Reset Audio
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+        }
+    }, [selectedSession, sliderValue]);
 
     useEffect(() => {
         if (isActive && timeLeft > 0) {
             intervalRef.current = setInterval(() => {
                 setTimeLeft((t) => t - 1);
             }, 1000);
+
+            // Play Audio if Dhyan Custom
+            if (selectedSession.id === "dhyan-custom" && audioRef.current && audioRef.current.paused) {
+                audioRef.current.play().catch(e => console.error("Audio play error:", e));
+            }
+
         } else if (timeLeft === 0) {
             setIsActive(false);
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+        } else {
+            // Paused
+            if (audioRef.current) audioRef.current.pause();
         }
 
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [isActive, timeLeft]);
+    }, [isActive, timeLeft, selectedSession.id]);
+
+    // Handle Mute Toggle
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.muted = isMuted;
+        }
+    }, [isMuted]);
 
     // Dynamic Breathing Animation Cycle
     useEffect(() => {
@@ -249,10 +297,34 @@ export default function Meditation() {
         setIsActive(true);
     };
 
-    const progress = ((selectedSession.duration * 60 - timeLeft) / (selectedSession.duration * 60)) * 100;
+    const progress = selectedSession.id === "dhyan-custom"
+        ? ((sliderValue * 60 - timeLeft) / (sliderValue * 60)) * 100
+        : ((selectedSession.duration * 60 - timeLeft) / (selectedSession.duration * 60)) * 100;
+
+    // Handle Slider Change
+    const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = parseInt(e.target.value);
+        setSliderValue(val);
+        if (selectedSession.id === "dhyan-custom") {
+            setTimeLeft(val * 60);
+        }
+    };
+
+    // Initialize Dhyan Custom Session
+    useEffect(() => {
+        // Initialize with default Dhyan session
+        if (selectedSession.id === "dhyan-custom") {
+            setTimeLeft(sliderValue * 60);
+        }
+    }, []);
+
+    // Helper to ensure we render the slider only for the main Dhyan experience
+    // The current UI shows "Dhyan" as the center piece. 
+    // We will inject the slider into that center piece.
 
     return (
         <div className="h-[100dvh] flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-[#0a0a0f] dark:to-[#0f0f17] transition-colors duration-500 font-sans overflow-hidden">
+            <audio ref={audioRef} src="/Dhyan_processed.mp3" loop />
             {/* Theme Toggle - Fixed Top Right */}
 
 
@@ -440,8 +512,48 @@ export default function Meditation() {
                                 {formatTime(timeLeft)}
                             </div>
                             <p className="text-slate-400 dark:text-slate-500 text-sm font-medium mt-2 tracking-wide">
-                                Select a technique &amp; press play
+                                Select duration & press play
                             </p>
+
+                            {/* Slider Section - Only show for Dhyan Custom */}
+                            {selectedSession.id === "dhyan-custom" && (
+                                <div className="mt-6 w-full max-w-xs mx-auto">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</span>
+                                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100/50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                                            {sliderValue} min
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="60"
+                                        step="1"
+                                        value={sliderValue}
+                                        onChange={handleSliderChange}
+                                        onMouseDown={() => {
+                                            // Force switch to custom session logic if not already
+                                            if (selectedSession.id !== "dhyan-custom") {
+                                                setSelectedSession({
+                                                    id: "dhyan-custom",
+                                                    title: "Dhyan Custom",
+                                                    duration: sliderValue,
+                                                    description: "Custom timer meditation",
+                                                    longDescription: "A custom duration session.",
+                                                    type: "silent",
+                                                    steps: [],
+                                                    cycle: undefined
+                                                });
+                                            }
+                                        }}
+                                        className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                                    />
+                                    <div className="flex justify-between mt-2 text-[10px] text-slate-400 font-medium">
+                                        <span>1m</span>
+                                        <span>60m</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Progress Bar */}
@@ -463,10 +575,17 @@ export default function Meditation() {
                             </button>
                             <button
                                 data-tour="play-button"
-                                onClick={() => setIsActive(true)}
-                                className="p-7 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 bg-emerald-500 text-white shadow-emerald-500/40 hover:shadow-emerald-500/60"
+                                onClick={() => setIsActive(!isActive)}
+                                className={`p-7 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 
+                                    ${isActive
+                                        ? "bg-amber-500 text-white shadow-amber-500/40 hover:shadow-amber-500/60"
+                                        : "bg-emerald-500 text-white shadow-emerald-500/40 hover:shadow-emerald-500/60"
+                                    }`}
                             >
-                                <Play className="w-9 h-9 fill-current ml-0.5" />
+                                {isActive
+                                    ? <Pause className="w-9 h-9 fill-current" />
+                                    : <Play className="w-9 h-9 fill-current ml-0.5" />
+                                }
                             </button>
                             <button
                                 onClick={() => setIsMuted(!isMuted)}

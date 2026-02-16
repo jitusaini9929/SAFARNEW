@@ -11,36 +11,37 @@ const router = Router();
 
 const ACHIEVEMENT_DEFINITIONS = [
     // ── GOAL COMPLETION BADGES ──────────────────────────────────
-    { id: 'G001', name: 'First Steps', type: 'badge', category: 'goals', tier: 1, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 5 }), display_priority: 15 },
-    { id: 'G002', name: 'Goal Crusher', type: 'badge', category: 'goals', tier: 2, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 25 }), display_priority: 25 },
-    { id: 'G003', name: 'Unstoppable', type: 'badge', category: 'goals', tier: 3, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 50 }), display_priority: 35 },
-    { id: 'G004', name: 'The Centurion', type: 'badge', category: 'goals', tier: 4, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 100 }), display_priority: 45 },
+    { id: 'G001', name: 'First Steps', type: 'badge', category: 'goals', tier: 1, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 1 }), display_priority: 15 },
+    { id: 'G002', name: 'Goal Crusher', type: 'badge', category: 'goals', tier: 2, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 50 }), display_priority: 25 },
+    { id: 'G003', name: 'Unstoppable', type: 'badge', category: 'goals', tier: 3, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 250 }), display_priority: 35 },
+    { id: 'G004', name: 'The Centurion', type: 'badge', category: 'goals', tier: 4, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 1000 }), display_priority: 45 },
 
     // ── FOCUS SESSION BADGES ────────────────────────────────────
-    { id: 'F001', name: 'Deep Diver', type: 'badge', category: 'focus', tier: 1, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 5 }), display_priority: 10 },
-    { id: 'F002', name: 'Focus Master', type: 'badge', category: 'focus', tier: 2, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 25 }), display_priority: 20 },
-    { id: 'F003', name: 'Zone Warrior', type: 'badge', category: 'focus', tier: 3, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 75 }), display_priority: 30 },
-    { id: 'F004', name: 'Monk Mode', type: 'badge', category: 'focus', tier: 4, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 200 }), display_priority: 40 },
-    { id: 'F005', name: 'Legendary Focus', type: 'badge', category: 'focus', tier: 5, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 500 }), display_priority: 50 },
+    { id: 'F001', name: 'Deep Diver', type: 'badge', category: 'focus', tier: 1, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 10 }), display_priority: 10 },
+    { id: 'F002', name: 'Focus Master', type: 'badge', category: 'focus', tier: 2, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 50 }), display_priority: 20 },
+    { id: 'F003', name: 'Zone Warrior', type: 'badge', category: 'focus', tier: 3, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 150 }), display_priority: 30 },
+    { id: 'F004', name: 'Monk Mode', type: 'badge', category: 'focus', tier: 4, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 300 }), display_priority: 40 },
+    { id: 'F005', name: 'Legendary Focus', type: 'badge', category: 'focus', tier: 5, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 1000 }), display_priority: 50 },
 
-    // ── CHECK-IN STREAK BADGES ──────────────────────────────────
-    { id: 'S001', name: 'Streak Starter', type: 'badge', category: 'streak', tier: 1, criteria_json: JSON.stringify({ field: 'check_in_streak', operator: '>=', value: 7 }), display_priority: 17 },
+    // ── STREAK BADGES ───────────────────────────────────────────
+    { id: 'S001', name: 'Streak Starter', type: 'badge', category: 'streak', tier: 1, criteria_json: JSON.stringify({ field: 'check_in_streak', operator: '>=', value: 3 }), display_priority: 17 },
     { id: 'S002', name: 'Iron Will', type: 'badge', category: 'streak', tier: 2, criteria_json: JSON.stringify({ field: 'check_in_streak', operator: '>=', value: 30 }), display_priority: 27 },
 
     // ── SPECIAL BADGE ───────────────────────────────────────────
-    { id: 'ET006', name: 'Flow State', type: 'badge', category: 'emotional', tier: 1, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 2 }), display_priority: 55 },
+    { id: 'ET006', name: 'Flow State', type: 'badge', category: 'emotional', tier: 1, criteria_json: JSON.stringify({ field: 'total_focus_hours', operator: '>=', value: 1 }), display_priority: 55 },
 
     // ── TITLES: GOAL COMPLETION ─────────────────────────────────
     { id: 'T005', name: 'Heavy Heart High Effort', type: 'title', category: 'goals', tier: 1, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 10 }), display_priority: 60 },
-    { id: 'T006', name: 'Mindset of a Warrior', type: 'title', category: 'goals', tier: 2, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 50 }), display_priority: 61 },
-    { id: 'T007', name: 'Exhaustion to Excellence', type: 'title', category: 'goals', tier: 3, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 100 }), display_priority: 62 },
-    { id: 'T008', name: 'High Energy Ace', type: 'title', category: 'goals', tier: 4, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 500 }), display_priority: 63 },
+    { id: 'T006', name: 'Mindset of a Warrior', type: 'title', category: 'goals', tier: 2, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 100 }), display_priority: 61 },
+    { id: 'T007', name: 'Exhaustion to Excellence', type: 'title', category: 'goals', tier: 3, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 500 }), display_priority: 62 },
+    { id: 'T008', name: 'High Energy Ace', type: 'title', category: 'goals', tier: 4, criteria_json: JSON.stringify({ field: 'goals_completed', operator: '>=', value: 2000 }), display_priority: 63 },
 
     // ── TITLES: LOGIN STREAKS ───────────────────────────────────
-    { id: 'T001', name: 'Tired But Triumphant', type: 'title', category: 'streak', tier: 1, criteria_json: JSON.stringify({ field: 'login_streak', operator: '>=', value: 3 }), display_priority: 70 },
+    { id: 'T001', name: 'Top Tier Energy', type: 'title', category: 'streak', tier: 1, criteria_json: JSON.stringify({ field: 'login_streak', operator: '>=', value: 1 }), display_priority: 70 },
     { id: 'T002', name: 'Restless Yet Relentless', type: 'title', category: 'streak', tier: 2, criteria_json: JSON.stringify({ field: 'login_streak', operator: '>=', value: 7 }), display_priority: 71 },
     { id: 'T003', name: 'Strong Comeback', type: 'title', category: 'streak', tier: 3, criteria_json: JSON.stringify({ field: 'login_streak', operator: '>=', value: 14 }), display_priority: 72 },
-    { id: 'T004', name: 'Top Tier Energy', type: 'title', category: 'streak', tier: 4, criteria_json: JSON.stringify({ field: 'login_streak', operator: '>=', value: 30 }), display_priority: 73 },
+    { id: 'T004', name: 'Tired But Triumphant', type: 'title', category: 'streak', tier: 4, criteria_json: JSON.stringify({ field: 'login_streak', operator: '>=', value: 60 }), display_priority: 73 },
+    { id: 'T009', name: 'Zen Master', type: 'title', category: 'streak', tier: 5, criteria_json: JSON.stringify({ field: 'login_streak', operator: '>=', value: 365 }), display_priority: 74 },
 ];
 
 // ========================================

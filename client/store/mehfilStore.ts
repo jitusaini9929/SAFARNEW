@@ -23,6 +23,8 @@ interface MehfilStore {
     userReactions: Set<string>; // Set of thought IDs the user has reacted to
     setThoughts: (thoughts: Thought[]) => void;
     addThought: (thought: Thought) => void;
+    updateThought: (thought: Thought) => void;
+    removeThought: (thoughtId: string) => void;
     updateRelatableCount: (thoughtId: string, count: number) => void;
     toggleUserReaction: (thoughtId: string) => void;
     setUserReaction: (thoughtId: string, hasReacted: boolean) => void;
@@ -35,6 +37,12 @@ export const useMehfilStore = create<MehfilStore>((set) => ({
     setThoughts: (thoughts) => set({ thoughts }),
     addThought: (thought) => set((state) => ({
         thoughts: [thought, ...state.thoughts]
+    })),
+    updateThought: (thought) => set((state) => ({
+        thoughts: state.thoughts.map((t) => (t.id === thought.id ? { ...t, ...thought } : t)),
+    })),
+    removeThought: (thoughtId) => set((state) => ({
+        thoughts: state.thoughts.filter((t) => t.id !== thoughtId)
     })),
     updateRelatableCount: (thoughtId, count) => set((state) => ({
         thoughts: state.thoughts.map((t) =>

@@ -1,4 +1,4 @@
-import { MoodEntry, JournalEntry, Goal } from "@shared/api";
+import { MoodEntry, JournalEntry, Goal, MonthlyReport } from "@shared/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -76,14 +76,35 @@ export const dataService = {
         return res.json();
     },
 
-    async addGoal(text: string, type: string): Promise<Goal> {
+    async addGoal(text: string, type: string, scheduledDate?: string): Promise<Goal> {
         const res = await fetch(`${API_URL}/goals`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, type }),
+            body: JSON.stringify({ text, type, scheduledDate }),
             credentials: 'include',
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to add goal"));
+        return res.json();
+    },
+
+    async getGoalRolloverPrompts(): Promise<Goal[]> {
+        const res = await fetch(`${API_URL}/goals/rollover-prompts`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch goal rollover prompts"));
+        return res.json();
+    },
+
+    async respondToGoalRollover(goalId: string, action: "retry" | "archive"): Promise<{ message: string; goal?: Goal }> {
+        const res = await fetch(`${API_URL}/goals/${goalId}/rollover-action`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action }),
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to process goal rollover action"));
         return res.json();
     },
 
@@ -172,6 +193,28 @@ export const dataService = {
             credentials: 'include',
         });
         if (!res.ok) throw new Error("Failed to fetch all achievements");
+        return res.json();
+    },
+
+    async getMonthlyReport(month?: string): Promise<MonthlyReport> {
+        const suffix = month ? `?month=${encodeURIComponent(month)}` : "";
+        const res = await fetch(`${API_URL}/analytics/monthly-report${suffix}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch monthly report"));
+        return res.json();
+    },
+
+    async generateMonthlyReport(month?: string): Promise<MonthlyReport> {
+        const res = await fetch(`${API_URL}/analytics/monthly-report/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(month ? { month } : {}),
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to generate monthly report"));
         return res.json();
     },
 

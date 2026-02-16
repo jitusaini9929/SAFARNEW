@@ -82,10 +82,10 @@ const achievementImages: Record<string, string> = {
     'T008': '/Achievments/Titles/Title (6).png', // High Energy Ace
 
     // Titles - Login Streaks (image text matches code name)
-    'T001': '/Achievments/Titles/Title (4).png', // Tired But Triumphant
+    'T001': '/Achievments/Titles/Title (8).png', // Top Tier Energy
     'T002': '/Achievments/Titles/Title (2).png', // Restless Yet Relentless
     'T003': '/Achievments/Titles/Title (1).png', // Strong Comeback
-    'T004': '/Achievments/Titles/Title (8).png', // Top Tier Energy
+    'T004': '/Achievments/Titles/Title (4).png', // Tired But Triumphant
 
     // Weekly Emotional Titles (image text matches code name)
     'ET001': '/Achievments/Titles/Special_Title (3).png', // Showed Up Tired
@@ -93,6 +93,9 @@ const achievementImages: Record<string, string> = {
     'ET003': '/Achievments/Titles/Special_Title (1).png', // Quiet Consistency
     'ET004': '/Achievments/Titles/Special_Title (4).png', // Survived Bad Week
     'ET005': '/Achievments/Titles/Special_Title (5).png', // Pushed Through Overwhelm
+
+    // Zen Master - User Provided SVG
+    'T009': '/Achievments/svgviewer-output.svg',
 };
 
 export default function Achievements() {
@@ -357,9 +360,18 @@ export default function Achievements() {
                                                 )}
                                             </div>
                                         ) : (
-                                            /* Fallback for items without images (like Titles) */
-                                            <div className={`w-full aspect-square flex items-center justify-center rounded-full mb-4 ${style.bg} border-4 ${style.border}`}>
-                                                <TypeIcon className={`w-12 h-12 ${style.text}`} />
+                                            /* Neo Brutalist Fallback for items without images */
+                                            <div className="relative w-32 h-32 md:w-40 md:h-40 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
+                                                <div className={`w-28 h-28 md:w-32 md:h-32 rotate-3 bg-yellow-400 border-[6px] border-black shadow-[8px_8px_0px_#000000] flex items-center justify-center relative overflow-hidden
+                                                    ${achievement.type === 'title' ? 'bg-cyan-400' : 'bg-yellow-400'}`}>
+                                                    {/* Cartoonish decorative stripes */}
+                                                    <div className="absolute top-0 left-0 w-full h-2 bg-black/10 -rotate-45 translate-y-4"></div>
+                                                    <div className="absolute bottom-0 right-0 w-full h-2 bg-black/10 -rotate-45 -translate-y-4"></div>
+
+                                                    <span className="text-4xl md:text-5xl font-black text-black select-none italic tracking-tighter">
+                                                        {achievement.name.charAt(0)}
+                                                    </span>
+                                                </div>
                                             </div>
                                         )}
 

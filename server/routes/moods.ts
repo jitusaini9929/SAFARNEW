@@ -21,7 +21,7 @@ router.get('/', requireAuth, async (req: Request, res) => {
 
 // Create a new mood entry
 router.post('/', requireAuth, async (req: Request, res) => {
-    const { mood, intensity, notes } = req.body;
+    const { mood, intensity, notes, preStudyMood, postStudyMood } = req.body;
 
     if (!mood || !intensity) {
         return res.status(400).json({ message: 'Mood and intensity are required' });
@@ -48,6 +48,18 @@ router.post('/', requireAuth, async (req: Request, res) => {
 
         await collections.moods().insertOne({
             id, user_id: userId, mood, intensity, notes: notes || '', timestamp: now
+        });
+
+        await collections.moodSnapshots().insertOne({
+            id: uuidv4(),
+            user_id: userId,
+            mood_score: Number(intensity),
+            pre_study_mood: preStudyMood || mood,
+            post_study_mood: postStudyMood || null,
+            timestamp: now,
+            date_key: todayIST,
+            source: 'check_in',
+            created_at: new Date(),
         });
 
         // Only update check_in streak if this is the first check-in today

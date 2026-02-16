@@ -70,7 +70,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({ isOpen, onClose, onTasksCha
                 className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[65]"
                 onClick={onClose}
             />
-            <div className="fixed inset-y-0 right-0 w-80 max-w-[90vw] bg-background/95 backdrop-blur-xl border-l border-white/10 shadow-2xl z-[70] p-6 flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="fixed inset-y-0 right-0 w-[min(22rem,100vw)] max-w-full bg-background/95 backdrop-blur-xl border-l border-white/10 shadow-2xl z-[70] p-4 sm:p-6 pr-[max(1rem,env(safe-area-inset-right))] flex flex-col animate-in slide-in-from-right duration-300">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-xl font-bold font-['Poppins']">Tasks</h2>
                     <button onClick={onClose} className="p-2 hover:bg-muted rounded-full transition-colors">
@@ -96,7 +96,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({ isOpen, onClose, onTasksCha
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+                <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 pb-20">
                     {tasks.map(task => (
                         <div key={task.id} className="group flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:border-primary/20 transition-all">
                             <button onClick={() => toggleTask(task.id)} className="shrink-0 text-muted-foreground hover:text-primary transition-colors">

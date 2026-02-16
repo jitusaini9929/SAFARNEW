@@ -21,6 +21,8 @@ interface FocusContextType {
     setTimerDuration: (minutes: number) => void;
     setBreakDuration: (minutes: number) => void;
     setMode: (mode: FocusMode) => void;
+    startTimer: () => void;
+    pauseTimer: () => void;
     toggleTimer: () => void;
     resetTimer: () => void;
 
@@ -63,6 +65,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const pipIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const suppressPiPVideoEventsRef = useRef(false);
+    const isPiPActiveRef = useRef(false);
 
     // Check Auth
     useEffect(() => {
@@ -79,6 +83,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         modeRef.current = mode;
     }, [remainingSeconds, totalSeconds, isRunning, mode]);
 
+    useEffect(() => {
+        isPiPActiveRef.current = isPiPActive;
+    }, [isPiPActive]);
+
     // Timer Logic
     useEffect(() => {
         let interval: NodeJS.Timeout | null = null;
@@ -87,10 +95,15 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             interval = setInterval(() => {
                 const now = Date.now();
                 const deltaMs = now - lastTickRef.current;
-                lastTickRef.current = now;
+                const elapsedSeconds = Math.floor(deltaMs / 1000);
+
+                if (elapsedSeconds <= 0) return;
+
+                // Keep sub-second remainder so delayed/throttled ticks catch up correctly.
+                lastTickRef.current = now - (deltaMs % 1000);
 
                 // Update Countdown
-                setRemainingSeconds(prev => Math.max(0, prev - 1));
+                setRemainingSeconds(prev => Math.max(0, prev - elapsedSeconds));
 
                 // Update Tracking
                 if (userId) {
@@ -164,6 +177,78 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         ctx.fillText(running ? "Running" : "Paused", 250, 375);
     }, []);
 
+    const updatePiPPlaybackState = useCallback((running: boolean) => {
+        if (!("mediaSession" in navigator)) return;
+        try {
+            navigator.mediaSession.playbackState = running ? "playing" : "paused";
+        } catch {
+            // Ignore browsers with partial Media Session support.
+        }
+    }, []);
+
+    const syncPiPVideoPlayback = useCallback((running: boolean) => {
+        if (!isPiPActiveRef.current) return;
+        const videoEl = videoRef.current;
+        if (!videoEl) return;
+
+        if (running && videoEl.paused) {
+            suppressPiPVideoEventsRef.current = true;
+            videoEl.play().catch(() => { });
+            window.setTimeout(() => {
+                suppressPiPVideoEventsRef.current = false;
+            }, 0);
+            return;
+        }
+
+        if (!running && !videoEl.paused) {
+            suppressPiPVideoEventsRef.current = true;
+            videoEl.pause();
+            window.setTimeout(() => {
+                suppressPiPVideoEventsRef.current = false;
+            }, 0);
+        }
+    }, []);
+
+    const startTimer = useCallback(() => {
+        if (remainingSecondsRef.current <= 0) return;
+        isRunningRef.current = true;
+        setIsRunning(true);
+        updatePiPPlaybackState(true);
+        syncPiPVideoPlayback(true);
+    }, [syncPiPVideoPlayback, updatePiPPlaybackState]);
+
+    const pauseTimer = useCallback(() => {
+        isRunningRef.current = false;
+        setIsRunning(false);
+        updatePiPPlaybackState(false);
+        syncPiPVideoPlayback(false);
+    }, [syncPiPVideoPlayback, updatePiPPlaybackState]);
+
+    const bindPiPMediaControls = useCallback(() => {
+        if (!("mediaSession" in navigator)) return;
+        try {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: "Focus Timer",
+                artist: "Nishtha Study With Me",
+            });
+            navigator.mediaSession.setActionHandler("play", () => startTimer());
+            navigator.mediaSession.setActionHandler("pause", () => pauseTimer());
+            updatePiPPlaybackState(isRunningRef.current);
+        } catch {
+            // Ignore browsers that block action handlers.
+        }
+    }, [pauseTimer, startTimer, updatePiPPlaybackState]);
+
+    const unbindPiPMediaControls = useCallback(() => {
+        if (!("mediaSession" in navigator)) return;
+        try {
+            navigator.mediaSession.setActionHandler("play", null);
+            navigator.mediaSession.setActionHandler("pause", null);
+        } catch {
+            // Ignore unsupported cleanup paths.
+        }
+    }, []);
+
     // PiP Toggle
     const togglePiP = useCallback(async () => {
         if (!videoRef.current) return;
@@ -176,6 +261,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
                 setIsPiPActive(false);
+                unbindPiPMediaControls();
                 if (pipIntervalRef.current) {
                     clearInterval(pipIntervalRef.current);
                     pipIntervalRef.current = undefined;
@@ -197,7 +283,12 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
                 const stream = canvasRef.current.captureStream(30);
                 videoRef.current.srcObject = stream;
+                bindPiPMediaControls();
+                suppressPiPVideoEventsRef.current = true;
                 await videoRef.current.play();
+                window.setTimeout(() => {
+                    suppressPiPVideoEventsRef.current = false;
+                }, 0);
                 await videoRef.current.requestPictureInPicture();
                 setIsPiPActive(true);
 
@@ -205,21 +296,26 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 drawToCanvas(); // Draw once immediately
                 pipIntervalRef.current = setInterval(() => {
                     drawToCanvas();
-                    // Keep video playing if it paused (Android background behavior)
-                    if (videoRef.current?.paused) {
+                    // Keep the stream alive only while timer is running.
+                    if (isRunningRef.current && videoRef.current?.paused) {
+                        suppressPiPVideoEventsRef.current = true;
                         videoRef.current.play().catch(() => { });
+                        window.setTimeout(() => {
+                            suppressPiPVideoEventsRef.current = false;
+                        }, 0);
                     }
                 }, 500);
             }
         } catch (err) {
             console.error("PiP Error:", err);
         }
-    }, [drawToCanvas]);
+    }, [bindPiPMediaControls, drawToCanvas, unbindPiPMediaControls]);
 
     // Cleanup PiP
     useEffect(() => {
         const onLeavePiP = () => {
             setIsPiPActive(false);
+            unbindPiPMediaControls();
             if (pipIntervalRef.current) {
                 clearInterval(pipIntervalRef.current);
                 pipIntervalRef.current = undefined;
@@ -233,10 +329,39 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 clearInterval(pipIntervalRef.current);
             }
         };
-    }, []);
+    }, [unbindPiPMediaControls]);
+
+    // Map native PiP video play/pause controls to timer start/pause.
+    useEffect(() => {
+        const videoEl = videoRef.current;
+        if (!videoEl) return;
+
+        const onPlay = () => {
+            if (suppressPiPVideoEventsRef.current) return;
+            if (!isPiPActiveRef.current) return;
+            startTimer();
+        };
+
+        const onPause = () => {
+            if (suppressPiPVideoEventsRef.current) return;
+            if (!isPiPActiveRef.current) return;
+            pauseTimer();
+        };
+
+        videoEl.addEventListener("play", onPlay);
+        videoEl.addEventListener("pause", onPause);
+
+        return () => {
+            videoEl.removeEventListener("play", onPlay);
+            videoEl.removeEventListener("pause", onPause);
+        };
+    }, [pauseTimer, startTimer]);
 
     // Controls
-    const toggleTimer = useCallback(() => setIsRunning(prev => !prev), []);
+    const toggleTimer = useCallback(() => {
+        if (isRunningRef.current) pauseTimer();
+        else startTimer();
+    }, [pauseTimer, startTimer]);
 
     const resetTimer = useCallback(() => {
         setIsRunning(false);
@@ -285,6 +410,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setTimerDuration: handleSetTimerDuration,
         setBreakDuration: handleSetBreakDuration,
         setMode: handleSetMode,
+        startTimer,
+        pauseTimer,
         toggleTimer,
         resetTimer,
         stats,

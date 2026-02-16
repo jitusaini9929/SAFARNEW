@@ -6,10 +6,3 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
     }
     next();
 };
-
-// Extend session type
-declare module 'express-session' {
-    interface SessionData {
-        userId: string;
-    }
-}

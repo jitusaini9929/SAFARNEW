@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import MainLayout from "@/components/MainLayout";
 import { authService } from "@/utils/authService";
 import { dataService } from "@/utils/dataService";
+import { runGoalRolloverPromptFlow } from "@/utils/goalRolloverPrompt";
 import PerkTitle from "@/components/PerkTitle";
 import {
     Heart,
@@ -22,7 +23,8 @@ import {
     Sparkles,
     Medal,
     Home,
-    Users
+    Users,
+    BarChart3
 } from "lucide-react";
 import youtubeImg from "@/assets/youtube-thumbnail.png";
 import courseImg from "@/assets/course-thumbnail.png";
@@ -66,10 +68,10 @@ const achievementImages: Record<string, string> = {
     'T008': '/Achievments/Titles/Title (6).png', // High Energy Ace
 
     // Titles - Login Streaks (image text matches code name)
-    'T001': '/Achievments/Titles/Title (4).png', // Tired But Triumphant
+    'T001': '/Achievments/Titles/Title (8).png', // Top Tier Energy
     'T002': '/Achievments/Titles/Title (2).png', // Restless Yet Relentless
     'T003': '/Achievments/Titles/Title (1).png', // Strong Comeback
-    'T004': '/Achievments/Titles/Title (8).png', // Top Tier Energy
+    'T004': '/Achievments/Titles/Title (4).png', // Tired But Triumphant
 
     // Emotional Titles (image text matches code name)
     'ET001': '/Achievments/Titles/Special_Title (3).png', // Showed Up Tired
@@ -77,6 +79,9 @@ const achievementImages: Record<string, string> = {
     'ET003': '/Achievments/Titles/Special_Title (1).png', // Quiet Consistency
     'ET004': '/Achievments/Titles/Special_Title (4).png', // Survived Bad Week
     'ET005': '/Achievments/Titles/Special_Title (5).png', // Pushed Through Overwhelm
+
+    // Zen Master - User Provided SVG
+    'T009': '/Achievments/svgviewer-output.svg',
 };
 
 export default function Dashboard() {
@@ -93,6 +98,7 @@ export default function Dashboard() {
     const [activeTitleData, setActiveTitleData] = useState<any | null>(null);
     const [showAchievementModal, setShowAchievementModal] = useState(false);
     const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
+    const [monthlySummary, setMonthlySummary] = useState<{ month: string; consistencyScore: number; completionRate: number; focusDepth: number } | null>(null);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -103,6 +109,7 @@ export default function Dashboard() {
                     return;
                 }
                 setUser(data.user);
+                await runGoalRolloverPromptFlow(data.user.id);
                 // Fetch streaks
                 try {
                     const streakData = await dataService.getStreaks();
@@ -148,21 +155,36 @@ export default function Dashboard() {
                     setAllGoals(goalsData || []);
 
                     // Filter for TODAY's goals only (IST)
-                    const nowIST = new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000));
+                    const nowIST = new Date(Date.now() + (5.5 * 60 * 60 * 1000));
                     const todayISTStr = nowIST.toISOString().split('T')[0];
+
+                    const toISTDateKey = (value: string) => {
+                        const parsed = new Date(value.includes('Z') ? value : `${value}Z`);
+                        if (Number.isNaN(parsed.getTime())) return null;
+                        return new Date(parsed.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
+                    };
 
                     const todaysGoals = goalsData.filter((g: any) => {
                         const createdAt = g.created_at || g.createdAt;
-                        if (!createdAt) return false;
-                        // Parse date - handle both UTC and IST formats
-                        const goalDate = createdAt.split('T')[0].split(' ')[0];
-                        return goalDate === todayISTStr;
+                        if (!createdAt || typeof createdAt !== 'string') return false;
+                        return toISTDateKey(createdAt) === todayISTStr;
                     });
 
                     const total = todaysGoals.length;
                     const completed = todaysGoals.filter((g: any) => g.completed).length;
                     setGoals({ total, completed });
                 } catch (e) { console.error('Failed to fetch goals', e); }
+                try {
+                    const report = await dataService.getMonthlyReport();
+                    setMonthlySummary({
+                        month: report.month,
+                        consistencyScore: report.executiveSummary.consistencyScore,
+                        completionRate: report.executiveSummary.completionRate,
+                        focusDepth: report.executiveSummary.focusDepth,
+                    });
+                } catch (e) {
+                    setMonthlySummary(null);
+                }
                 // Fetch active achievement title & badge
                 try {
                     const [titleData, allAchievementsData] = await Promise.all([
@@ -317,6 +339,20 @@ export default function Dashboard() {
                                     </div>
                                 </div>
                             ) : null}
+                        </div>
+                    </div>
+
+                    {/* Daily Inspiration - Prominent placement after Welcome User */}
+                    <div className="glass-high rounded-2xl p-8 flex flex-col justify-center relative overflow-hidden mb-8 md:mb-10">
+                        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-secondary/10 pointer-events-none"></div>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-4 text-purple-500 justify-center">
+                                <Quote className="w-5 h-5" />
+                                <h3 className="font-semibold text-lg">Daily Inspiration</h3>
+                            </div>
+                            <blockquote className="text-2xl font-serif text-foreground/90 leading-relaxed italic text-center px-4">
+                                "Every effort counts. Be proud of yourself."
+                            </blockquote>
                         </div>
                     </div>
 
@@ -500,18 +536,46 @@ export default function Dashboard() {
                             </button>
                         </div>
 
-                        {/* Daily Inspiration */}
-                        <div className="lg:col-span-4 glass-high rounded-2xl p-8 flex flex-col justify-center relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-secondary/10 pointer-events-none"></div>
-                            <div className="relative z-10">
-                                <div className="flex items-center gap-2 mb-4 text-purple-500">
-                                    <Quote className="w-5 h-5" />
-                                    <h3 className="font-semibold">Daily Inspiration</h3>
+                        {/* Monthly Analytics Snapshot */}
+                        <div className="lg:col-span-4 glass-high rounded-2xl p-6 flex flex-col relative">
+                            <div className="flex items-center gap-2 mb-4">
+                                <BarChart3 className="text-primary w-5 h-5" />
+                                <div>
+                                    <h3 className="font-semibold text-lg text-foreground">Monthly Analytics</h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        {monthlySummary ? `Report ${monthlySummary.month}` : "No generated report yet"}
+                                    </p>
                                 </div>
-                                <blockquote className="text-2xl font-serif text-foreground/90 leading-relaxed italic text-center px-4">
-                                    "Every effort counts. Be proud of yourself."
-                                </blockquote>
                             </div>
+
+                            {monthlySummary ? (
+                                <div className="space-y-3 my-4">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-muted-foreground">Consistency</span>
+                                        <span className="font-bold text-foreground">{monthlySummary.consistencyScore}%</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-muted-foreground">Completion</span>
+                                        <span className="font-bold text-foreground">{monthlySummary.completionRate}%</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-muted-foreground">Focus Depth</span>
+                                        <span className="font-bold text-foreground">{monthlySummary.focusDepth}m/day</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col justify-center my-4">
+                                    <p className="text-sm text-muted-foreground">Generate your Nishtha Scorecard to unlock monthly insights.</p>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => navigate('/nishtha/analytics')}
+                                className="w-full mt-auto bg-muted hover:bg-muted/80 text-primary border border-primary/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group"
+                            >
+                                Open Analytics
+                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            </button>
                         </div>
 
                         {/* Weekly Mood Trend */}

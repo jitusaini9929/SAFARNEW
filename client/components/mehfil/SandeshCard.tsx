@@ -212,8 +212,8 @@ const SandeshCard = () => {
         >
             <div className="flex items-center justify-between mb-8 px-2">
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span className="p-2 bg-teal-500/10 dark:bg-teal-400/10 rounded-xl relative">
-                        <Bell className={`w-5 h-5 text-teal-600 dark:text-teal-400 ${hasUnread ? 'animate-swing' : ''}`} />
+                    <span className="p-2 bg-indigo-500/10 dark:bg-indigo-400/10 rounded-xl relative">
+                        <Bell className={`w-5 h-5 text-indigo-600 dark:text-indigo-400 ${hasUnread ? 'animate-swing' : ''}`} />
                         {hasUnread && (
                             <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse"></span>
                         )}
@@ -326,7 +326,7 @@ const SandeshCard = () => {
                             <div className="p-3 flex-1 min-w-0">
                                 <p className="font-bold text-xs truncate text-slate-800 dark:text-slate-200">{linkMeta.title}</p>
                                 <p className="text-[10px] text-slate-500 line-clamp-2 mt-1">{linkMeta.description}</p>
-                                <p className="text-[10px] text-teal-500 mt-1 truncate">{new URL(linkMeta.url).hostname}</p>
+                                <p className="text-[10px] text-indigo-500 mt-1 truncate">{new URL(linkMeta.url).hostname}</p>
                             </div>
                         </div>
                     )}
@@ -336,7 +336,7 @@ const SandeshCard = () => {
                             size="sm"
                             onClick={handlePost}
                             disabled={isPosting || (!newContent.trim() && !imageUrl)}
-                            className="bg-teal-500 hover:bg-teal-600 text-white rounded-xl"
+                            className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl"
                         >
                             {isPosting ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : (isEditing ? <Pencil className="w-3 h-3 mr-1" /> : <Send className="w-3 h-3 mr-1" />)}
                             {isEditing ? 'Update' : 'Post'}
@@ -350,11 +350,11 @@ const SandeshCard = () => {
                     <div className="backdrop-blur-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 rounded-2xl p-6 border border-white/20 group hover:-translate-y-1 shadow-lg">
 
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-emerald-600 flex items-center justify-center text-white shadow-lg ring-2 ring-white/20">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center text-white shadow-lg ring-2 ring-white/20">
                                 <ShieldCheck className="w-5 h-5" />
                             </div>
                             <div className="flex-grow">
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Parmar Sir</p>
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Parmar Sir&apos;s Corner</p>
                                 <p className="text-[10px] text-slate-400 font-medium">
                                     {formatDistanceToNow(new Date(sandesh.created_at), { addSuffix: true })}
                                 </p>
@@ -394,7 +394,7 @@ const SandeshCard = () => {
                                     __html: line
                                         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                                         .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                                        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-teal-500 hover:underline break-all">$1</a>')
+                                        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-indigo-500 hover:underline break-all">$1</a>')
                                 }} />
                             ))}
                         </div>
@@ -451,7 +451,7 @@ const SandeshCard = () => {
                                 <div className="p-3">
                                     <p className="font-bold text-sm truncate text-slate-800 dark:text-slate-200">{sandesh.link_meta.title}</p>
                                     <p className="text-xs text-slate-500 line-clamp-2 mt-1">{sandesh.link_meta.description}</p>
-                                    <p className="text-[10px] text-teal-500 mt-2 truncate flex items-center gap-1">
+                                    <p className="text-[10px] text-indigo-500 mt-2 truncate flex items-center gap-1">
                                         <LinkIcon className="w-3 h-3" />
                                         {new URL(sandesh.link_meta.url).hostname}
                                     </p>

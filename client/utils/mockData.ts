@@ -202,12 +202,16 @@ export const mockDataManager = {
 
     const weekMoods = state.moods.filter((m) => m.timestamp > weekAgo);
 
-    const moodCounts = {
+    const moodCounts: Record<MoodType, number> = {
+      peaceful: 0,
       happy: 0,
-      neutral: 0,
-      sad: 0,
-      worried: 0,
-      stressed: 0,
+      okay: 0,
+      motivated: 0,
+      anxious: 0,
+      low: 0,
+      frustrated: 0,
+      overwhelmed: 0,
+      numb: 0,
     };
 
     weekMoods.forEach((mood) => {
@@ -266,30 +270,50 @@ export const mockDataManager = {
   // Get personalized suggestion based on mood
   getPersonalizedSuggestion: (mood: MoodType): string => {
     const suggestions: Record<MoodType, string[]> = {
+      peaceful: [
+        "You're calm right now. Use this window for focused deep work.",
+        "A peaceful mind is your advantage today. Start with your hardest topic.",
+        "Stay steady. A short revision sprint will work well in this state.",
+      ],
       happy: [
         "You're feeling great! Share your positive energy with others.",
         "Channel this positive energy into your studies today!",
         "Great mood! This is perfect for tackling difficult topics.",
       ],
-      neutral: [
-        "You're feeling neutral. Try a light study session or a short walk.",
+      okay: [
+        "You're feeling balanced. Try a light study session or a short walk.",
         "This is a good time to review or revise previous topics.",
         "Keep your routine steady and consistent.",
       ],
-      sad: [
-        "It's okay to feel sad. Take a break and do something you enjoy.",
+      motivated: [
+        "Your motivation is high. Start with the most difficult task first.",
+        "This is a great time for long focus sessions. Protect your momentum.",
+        "Ride this energy and finish one meaningful goal end-to-end.",
+      ],
+      anxious: [
+        "Feeling anxious? Let's break your tasks into smaller goals.",
+        "Take 5 deep breaths, then start with a 10-minute timer.",
+        "Try a short breathing exercise before beginning your next topic.",
+      ],
+      low: [
+        "It's okay to feel low. Start with one tiny task to build momentum.",
         "Consider journaling about what's on your mind.",
-        "Connect with friends or family for support.",
+        "Take a short break, then do a simple revision block.",
       ],
-      worried: [
-        "Feeling worried? Let's break your tasks into smaller goals.",
-        "Remember, you've overcome challenges before. You can do this!",
-        "Try meditation or deep breathing exercises to calm your mind.",
+      frustrated: [
+        "Frustration is a signal to switch strategy, not quit.",
+        "Take a short reset break and come back with a simpler first step.",
+        "Try solving one easy question to regain confidence.",
       ],
-      stressed: [
-        "You're feeling stressed. Take a proper break and relax.",
+      overwhelmed: [
+        "You're feeling overwhelmed. Take a proper break and reset.",
         "Try stress relief techniques: exercise, meditation, or a hobby.",
-        "Review your preparation plan and adjust if needed.",
+        "Choose only one priority for the next hour.",
+      ],
+      numb: [
+        "Feeling numb can happen after overload. Keep expectations small today.",
+        "Start with a gentle routine: hydrate, breathe, then 10 minutes of revision.",
+        "A short walk and one simple task can help you restart.",
       ],
     };
 

@@ -4,6 +4,11 @@ export interface FocusSession {
     durationMinutes: number;
     breakMinutes: number;
     completed: boolean;
+    associatedGoalId?: string;
+    interrupted?: boolean;
+    preStudyMood?: string;
+    postStudyMood?: string;
+    moodScore?: number;
     completedAt: string; // ISO string
 }
 
@@ -33,7 +38,12 @@ export const focusService = {
                 body: JSON.stringify({
                     durationMinutes: session.durationMinutes,
                     breakMinutes: session.breakMinutes,
-                    completed: session.completed
+                    completed: session.completed,
+                    associatedGoalId: session.associatedGoalId || null,
+                    interrupted: session.interrupted || false,
+                    preStudyMood: session.preStudyMood || null,
+                    postStudyMood: session.postStudyMood || null,
+                    moodScore: session.moodScore ?? null
                 })
             });
 

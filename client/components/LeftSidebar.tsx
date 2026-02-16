@@ -62,6 +62,12 @@ export default function LeftSidebar({ homeRoute = "/landing" }: LeftSidebarProps
       description: "Maintain your streaks",
     },
     {
+      label: "Analytics",
+      href: "/nishtha/analytics",
+      icon: BarChart3,
+      description: "Monthly scorecard",
+    },
+    {
       label: "Suggestions",
       href: "/nishtha/suggestions",
       icon: Lightbulb,

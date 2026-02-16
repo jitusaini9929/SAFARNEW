@@ -17,6 +17,10 @@ export interface MoodEntry {
   timestamp: string;
 }
 
+export interface DemoResponse {
+  message: string;
+}
+
 export interface Goal {
   id: string;
   userId: string;
@@ -26,9 +30,15 @@ export interface Goal {
   createdAt: string;
   completedAt?: string;
   expiresAt?: string;
+  lifecycleStatus?: "active" | "missed" | "rolled_over" | "abandoned";
+  rollover_prompt_pending?: boolean;
+  source_goal_id?: string | null;
+  scheduledDate?: string; // ISO date string for future goals
   created_at?: string;
   completed_at?: string;
   expires_at?: string;
+  lifecycle_status?: "active" | "missed" | "rolled_over" | "abandoned";
+  scheduled_date?: string;
 }
 
 export interface JournalEntry {
@@ -45,4 +55,52 @@ export interface Streak {
   checkInStreak: number;
   goalCompletionStreak: number;
   lastActiveDate: string;
+}
+
+export interface MonthlyReport {
+  month: string;
+  generatedAt: string;
+  executiveSummary: {
+    consistencyScore: number;
+    completionRate: number;
+    focusDepth: number;
+    daysLoggedIn: number;
+    daysInMonth: number;
+    goalsCreated: number;
+    goalsCompleted: number;
+    totalFocusMinutes: number;
+    consistencyMessage: string;
+    completionMessage: string;
+    focusMessage: string;
+  };
+  insights: {
+    powerHour: {
+      startHour: number;
+      endHour: number;
+      message: string;
+    };
+    moodConnection: {
+      anxiousAverageCompletion: number | null;
+      normalAverageCompletion: number | null;
+      message: string;
+    };
+    sundayScaries: {
+      weakestDay: string | null;
+      weakestDayCompletionRate: number | null;
+      message: string;
+    };
+  };
+  badgeSummary: {
+    theFinisher: boolean;
+    earlyBird: boolean;
+    nightOwl: boolean;
+    metrics: {
+      weeklyCreated: number;
+      weeklyCompleted: number;
+      completedBefore9: number;
+      completedAfter22: number;
+    };
+  };
+  radar: Array<{ subject: string; score: number; fullMark: number }>;
+  heatmap: Array<{ date: string; dayOfWeek: string; value: number; intensity: number }>;
 }
