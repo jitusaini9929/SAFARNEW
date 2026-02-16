@@ -25,6 +25,10 @@ export interface Goal {
   completed: boolean;
   createdAt: string;
   completedAt?: string;
+  expiresAt?: string;
+  created_at?: string;
+  completed_at?: string;
+  expires_at?: string;
 }
 
 export interface JournalEntry {

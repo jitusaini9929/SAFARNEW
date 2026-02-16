@@ -2,6 +2,16 @@ import { MoodEntry, JournalEntry, Goal } from "@shared/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
+async function getApiErrorMessage(res: Response, fallback: string): Promise<string> {
+    try {
+        const data = await res.json();
+        if (data?.message && typeof data.message === "string") return data.message;
+    } catch {
+        // Ignore JSON parse errors and use fallback
+    }
+    return fallback;
+}
+
 export const dataService = {
     // --- Moods ---
     async getMoods(): Promise<MoodEntry[]> {
@@ -73,7 +83,7 @@ export const dataService = {
             body: JSON.stringify({ text, type }),
             credentials: 'include',
         });
-        if (!res.ok) throw new Error("Failed to add goal");
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to add goal"));
         return res.json();
     },
 
@@ -84,7 +94,7 @@ export const dataService = {
             body: JSON.stringify({ completed }),
             credentials: 'include',
         });
-        if (!res.ok) throw new Error("Failed to update goal");
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update goal"));
     },
 
     async deleteGoal(id: string): Promise<void> {
@@ -92,7 +102,7 @@ export const dataService = {
             method: "DELETE",
             credentials: 'include',
         });
-        if (!res.ok) throw new Error("Failed to delete goal");
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to delete goal"));
     },
 
     // --- Streaks ---

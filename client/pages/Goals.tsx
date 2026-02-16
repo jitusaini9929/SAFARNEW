@@ -9,10 +9,7 @@ import {
     Plus,
     Search,
     CheckCircle2,
-    Circle,
     Clock,
-    Calendar,
-    Target,
     Check,
     TrendingUp,
     Trash2,
@@ -29,6 +26,44 @@ import {
     ResponsiveContainer
 } from "recharts";
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+type GoalWithMeta = Goal & {
+    created_at?: string;
+    completed_at?: string | null;
+    expires_at?: string;
+    expiresAt?: string;
+};
+
+const getGoalCreatedAt = (goal: GoalWithMeta) => {
+    return new Date(goal.created_at || goal.createdAt || Date.now());
+};
+
+const getGoalExpiresAt = (goal: GoalWithMeta) => {
+    if (goal.expires_at) return new Date(goal.expires_at);
+    if (goal.expiresAt) return new Date(goal.expiresAt);
+
+    const createdAt = getGoalCreatedAt(goal);
+    const createdDayIST = new Date(createdAt.getTime() + IST_OFFSET_MS).toISOString().split("T")[0];
+    const startOfDayUTC = new Date(`${createdDayIST}T00:00:00.000Z`);
+    startOfDayUTC.setTime(startOfDayUTC.getTime() - IST_OFFSET_MS);
+    return new Date(startOfDayUTC.getTime() + DAY_MS);
+};
+
+const formatRemainingTime = (ms: number) => {
+    if (ms <= 0) return "00:00:00";
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const hh = String(hours).padStart(2, "0");
+    const mm = String(minutes).padStart(2, "0");
+    const ss = String(seconds).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+};
+
 export default function Goals() {
     const [user, setUser] = useState<any>(null);
     const [goals, setGoals] = useState<Goal[]>([]);
@@ -37,6 +72,7 @@ export default function Goals() {
     const [newGoal, setNewGoal] = useState("");
     const [goalType, setGoalType] = useState("daily");
     const [victoriesPage, setVictoriesPage] = useState(0);
+    const [nowMs, setNowMs] = useState(Date.now());
     const victoriesPerPage = 3;
 
     useEffect(() => {
@@ -55,38 +91,65 @@ export default function Goals() {
         init();
     }, []);
 
+    useEffect(() => {
+        const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    const getGoalRemainingMs = (goal: Goal) => {
+        const expiresAt = getGoalExpiresAt(goal as GoalWithMeta);
+        return expiresAt.getTime() - nowMs;
+    };
+
+    const isGoalExpired = (goal: Goal) => {
+        if (goal.completed) return false;
+        return getGoalRemainingMs(goal) <= 0;
+    };
+
     const handleAddGoal = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newGoal.trim()) return;
         try {
             const added = await dataService.addGoal(newGoal, goalType);
-            setGoals([added, ...goals]);
+            setGoals((prev) => [added, ...prev]);
             setNewGoal("");
             setIsAdding(false);
             toast.success("Goal created!");
-        } catch (error) {
-            toast.error("Failed to add goal");
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to add goal");
         }
     };
 
     const handleToggleGoal = async (goal: Goal) => {
+        if (!goal.completed && isGoalExpired(goal)) {
+            toast.error("Goal timer expired. Create a new goal for today.");
+            return;
+        }
+
         try {
             const newStatus = !goal.completed;
             await dataService.updateGoal(goal.id, newStatus);
-            setGoals(goals.map(g => g.id === goal.id ? { ...g, completed: newStatus } : g));
+            const completedAt = newStatus ? new Date().toISOString() : null;
+            setGoals((prev) =>
+                prev.map((g) =>
+                    g.id === goal.id
+                        ? { ...g, completed: newStatus, completed_at: completedAt, completedAt: completedAt || undefined }
+                        : g
+                )
+            );
             if (newStatus) toast.success("Goal completed! 🎉");
-        } catch (error) {
-            toast.error("Failed to update goal");
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to update goal");
         }
     };
 
     const handleDeleteGoal = async (goalId: string) => {
         try {
             await dataService.deleteGoal(goalId);
-            setGoals(goals.filter(g => g.id !== goalId));
+            setGoals((prev) => prev.filter(g => g.id !== goalId));
             toast.success("Goal deleted");
-        } catch (error) {
-            toast.error("Failed to delete goal");
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to delete goal");
         }
     };
 
@@ -218,46 +281,66 @@ export default function Goals() {
                                     )}
                                 </div>
 
-                                {filteredGoals.map((goal) => (
-                                    <div key={goal.id} data-tour="goal-cards" className="relative group bg-white dark:bg-[#111827] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 flex flex-col justify-between min-h-[160px]">
+                                {filteredGoals.map((goal) => {
+                                    const remainingMs = getGoalRemainingMs(goal);
+                                    const expired = !goal.completed && remainingMs <= 0;
+                                    const timerLabel = formatRemainingTime(remainingMs);
 
-                                        <div className="flex justify-between items-start mb-3">
-                                            <h3 className={`font-bold text-lg leading-tight line-clamp-2 ${goal.completed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>
-                                                {goal.text}
-                                            </h3>
-                                            <div className="flex items-center gap-2 shrink-0 ml-3">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleToggleGoal(goal); }}
-                                                    className={`rounded-md border-2 w-6 h-6 flex items-center justify-center transition-all ${goal.completed
-                                                        ? 'bg-green-500 border-green-500 text-white'
-                                                        : 'border-gray-300 dark:border-gray-600 hover:border-green-500 text-transparent'
-                                                        }`}
-                                                >
-                                                    <Check className="w-3.5 h-3.5" strokeWidth={4} />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDeleteGoal(goal.id); }}
-                                                    className="rounded-md w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
-                                                    title="Delete goal"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                    return (
+                                        <div key={goal.id} data-tour="goal-cards" className="relative group bg-white dark:bg-[#111827] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 flex flex-col justify-between min-h-[160px]">
+
+                                            <div className="flex justify-between items-start mb-3">
+                                                <h3 className={`font-bold text-lg leading-tight line-clamp-2 ${goal.completed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>
+                                                    {goal.text}
+                                                </h3>
+                                                <div className="flex items-center gap-2 shrink-0 ml-3">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleToggleGoal(goal); }}
+                                                        disabled={expired}
+                                                        title={expired ? "Goal expired" : "Mark complete"}
+                                                        className={`rounded-md border-2 w-6 h-6 flex items-center justify-center transition-all ${goal.completed
+                                                            ? 'bg-green-500 border-green-500 text-white'
+                                                            : expired
+                                                                ? 'border-red-300 dark:border-red-600 text-transparent cursor-not-allowed opacity-60'
+                                                                : 'border-gray-300 dark:border-gray-600 hover:border-green-500 text-transparent'
+                                                            }`}
+                                                    >
+                                                        <Check className="w-3.5 h-3.5" strokeWidth={4} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDeleteGoal(goal.id); }}
+                                                        className="rounded-md w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+                                                        title="Delete goal"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="mb-3">
+                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider gap-1.5 ${goal.completed
+                                                    ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
+                                                    : expired
+                                                        ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
+                                                        : 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                                                    }`}>
+                                                    {goal.completed ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                                                    {goal.completed ? "Completed" : expired ? "Expired" : "In Progress"}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between text-xs">
+                                                <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                                    <Clock className="w-3 h-3" />
+                                                    Time Left
+                                                </span>
+                                                <span className={`font-semibold ${goal.completed ? 'text-green-600 dark:text-green-400' : expired ? 'text-red-600 dark:text-red-400' : 'text-[#2E7D73]'}`}>
+                                                    {goal.completed ? "Done" : timerLabel}
+                                                </span>
                                             </div>
                                         </div>
-
-                                        <div className="mb-4">
-                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider gap-1.5 ${goal.completed
-                                                ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
-                                                : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
-                                                }`}>
-                                                {goal.completed ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                                                {goal.completed ? "Completed" : "In Progress"}
-                                            </span>
-                                        </div>
-
-
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
 
