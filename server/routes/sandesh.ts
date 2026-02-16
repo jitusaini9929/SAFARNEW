@@ -97,7 +97,7 @@ router.post('/preview', requireAuth, async (req: Request, res: Response) => {
 // Post new Sandesh (Admin only)
 router.post('/', requireAuth, async (req: Request, res: Response) => {
     try {
-        const { content, importance = 'normal', link_meta, image_url } = req.body;
+        const { content, importance = 'normal', link_meta, image_url, audio_url } = req.body;
         const userId = (req as any).session.userId;
 
         // Check if user is admin
@@ -114,8 +114,8 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
             return res.status(403).json({ message: 'Unauthorized: Admin access required' });
         }
 
-        if (!content && !image_url) {
-            return res.status(400).json({ message: 'Content or Image is required' });
+        if (!content && !image_url && !audio_url) {
+            return res.status(400).json({ message: 'Content, Image, or Audio is required' });
         }
 
         const newSandesh = {
@@ -124,6 +124,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
             importance, // 'normal' | 'high'
             link_meta, // { title, description, image, url }
             image_url,
+            audio_url, // New field for audio note
             author_id: userId,
             created_at: new Date()
         };
@@ -144,7 +145,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 router.put('/:id', requireAuth, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { content, importance, link_meta, image_url } = req.body;
+        const { content, importance, link_meta, image_url, audio_url } = req.body;
         const userId = (req as any).session.userId;
 
         // Check user
@@ -166,6 +167,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
         if (importance !== undefined) updateData.importance = importance;
         if (link_meta !== undefined) updateData.link_meta = link_meta;
         if (image_url !== undefined) updateData.image_url = image_url;
+        if (audio_url !== undefined) updateData.audio_url = audio_url;
 
         const result = await collections.sandeshMessages().updateOne(
             { id: id },

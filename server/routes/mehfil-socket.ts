@@ -96,9 +96,10 @@ function joinSocketFeedRoom(socket: Socket, room: MehfilFeedRoom) {
 }
 
 function normalizeCategory(category?: string | null): MehfilCategory {
-  if (category === 'ACADEMIC' || category === 'REFLECTIVE' || category === 'BULLSHIT') {
-    return category;
-  }
+  const value = String(category || '').trim().toUpperCase();
+  if (value === 'ACADEMIC' || value === 'ACADEMIC_HALL') return 'ACADEMIC';
+  if (value === 'REFLECTIVE' || value === 'THOUGHTS' || value === 'THOUGHT') return 'REFLECTIVE';
+  if (value === 'BULLSHIT') return 'BULLSHIT';
   return 'BULLSHIT';
 }
 
@@ -247,10 +248,15 @@ async function classifyThought(content: string): Promise<ModerationResult> {
 function buildThoughtQuery(room: MehfilFeedRoom) {
   const categoryFilter =
     room === 'ALL'
-      ? { $or: [{ category: 'ACADEMIC' }, { category: 'REFLECTIVE' }, { category: { $exists: false } }] }
+      ? {
+        $or: [
+          { category: { $in: ['ACADEMIC', 'ACADEMIC_HALL', 'REFLECTIVE', 'THOUGHTS', 'THOUGHT'] } },
+          { category: { $exists: false } },
+        ],
+      }
       : room === 'ACADEMIC'
-        ? { $or: [{ category: 'ACADEMIC' }, { category: { $exists: false } }] }
-        : { category: 'REFLECTIVE' };
+        ? { $or: [{ category: { $in: ['ACADEMIC', 'ACADEMIC_HALL'] } }, { category: { $exists: false } }] }
+        : { category: { $in: ['REFLECTIVE', 'THOUGHTS', 'THOUGHT'] } };
 
   return {
     $and: [

@@ -45,7 +45,7 @@ const ROOM_CONFIG: Record<MehfilFeedRoom, {
     title: 'All',
     subtitle: 'See all approved posts from both Academic Hall and Thoughts in one feed.',
     placeholder: 'Share what is on your mind. AI will route it to the right section...',
-    chipClass: 'from-slate-600 to-slate-800',
+    chipClass: 'from-[#7A1F3D] to-[#4B1027]',
   },
   ACADEMIC: {
     title: 'Academic Hall',
@@ -320,14 +320,37 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     socket.emit('editThought', { thoughtId, content });
   };
 
-  const filteredThoughts = thoughts.filter((t) =>
+  const normalizeThoughtRoom = (category?: string | null): MehfilRoom => {
+    const value = String(category || '').trim().toUpperCase();
+    if (value === 'REFLECTIVE' || value === 'THOUGHTS' || value === 'THOUGHT') return 'REFLECTIVE';
+    return 'ACADEMIC';
+  };
+
+  const roomFilteredThoughts = thoughts.filter((thought) => {
+    const thoughtRoom = normalizeThoughtRoom(thought.category);
+    if (activeRoom === 'ALL') return thoughtRoom === 'ACADEMIC' || thoughtRoom === 'REFLECTIVE';
+    return thoughtRoom === activeRoom;
+  });
+
+  const filteredThoughts = roomFilteredThoughts.filter((t) =>
     t.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.authorName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const isAll = activeRoom === 'ALL';
   const isReflective = activeRoom === 'REFLECTIVE';
-  const roomPalette = isReflective
+  const roomPalette = isAll
     ? {
+      page: 'bg-[#fff7fa] dark:bg-slate-950',
+      selection: 'selection:bg-rose-200/50',
+      blobA: 'bg-rose-400/30 dark:bg-rose-500/20',
+      blobB: 'bg-pink-300/30 dark:bg-pink-500/20',
+      ring: 'focus:ring-rose-500/20 focus:border-rose-500/50',
+      tabActive: 'bg-gradient-to-r from-[#7A1F3D] to-[#4B1027] text-white shadow-[#7A1F3D]/35',
+      tabIdle: 'text-rose-700 bg-rose-50 hover:bg-rose-100 dark:text-rose-300 dark:bg-rose-500/10 dark:hover:bg-rose-500/20',
+    }
+    : isReflective
+      ? {
       page: 'bg-[#f5f3ff] dark:bg-slate-950',
       selection: 'selection:bg-indigo-200/50',
       blobA: 'bg-indigo-400/30 dark:bg-indigo-500/20',
@@ -336,7 +359,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       tabActive: 'bg-indigo-600 text-white shadow-indigo-500/30',
       tabIdle: 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20',
     }
-    : {
+      : {
       page: 'bg-[#f8fafc] dark:bg-slate-950',
       selection: 'selection:bg-teal-200/50',
       blobA: 'bg-teal-400/30 dark:bg-teal-500/20',

@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Loader2, Send, Plus, Link as LinkIcon, Image as ImageIcon, Bold, Italic, X, ShieldCheck, Pencil, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { authService } from '@/utils/authService';
-import { formatDistanceToNow } from 'date-fns';
+import {
+    Bell, Plus, Bold, Italic, ImageIcon, Mic, X, Loader2, Pencil, Send,
+    ShieldCheck, Trash2, LinkIcon, Play, Pause
+} from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import { Button } from '@/components/ui/button';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 interface LinkMeta {
+    url: string;
     title: string;
     description: string;
     image: string;
-    url: string;
 }
 
 interface Sandesh {
@@ -21,6 +23,7 @@ interface Sandesh {
     created_at: string;
     link_meta?: LinkMeta;
     image_url?: string;
+    audio_url?: string;
 }
 
 const SandeshCard = () => {
@@ -40,6 +43,14 @@ const SandeshCard = () => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
+
+    // Audio State
+    const [audioUrl, setAudioUrl] = useState('');
+    const [showAudioInput, setShowAudioInput] = useState(false);
+    const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+    const audioInputRef = useRef<HTMLInputElement>(null);
+    const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
 
 
@@ -132,7 +143,7 @@ const SandeshCard = () => {
     };
 
     const handlePost = async () => {
-        if (!newContent.trim() && !imageUrl) return;
+        if (!newContent.trim() && !imageUrl && !audioUrl) return;
 
         setIsPosting(true);
         try {
@@ -147,7 +158,8 @@ const SandeshCard = () => {
                 body: JSON.stringify({
                     content: newContent,
                     link_meta: linkMeta,
-                    image_url: imageUrl
+                    image_url: imageUrl,
+                    audio_url: audioUrl
                 }),
                 credentials: 'include', // Important for session cookie
             });
@@ -157,6 +169,7 @@ const SandeshCard = () => {
                 setNewContent('');
                 setLinkMeta(null);
                 setImageUrl('');
+                setAudioUrl('');
                 setShowInput(false);
                 setIsEditing(false);
                 setEditId(null);
@@ -172,9 +185,85 @@ const SandeshCard = () => {
         }
     };
 
+    const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Verify it's an audio file
+        if (!file.type.startsWith('audio/')) {
+            toast.error('Please upload an audio file');
+            return;
+        }
+
+        setIsUploadingAudio(true);
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64Data = reader.result?.toString().split(',')[1];
+                if (!base64Data) {
+                    toast.error('Failed to process audio file');
+                    setIsUploadingAudio(false);
+                    return;
+                }
+
+                const res = await fetch(`${API_URL}/upload`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        data: base64Data,
+                        mimeType: file.type
+                    }),
+                    credentials: 'include'
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    setAudioUrl(data.url);
+                    toast.success('Audio uploaded successfully');
+                } else {
+                    toast.error(data.message || 'Audio upload failed');
+                }
+                setIsUploadingAudio(false);
+            };
+        } catch (error) {
+            console.error('Audio upload error:', error);
+            toast.error('Audio upload failed');
+            setIsUploadingAudio(false);
+        }
+    };
+
+    const toggleAudioPlay = (url: string, id: string) => {
+        if (playingAudioId === id) {
+            // Pause
+            audioRef.current?.pause();
+            setPlayingAudioId(null);
+        } else {
+            // Play new
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+            const audio = new Audio(url);
+            audio.onended = () => setPlayingAudioId(null);
+            audio.play().catch(e => toast.error("Playback failed"));
+            audioRef.current = audio;
+            setPlayingAudioId(id);
+        }
+    };
+
+    // Cleanup audio on unmount
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+        };
+    }, []);
+
     const handleEdit = (sandesh: Sandesh) => {
         setNewContent(sandesh.content);
         setImageUrl(sandesh.image_url || '');
+        setAudioUrl(sandesh.audio_url || '');
         setLinkMeta(sandesh.link_meta || null);
         setIsEditing(true);
         setEditId(sandesh.id);
@@ -244,6 +333,7 @@ const SandeshCard = () => {
                                 setEditId(null);
                                 setNewContent('');
                                 setImageUrl('');
+                                setAudioUrl('');
                                 setLinkMeta(null);
                                 setShowInput(false);
                             }}
@@ -267,6 +357,16 @@ const SandeshCard = () => {
                         <Button variant="ghost" size="sm" onClick={() => setShowImageInput(!showImageInput)} className={`h-8 w-8 p-0 ${showImageInput ? 'bg-teal-500/20 text-teal-500' : ''}`} title="Add Image">
                             <ImageIcon className="w-4 h-4" />
                         </Button>
+                        <Button variant="ghost" size="sm" onClick={() => audioInputRef.current?.click()} className={`h-8 w-8 p-0 ${audioUrl ? 'bg-indigo-500/20 text-indigo-500' : ''}`} title="Add Audio">
+                            <Mic className="w-4 h-4" />
+                        </Button>
+                        <input
+                            type="file"
+                            ref={audioInputRef}
+                            className="hidden"
+                            accept="audio/*"
+                            onChange={handleAudioUpload}
+                        />
                     </div>
 
                     {showImageInput && (
@@ -331,11 +431,29 @@ const SandeshCard = () => {
                         </div>
                     )}
 
+                    {isUploadingAudio && (
+                        <div className="mb-3 p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                            <span className="text-xs text-indigo-600 dark:text-indigo-400">Uploading audio...</span>
+                        </div>
+                    )}
+
+                    {audioUrl && (
+                        <div className="mb-3 p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Mic className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Audio Attached</span>
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => setAudioUrl('')} className="h-6 w-6 p-0 rounded-full hover:bg-red-500/20 hover:text-red-500">
+                                <X className="w-3 h-3" />
+                            </Button>
+                        </div>
+                    )}
                     <div className="flex justify-end pt-2 border-t border-white/10 mt-2">
                         <Button
                             size="sm"
                             onClick={handlePost}
-                            disabled={isPosting || (!newContent.trim() && !imageUrl)}
+                            disabled={isPosting || (!newContent.trim() && !imageUrl && !audioUrl) || isUploadingAudio}
                             className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl"
                         >
                             {isPosting ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : (isEditing ? <Pencil className="w-3 h-3 mr-1" /> : <Send className="w-3 h-3 mr-1" />)}
@@ -434,6 +552,49 @@ const SandeshCard = () => {
                                 </div>
                             );
                         })()}
+
+                        {/* Audio Player */}
+                        {sandesh.audio_url && (
+                            <div className="mt-4 mb-2 p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700/50 relative overflow-hidden group/audio">
+                                {playingAudioId === sandesh.id && (
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+                                        <div className="w-full h-full absolute animate-[ping_3s_linear_infinite] border border-white rounded-full scale-0"></div>
+                                        <div className="w-full h-full absolute animate-[ping_3s_linear_infinite_1s] border border-white rounded-full scale-0"></div>
+                                        <div className="w-full h-full absolute animate-[ping_3s_linear_infinite_2s] border border-white rounded-full scale-0"></div>
+                                    </div>
+                                )}
+
+                                <div className="relative z-10 flex items-center gap-4">
+                                    <button
+                                        onClick={() => toggleAudioPlay(sandesh.audio_url!, sandesh.id)}
+                                        className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${playingAudioId === sandesh.id
+                                            ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40 scale-105'
+                                            : 'bg-white/10 text-white hover:bg-white/20'
+                                            }`}
+                                    >
+                                        {playingAudioId === sandesh.id ? (
+                                            <Pause className="w-5 h-5 fill-current" />
+                                        ) : (
+                                            <Play className="w-5 h-5 fill-current ml-1" />
+                                        )}
+                                    </button>
+
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <div className={`w-2 h-2 rounded-full ${playingAudioId === sandesh.id ? 'bg-rose-500 animate-pulse' : 'bg-slate-500'
+                                                }`}></div>
+                                            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                                                {playingAudioId === sandesh.id ? 'Broadcasting Now' : 'Voice Announcement'}
+                                            </span>
+                                        </div>
+                                        <div className="h-1 bg-slate-700 rounded-full w-full overflow-hidden">
+                                            <div className={`h-full bg-rose-500 transition-all duration-300 ${playingAudioId === sandesh.id ? 'w-full animate-[shimmer_2s_infinite]' : 'w-0'
+                                                }`}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Link Preview Card */}
                         {sandesh.link_meta && (

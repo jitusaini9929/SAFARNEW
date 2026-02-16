@@ -17,9 +17,22 @@ uploadRoutes.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: "Missing data or mimeType" });
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "audio/mpeg",
+      "audio/wav",
+      "audio/ogg",
+      "audio/mp4",
+      "audio/aac",
+    ];
     if (!allowedTypes.includes(mimeType)) {
-      return res.status(400).json({ success: false, message: "Invalid image type. Allowed: JPEG, PNG, GIF, WebP" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file type. Allowed: Images & Audio (MP3, WAV, OGG, M4A, AAC)",
+      });
     }
 
     const sizeInBytes = Math.ceil((data.length * 3) / 4);
