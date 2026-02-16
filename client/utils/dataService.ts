@@ -76,11 +76,11 @@ export const dataService = {
         return res.json();
     },
 
-    async addGoal(text: string, type: string, scheduledDate?: string): Promise<Goal> {
+    async addGoal(title: string, type: string, scheduledDate?: string, description?: string): Promise<Goal> {
         const res = await fetch(`${API_URL}/goals`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, type, scheduledDate }),
+            body: JSON.stringify({ text: title, title, description, type, scheduledDate }),
             credentials: 'include',
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to add goal"));
@@ -116,6 +116,16 @@ export const dataService = {
             credentials: 'include',
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update goal"));
+    },
+
+    async updateGoalDetails(id: string, title: string, description?: string): Promise<void> {
+        const res = await fetch(`${API_URL}/goals/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, description }),
+            credentials: 'include',
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update goal details"));
     },
 
     async deleteGoal(id: string): Promise<void> {

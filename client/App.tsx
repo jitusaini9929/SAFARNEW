@@ -32,6 +32,7 @@ import Achievements from "./pages/Achievements";
 import Landing from "./pages/Landing";
 import Mehfil from "./pages/Mehfil";
 import Meditation from "./pages/Meditation";
+import PersistentFocusOverlay from "@/components/focus/PersistentFocusOverlay";
 
 const queryClient = new QueryClient();
 
@@ -215,6 +216,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
             <GuidedTour />
+            <PersistentFocusOverlay />
           </GuidedTourProvider>
         </FocusProvider>
       </BrowserRouter>

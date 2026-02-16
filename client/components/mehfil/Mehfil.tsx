@@ -230,6 +230,10 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       applyPostingBanState(payload);
     });
 
+    newSocket.on('thoughtAccepted', ({ message }) => {
+      toast.success(message || 'Thought shared successfully.');
+    });
+
     newSocket.on('thoughtRejected', ({ message, ban }) => {
       if (ban?.isActive) {
         applyPostingBanState(ban);
@@ -351,23 +355,23 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     }
     : isReflective
       ? {
-      page: 'bg-[#f5f3ff] dark:bg-slate-950',
-      selection: 'selection:bg-indigo-200/50',
-      blobA: 'bg-indigo-400/30 dark:bg-indigo-500/20',
-      blobB: 'bg-violet-300/30 dark:bg-violet-500/20',
-      ring: 'focus:ring-indigo-500/20 focus:border-indigo-500/50',
-      tabActive: 'bg-indigo-600 text-white shadow-indigo-500/30',
-      tabIdle: 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20',
-    }
+        page: 'bg-[#f5f3ff] dark:bg-slate-950',
+        selection: 'selection:bg-indigo-200/50',
+        blobA: 'bg-indigo-400/30 dark:bg-indigo-500/20',
+        blobB: 'bg-violet-300/30 dark:bg-violet-500/20',
+        ring: 'focus:ring-indigo-500/20 focus:border-indigo-500/50',
+        tabActive: 'bg-indigo-600 text-white shadow-indigo-500/30',
+        tabIdle: 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20',
+      }
       : {
-      page: 'bg-[#f8fafc] dark:bg-slate-950',
-      selection: 'selection:bg-teal-200/50',
-      blobA: 'bg-teal-400/30 dark:bg-teal-500/20',
-      blobB: 'bg-cyan-300/30 dark:bg-cyan-500/20',
-      ring: 'focus:ring-teal-500/20 focus:border-teal-500/50',
-      tabActive: 'bg-teal-600 text-white shadow-teal-500/30',
-      tabIdle: 'text-teal-700 bg-teal-50 hover:bg-teal-100 dark:text-teal-300 dark:bg-teal-500/10 dark:hover:bg-teal-500/20',
-    };
+        page: 'bg-[#f8fafc] dark:bg-slate-950',
+        selection: 'selection:bg-teal-200/50',
+        blobA: 'bg-teal-400/30 dark:bg-teal-500/20',
+        blobB: 'bg-cyan-300/30 dark:bg-cyan-500/20',
+        ring: 'focus:ring-teal-500/20 focus:border-teal-500/50',
+        tabActive: 'bg-teal-600 text-white shadow-teal-500/30',
+        tabIdle: 'text-teal-700 bg-teal-50 hover:bg-teal-100 dark:text-teal-300 dark:bg-teal-500/10 dark:hover:bg-teal-500/20',
+      };
 
   return (
     <div className={`min-h-screen ${roomPalette.page} text-foreground ${roomPalette.selection} overflow-x-hidden font-sans`}>

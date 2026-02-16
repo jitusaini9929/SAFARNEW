@@ -577,14 +577,42 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const customExpiryForUser =
           userPostTtlMinutes > 0 ? new Date(Date.now() + userPostTtlMinutes * 60 * 1000) : null;
 
-        if (userProfile?.is_shadow_banned && !isModerationExempt) {
-          socket.emit('thoughtAccepted', { message: 'Thought shared successfully.' });
-          return;
-        }
-
+        // Shared variables for thought construction
         const isAnonymous = Boolean(data?.isAnonymous);
         const authorName = String(userProfile?.name || userData.name || 'User');
         const authorAvatar = String(userProfile?.avatar || userData.avatar || '');
+        const requestedRoom = normalizeRoom(data?.room);
+
+        // Helper to emit a fake thought to the shadow-banned user only
+        const emitShadowThought = () => {
+          const now = new Date();
+          const shadowThought = {
+            isAnonymous,
+            id: uuidv4(),
+            userId: isAnonymous ? '' : userId,
+            authorName: isAnonymous ? 'Anonymous User' : authorName,
+            authorAvatar: isAnonymous ? null : authorAvatar,
+            content,
+            imageUrl: data?.imageUrl || null,
+            relatableCount: 0,
+            createdAt: now,
+            hasReacted: false,
+            category: requestedRoom, // Show it in the room they asked for
+            aiTags: [],
+            aiScore: 0.5,
+          };
+
+          socket.emit('thoughtAccepted', {
+            message: 'Thought shared successfully.',
+            category: requestedRoom,
+          });
+          socket.emit('thoughtCreated', shadowThought);
+        };
+
+        if (userProfile?.is_shadow_banned && !isModerationExempt) {
+          emitShadowThought();
+          return;
+        }
 
         if (content.length < MIN_THOUGHT_LENGTH) {
           const moderation = heuristicModeration(
@@ -612,7 +640,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           } else {
             const strike = await applySpamStrike(userId);
             if (strike.isShadowBanned) {
-              socket.emit('thoughtAccepted', { message: 'Thought shared successfully.' });
+              emitShadowThought();
             } else {
               socket.emit('thoughtRejected', {
                 message: "Thought doesn't meet community guidelines.",
@@ -656,7 +684,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           } else {
             const strike = await applySpamStrike(userId);
             if (strike.isShadowBanned) {
-              socket.emit('thoughtAccepted', { message: 'Thought shared successfully.' });
+              emitShadowThought();
             } else {
               socket.emit('thoughtRejected', {
                 message: "Thought doesn't meet community guidelines.",
@@ -706,7 +734,6 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           aiScore: clampScore(moderation.aiScore),
         };
 
-        const requestedRoom = normalizeRoom(data?.room);
         if (requestedRoom !== routeRoom) {
           socket.emit('thoughtRerouted', {
             room: routeRoom,

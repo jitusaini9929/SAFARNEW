@@ -81,6 +81,19 @@ const focusThemes: FocusTheme[] = [
     },
 ];
 
+const TIMER_MINUTES_MIN = 5;
+const TIMER_STEP_MINUTES = 5;
+const TIMER_SLIDER_MAX = 120;
+const BREAK_MINUTES_MIN = 5;
+const BREAK_STEP_MINUTES = 5;
+const BREAK_MAX_MINUTES = 60;
+
+const normalizeMinutes = (value: number, min = TIMER_MINUTES_MIN, step = TIMER_STEP_MINUTES) => {
+    if (!Number.isFinite(value)) return min;
+    const rounded = Math.round(value / step) * step;
+    return Math.max(min, rounded);
+};
+
 export default function StudyWithMe() {
     const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
@@ -92,7 +105,14 @@ export default function StudyWithMe() {
         isPiPActive,
         setMode,
         setTimerDuration,
-        setBreakDuration
+        setBreakDuration,
+        isMusicPlaying,
+        isMusicMuted,
+        musicVolume,
+        setMusicSource,
+        toggleMusic,
+        toggleMusicMuted,
+        setMusicVolume
     } = useFocus(); // Use Context
 
     // Destructure from Context State
@@ -106,8 +126,8 @@ export default function StudyWithMe() {
 
     // Sync slider with global state if needed, or just let slider drive global
     useEffect(() => {
-        if (mode === 'Timer') setSliderValue(Math.floor(totalSeconds / 60));
-        if (mode === 'short') setBreakSliderValue(Math.floor(totalSeconds / 60));
+        if (mode === 'Timer') setSliderValue(normalizeMinutes(Math.floor(totalSeconds / 60)));
+        if (mode === 'short') setBreakSliderValue(normalizeMinutes(Math.floor(totalSeconds / 60), BREAK_MINUTES_MIN, BREAK_STEP_MINUTES));
     }, [mode, totalSeconds]);
 
 
@@ -122,11 +142,8 @@ export default function StudyWithMe() {
     const currentTask = tasks.find(task => !task.completed);
 
     // Audio/Video refs and states
-    const audioRef = useRef<HTMLAudioElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
-    const [volume, setVolume] = useState(0.5);
+    const [customTimerInput, setCustomTimerInput] = useState("");
 
     // Deep link handling for analytics
     useEffect(() => {
@@ -194,13 +211,15 @@ export default function StudyWithMe() {
     };
 
     const handleSliderChange = (value: number) => {
-        setSliderValue(value);
-        setTimerDuration(value);
+        const normalized = normalizeMinutes(value);
+        setSliderValue(normalized);
+        setTimerDuration(normalized);
     };
 
     const handleBreakSliderChange = (value: number) => {
-        setBreakSliderValue(value);
-        setBreakDuration(value);
+        const normalized = normalizeMinutes(value, BREAK_MINUTES_MIN, BREAK_STEP_MINUTES);
+        setBreakSliderValue(normalized);
+        setBreakDuration(normalized);
     };
 
     // Removed local toggleTimer, resetTimer, formatTime
@@ -209,68 +228,45 @@ export default function StudyWithMe() {
     const progress = totalSeconds > 0 ? ((totalSeconds - remainingSeconds) / totalSeconds) * 100 : 0;
 
     const handleSetTimer = (minutes: number) => {
-        setSliderValue(minutes);
-        setTimerDuration(minutes);
+        const normalized = normalizeMinutes(minutes);
+        setSliderValue(normalized);
+        setTimerDuration(normalized);
         setMode("Timer");
         setShowAnalytics(false);
+    };
+
+    const timerSliderValue = Math.min(sliderValue, TIMER_SLIDER_MAX);
+
+    const applyCustomTimer = () => {
+        const parsed = parseInt(customTimerInput.trim(), 10);
+        if (!Number.isFinite(parsed)) return;
+        const normalized = normalizeMinutes(parsed);
+        setSliderValue(normalized);
+        setTimerDuration(normalized);
+        setCustomTimerInput("");
+    };
+
+    const handleCustomTimerInputChange = (value: string) => {
+        setCustomTimerInput(value.replace(/\D/g, ""));
+    };
+
+    const handleCustomTimerInputKeyDown = (key: string) => {
+        if (key === "Enter") applyCustomTimer();
     };
 
     const handleThemeChange = (newTheme: FocusTheme) => {
         setCurrentTheme(newTheme);
         setShowThemeSelector(false);
-        // Stop current audio and reset state when changing theme
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-        }
-        setIsMusicPlaying(false);
-    };
-
-    // Audio control handlers
-    const toggleMusic = () => {
-        if (audioRef.current) {
-            if (isMusicPlaying) {
-                audioRef.current.pause();
-                setIsMusicPlaying(false);
-            } else {
-                audioRef.current.play().catch(e => console.error('Audio play error:', e));
-                setIsMusicPlaying(true);
-            }
-        }
-    };
-
-    const toggleMute = () => {
-        if (audioRef.current) {
-            audioRef.current.muted = !isMuted;
-            setIsMuted(!isMuted);
-        }
     };
 
     const handleVolumeChange = (newVolume: number) => {
-        setVolume(newVolume);
-        if (audioRef.current) {
-            audioRef.current.volume = newVolume;
-        }
+        setMusicVolume(newVolume);
     };
 
-    // Initialize audio volume on mount
+    // Keep global music source aligned with currently selected focus theme.
     useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.volume = volume;
-        }
-    }, []);
-
-    // Update audio source when theme changes
-    useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.src = currentTheme.musicUrl;
-            audioRef.current.volume = volume;
-            audioRef.current.loop = true;
-            if (isMusicPlaying) {
-                audioRef.current.play().catch(e => console.error('Audio play error:', e));
-            }
-        }
-    }, [currentTheme, isMusicPlaying, volume]);
+        setMusicSource(currentTheme.musicUrl);
+    }, [currentTheme.musicUrl, setMusicSource]);
 
     // Update video source when theme changes
     useEffect(() => {
@@ -300,13 +296,6 @@ export default function StudyWithMe() {
                 {/* Overlay for readability */}
                 <div className="absolute inset-0 bg-black/40 dark:bg-black/60" />
             </div>
-
-            {/* Audio Element */}
-            <audio
-                ref={audioRef}
-                loop
-                src={currentTheme.musicUrl}
-            />
 
             {/* Sidebar */}
             {!showAnalytics && (
@@ -391,18 +380,36 @@ export default function StudyWithMe() {
                                 </div>
                                 <input
                                     type="range"
-                                    min="5"
-                                    max="120"
-                                    step="5"
-                                    value={sliderValue}
-                                    onChange={(e) => handleSliderChange(parseInt(e.target.value))}
+                                    min={TIMER_MINUTES_MIN}
+                                    max={TIMER_SLIDER_MAX}
+                                    step={TIMER_STEP_MINUTES}
+                                    value={timerSliderValue}
+                                    onChange={(e) => handleSliderChange(parseInt(e.target.value, 10))}
                                     className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer"
                                     style={{ accentColor: currentTheme.accent }}
                                 />
                                 <div className="flex justify-between mt-2 text-[10px] text-muted-foreground font-medium">
-                                    <span>5M</span>
+                                    <span>{TIMER_MINUTES_MIN}M</span>
                                     <span>60M</span>
-                                    <span>120M</span>
+                                    <span>{TIMER_SLIDER_MAX}M</span>
+                                </div>
+                                <div className="mt-3 flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="Enter minutes"
+                                        value={customTimerInput}
+                                        onChange={(e) => handleCustomTimerInputChange(e.target.value)}
+                                        onKeyDown={(e) => handleCustomTimerInputKeyDown(e.key)}
+                                        className="min-w-0 flex-1 h-9 text-sm bg-muted px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 outline-none dark:bg-gray-800 dark:text-white"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={applyCustomTimer}
+                                        className="shrink-0 whitespace-nowrap h-9 text-sm font-semibold px-3 rounded-md bg-muted hover:bg-muted/80"
+                                    >
+                                        Set
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -421,18 +428,18 @@ export default function StudyWithMe() {
                                 </div>
                                 <input
                                     type="range"
-                                    min="1"
-                                    max="30"
-                                    step="1"
+                                    min={BREAK_MINUTES_MIN}
+                                    max={BREAK_MAX_MINUTES}
+                                    step={BREAK_STEP_MINUTES}
                                     value={breakSliderValue}
-                                    onChange={(e) => handleBreakSliderChange(parseInt(e.target.value))}
+                                    onChange={(e) => handleBreakSliderChange(parseInt(e.target.value, 10))}
                                     className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer"
                                     style={{ accentColor: currentTheme.accent }}
                                 />
                                 <div className="flex justify-between mt-2 text-[10px] text-muted-foreground font-medium">
-                                    <span>1M</span>
-                                    <span>15M</span>
-                                    <span>30M</span>
+                                    <span>{BREAK_MINUTES_MIN}M</span>
+                                    <span>{Math.floor(BREAK_MAX_MINUTES / 2)}M</span>
+                                    <span>{BREAK_MAX_MINUTES}M</span>
                                 </div>
                             </div>
                         )}
@@ -587,13 +594,31 @@ export default function StudyWithMe() {
                             </button>
 
                             <div className="flex-1 mx-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        placeholder="Enter minutes"
+                                        value={customTimerInput}
+                                        onChange={(e) => handleCustomTimerInputChange(e.target.value)}
+                                        onKeyDown={(e) => handleCustomTimerInputKeyDown(e.key)}
+                                        className="min-w-0 flex-1 h-9 text-sm bg-muted px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 outline-none dark:bg-gray-800 dark:text-white"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={applyCustomTimer}
+                                        className="shrink-0 whitespace-nowrap h-9 text-sm font-semibold px-3 rounded-md bg-muted hover:bg-muted/80"
+                                    >
+                                        Set
+                                    </button>
+                                </div>
                                 <input
                                     type="range"
-                                    min="5"
-                                    max="120"
-                                    step="5"
-                                    value={sliderValue}
-                                    onChange={(e) => handleSliderChange(parseInt(e.target.value))}
+                                    min={TIMER_MINUTES_MIN}
+                                    max={TIMER_SLIDER_MAX}
+                                    step={TIMER_STEP_MINUTES}
+                                    value={timerSliderValue}
+                                    onChange={(e) => handleSliderChange(parseInt(e.target.value, 10))}
                                     className="w-full"
                                     style={{ accentColor: currentTheme.accent }}
                                 />
@@ -667,14 +692,32 @@ export default function StudyWithMe() {
                             </div>
                             <input
                                 type="range"
-                                min="5"
-                                max="120"
-                                step="5"
-                                value={sliderValue}
-                                onChange={(e) => handleSliderChange(parseInt(e.target.value))}
+                                min={TIMER_MINUTES_MIN}
+                                max={TIMER_SLIDER_MAX}
+                                step={TIMER_STEP_MINUTES}
+                                value={timerSliderValue}
+                                onChange={(e) => handleSliderChange(parseInt(e.target.value, 10))}
                                 className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer"
                                 style={{ accentColor: currentTheme.accent }}
                             />
+                            <div className="mt-3 flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="Enter minutes"
+                                    value={customTimerInput}
+                                    onChange={(e) => handleCustomTimerInputChange(e.target.value)}
+                                    onKeyDown={(e) => handleCustomTimerInputKeyDown(e.key)}
+                                    className="min-w-0 flex-1 h-9 text-sm bg-muted px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 outline-none dark:bg-gray-800 dark:text-white"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={applyCustomTimer}
+                                    className="shrink-0 whitespace-nowrap h-9 text-sm font-semibold px-3 rounded-md bg-muted hover:bg-muted/80"
+                                >
+                                    Set
+                                </button>
+                            </div>
                         </div>
 
                         <div>
@@ -686,11 +729,11 @@ export default function StudyWithMe() {
                             </div>
                             <input
                                 type="range"
-                                min="1"
-                                max="30"
-                                step="1"
+                                min={BREAK_MINUTES_MIN}
+                                max={BREAK_MAX_MINUTES}
+                                step={BREAK_STEP_MINUTES}
                                 value={breakSliderValue}
-                                onChange={(e) => handleBreakSliderChange(parseInt(e.target.value))}
+                                onChange={(e) => handleBreakSliderChange(parseInt(e.target.value, 10))}
                                 className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer"
                                 style={{ accentColor: currentTheme.accent }}
                             />
@@ -732,11 +775,11 @@ export default function StudyWithMe() {
                         )}
                     </button>
                     <button
-                        onClick={toggleMute}
+                        onClick={toggleMusicMuted}
                         className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
-                        title={isMuted ? "Unmute" : "Mute"}
+                        title={isMusicMuted ? "Unmute" : "Mute"}
                     >
-                        {isMuted ? (
+                        {isMusicMuted ? (
                             <VolumeX className="w-4 h-4 text-white" />
                         ) : (
                             <Volume2 className="w-4 h-4 text-white" />
@@ -747,7 +790,7 @@ export default function StudyWithMe() {
                         min="0"
                         max="1"
                         step="0.1"
-                        value={volume}
+                        value={musicVolume}
                         onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
                         className="w-16 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-white"
                         title="Volume"

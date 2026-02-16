@@ -17,7 +17,10 @@ import {
     ChevronRight,
     Calendar,
     RotateCcw,
-    Archive
+    Archive,
+    Pencil,
+    Save,
+    X
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -82,15 +85,30 @@ const getDatePickerConstraints = () => {
     };
 };
 
+const getGoalTitle = (goal: Goal) => {
+    const title = (goal as any).title || goal.text;
+    return String(title || "").trim();
+};
+
+const getGoalDescription = (goal: Goal) => {
+    const description = (goal as any).description;
+    if (!description) return "";
+    return String(description).trim();
+};
+
 export default function Goals() {
     const [user, setUser] = useState<any>(null);
     const [goals, setGoals] = useState<Goal[]>([]);
     const [rolloverPrompts, setRolloverPrompts] = useState<Goal[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [isAdding, setIsAdding] = useState(false);
-    const [newGoal, setNewGoal] = useState("");
+    const [newGoalTitle, setNewGoalTitle] = useState("");
+    const [newGoalDescription, setNewGoalDescription] = useState("");
     const [goalType, setGoalType] = useState("daily");
     const [scheduledDate, setScheduledDate] = useState("");
+    const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState("");
+    const [editingDescription, setEditingDescription] = useState("");
     const [victoriesPage, setVictoriesPage] = useState(0);
     const victoriesPerPage = 3;
     const dateConstraints = getDatePickerConstraints();
@@ -121,16 +139,54 @@ export default function Goals() {
 
     const handleAddGoal = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newGoal.trim()) return;
+        if (!newGoalTitle.trim()) return;
         try {
-            await dataService.addGoal(newGoal, goalType, scheduledDate || undefined);
+            await dataService.addGoal(
+                newGoalTitle.trim(),
+                goalType,
+                scheduledDate || undefined,
+                newGoalDescription.trim() || undefined
+            );
             await refreshGoalsData();
-            setNewGoal("");
+            setNewGoalTitle("");
+            setNewGoalDescription("");
             setScheduledDate("");
             setIsAdding(false);
             toast.success("Goal created!");
         } catch (error: any) {
             toast.error(error?.message || "Failed to add goal");
+        }
+    };
+
+    const handleStartEditGoal = (goal: Goal) => {
+        setEditingGoalId(goal.id);
+        setEditingTitle(getGoalTitle(goal));
+        setEditingDescription(getGoalDescription(goal));
+    };
+
+    const handleCancelEditGoal = () => {
+        setEditingGoalId(null);
+        setEditingTitle("");
+        setEditingDescription("");
+    };
+
+    const handleSaveGoalDetails = async (goalId: string) => {
+        if (!editingTitle.trim()) {
+            toast.error("Goal title is required");
+            return;
+        }
+
+        try {
+            await dataService.updateGoalDetails(
+                goalId,
+                editingTitle.trim(),
+                editingDescription.trim() || undefined
+            );
+            await refreshGoalsData();
+            handleCancelEditGoal();
+            toast.success("Goal updated");
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to update goal");
         }
     };
 
@@ -169,10 +225,11 @@ export default function Goals() {
     const rolloverPromptIds = new Set(rolloverPrompts.map((goal) => goal.id));
     const filteredGoals = goals.filter((goal) => {
         if (rolloverPromptIds.has(goal.id)) return false;
-        return goal.text.toLowerCase().includes(searchQuery.toLowerCase());
+        const q = searchQuery.toLowerCase();
+        return getGoalTitle(goal).toLowerCase().includes(q) || getGoalDescription(goal).toLowerCase().includes(q);
     });
     const filteredRolloverPrompts = rolloverPrompts.filter((goal) =>
-        goal.text.toLowerCase().includes(searchQuery.toLowerCase())
+        getGoalTitle(goal).toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const dailyGoals = goals.filter(g => g.type === "daily");
@@ -262,14 +319,22 @@ export default function Goals() {
                                             <input
                                                 autoFocus
                                                 type="text"
-                                                placeholder="What's your next objective?"
+                                                placeholder="Goal title"
                                                 className="w-full bg-transparent text-lg font-medium placeholder:text-muted-foreground/50 border-none focus:ring-0 p-0 text-center dark:text-white"
-                                                value={newGoal}
-                                                onChange={(e) => setNewGoal(e.target.value)}
-                                                onBlur={() => !newGoal && setIsAdding(false)}
+                                                value={newGoalTitle}
+                                                onChange={(e) => setNewGoalTitle(e.target.value)}
+                                                onBlur={() => !newGoalTitle && !newGoalDescription && setIsAdding(false)}
                                                 onKeyDown={(e) => e.key === 'Escape' && setIsAdding(false)}
                                             />
-                                            
+                                            <textarea
+                                                placeholder="Goal description (optional)"
+                                                className="w-full resize-none bg-muted/60 text-sm placeholder:text-muted-foreground/60 border border-gray-200 dark:border-gray-700 rounded-lg p-2 outline-none focus:ring-2 focus:ring-[#2E7D73]/20 dark:bg-gray-800 dark:text-white"
+                                                value={newGoalDescription}
+                                                onChange={(e) => setNewGoalDescription(e.target.value)}
+                                                rows={2}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+
                                             {/* Schedule for future date */}
                                             <div className="flex flex-col gap-2">
                                                 <label className="text-[10px] text-gray-500 dark:text-gray-400 text-center">
@@ -322,15 +387,73 @@ export default function Goals() {
                                     const scheduledDateValue = (goal as any).scheduled_date || (goal as any).scheduledDate;
                                     const isScheduled = Boolean(scheduledDateValue) && !goal.completed;
                                     const completeDisabled = isArchived || isMissed;
+                                    const goalTitle = getGoalTitle(goal);
+                                    const goalDescription = getGoalDescription(goal);
+                                    const isEditing = editingGoalId === goal.id;
 
                                     return (
                                         <div key={goal.id} data-tour="goal-cards" className="relative group bg-white dark:bg-[#111827] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 flex flex-col justify-between min-h-[160px]">
 
-                                            <div className="flex justify-between items-start mb-3">
-                                                <h3 className={`font-bold text-lg leading-tight line-clamp-2 ${goal.completed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>
-                                                    {goal.text}
-                                                </h3>
+                                            <div className="flex justify-between items-start mb-3 gap-3">
+                                                <div className="min-w-0 flex-1">
+                                                    {isEditing ? (
+                                                        <div className="space-y-2">
+                                                            <input
+                                                                type="text"
+                                                                value={editingTitle}
+                                                                onChange={(e) => setEditingTitle(e.target.value)}
+                                                                className="w-full bg-muted/60 text-sm font-semibold border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#2E7D73]/30 dark:bg-gray-800 dark:text-white"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                            <textarea
+                                                                value={editingDescription}
+                                                                onChange={(e) => setEditingDescription(e.target.value)}
+                                                                className="w-full resize-none bg-muted/60 text-xs border border-gray-200 dark:border-gray-700 rounded-md px-2 py-1.5 outline-none focus:ring-2 focus:ring-[#2E7D73]/30 dark:bg-gray-800 dark:text-white"
+                                                                rows={2}
+                                                                placeholder="Goal description (optional)"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <h3 className={`font-bold text-lg leading-tight line-clamp-2 ${goal.completed ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>
+                                                                {goalTitle}
+                                                            </h3>
+                                                            {goalDescription && (
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                                                                    {goalDescription}
+                                                                </p>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
                                                 <div className="flex items-center gap-2 shrink-0 ml-3">
+                                                    {isEditing ? (
+                                                        <>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleSaveGoalDetails(goal.id); }}
+                                                                className="rounded-md w-6 h-6 flex items-center justify-center text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-500/10 transition-all"
+                                                                title="Save goal"
+                                                            >
+                                                                <Save className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleCancelEditGoal(); }}
+                                                                className="rounded-md w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-500/10 transition-all"
+                                                                title="Cancel edit"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleStartEditGoal(goal); }}
+                                                            className="rounded-md w-6 h-6 flex items-center justify-center text-gray-400 hover:text-[#2E7D73] hover:bg-[#2E7D73]/10 transition-all"
+                                                            title="Edit goal title"
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleToggleGoal(goal); }}
                                                         disabled={completeDisabled}
@@ -408,7 +531,7 @@ export default function Goals() {
                                     <div key={`rollover-${goal.id}`} className="relative group bg-white dark:bg-[#111827] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 rounded-2xl p-6 border-2 border-red-200 dark:border-red-800 flex flex-col justify-between min-h-[160px]">
                                         <div className="flex justify-between items-start mb-3">
                                             <h3 className="font-bold text-lg leading-tight line-clamp-2 text-gray-900 dark:text-white">
-                                                {goal.text}
+                                                {getGoalTitle(goal)}
                                             </h3>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleDeleteGoal(goal.id); }}
@@ -557,7 +680,7 @@ export default function Goals() {
                                                     <Check className="w-3 h-3 text-emerald-600" strokeWidth={3} />
                                                 </div>
                                                 <span className="text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-[#2E7D73] transition-colors line-clamp-1">
-                                                    {g.text}
+                                                    {getGoalTitle(g)}
                                                 </span>
                                             </div>
                                         ))

@@ -25,6 +25,8 @@ export interface Goal {
   id: string;
   userId: string;
   text: string;
+  title?: string;
+  description?: string | null;
   type: "daily" | "weekly";
   completed: boolean;
   createdAt: string;

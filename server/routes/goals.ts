@@ -64,6 +64,17 @@ const normalizeGoalType = (raw: unknown): GoalType | null => {
     return null;
 };
 
+const normalizeGoalTitle = (rawTitle: unknown, fallbackText?: unknown) => {
+    const title = String(rawTitle ?? fallbackText ?? '').trim();
+    return title || null;
+};
+
+const normalizeGoalDescription = (raw: unknown) => {
+    if (raw === undefined || raw === null) return null;
+    const description = String(raw).trim();
+    return description || null;
+};
+
 const getGoalExpiry = (goal: any) => {
     if (goal?.expires_at) return new Date(goal.expires_at);
     if (goal?.expiresAt) return new Date(goal.expiresAt);
@@ -76,8 +87,13 @@ const normalizeGoalResponse = (goal: any) => {
     const createdAt = new Date(goal.created_at || goal.createdAt || Date.now());
     const completedAt = goal.completed_at ? new Date(goal.completed_at) : null;
     const expiresAt = getGoalExpiry(goal);
+    const title = normalizeGoalTitle(goal.title, goal.text) || '';
+    const description = normalizeGoalDescription(goal.description);
     return {
         ...goal,
+        text: title,
+        title,
+        description,
         createdAt: createdAt.toISOString(),
         completedAt: completedAt ? completedAt.toISOString() : null,
         expiresAt: expiresAt.toISOString(),
@@ -199,11 +215,13 @@ router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
 
 // Create goal
 router.post('/', requireAuth, async (req: Request, res) => {
-    const { text, scheduledDate } = req.body;
+    const { text, title, description, scheduledDate } = req.body;
     const type = normalizeGoalType(req.body?.type);
+    const normalizedTitle = normalizeGoalTitle(title, text);
+    const normalizedDescription = normalizeGoalDescription(description);
 
-    if (!text || !type) {
-        return res.status(400).json({ message: 'Text and type are required' });
+    if (!normalizedTitle || !type) {
+        return res.status(400).json({ message: 'Title and type are required' });
     }
 
     try {
@@ -240,7 +258,9 @@ router.post('/', requireAuth, async (req: Request, res) => {
         const doc = {
             id,
             user_id: userId,
-            text: String(text).trim(),
+            text: normalizedTitle,
+            title: normalizedTitle,
+            description: normalizedDescription,
             type,
             completed: false,
             created_at: createdAt,
@@ -297,7 +317,9 @@ router.post('/:id/rollover-action', requireAuth, async (req: Request, res) => {
             const clonedGoal = {
                 id: newGoalId,
                 user_id: userId,
-                text: goal.text,
+                text: normalizeGoalTitle(goal.title, goal.text) || '',
+                title: normalizeGoalTitle(goal.title, goal.text) || '',
+                description: normalizeGoalDescription(goal.description),
                 type: goalType,
                 completed: false,
                 created_at: now,
@@ -356,8 +378,20 @@ router.post('/:id/rollover-action', requireAuth, async (req: Request, res) => {
 // Update goal (toggle completion)
 router.patch('/:id', requireAuth, async (req: Request, res) => {
     const { id } = req.params;
-    const { completed } = req.body;
     const userId = req.session.userId!;
+    const hasCompletedUpdate = typeof req.body?.completed === 'boolean';
+    const hasTitleUpdate = req.body && ('title' in req.body || 'text' in req.body);
+    const hasDescriptionUpdate = req.body && 'description' in req.body;
+    const normalizedTitle = hasTitleUpdate ? normalizeGoalTitle(req.body?.title, req.body?.text) : null;
+    const normalizedDescription = hasDescriptionUpdate ? normalizeGoalDescription(req.body?.description) : undefined;
+
+    if (!hasCompletedUpdate && !hasTitleUpdate && !hasDescriptionUpdate) {
+        return res.status(400).json({ message: 'Nothing to update' });
+    }
+
+    if (hasTitleUpdate && !normalizedTitle) {
+        return res.status(400).json({ message: 'Goal title cannot be empty' });
+    }
 
     try {
         await syncExpiredGoalsToMissed(userId);
@@ -373,6 +407,26 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
 
         const goalType = normalizeGoalType(goal.type) || 'daily';
         const now = new Date();
+        const updates: Record<string, any> = {};
+
+        if (hasTitleUpdate && normalizedTitle) {
+            updates.title = normalizedTitle;
+            updates.text = normalizedTitle;
+        }
+
+        if (hasDescriptionUpdate) {
+            updates.description = normalizedDescription ?? null;
+        }
+
+        if (!hasCompletedUpdate) {
+            await collections.goals().updateOne(
+                { id, user_id: userId },
+                { $set: updates }
+            );
+            return res.json({ message: 'Goal updated' });
+        }
+
+        const completed = Boolean(req.body.completed);
         const expiresAt = getGoalExpiry(goal);
 
         if (completed && now.getTime() >= expiresAt.getTime()) {
@@ -387,16 +441,14 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         const completedAt = completed ? now : null;
 
         const lifecycleStatus: GoalLifecycleStatus = completed ? 'active' : (goal.lifecycle_status || 'active');
+        updates.completed = completed;
+        updates.completed_at = completedAt;
+        updates.lifecycle_status = lifecycleStatus;
+        updates.rollover_prompt_pending = false;
+
         await collections.goals().updateOne(
             { id, user_id: userId },
-            {
-                $set: {
-                    completed: Boolean(completed),
-                    completed_at: completedAt,
-                    lifecycle_status: lifecycleStatus,
-                    rollover_prompt_pending: false,
-                },
-            }
+            { $set: updates }
         );
 
         if (completed && !wasCompleted) {
@@ -444,7 +496,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
             }
         }
 
-        res.json({ message: 'Goal updated', completed: Boolean(completed), completedAt });
+        res.json({ message: 'Goal updated', completed, completedAt });
     } catch (error) {
         console.error('Update goal error:', error);
         res.status(500).json({ message: 'Internal server error' });

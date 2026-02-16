@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { authService } from "@/utils/authService";
 import { focusOverlayService, FocusOverlayStats } from "@/utils/focusOverlayService";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 // Types
 type FocusMode = "Timer" | "short" | "long";
@@ -34,11 +34,24 @@ interface FocusContextType {
     isPiPActive: boolean;
     togglePiP: () => void;
     videoRef: React.RefObject<HTMLVideoElement>;
+
+    // Global Music State
+    isMusicPlaying: boolean;
+    isMusicMuted: boolean;
+    musicVolume: number;
+    setMusicSource: (url: string) => void;
+    toggleMusic: () => void;
+    setMusicPlaying: (playing: boolean) => void;
+    toggleMusicMuted: () => void;
+    setMusicVolume: (volume: number) => void;
 }
 
 const FocusContext = createContext<FocusContextType | undefined>(undefined);
+const DEFAULT_MUSIC_URL = "https://del1.vultrobjects.com/qms-images/Safar/music_1.mp3";
 
 export function FocusProvider({ children }: { children: React.ReactNode }) {
+    const navigate = useNavigate();
+    const location = useLocation();
     const [userId, setUserId] = useState<string | null>(null);
 
     // Timer State
@@ -67,6 +80,42 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const pipIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
     const suppressPiPVideoEventsRef = useRef(false);
     const isPiPActiveRef = useRef(false);
+    const studyRoute = "/study";
+
+    // Global Music
+    const [musicSource, setMusicSourceState] = useState<string>(() => {
+        try {
+            return localStorage.getItem("focus_music_source") || DEFAULT_MUSIC_URL;
+        } catch {
+            return DEFAULT_MUSIC_URL;
+        }
+    });
+    const [isMusicPlaying, setIsMusicPlaying] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem("focus_music_playing") === "1";
+        } catch {
+            return false;
+        }
+    });
+    const [isMusicMuted, setIsMusicMuted] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem("focus_music_muted") === "1";
+        } catch {
+            return false;
+        }
+    });
+    const [musicVolume, setMusicVolumeState] = useState<number>(() => {
+        try {
+            const saved = Number(localStorage.getItem("focus_music_volume"));
+            if (!Number.isFinite(saved)) return 0.5;
+            return Math.max(0, Math.min(1, saved));
+        } catch {
+            return 0.5;
+        }
+    });
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const musicShouldPlayRef = useRef(isMusicPlaying);
+    const suppressMusicPauseRef = useRef(false);
 
     // Check Auth
     useEffect(() => {
@@ -86,6 +135,42 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         isPiPActiveRef.current = isPiPActive;
     }, [isPiPActive]);
+
+    useEffect(() => {
+        musicShouldPlayRef.current = isMusicPlaying;
+    }, [isMusicPlaying]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem("focus_music_source", musicSource);
+        } catch {
+            // Ignore storage failures.
+        }
+    }, [musicSource]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem("focus_music_playing", isMusicPlaying ? "1" : "0");
+        } catch {
+            // Ignore storage failures.
+        }
+    }, [isMusicPlaying]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem("focus_music_muted", isMusicMuted ? "1" : "0");
+        } catch {
+            // Ignore storage failures.
+        }
+    }, [isMusicMuted]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem("focus_music_volume", String(musicVolume));
+        } catch {
+            // Ignore storage failures.
+        }
+    }, [musicVolume]);
 
     // Timer Logic
     useEffect(() => {
@@ -177,15 +262,6 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         ctx.fillText(running ? "Running" : "Paused", 250, 375);
     }, []);
 
-    const updatePiPPlaybackState = useCallback((running: boolean) => {
-        if (!("mediaSession" in navigator)) return;
-        try {
-            navigator.mediaSession.playbackState = running ? "playing" : "paused";
-        } catch {
-            // Ignore browsers with partial Media Session support.
-        }
-    }, []);
-
     const syncPiPVideoPlayback = useCallback((running: boolean) => {
         if (!isPiPActiveRef.current) return;
         const videoEl = videoRef.current;
@@ -209,45 +285,117 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
+    const setMusicSource = useCallback((url: string) => {
+        const normalized = String(url || "").trim();
+        if (!normalized) return;
+        setMusicSourceState(normalized);
+    }, []);
+
+    const setMusicVolume = useCallback((volume: number) => {
+        const normalized = Number.isFinite(volume) ? volume : 0.5;
+        const clamped = Math.max(0, Math.min(1, normalized));
+        setMusicVolumeState(clamped);
+    }, []);
+
+    const setMusicPlaying = useCallback((playing: boolean) => {
+        const audioEl = audioRef.current;
+        setIsMusicPlaying(playing);
+        if (!audioEl) return;
+
+        if (playing) {
+            audioEl.play().catch(() => { });
+            return;
+        }
+
+        suppressMusicPauseRef.current = true;
+        audioEl.pause();
+        window.setTimeout(() => {
+            suppressMusicPauseRef.current = false;
+        }, 0);
+    }, []);
+
+    const toggleMusic = useCallback(() => {
+        setMusicPlaying(!musicShouldPlayRef.current);
+    }, [setMusicPlaying]);
+
+    const toggleMusicMuted = useCallback(() => {
+        setIsMusicMuted((prev) => !prev);
+    }, []);
+
+    useEffect(() => {
+        const audioEl = audioRef.current;
+        if (!audioEl) return;
+
+        if (audioEl.src !== musicSource) {
+            audioEl.src = musicSource;
+        }
+        audioEl.loop = true;
+        audioEl.volume = musicVolume;
+        audioEl.muted = isMusicMuted;
+
+        if (isMusicPlaying && audioEl.paused) {
+            audioEl.play().catch(() => { });
+        }
+        if (!isMusicPlaying && !audioEl.paused) {
+            suppressMusicPauseRef.current = true;
+            audioEl.pause();
+            window.setTimeout(() => {
+                suppressMusicPauseRef.current = false;
+            }, 0);
+        }
+    }, [isMusicMuted, isMusicPlaying, musicSource, musicVolume]);
+
+    useEffect(() => {
+        const audioEl = audioRef.current;
+        if (!audioEl) return;
+
+        const handlePause = () => {
+            if (suppressMusicPauseRef.current) return;
+            if (!musicShouldPlayRef.current) return;
+
+            window.setTimeout(() => {
+                const currentAudio = audioRef.current;
+                if (!currentAudio) return;
+                if (!musicShouldPlayRef.current) return;
+                if (!currentAudio.paused) return;
+                currentAudio.play().catch(() => { });
+            }, 150);
+        };
+
+        audioEl.addEventListener("pause", handlePause);
+        return () => {
+            audioEl.removeEventListener("pause", handlePause);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!isMusicPlaying) return;
+        const id = window.setInterval(() => {
+            const audioEl = audioRef.current;
+            if (!audioEl) return;
+            if (audioEl.paused) {
+                audioEl.play().catch(() => { });
+            }
+        }, 1500);
+
+        return () => {
+            window.clearInterval(id);
+        };
+    }, [isMusicPlaying]);
+
     const startTimer = useCallback(() => {
         if (remainingSecondsRef.current <= 0) return;
         isRunningRef.current = true;
         setIsRunning(true);
-        updatePiPPlaybackState(true);
+        setMusicPlaying(true);
         syncPiPVideoPlayback(true);
-    }, [syncPiPVideoPlayback, updatePiPPlaybackState]);
+    }, [setMusicPlaying, syncPiPVideoPlayback]);
 
     const pauseTimer = useCallback(() => {
         isRunningRef.current = false;
         setIsRunning(false);
-        updatePiPPlaybackState(false);
         syncPiPVideoPlayback(false);
-    }, [syncPiPVideoPlayback, updatePiPPlaybackState]);
-
-    const bindPiPMediaControls = useCallback(() => {
-        if (!("mediaSession" in navigator)) return;
-        try {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: "Focus Timer",
-                artist: "Nishtha Study With Me",
-            });
-            navigator.mediaSession.setActionHandler("play", () => startTimer());
-            navigator.mediaSession.setActionHandler("pause", () => pauseTimer());
-            updatePiPPlaybackState(isRunningRef.current);
-        } catch {
-            // Ignore browsers that block action handlers.
-        }
-    }, [pauseTimer, startTimer, updatePiPPlaybackState]);
-
-    const unbindPiPMediaControls = useCallback(() => {
-        if (!("mediaSession" in navigator)) return;
-        try {
-            navigator.mediaSession.setActionHandler("play", null);
-            navigator.mediaSession.setActionHandler("pause", null);
-        } catch {
-            // Ignore unsupported cleanup paths.
-        }
-    }, []);
+    }, [syncPiPVideoPlayback]);
 
     // PiP Toggle
     const togglePiP = useCallback(async () => {
@@ -261,12 +409,14 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
                 setIsPiPActive(false);
-                unbindPiPMediaControls();
                 if (pipIntervalRef.current) {
                     clearInterval(pipIntervalRef.current);
                     pipIntervalRef.current = undefined;
                 }
             } else {
+                if (location.pathname !== studyRoute) {
+                    navigate(studyRoute);
+                }
                 // Initialize Canvas
                 if (!canvasRef.current) {
                     canvasRef.current = document.createElement("canvas");
@@ -283,7 +433,24 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
                 const stream = canvasRef.current.captureStream(30);
                 videoRef.current.srcObject = stream;
-                bindPiPMediaControls();
+                // Keep PiP minimal: do not expose Media Session handlers/metadata.
+                if ("mediaSession" in navigator) {
+                    try {
+                        navigator.mediaSession.metadata = null;
+                        navigator.mediaSession.setActionHandler("play", null);
+                        navigator.mediaSession.setActionHandler("pause", null);
+                        navigator.mediaSession.setActionHandler("seekbackward", null);
+                        navigator.mediaSession.setActionHandler("seekforward", null);
+                        navigator.mediaSession.setActionHandler("previoustrack", null);
+                        navigator.mediaSession.setActionHandler("nexttrack", null);
+                    } catch {
+                        // Ignore unsupported media session cleanup.
+                    }
+                }
+                videoRef.current.disableRemotePlayback = true;
+                videoRef.current.controls = false;
+                videoRef.current.defaultMuted = true;
+                videoRef.current.muted = true;
                 suppressPiPVideoEventsRef.current = true;
                 await videoRef.current.play();
                 window.setTimeout(() => {
@@ -309,13 +476,12 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
             console.error("PiP Error:", err);
         }
-    }, [bindPiPMediaControls, drawToCanvas, unbindPiPMediaControls]);
+    }, [drawToCanvas, location.pathname, navigate]);
 
     // Cleanup PiP
     useEffect(() => {
         const onLeavePiP = () => {
             setIsPiPActive(false);
-            unbindPiPMediaControls();
             if (pipIntervalRef.current) {
                 clearInterval(pipIntervalRef.current);
                 pipIntervalRef.current = undefined;
@@ -329,7 +495,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 clearInterval(pipIntervalRef.current);
             }
         };
-    }, [unbindPiPMediaControls]);
+    }, []);
 
     // Map native PiP video play/pause controls to timer start/pause.
     useEffect(() => {
@@ -418,14 +584,37 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         totalActiveMs,
         isPiPActive,
         togglePiP,
-        videoRef
+        videoRef,
+        isMusicPlaying,
+        isMusicMuted,
+        musicVolume,
+        setMusicSource,
+        toggleMusic,
+        setMusicPlaying,
+        toggleMusicMuted,
+        setMusicVolume
     };
 
     return (
         <FocusContext.Provider value={value}>
             {children}
             {/* Hidden Video Element for PiP */}
-            <video ref={videoRef} className="hidden" muted playsInline />
+            <video
+                ref={videoRef}
+                className="hidden"
+                muted
+                playsInline
+                disableRemotePlayback
+                controlsList="nodownload nofullscreen noremoteplayback"
+                translate="no"
+            />
+            <audio
+                ref={audioRef}
+                className="hidden"
+                preload="auto"
+                loop
+                src={musicSource}
+            />
         </FocusContext.Provider>
     );
 }

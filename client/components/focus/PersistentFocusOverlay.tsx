@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, Pause, Play, RefreshCw, Minimize2, Maximize2, MoreVertical, PictureInPicture2 } from "lucide-react";
+import { BarChart3, Pause, Play, RefreshCw, Minimize2, Maximize2, MoreVertical, PictureInPicture2, ExternalLink } from "lucide-react";
 import { useFocus } from "@/contexts/FocusContext";
 
 const OVERLAY_SIZE = 240;
@@ -108,12 +108,24 @@ export default function PersistentFocusOverlay() {
     setDragging(false);
   };
 
+  const hasActiveSession = isRunning || remainingSeconds < totalSeconds || isPiPActive;
+
+  const openFocusSession = () => {
+    if (location.pathname !== "/study") {
+      navigate("/study");
+    }
+  };
+
   // If we are on the StudyWithMe page, we might want to hide this overlay 
   // to avoid duplication, or keep it synchronized. 
   // The user requested "Persistent Focus Overlay" which implies it's always there.
   // But typically you hide the mini-player when on the main player page.
   // checking path:
-  if (location.pathname.startsWith("/study")) {
+  if (!hasActiveSession) {
+    return null;
+  }
+
+  if (location.pathname.startsWith("/study") || isPiPActive) {
     return null;
   }
 
@@ -158,6 +170,14 @@ export default function PersistentFocusOverlay() {
       >
         {/* Minimize Button */}
         <button
+          onClick={openFocusSession}
+          className="absolute top-3 left-3 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center"
+          title="Open focus session"
+        >
+          <ExternalLink className="w-3 h-3" />
+        </button>
+
+        <button
           onClick={toggleCollapse}
           className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors flex items-center justify-center"
           title="Minimize to side"
@@ -166,7 +186,11 @@ export default function PersistentFocusOverlay() {
         </button>
 
         {/* Time Display */}
-        <div className="rounded-2xl bg-slate-900 text-white flex items-center justify-center text-4xl font-bold tracking-tight mt-6 shadow-sm flex-1">
+        <div
+          onClick={openFocusSession}
+          className="rounded-2xl bg-slate-900 text-white flex items-center justify-center text-4xl font-bold tracking-tight mt-6 shadow-sm flex-1 cursor-pointer"
+          title="Open focus session"
+        >
           {formatTime(minutes, seconds)}
         </div>
 
