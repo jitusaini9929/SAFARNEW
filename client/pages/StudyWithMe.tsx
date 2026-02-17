@@ -189,29 +189,7 @@ export default function StudyWithMe() {
         }
     }, [window.location.search]);
 
-    useEffect(() => {
-        const audio = new Audio("https://del1.vultrobjects.com/qms-images/Safar/notification.mp3");
-        audio.preload = "auto";
-        audio.volume = 0.8;
-        completionSoundRef.current = audio;
-        const unlock = () => {
-            const current = completionSoundRef.current;
-            if (!current) return;
-            current.play()
-                .then(() => {
-                    current.pause();
-                    current.currentTime = 0;
-                })
-                .catch(() => { /* ignore */ });
-            window.removeEventListener("pointerdown", unlock);
-        };
-        window.addEventListener("pointerdown", unlock);
-        return () => {
-            window.removeEventListener("pointerdown", unlock);
-            audio.pause();
-            audio.src = "";
-        };
-    }, []);
+
 
     const persistTasks = useCallback((nextTasks: Task[]) => {
         setTasks(nextTasks);
@@ -253,11 +231,7 @@ export default function StudyWithMe() {
             setShowDurationPrompt(false);
         }
 
-        const audio = completionSoundRef.current;
-        if (audio) {
-            audio.currentTime = 0;
-            audio.play().catch(() => { /* autoplay may be blocked */ });
-        }
+
     }, [remainingSeconds, activeTask, updateTasks]);
 
     useEffect(() => {

@@ -85,7 +85,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     // Notification sound ref — plays when any timer mode completes
     const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
     useEffect(() => {
-        const audio = new Audio("https://del1.vultrobjects.com/qms-images/Safar/notification.mp3");
+        const audio = new Audio("/Notification.mp3");
         audio.preload = "auto";
         audio.volume = 0.7;
         notificationAudioRef.current = audio;
@@ -212,11 +212,19 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
             // 🔔 Play notification sound for ALL modes (pomodoro, short break, long break)
             try {
-                const na = notificationAudioRef.current;
-                if (na) {
-                    na.currentTime = 0;
-                    na.play().catch(() => { /* autoplay may be blocked */ });
+                // Pause music first if playing
+                if (musicShouldPlayRef.current) {
+                    setMusicPlaying(false);
                 }
+
+                // Play notification after a small delay to ensure music has faded/stopped
+                setTimeout(() => {
+                    const na = notificationAudioRef.current;
+                    if (na) {
+                        na.currentTime = 0;
+                        na.play().catch(() => { /* autoplay may be blocked */ });
+                    }
+                }, 1000); // 1 second delay
             } catch { /* ignore */ }
 
             // Log Session (only for focus/pomodoro sessions)
