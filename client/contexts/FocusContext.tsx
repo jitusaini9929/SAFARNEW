@@ -442,9 +442,6 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                     pipIntervalRef.current = undefined;
                 }
             } else {
-                if (location.pathname !== studyRoute) {
-                    navigate(studyRoute);
-                }
                 // Initialize Canvas
                 if (!canvasRef.current) {
                     canvasRef.current = document.createElement("canvas");
@@ -461,20 +458,36 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
                 const stream = canvasRef.current.captureStream(30);
                 videoRef.current.srcObject = stream;
-                // Keep PiP minimal: do not expose Media Session handlers/metadata.
+
+                // Enable Media Session Controls
                 if ("mediaSession" in navigator) {
                     try {
-                        navigator.mediaSession.metadata = null;
-                        navigator.mediaSession.setActionHandler("play", null);
-                        navigator.mediaSession.setActionHandler("pause", null);
+                        navigator.mediaSession.metadata = new MediaMetadata({
+                            title: "Focus Timer",
+                            artist: "Safar",
+                            album: "Focus Session",
+                            artwork: [
+                                { src: "https://del1.vultrobjects.com/qms-images/Safar/logo.png", sizes: "96x96", type: "image/png" },
+                                { src: "https://del1.vultrobjects.com/qms-images/Safar/logo.png", sizes: "128x128", type: "image/png" },
+                            ]
+                        });
+
+                        navigator.mediaSession.setActionHandler("play", () => {
+                            startTimer();
+                        });
+                        navigator.mediaSession.setActionHandler("pause", () => {
+                            pauseTimer();
+                        });
+                        // Clear other handlers to avoid confusion
                         navigator.mediaSession.setActionHandler("seekbackward", null);
                         navigator.mediaSession.setActionHandler("seekforward", null);
                         navigator.mediaSession.setActionHandler("previoustrack", null);
                         navigator.mediaSession.setActionHandler("nexttrack", null);
-                    } catch {
-                        // Ignore unsupported media session cleanup.
+                    } catch (e) {
+                        console.error("Media Session API error:", e);
                     }
                 }
+
                 videoRef.current.disableRemotePlayback = true;
                 videoRef.current.controls = false;
                 videoRef.current.defaultMuted = true;
@@ -504,7 +517,28 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
             console.error("PiP Error:", err);
         }
-    }, [drawToCanvas, location.pathname, navigate]);
+    }, [drawToCanvas, startTimer, pauseTimer]);
+
+    // Auto-PiP on Visibility Change
+    useEffect(() => {
+        const handleVisibilityChange = async () => {
+            if (document.hidden && isRunning && !isPiPActiveRef.current && document.pictureInPictureEnabled) {
+                try {
+                    // Slight delay to ensure browser acknowledges the backgrounding/switching state
+                    setTimeout(() => {
+                        togglePiP().catch(e => console.log("Auto-PiP blocked:", e));
+                    }, 100);
+                } catch (e) {
+                    console.error("Auto PiP failed:", e);
+                }
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [isRunning, togglePiP]);
 
     // Cleanup PiP
     useEffect(() => {
