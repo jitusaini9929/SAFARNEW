@@ -80,6 +80,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const pipIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
     const suppressPiPVideoEventsRef = useRef(false);
     const isPiPActiveRef = useRef(false);
+    const audioContextRef = useRef<AudioContext | null>(null);
     const studyRoute = "/study";
 
     // Notification sound ref — plays when any timer mode completes
@@ -183,6 +184,13 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             // Ignore storage failures.
         }
     }, [musicVolume]);
+
+    // Update Media Session Playback State
+    useEffect(() => {
+        if ("mediaSession" in navigator) {
+            navigator.mediaSession.playbackState = isRunning ? "playing" : "paused";
+        }
+    }, [isRunning]);
 
     // Timer Logic
     useEffect(() => {
@@ -441,6 +449,11 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                     clearInterval(pipIntervalRef.current);
                     pipIntervalRef.current = undefined;
                 }
+                // Cleanup AudioContext
+                if (audioContextRef.current) {
+                    audioContextRef.current.close().catch(() => { });
+                    audioContextRef.current = null;
+                }
             } else {
                 // Initialize Canvas
                 if (!canvasRef.current) {
@@ -457,6 +470,26 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 const stream = canvasRef.current.captureStream(30);
+
+                // Add silent audio track to enable media controls
+                try {
+                    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                    if (AudioContextClass) {
+                        const audioCtx = new AudioContextClass();
+                        audioContextRef.current = audioCtx;
+                        const dest = audioCtx.createMediaStreamDestination();
+                        const oscillator = audioCtx.createOscillator();
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(0, audioCtx.currentTime); // Silent
+                        oscillator.connect(dest);
+                        const audioTrack = dest.stream.getAudioTracks()[0];
+                        stream.addTrack(audioTrack);
+                        oscillator.start();
+                    }
+                } catch (e) {
+                    console.error("Failed to add silent audio track:", e);
+                }
+
                 videoRef.current.srcObject = stream;
 
                 // Enable Media Session Controls
@@ -490,8 +523,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
                 videoRef.current.disableRemotePlayback = true;
                 videoRef.current.controls = false;
-                videoRef.current.defaultMuted = true;
-                videoRef.current.muted = true;
+                videoRef.current.defaultMuted = false; // Important: Must NOT be muted for controls to show
+                videoRef.current.muted = false;       // We have a silent track, so it won't make noise
                 suppressPiPVideoEventsRef.current = true;
                 await videoRef.current.play();
                 window.setTimeout(() => {
@@ -516,6 +549,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             }
         } catch (err) {
             console.error("PiP Error:", err);
+            if (audioContextRef.current) {
+                audioContextRef.current.close().catch(() => { });
+                audioContextRef.current = null;
+            }
         }
     }, [drawToCanvas, startTimer, pauseTimer]);
 
@@ -555,6 +592,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             videoEl?.removeEventListener("leavepictureinpicture", onLeavePiP);
             if (pipIntervalRef.current) {
                 clearInterval(pipIntervalRef.current);
+            }
+            if (audioContextRef.current) {
+                audioContextRef.current.close().catch(() => { });
+                audioContextRef.current = null;
             }
         };
     }, []);
@@ -664,11 +705,11 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             <video
                 ref={videoRef}
                 className="hidden"
-                muted
                 playsInline
                 disableRemotePlayback
                 controlsList="nodownload nofullscreen noremoteplayback"
                 translate="no"
+            // Removed explicit muted prop here; will be managed in code
             />
             <audio
                 ref={audioRef}
