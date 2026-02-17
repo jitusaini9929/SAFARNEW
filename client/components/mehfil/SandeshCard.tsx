@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     Bell, Plus, Bold, Italic, ImageIcon, Mic, X, Loader2, Pencil, Send,
-    ShieldCheck, Trash2, LinkIcon, Play, Pause
+    ShieldCheck, Trash2, LinkIcon, Play, Pause, Heart, MessageCircle, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,6 +14,16 @@ interface LinkMeta {
     title: string;
     description: string;
     image: string;
+}
+
+interface SandeshComment {
+    id: string;
+    sandeshId: string;
+    userId: string;
+    authorName: string;
+    authorAvatar: string | null;
+    content: string;
+    createdAt: string;
 }
 
 interface Sandesh {
@@ -52,6 +62,17 @@ const SandeshCard = () => {
     const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
+    // Reaction & Comment State
+    const [likeCount, setLikeCount] = useState(0);
+    const [userLiked, setUserLiked] = useState(false);
+    const [comments, setComments] = useState<SandeshComment[]>([]);
+    const [commentCount, setCommentCount] = useState(0);
+    const [showComments, setShowComments] = useState(false);
+    const [newComment, setNewComment] = useState('');
+    const [isPostingComment, setIsPostingComment] = useState(false);
+    const [isLiking, setIsLiking] = useState(false);
+    const commentInputRef = useRef<HTMLInputElement>(null);
+
 
 
     const fetchSandesh = async () => {
@@ -72,12 +93,98 @@ const SandeshCard = () => {
                     if (lastReadId !== data.sandesh.id) {
                         setHasUnread(true);
                     }
+                    // Fetch reactions & comment count
+                    fetchReactions(data.sandesh.id);
+                    fetchCommentCount(data.sandesh.id);
                 }
             }
         } catch (err) {
             console.error('Failed to fetch sandesh', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchReactions = async (sandeshId: string) => {
+        try {
+            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/reactions`, { credentials: 'include' });
+            if (res.ok) {
+                const data = await res.json();
+                setLikeCount(data.count);
+                setUserLiked(data.userLiked);
+            }
+        } catch (err) {
+            console.error('Failed to fetch reactions', err);
+        }
+    };
+
+    const fetchCommentCount = async (sandeshId: string) => {
+        try {
+            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/comments`, { credentials: 'include' });
+            if (res.ok) {
+                const data = await res.json();
+                setCommentCount(data.comments?.length || 0);
+                setComments(data.comments || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch comments', err);
+        }
+    };
+
+    const handleLike = async () => {
+        if (!sandesh || isLiking) return;
+        setIsLiking(true);
+
+        // Optimistic update
+        const wasLiked = userLiked;
+        setUserLiked(!wasLiked);
+        setLikeCount(prev => wasLiked ? prev - 1 : prev + 1);
+
+        try {
+            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandesh.id}/react`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setLikeCount(data.count);
+                setUserLiked(data.liked);
+            } else {
+                // Revert on failure
+                setUserLiked(wasLiked);
+                setLikeCount(prev => wasLiked ? prev + 1 : prev - 1);
+            }
+        } catch (err) {
+            setUserLiked(wasLiked);
+            setLikeCount(prev => wasLiked ? prev + 1 : prev - 1);
+        } finally {
+            setIsLiking(false);
+        }
+    };
+
+    const handlePostComment = async () => {
+        if (!sandesh || !newComment.trim() || isPostingComment) return;
+        setIsPostingComment(true);
+
+        try {
+            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandesh.id}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: newComment.trim() }),
+                credentials: 'include',
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setComments(prev => [...prev, data.comment]);
+                setCommentCount(prev => prev + 1);
+                setNewComment('');
+            } else {
+                toast.error('Failed to post comment');
+            }
+        } catch (err) {
+            toast.error('Error posting comment');
+        } finally {
+            setIsPostingComment(false);
         }
     };
 
@@ -518,7 +625,6 @@ const SandeshCard = () => {
                         </div>
 
                         {/* Attached Image */}
-                        {/* Attached Image */}
                         {sandesh.image_url && (() => {
                             const ytMatch = sandesh.image_url.match(/(?:https:\/\/img\.youtube\.com\/vi\/)([a-zA-Z0-9_-]{11})\//);
                             const videoUrl = ytMatch ? `https://www.youtube.com/watch?v=${ytMatch[1]}` : null;
@@ -619,6 +725,102 @@ const SandeshCard = () => {
                                 </div>
                             </a>
                         )}
+
+                        {/* ═══════════════════════ Reactions & Comments Bar ═══════════════════════ */}
+                        <div className="mt-5 pt-4 border-t border-white/10">
+                            <div className="flex items-center gap-4">
+                                {/* Like Button */}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleLike(); }}
+                                    disabled={isLiking}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${userLiked
+                                        ? 'bg-rose-500/15 text-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.15)]'
+                                        : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-rose-400'
+                                        }`}
+                                >
+                                    <Heart className={`w-4 h-4 transition-all duration-300 ${userLiked ? 'fill-current scale-110' : ''}`} />
+                                    <span className="text-xs">{likeCount > 0 ? likeCount : ''}</span>
+                                </button>
+
+                                {/* Comment Toggle */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowComments(!showComments);
+                                        if (!showComments && sandesh) {
+                                            fetchCommentCount(sandesh.id);
+                                        }
+                                    }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${showComments
+                                        ? 'bg-indigo-500/15 text-indigo-400'
+                                        : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-indigo-400'
+                                        }`}
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    <span className="text-xs">{commentCount > 0 ? commentCount : ''}</span>
+                                    {showComments ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                </button>
+                            </div>
+
+                            {/* Comments Section */}
+                            {showComments && (
+                                <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
+                                    {/* Comment List */}
+                                    {comments.length > 0 ? (
+                                        <div className="space-y-3 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent mb-3">
+                                            {comments.map(comment => (
+                                                <div key={comment.id} className="flex gap-2.5 group/comment">
+                                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-white/10">
+                                                        {comment.authorAvatar ? (
+                                                            <img src={comment.authorAvatar} alt="" className="w-full h-full rounded-full object-cover" />
+                                                        ) : (
+                                                            comment.authorName.charAt(0).toUpperCase()
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-baseline gap-2">
+                                                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{comment.authorName}</span>
+                                                            <span className="text-[9px] text-slate-400">
+                                                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{comment.content}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-400 italic mb-3">No comments yet. Be the first to respond!</p>
+                                    )}
+
+                                    {/* Comment Input */}
+                                    <div className="flex gap-2 items-center">
+                                        <input
+                                            ref={commentInputRef}
+                                            type="text"
+                                            value={newComment}
+                                            onChange={(e) => setNewComment(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handlePostComment();
+                                                }
+                                            }}
+                                            placeholder="Write a comment..."
+                                            className="flex-1 text-xs p-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-white/10 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500/30 text-slate-800 dark:text-slate-200 placeholder-slate-400 transition-all"
+                                        />
+                                        <Button
+                                            size="sm"
+                                            onClick={handlePostComment}
+                                            disabled={isPostingComment || !newComment.trim()}
+                                            className="h-9 w-9 p-0 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white shrink-0 transition-all disabled:opacity-30"
+                                        >
+                                            {isPostingComment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 ) : (
                     <div className="text-center py-12 text-slate-400 text-sm italic flex flex-col items-center gap-2">

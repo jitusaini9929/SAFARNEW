@@ -1,273 +1,354 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import NishthaLayout from "@/components/NishthaLayout";
-import { authService } from "@/utils/authService";
-import { TourPrompt } from "@/components/guided-tour";
-import { suggestionsTour } from "@/components/guided-tour/tourSteps";
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import MainLayout from '@/components/MainLayout';
 import {
-  Lightbulb,
-  Wind,
-  Coffee,
-  Zap,
-  Leaf,
-  Sparkles,
-  Info,
-  Circle,
-  ArrowRight
-} from "lucide-react";
+  Sparkles, AlertTriangle, Heart, Target, Brain, Moon,
+  ChevronRight, Wind, Clock, Trophy, Flame, ArrowRight,
+  Quote, Zap, PhoneCall, RefreshCw
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+const API_URL = import.meta.env.VITE_API_URL || "/api";
+
+interface MoodSuggestion {
+  title: string;
+  description: string;
+  action: string;
+  link: string;
+  icon: string;
+}
+
+interface DailyChallenge {
+  title: string;
+  description: string;
+  difficulty: string;
+}
+
+interface MindfulMoment {
+  quote: string;
+  author: string;
+}
+
+interface SOSExercise {
+  title: string;
+  description: string;
+  duration: string;
+  icon: string;
+}
+
+interface SleepStep {
+  step: number;
+  title: string;
+  description: string;
+  time: string;
+}
+
+interface SuggestionsData {
+  greeting: string;
+  period: string;
+  mood: {
+    intensity: number;
+    label: string;
+    category: 'low' | 'neutral' | 'high';
+  };
+  stats: {
+    activeGoals: number;
+    completedToday: number;
+    weeklyFocusHours: number;
+    weeklyFocusSessions: number;
+  };
+  moodSuggestions: MoodSuggestion[];
+  dailyChallenge: DailyChallenge;
+  mindfulMoment: MindfulMoment;
+  sosExercises: SOSExercise[];
+  focusBoost: {
+    show: boolean;
+    message: string;
+    weeklyHours: number;
+    weeklySessions: number;
+  };
+  sleepWindDown?: SleepStep[];
+  showSOS: boolean;
+}
+
+const difficultyColors: Record<string, string> = {
+  'Easy': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+  'Medium': 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+  'Hard': 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+};
+
+const moodEmojis: Record<string, string> = {
+  low: '😔',
+  neutral: '😊',
+  high: '🔥',
+};
+
+const CRISIS_HELPLINE = {
+  number: '988',
+  label: 'Suicide & Crisis Lifeline',
+  description: 'If you\'re in crisis, please reach out. You\'re not alone.',
+};
 
 export default function Suggestions() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
+  const [data, setData] = useState<SuggestionsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSOS, setShowSOS] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await authService.getCurrentUser();
-        if (!response || !response.user) {
-          navigate("/login");
-          return;
-        }
-        setUser(response.user);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        navigate("/login");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [navigate]);
+    fetchSuggestions();
+  }, []);
 
-  if (loading || !user) {
+  const fetchSuggestions = async () => {
+    try {
+      const res = await fetch(`${API_URL}/suggestions/personalized`, { credentials: 'include' });
+      if (res.ok) {
+        const json = await res.json();
+        setData(json);
+        setShowSOS(json.showSOS);
+      }
+    } catch (err) {
+      console.error('Failed to fetch suggestions', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <NishthaLayout>
-        <div className="flex items-center justify-center h-full bg-background transition-colors duration-300">
-          <div className="animate-pulse flex flex-col items-center gap-4">
-            <div className="h-12 w-12 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
-            <p className="text-primary font-['Poppins'] tracking-wider text-sm">LOADING INSIGHTS...</p>
+      <MainLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
+            <p className="text-slate-400">Personalizing your experience...</p>
           </div>
         </div>
-      </NishthaLayout>
+      </MainLayout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <MainLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-slate-400">Could not load suggestions. Please try again.</p>
+        </div>
+      </MainLayout>
     );
   }
 
   return (
-    <NishthaLayout userName={user?.name} userAvatar={user?.avatar}>
-      {/* Midnight Insight Theme Wrapper */}
-      <div className="flex-1 bg-background font-sans min-h-full transition-colors duration-300 relative scroll-smooth selection:bg-primary selection:text-primary-foreground">
+    <MainLayout>
+      <div className="min-h-screen pb-20 px-4 md:px-6 max-w-5xl mx-auto">
 
-        {/* Background Ambient Glows */}
-        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-          <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] bg-secondary/20 rounded-full blur-[120px] animate-pulse-slow"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] bg-primary/10 rounded-full blur-[100px] animate-pulse-slower"></div>
+        {/* ═══════ Hero Section ═══════ */}
+        <div className="relative pt-10 pb-8">
+          <div className="absolute inset-0 -z-10 overflow-hidden">
+            <div className="absolute top-0 left-1/4 w-72 h-72 bg-indigo-600/10 rounded-full blur-[120px]" />
+            <div className="absolute top-10 right-1/4 w-60 h-60 bg-fuchsia-600/10 rounded-full blur-[100px]" />
+          </div>
+
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">{moodEmojis[data.mood.category]}</span>
+            <h1 className="text-3xl md:text-4xl font-bold text-white">
+              {data.greeting}
+            </h1>
+          </div>
+          <p className="text-slate-400 text-sm max-w-lg mt-1">
+            {data.mood.category === 'low'
+              ? "It's okay to not be okay. Here are some things that might help."
+              : data.mood.category === 'high'
+                ? "You're radiating good energy! Let's channel it productively."
+                : "Here's what we recommend based on how you're feeling."}
+          </p>
+
+          {/* Quick Stats Row */}
+          <div className="flex items-center gap-4 mt-6 overflow-x-auto pb-2 scrollbar-none">
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 whitespace-nowrap">
+              <Target className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs text-slate-300"><strong className="text-white">{data.stats.activeGoals}</strong> active goals</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 whitespace-nowrap">
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <span className="text-xs text-slate-300"><strong className="text-white">{data.stats.completedToday}</strong> completed today</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 whitespace-nowrap">
+              <Clock className="w-4 h-4 text-indigo-400" />
+              <span className="text-xs text-slate-300"><strong className="text-white">{data.stats.weeklyFocusHours}h</strong> focused this week</span>
+            </div>
+          </div>
         </div>
 
-        {/* Top Navigation / Header Spacer is handled by MainLayout, but we can add a subtle gradient at top */}
-        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#6d1b2b]/10 to-transparent pointer-events-none z-10"></div>
+        {/* ═══════ SOS Quick Relief ═══════ */}
+        {showSOS && (
+          <div className="mb-8 animate-in slide-in-from-top-4 duration-500">
+            <div className="rounded-2xl bg-gradient-to-r from-rose-950/60 to-rose-900/40 border border-rose-500/20 p-5 backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-rose-500/20 rounded-xl">
+                    <AlertTriangle className="w-5 h-5 text-rose-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-rose-200">SOS Quick Relief</h3>
+                    <p className="text-xs text-rose-300/70">Feeling overwhelmed? Try one of these right now.</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowSOS(false)} className="text-xs text-rose-300/60 hover:text-rose-200 transition-colors">
+                  Dismiss
+                </button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {data.sosExercises.map((ex, i) => (
+                  <div key={i} className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer group">
+                    <span className="text-2xl">{ex.icon}</span>
+                    <h4 className="text-sm font-semibold text-white mt-2">{ex.title}</h4>
+                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{ex.description}</p>
+                    <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20">{ex.duration}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
-        {/* Hero Section */}
-        <div data-tour="suggestions-hero" className="relative w-full py-16 px-8 sm:px-12 z-10">
-          <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="relative z-10 max-w-2xl">
-              <div className="flex items-center mb-4">
-                <span className="px-3 py-1 rounded-full border border-[#0d9488]/30 bg-[#0d9488]/10 text-[#0d9488] text-xs font-bold tracking-[0.2em] uppercase backdrop-blur-md">
-                  Personalized Insights
+        {/* ═══════ Mood-Based Recommendations ═══════ */}
+        <section className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Heart className="w-5 h-5 text-pink-400" />
+            <h2 className="text-lg font-bold text-white">For You Right Now</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {data.moodSuggestions.map((suggestion, i) => (
+              <div
+                key={i}
+                onClick={() => navigate(suggestion.link)}
+                className="group cursor-pointer p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:bg-white/[0.07] hover:border-white/20 transition-all duration-300 hover:-translate-y-1"
+              >
+                <span className="text-3xl">{suggestion.icon}</span>
+                <h3 className="text-sm font-bold text-white mt-3">{suggestion.title}</h3>
+                <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{suggestion.description}</p>
+                <div className="flex items-center gap-1 mt-4 text-xs font-medium text-indigo-400 group-hover:text-indigo-300 transition-colors">
+                  <span>{suggestion.action}</span>
+                  <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ═══════ Two Column: Daily Challenge + Focus Boost ═══════ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          {/* Daily Challenge */}
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-950/30 to-orange-950/20 border border-amber-500/15">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 bg-amber-500/15 rounded-xl">
+                <Flame className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-amber-200">Daily Challenge</h3>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${difficultyColors[data.dailyChallenge.difficulty]}`}>
+                  {data.dailyChallenge.difficulty}
                 </span>
               </div>
-              <h1 className="text-4xl md:text-6xl font-['Poppins'] font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-400 tracking-tight mb-6 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-                Your Sanctuary <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0d9488] to-[#2dd4bf]">of Growth</span>
-              </h1>
-              <p className="text-foreground/70 text-lg leading-relaxed max-w-xl font-light border-l-2 border-[#6d1b2b] pl-6">
-                Tailored wisdom to guide your emotional journey. Embrace clarity, find calm, and ignite your potential in the stillness of the night.
-              </p>
             </div>
+            <h4 className="font-semibold text-white text-sm">{data.dailyChallenge.title}</h4>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">{data.dailyChallenge.description}</p>
+          </div>
 
-            {/* Hero Visual */}
-            <div className="relative group">
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#6d1b2b] to-[#0d9488] rounded-full blur-[60px] opacity-40 group-hover:opacity-60 transition-opacity duration-700"></div>
-              <div className="relative w-48 h-48 md:w-64 md:h-64 bg-black/40 backdrop-blur-xl rounded-full border border-white/10 flex items-center justify-center shadow-[0_0_50px_rgba(13,148,136,0.2)] hover:scale-105 transition-all duration-500">
-                <Lightbulb className="w-24 h-24 text-white/90 drop-shadow-[0_0_25px_rgba(255,255,255,0.4)]" strokeWidth={1} />
-                <div className="absolute inset-0 rounded-full border border-white/5 animate-[spin_10s_linear_infinite]"></div>
-                <div className="absolute inset-2 rounded-full border border-white/5 animate-[spin_15s_linear_infinite_reverse]"></div>
+          {/* Focus Boost */}
+          {data.focusBoost.show && (
+            <div
+              className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/30 to-purple-950/20 border border-indigo-500/15 cursor-pointer hover:border-indigo-500/30 transition-all"
+              onClick={() => navigate('/nishtha/focus')}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 bg-indigo-500/15 rounded-xl">
+                  <Zap className="w-5 h-5 text-indigo-400" />
+                </div>
+                <h3 className="font-bold text-indigo-200">Focus Boost</h3>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">{data.focusBoost.message}</p>
+              {data.focusBoost.weeklyHours > 0 && (
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000"
+                      style={{ width: `${Math.min(100, (data.focusBoost.weeklyHours / 20) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-500">{data.focusBoost.weeklyHours}/20h goal</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1 mt-3 text-xs text-indigo-400">
+                <span>Start a session</span>
+                <ChevronRight className="w-3 h-3" />
               </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Content Container */}
-        <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-8 pb-16 space-y-16">
-
-          {/* Suggestions Grid - Obsidian Glass Cards */}
-          <section data-tour="suggestion-cards" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-
-            {/* Card 1 */}
-            <article
-              onClick={() => navigate('/meditation')}
-              className="glass-high group relative rounded-2xl overflow-hidden hover:shadow-[0_0_30px_rgba(13,148,136,0.1)] transition-all duration-500 cursor-pointer"
-            >
-              <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-[#0d9488] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="p-8 flex flex-col h-full relative z-10">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#0d9488]/20 to-transparent rounded-xl flex items-center justify-center mb-6 border border-[#0d9488]/20 group-hover:scale-110 transition-transform duration-300">
-                  <Wind className="w-6 h-6 text-[#2dd4bf]" />
+        {/* ═══════ Sleep Wind-Down ═══════ */}
+        {data.sleepWindDown && (
+          <section className="mb-8 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-violet-950/40 to-slate-950/40 border border-violet-500/15">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 bg-violet-500/15 rounded-xl">
+                  <Moon className="w-5 h-5 text-violet-400" />
                 </div>
-                <h2 className="font-['Poppins'] font-semibold text-xl text-[#0d9488] mb-2 group-hover:text-[#2dd4bf] transition-colors">Stress Relief</h2>
-                <p className="text-xs text-[#0d9488]/70 mb-6 uppercase tracking-wider font-medium">Calm your mind</p>
-                <ul className="space-y-4 text-sm text-foreground/80 flex-1">
-                  {["Deep breathing: 4-4-4", "10-min nature walk", "Calming soundscapes", "Progressive relaxation"].map((item, i) => (
-                    <li key={i} className="flex items-start group/item hover:text-foreground transition-colors">
-                      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#0d9488] mr-3 shadow-[0_0_5px_#0d9488]"></div>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-[#0d9488]/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </article>
-
-            {/* Card 2 */}
-            <article className="glass-high group relative rounded-2xl overflow-hidden hover:shadow-[0_0_30px_rgba(109,27,43,0.15)] transition-all duration-500">
-              <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-[#6d1b2b] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="p-8 flex flex-col h-full relative z-10">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#6d1b2b]/20 to-transparent rounded-xl flex items-center justify-center mb-6 border border-[#6d1b2b]/20 group-hover:scale-110 transition-transform duration-300">
-                  <Coffee className="w-6 h-6 text-[#fb7185]" />
-                </div>
-                <h2 className="font-['Poppins'] font-semibold text-xl text-[#be123c] mb-2 group-hover:text-[#fb7185] transition-colors">Study Breaks</h2>
-                <p className="text-xs text-[#be123c]/70 mb-6 uppercase tracking-wider font-medium">Recharge energy</p>
-                <ul className="space-y-4 text-sm text-foreground/80 flex-1">
-                  {["5-min stretch", "Hydrate + healthy snack", "Mindfulness moment", "Light yoga flow"].map((item, i) => (
-                    <li key={i} className="flex items-start group/item hover:text-foreground transition-colors">
-                      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#6d1b2b] mr-3 shadow-[0_0_5px_#6d1b2b]"></div>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-[#6d1b2b]/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </article>
-
-            {/* Card 3 */}
-            <article className="glass-high group relative rounded-2xl overflow-hidden hover:shadow-[0_0_30px_rgba(234,179,8,0.1)] transition-all duration-500">
-              <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-[#eab308] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="p-8 flex flex-col h-full relative z-10">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#eab308]/20 to-transparent rounded-xl flex items-center justify-center mb-6 border border-[#eab308]/20 group-hover:scale-110 transition-transform duration-300">
-                  <Zap className="w-6 h-6 text-[#fde047]" />
-                </div>
-                <h2 className="font-['Poppins'] font-semibold text-xl text-[#ca8a04] mb-2 group-hover:text-[#fde047] transition-colors">Motivation</h2>
-                <p className="text-xs text-[#ca8a04]/70 mb-6 uppercase tracking-wider font-medium">Ignite focus</p>
-                <ul className="space-y-4 text-sm text-foreground/80 flex-1">
-                  {["Review achievements", "Connect with peers", "Motivational talks", "Celebrate wins"].map((item, i) => (
-                    <li key={i} className="flex items-start group/item hover:text-foreground transition-colors">
-                      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#eab308] mr-3 shadow-[0_0_5px_#eab308]"></div>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-[#eab308]/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </article>
-
-            {/* Card 4 */}
-            <article className="glass-high group relative rounded-2xl overflow-hidden hover:shadow-[0_0_30px_rgba(34,197,94,0.1)] transition-all duration-500">
-              <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-[#22c55e] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <div className="p-8 flex flex-col h-full relative z-10">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#22c55e]/20 to-transparent rounded-xl flex items-center justify-center mb-6 border border-[#22c55e]/20 group-hover:scale-110 transition-transform duration-300">
-                  <Leaf className="w-6 h-6 text-[#4ade80]" />
-                </div>
-                <h2 className="font-['Poppins'] font-semibold text-xl text-[#16a34a] mb-2 group-hover:text-[#4ade80] transition-colors">Healthy Habits</h2>
-                <p className="text-xs text-[#16a34a]/70 mb-6 uppercase tracking-wider font-medium">Build foundation</p>
-                <ul className="space-y-4 text-sm text-foreground/80 flex-1">
-                  {["Sleep schedule", "Regular exercise", "Nutritious meals", "Gratitude journal"].map((item, i) => (
-                    <li key={i} className="flex items-start group/item hover:text-foreground transition-colors">
-                      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#22c55e] mr-3 shadow-[0_0_5px_#22c55e]"></div>
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-[#22c55e]/10 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            </article>
-
-          </section>
-
-          {/* Quick Tips Section - Glowing Path */}
-          <section data-tour="wellbeing-path" className="relative">
-            {/* Section Header */}
-            <div className="flex items-center mb-12">
-              <div className="relative">
-                <div className="absolute inset-0 bg-[#d8b4fe] blur-lg opacity-40"></div>
-                <div className="relative bg-[#3b0764]/50 p-3 rounded-full border border-[#d8b4fe]/30">
-                  <Sparkles className="w-6 h-6 text-[#e9d5ff]" />
+                <div>
+                  <h3 className="font-bold text-violet-200">Sleep Wind-Down</h3>
+                  <p className="text-xs text-violet-300/60">Follow these steps for better sleep tonight.</p>
                 </div>
               </div>
-              <h2 className="ml-5 text-3xl font-['Poppins'] font-bold text-foreground tracking-wide">
-                Path to Well-being
-              </h2>
-            </div>
-
-            {/* The Path Line */}
-            <div className="absolute left-9 top-24 bottom-10 w-px bg-gradient-to-b from-[#0d9488] via-[#6d1b2b] to-transparent hidden md:block opacity-30"></div>
-
-            <div className="space-y-8 md:ml-10">
-              {/* Tip 1 */}
-              <div className="group relative">
-                <div className="md:absolute md:-left-[45px] md:top-1/2 md:-translate-y-1/2 w-5 h-5 rounded-full bg-[#050505] border-[3px] border-[#0d9488] z-10 shadow-[0_0_15px_#0d9488] group-hover:scale-125 transition-transform duration-300 hidden md:block"></div>
-                <div className="glass-high rounded-2xl p-6 hover:bg-muted/10 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between shadow-lg">
-                  <div>
-                    <h3 className="text-xl font-bold font-['Poppins'] text-foreground mb-2 group-hover:text-[#2dd4bf] transition-colors">Morning Routine</h3>
-                    <p className="text-muted-foreground">Start your day with positive affirmations and a clear plan.</p>
+              <div className="space-y-3">
+                {data.sleepWindDown.map((step, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-7 h-7 rounded-full bg-violet-500/15 border border-violet-500/20 flex items-center justify-center text-xs font-bold text-violet-300 shrink-0 mt-0.5">
+                      {step.step}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-baseline justify-between">
+                        <h4 className="text-sm font-semibold text-white">{step.title}</h4>
+                        <span className="text-[10px] text-violet-400/60">{step.time}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">{step.description}</p>
+                    </div>
                   </div>
-                  <div className="mt-4 md:mt-0 px-4 py-1.5 rounded-lg bg-[#0d9488]/10 border border-[#0d9488]/20 text-[#2dd4bf] text-xs font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(13,148,136,0.1)]">
-                    Focus
-                  </div>
-                </div>
-              </div>
-
-              {/* Tip 2 */}
-              <div className="group relative">
-                <div className="md:absolute md:-left-[45px] md:top-1/2 md:-translate-y-1/2 w-5 h-5 rounded-full bg-[#050505] border-[3px] border-[#3b82f6] z-10 shadow-[0_0_15px_#3b82f6] group-hover:scale-125 transition-transform duration-300 hidden md:block"></div>
-                <div className="glass-high rounded-2xl p-6 hover:bg-muted/10 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between shadow-lg">
-                  <div>
-                    <h3 className="text-xl font-bold font-['Poppins'] text-foreground mb-2 group-hover:text-[#60a5fa] transition-colors">Social Connection</h3>
-                    <p className="text-muted-foreground">Spend time with people who uplift and support you.</p>
-                  </div>
-                  <div className="mt-4 md:mt-0 px-4 py-1.5 rounded-lg bg-[#1e3a8a]/20 border border-[#3b82f6]/20 text-[#60a5fa] text-xs font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(59,130,246,0.1)]">
-                    Community
-                  </div>
-                </div>
-              </div>
-
-              {/* Tip 3 */}
-              <div className="group relative">
-                <div className="md:absolute md:-left-[45px] md:top-1/2 md:-translate-y-1/2 w-5 h-5 rounded-full bg-[#050505] border-[3px] border-[#ec4899] z-10 shadow-[0_0_15px_#ec4899] group-hover:scale-125 transition-transform duration-300 hidden md:block"></div>
-                <div className="glass-high rounded-2xl p-6 hover:bg-muted/10 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between shadow-lg">
-                  <div>
-                    <h3 className="text-xl font-bold font-['Poppins'] text-foreground mb-2 group-hover:text-[#f472b6] transition-colors">Self-Care First</h3>
-                    <p className="text-muted-foreground">Remember: Your well-being is not selfish—it's essential.</p>
-                  </div>
-                  <div className="mt-4 md:mt-0 px-4 py-1.5 rounded-lg bg-[#831843]/20 border border-[#ec4899]/20 text-[#f472b6] text-xs font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(236,72,153,0.1)]">
-                    Priority
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </section>
+        )}
 
-          {/* Footer Warning - Minimal & Elegant */}
-          <div className="max-w-3xl mx-auto border-t border-white/5 pt-12 text-center">
-            <div className="inline-flex items-center gap-2 text-red-400/80 bg-red-950/20 px-6 py-3 rounded-full border border-red-900/30 hover:bg-red-950/30 transition-colors cursor-default">
-              <Info className="w-4 h-4" />
-              <span className="text-xs font-medium tracking-wide">
-                In crisis? Reach out to a professional or helpline immediately.
-              </span>
+        {/* ═══════ Mindful Moment ═══════ */}
+        <section className="mb-8">
+          <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 text-center relative overflow-hidden">
+            <div className="absolute inset-0 -z-10">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-teal-500/5 rounded-full blur-[80px]" />
             </div>
+            <Quote className="w-6 h-6 text-teal-500/40 mx-auto mb-4" />
+            <p className="text-lg md:text-xl text-slate-200 font-medium italic leading-relaxed max-w-2xl mx-auto">
+              "{data.mindfulMoment.quote}"
+            </p>
+            <p className="text-sm text-teal-400/60 mt-4 font-medium">— {data.mindfulMoment.author}</p>
           </div>
+        </section>
 
+        {/* ═══════ Crisis Helpline Footer ═══════ */}
+        <div className="mt-12 p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <PhoneCall className="w-4 h-4 text-slate-500" />
+            <span className="text-xs text-slate-500 font-medium">24/7 Support</span>
+          </div>
+          <p className="text-xs text-slate-500">{CRISIS_HELPLINE.description}</p>
+          <a
+            href={`tel:${CRISIS_HELPLINE.number}`}
+            className="inline-block mt-2 text-sm font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+          >
+            {CRISIS_HELPLINE.label}: {CRISIS_HELPLINE.number}
+          </a>
         </div>
       </div>
-      <TourPrompt tour={suggestionsTour} featureName="Suggestions" />
-    </NishthaLayout>
+    </MainLayout>
   );
 }

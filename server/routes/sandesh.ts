@@ -215,4 +215,148 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════
+// REACTIONS (Like/Unlike)
+// ═══════════════════════════════════════════════════════════
+
+// Toggle like on a sandesh
+router.post('/:id/react', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const userId = (req as any).session.userId;
+
+        const existing = await collections.sandeshReactions().findOne({
+            sandesh_id: id, user_id: userId
+        });
+
+        if (existing) {
+            await collections.sandeshReactions().deleteOne({ sandesh_id: id, user_id: userId });
+            const count = await collections.sandeshReactions().countDocuments({ sandesh_id: id });
+            res.json({ liked: false, count });
+        } else {
+            await collections.sandeshReactions().insertOne({
+                id: uuidv4(),
+                sandesh_id: id,
+                user_id: userId,
+                created_at: new Date()
+            });
+            const count = await collections.sandeshReactions().countDocuments({ sandesh_id: id });
+            res.json({ liked: true, count });
+        }
+    } catch (error) {
+        console.error('Error toggling reaction:', error);
+        res.status(500).json({ message: 'Failed to toggle reaction' });
+    }
+});
+
+// Get reaction info for a sandesh
+router.get('/:id/reactions', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const userId = (req as any).session?.userId;
+
+        const count = await collections.sandeshReactions().countDocuments({ sandesh_id: id });
+        let userLiked = false;
+        if (userId) {
+            const existing = await collections.sandeshReactions().findOne({ sandesh_id: id, user_id: userId });
+            userLiked = !!existing;
+        }
+
+        res.json({ count, userLiked });
+    } catch (error) {
+        console.error('Error fetching reactions:', error);
+        res.status(500).json({ message: 'Failed to fetch reactions' });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════
+// COMMENTS
+// ═══════════════════════════════════════════════════════════
+
+// Get comments for a sandesh
+router.get('/:id/comments', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const comments = await collections.sandeshComments()
+            .find({ sandesh_id: id })
+            .sort({ created_at: 1 })
+            .toArray();
+
+        // Fetch user info for comment authors
+        const userIds = [...new Set(comments.map(c => c.user_id))];
+        let userMap = new Map<string, any>();
+        if (userIds.length > 0) {
+            const users = await collections.users()
+                .find({ id: { $in: userIds } })
+                .project({ id: 1, name: 1, avatar: 1 })
+                .toArray();
+            userMap = new Map(users.map(u => [u.id, u]));
+        }
+
+        const result = comments.map(c => {
+            const user = userMap.get(c.user_id);
+            return {
+                id: c.id,
+                sandeshId: c.sandesh_id,
+                userId: c.user_id,
+                authorName: user?.name || 'Anonymous',
+                authorAvatar: user?.avatar || null,
+                content: c.content,
+                createdAt: c.created_at,
+            };
+        });
+
+        res.json({ comments: result });
+    } catch (error) {
+        console.error('Error fetching comments:', error);
+        res.status(500).json({ message: 'Failed to fetch comments' });
+    }
+});
+
+// Post a comment on a sandesh
+router.post('/:id/comments', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const { id: sandeshId } = req.params;
+        const userId = (req as any).session.userId;
+        const { content } = req.body;
+
+        if (!content || !content.trim()) {
+            return res.status(400).json({ message: 'Comment content is required' });
+        }
+
+        const commentId = uuidv4();
+        const now = new Date();
+
+        await collections.sandeshComments().insertOne({
+            id: commentId,
+            sandesh_id: sandeshId,
+            user_id: userId,
+            content: content.trim(),
+            created_at: now,
+        });
+
+        // Get author info
+        const user = await collections.users().findOne(
+            { id: userId },
+            { projection: { name: 1, avatar: 1 } }
+        );
+
+        res.status(201).json({
+            comment: {
+                id: commentId,
+                sandeshId,
+                userId,
+                authorName: user?.name || 'Anonymous',
+                authorAvatar: user?.avatar || null,
+                content: content.trim(),
+                createdAt: now,
+            }
+        });
+    } catch (error) {
+        console.error('Error posting comment:', error);
+        res.status(500).json({ message: 'Failed to post comment' });
+    }
+});
+
 export const sandeshRoutes = router;

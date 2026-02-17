@@ -312,6 +312,7 @@ export async function createServer() {
   app.use("/api/mehfil/interactions", mehfilInteractionRoutes);
   app.use("/api/mehfil/sandesh", (await import("./routes/sandesh")).sandeshRoutes);
   app.use("/api/mehfil", mehfilSocialRouter);
+  app.use("/api/suggestions", (await import("./routes/suggestions")).suggestionsRoutes);
 
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";

@@ -87,12 +87,12 @@ const achievementImages: Record<string, string> = {
     'T003': '/Achievments/Titles/Title (1).png', // Strong Comeback
     'T004': '/Achievments/Titles/Title (4).png', // Tired But Triumphant
 
-    // Weekly Emotional Titles (image text matches code name)
-    'ET001': '/Achievments/Titles/Special_Title (3).png', // Showed Up Tired
-    'ET002': '/Achievments/Titles/Special_Title (2).png', // Did It Anyway
-    'ET003': '/Achievments/Titles/Special_Title (1).png', // Quiet Consistency
-    'ET004': '/Achievments/Titles/Special_Title (4).png', // Survived Bad Week
-    'ET005': '/Achievments/Titles/Special_Title (5).png', // Pushed Through Overwhelm
+    // Weekly Emotional Titles (image text matches PNG content)
+    'ET001': '/Achievments/Titles/Special_Title (2).png', // Did It Anyway
+    'ET002': '/Achievments/Titles/Special_Title (1).png', // Quiet Consistency
+    'ET003': '/Achievments/Titles/Special_Title (5).png', // Pushed Through Overwhelm
+    'ET004': '/Achievments/Titles/Special_Title (3).png', // Showed Up Tired
+    'ET005': '/Achievments/Titles/Special_Title (4).png', // Survived Bad Week
 
     // Zen Master - User Provided SVG
     'T009': '/Achievments/svgviewer-output.svg',

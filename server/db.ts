@@ -61,6 +61,8 @@ export const collections = {
     transactionLogs: () => getDb().collection('transaction_logs'),
     uploadedImages: () => getDb().collection('uploaded_images'),
     sandeshMessages: () => getDb().collection('sandesh_messages'),
+    sandeshReactions: () => getDb().collection('sandesh_reactions'),
+    sandeshComments: () => getDb().collection('sandesh_comments'),
 };
 
 export async function connectMongo(): Promise<void> {
@@ -153,6 +155,8 @@ export async function initDatabase(): Promise<void> {
         await db.collection('course_enrollments').createIndex({ user_id: 1, course_id: 1 }, { unique: true });
         await db.collection('transaction_logs').createIndex({ order_id: 1 });
         await db.collection('uploaded_images').createIndex({ user_id: 1 });
+        await db.collection('sandesh_reactions').createIndex({ sandesh_id: 1, user_id: 1 }, { unique: true });
+        await db.collection('sandesh_comments').createIndex({ sandesh_id: 1, created_at: 1 });
 
         await db.collection('mehfil_reactions').createIndex({ thought_id: 1, user_id: 1 }, { unique: true });
         await db.collection('mehfil_comments').createIndex({ thought_id: 1 });

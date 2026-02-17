@@ -49,11 +49,11 @@ const ACHIEVEMENT_DEFINITIONS = [
 // ========================================
 
 const EMOTIONAL_TITLES = [
-    { id: 'ET001', name: 'Showed Up Tired', description: 'Checked in feeling low but still focused for over 30 minutes — true resilience', trigger: 'low_mood_focus' },
-    { id: 'ET002', name: 'Did It Anyway', description: 'Faced multiple tough days this week but kept your focus hours high', trigger: 'low_mood_high_focus' },
-    { id: 'ET003', name: 'Quiet Consistency', description: 'Showed up and focused for 5 or more days this week — quiet consistency wins', trigger: 'consistent_focus' },
-    { id: 'ET004', name: 'Survived Bad Week', description: 'Kept focusing through a challenging week when your mood was low', trigger: 'bad_week_focus' },
-    { id: 'ET005', name: 'Pushed Through Overwhelm', description: 'Your journal showed struggle, but you pushed through and stayed focused', trigger: 'overwhelm_focus' },
+    { id: 'ET001', name: 'Did It Anyway', description: 'Checked in feeling down but still crushed a daily goal — feeling low doesn\'t stop you', trigger: 'sad_mood_goal_complete' },
+    { id: 'ET002', name: 'Quiet Consistency', description: 'Stayed emotionally consistent for 4-5 days straight while completing goals daily for over 5 consecutive days', trigger: 'same_mood_streak_goal_streak' },
+    { id: 'ET003', name: 'Pushed Through Overwhelm', description: 'Bounced back from rock bottom — recovered from a very low mood week and completed 3+ goals in your comeback week', trigger: 'mood_recovery_goals' },
+    { id: 'ET004', name: 'Showed Up Tired', description: 'Completed 3+ focus sessions between 10 PM and 4 AM in a week despite low spirits — grinding through the night', trigger: 'night_focus_low_mood' },
+    { id: 'ET005', name: 'Survived Bad Week', description: 'Kept focusing through a challenging week when your average mood was very low — raw willpower', trigger: 'bad_week_focus' },
 ];
 
 // ========================================
@@ -87,11 +87,12 @@ async function getUserStats(userId: string) {
 
 async function getWeeklyMoodData(userId: string) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
     // Get moods from last 7 days
     const moods = await collections.moods()
         .find({ user_id: userId, timestamp: { $gte: sevenDaysAgo } })
-        .sort({ timestamp: -1 })
+        .sort({ timestamp: 1 })
         .toArray();
 
     const avgMood = moods.length > 0
@@ -100,7 +101,58 @@ async function getWeeklyMoodData(userId: string) {
 
     const lowMoodDays = moods.filter(m => m.intensity <= 2).length;
 
-    // Weekly focus hours
+    // ── CONSECUTIVE SAME-MOOD STREAK ──
+    let sameMoodStreak = 0;
+    if (moods.length >= 2) {
+        // Group moods by day and get one mood per day
+        const moodByDay = new Map<string, number>();
+        for (const m of moods) {
+            const dayKey = new Date(m.timestamp).toISOString().split('T')[0];
+            if (!moodByDay.has(dayKey)) moodByDay.set(dayKey, m.intensity);
+        }
+        const dailyMoods = [...moodByDay.values()];
+        // Count consecutive days with same mood (intensity)
+        let maxStreak = 1;
+        let currentStreak = 1;
+        for (let i = 1; i < dailyMoods.length; i++) {
+            if (dailyMoods[i] === dailyMoods[i - 1]) {
+                currentStreak++;
+                maxStreak = Math.max(maxStreak, currentStreak);
+            } else {
+                currentStreak = 1;
+            }
+        }
+        sameMoodStreak = maxStreak;
+    }
+
+    // ── CONSECUTIVE DAILY GOAL COMPLETION STREAK ──
+    const recentGoals = await collections.goals()
+        .find({ user_id: userId, completed: true, completed_at: { $gte: fourteenDaysAgo } })
+        .toArray();
+    const goalDays = new Set(recentGoals.map(g => new Date(g.completed_at).toISOString().split('T')[0]));
+    // Count consecutive days with at least 1 goal completion (going backwards from today)
+    let goalStreak = 0;
+    const today = new Date();
+    for (let i = 0; i < 14; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().split('T')[0];
+        if (goalDays.has(key)) {
+            goalStreak++;
+        } else {
+            break;
+        }
+    }
+
+    // ── PREVIOUS WEEK AVG MOOD (for recovery detection) ──
+    const prevWeekMoods = await collections.moods()
+        .find({ user_id: userId, timestamp: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo } })
+        .toArray();
+    const prevWeekAvgMood = prevWeekMoods.length > 0
+        ? prevWeekMoods.reduce((sum, m) => sum + m.intensity, 0) / prevWeekMoods.length
+        : 3;
+
+    // ── WEEKLY FOCUS HOURS ──
     const focusPipeline = [
         { $match: { user_id: userId, completed: true, completed_at: { $gte: sevenDaysAgo } } },
         { $group: { _id: null, total: { $sum: '$duration_minutes' } } }
@@ -108,15 +160,21 @@ async function getWeeklyMoodData(userId: string) {
     const focusResult = await collections.focusSessions().aggregate(focusPipeline).toArray();
     const weeklyFocusHours = ((focusResult[0]?.total) || 0) / 60;
 
-    // Goals completed this week
+    // ── NIGHT FOCUS SESSIONS (10 PM - 4 AM) ──
+    const weekFocusSessions = await collections.focusSessions()
+        .find({ user_id: userId, completed: true, completed_at: { $gte: sevenDaysAgo } })
+        .toArray();
+    const nightSessions = weekFocusSessions.filter(s => {
+        const hour = new Date(s.completed_at).getHours();
+        return hour >= 22 || hour < 4;
+    }).length;
+
+    // ── GOALS COMPLETED THIS WEEK ──
     const weeklyGoals = await collections.goals().countDocuments({
         user_id: userId, completed: true, completed_at: { $gte: sevenDaysAgo }
     });
 
-    // Streaks
-    const streaks = await collections.streaks().findOne({ user_id: userId }) || {};
-
-    // Check journal for struggle keywords
+    // ── JOURNAL STRUGGLE KEYWORDS ──
     const journalEntries = await collections.journal()
         .find({ user_id: userId, timestamp: { $gte: sevenDaysAgo } })
         .toArray();
@@ -132,7 +190,10 @@ async function getWeeklyMoodData(userId: string) {
         weeklyGoals,
         checkIns: moods.length,
         hasStruggleJournal,
-        streakRecovered: (streaks as any).login_streak >= 2,
+        sameMoodStreak,
+        goalStreak,
+        prevWeekAvgMood,
+        nightSessions,
     };
 }
 
@@ -191,7 +252,7 @@ async function evaluateEmotionalMilestone(userId: string): Promise<{ title: stri
     const weekData = await getWeeklyMoodData(userId);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // Get max single session duration
+    // Get max single session duration (for Flow State badge)
     const maxResult = await collections.focusSessions()
         .find({ user_id: userId, completed: true, completed_at: { $gte: sevenDaysAgo } })
         .sort({ duration_minutes: -1 })
@@ -199,32 +260,52 @@ async function evaluateEmotionalMilestone(userId: string): Promise<{ title: stri
         .toArray();
     const maxSessionMinutes = maxResult[0]?.duration_minutes || 0;
 
-    // Check for "Quiet Consistency" (focused on 5+ distinct days)
-    const distinctDays = await collections.focusSessions().aggregate([
-        { $match: { user_id: userId, completed: true, completed_at: { $gte: sevenDaysAgo } } },
-        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$completed_at' } } } },
-        { $count: 'days' }
-    ]).toArray();
-    const focusDays = distinctDays[0]?.days || 0;
+    // ══════ Priority-ordered evaluation ══════
 
-    // Priority order
-    if (weekData.avgMood < 2.5 && weekData.weeklyFocusHours > 5) {
-        return { title: 'Survived Bad Week', description: 'You kept focusing through a challenging week when your mood was low.' };
+    // ET003: "Pushed Through Overwhelm" — Bounced back from rock bottom
+    // Previous week avg mood ≤ 2, this week recovered to ≥ 3.5, AND completed ≥ 3 goals this week
+    if (weekData.prevWeekAvgMood <= 2 && weekData.avgMood >= 3.5 && weekData.weeklyGoals >= 3) {
+        return {
+            title: 'Pushed Through Overwhelm',
+            description: 'You bounced back from rock bottom — recovered from a very low mood week and completed 3+ goals in your comeback week!'
+        };
     }
+
+    // ET002: "Tired But Triumphant" — Same mood 4-5 consecutive days + goals daily >5 days
+    if (weekData.sameMoodStreak >= 4 && weekData.goalStreak > 5) {
+        return {
+            title: 'Tired But Triumphant',
+            description: 'You stayed emotionally consistent for ' + weekData.sameMoodStreak + ' days straight while completing goals daily for ' + weekData.goalStreak + '+ consecutive days — true resilience!'
+        };
+    }
+
+    // ET004: "Showed Up Tired" — 3+ night focus sessions (10PM-4AM) while mood ≤ 3
+    if (weekData.nightSessions >= 3 && weekData.avgMood <= 3) {
+        return {
+            title: 'Showed Up Tired',
+            description: 'You completed ' + weekData.nightSessions + ' focus sessions between 10 PM and 4 AM despite low spirits — grinding through the night!'
+        };
+    }
+
+    // ET001: "Did It Anyway" — Sad mood (≤ 2) check-in + completes ≥ 1 daily goal same day
+    if (weekData.lowMoodDays >= 1 && weekData.weeklyGoals >= 1) {
+        return {
+            title: 'Did It Anyway',
+            description: 'You checked in feeling down but still crushed a daily goal — feeling low doesn\'t stop you!'
+        };
+    }
+
+    // Flow State (ET006 badge — keep existing)
     if (maxSessionMinutes >= 120) {
         return { title: 'Flow State', description: 'You achieved a massive 2+ hour deep work session!' };
     }
-    if (weekData.lowMoodDays >= 3 && weekData.weeklyFocusHours >= 5) {
-        return { title: 'Did It Anyway', description: 'Multiple tough days, but you still showed up and focused.' };
-    }
-    if (focusDays >= 5) {
-        return { title: 'Quiet Consistency', description: 'You showed up and focused for 5+ days this week. Quiet consistency wins.' };
-    }
-    if (weekData.lowMoodDays >= 1 && weekData.weeklyFocusHours >= 1) {
-        return { title: 'Showed Up Tired', description: 'You checked in feeling low but still focused — true resilience.' };
-    }
-    if (weekData.hasStruggleJournal && weekData.weeklyFocusHours >= 2) {
-        return { title: 'Pushed Through Overwhelm', description: 'Your journal showed struggle, but you pushed through and stayed focused!' };
+
+    // ET005: "Survived Bad Week" — avg mood < 2.5 + weekly focus hours > 5
+    if (weekData.avgMood < 2.5 && weekData.weeklyFocusHours > 5) {
+        return {
+            title: 'Survived Bad Week',
+            description: 'You kept focusing through a challenging week when your mood was very low — raw willpower!'
+        };
     }
 
     return { title: null, description: null };
