@@ -20,7 +20,10 @@ import {
     Archive,
     Pencil,
     Save,
-    X
+    X,
+    Repeat,
+    Trophy,
+    Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -110,8 +113,16 @@ export default function Goals() {
     const [editingTitle, setEditingTitle] = useState("");
     const [editingDescription, setEditingDescription] = useState("");
     const [victoriesPage, setVictoriesPage] = useState(0);
-    const victoriesPerPage = 3;
+    const victoriesPerPage = 5;
     const dateConstraints = getDatePickerConstraints();
+
+    // Repeat Plan state
+    const [showRepeatPlan, setShowRepeatPlan] = useState(false);
+    const [repeatPeriod, setRepeatPeriod] = useState<"daily" | "weekly">("daily");
+    const [previousGoals, setPreviousGoals] = useState<Goal[]>([]);
+    const [selectedRepeatIds, setSelectedRepeatIds] = useState<Set<string>>(new Set());
+    const [loadingRepeat, setLoadingRepeat] = useState(false);
+    const [repeating, setRepeating] = useState(false);
 
     const refreshGoalsData = async () => {
         const [allGoals, prompts] = await Promise.all([
@@ -220,6 +231,54 @@ export default function Goals() {
             toast.error(error?.message || "Failed to delete goal");
         }
     };
+
+    // --- Repeat Plan handlers ---
+    const handleOpenRepeatPlan = async (period: "daily" | "weekly" = "daily") => {
+        setRepeatPeriod(period);
+        setShowRepeatPlan(true);
+        setLoadingRepeat(true);
+        try {
+            const prev = await dataService.getPreviousGoals(period);
+            setPreviousGoals(prev);
+            setSelectedRepeatIds(new Set(prev.map(g => g.id)));
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to load previous goals");
+        } finally {
+            setLoadingRepeat(false);
+        }
+    };
+
+    const handleToggleRepeatSelection = (goalId: string) => {
+        setSelectedRepeatIds(prev => {
+            const next = new Set(prev);
+            if (next.has(goalId)) next.delete(goalId);
+            else next.add(goalId);
+            return next;
+        });
+    };
+
+    const handleConfirmRepeat = async () => {
+        if (selectedRepeatIds.size === 0) {
+            toast.error("Please select at least one goal to repeat");
+            return;
+        }
+        setRepeating(true);
+        try {
+            const result = await dataService.repeatPlan(Array.from(selectedRepeatIds));
+            await refreshGoalsData();
+            toast.success(result.message || "Plan repeated for today!");
+            setShowRepeatPlan(false);
+            setPreviousGoals([]);
+            setSelectedRepeatIds(new Set());
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to repeat plan");
+        } finally {
+            setRepeating(false);
+        }
+    };
+
+    // Check if user has any historical goals (for enabling repeat plan)
+    const hasHistoricalGoals = goals.length > 0;
 
     // Derived Logic
     const rolloverPromptIds = new Set(rolloverPrompts.map((goal) => goal.id));
@@ -350,7 +409,7 @@ export default function Goals() {
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
                                             </div>
-                                            
+
                                             <div className="flex justify-center gap-2">
                                                 <select
                                                     value={goalType}
@@ -484,7 +543,7 @@ export default function Goals() {
                                                         ? 'bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300'
                                                         : isMissed
                                                             ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
-                                                        : 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                                                            : 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
                                                     }`}>
                                                     {goal.completed ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                                                     {goal.completed
@@ -495,7 +554,7 @@ export default function Goals() {
                                                                 ? "Abandoned"
                                                                 : lifecycleStatus === "missed"
                                                                     ? "Missed"
-                                                                : "Active"}
+                                                                    : "Active"}
                                                 </span>
                                             </div>
 
@@ -648,44 +707,167 @@ export default function Goals() {
                                 </div>
                             </div>
 
+                            {/* Repeat Plan Card */}
+                            {hasHistoricalGoals && (
+                                <div>
+                                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                                        <Repeat className="w-3 h-3" /> Repeat Plan
+                                    </h4>
+                                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                        {!showRepeatPlan ? (
+                                            <div className="p-5 space-y-3">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Repeat your previous goals for today</p>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <button
+                                                        onClick={() => handleOpenRepeatPlan("daily")}
+                                                        className="flex items-center justify-center gap-1.5 bg-[#2E7D73]/10 text-[#2E7D73] px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-[#2E7D73]/20 transition-colors"
+                                                    >
+                                                        <RotateCcw className="w-3 h-3" />
+                                                        Yesterday
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleOpenRepeatPlan("weekly")}
+                                                        className="flex items-center justify-center gap-1.5 bg-[#9C1C4C]/10 text-[#9C1C4C] px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-[#9C1C4C]/20 transition-colors"
+                                                    >
+                                                        <Calendar className="w-3 h-3" />
+                                                        Last Week
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
+                                                        {repeatPeriod === "daily" ? "Yesterday's Goals" : "Last Week's Goals"}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => { setShowRepeatPlan(false); setPreviousGoals([]); setSelectedRepeatIds(new Set()); }}
+                                                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+
+                                                {loadingRepeat ? (
+                                                    <div className="text-center py-6 text-sm text-gray-400 animate-pulse">Loading...</div>
+                                                ) : previousGoals.length === 0 ? (
+                                                    <div className="text-center py-6 text-sm text-gray-400">
+                                                        No goals found for {repeatPeriod === "daily" ? "yesterday" : "last week"}
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="max-h-[200px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                                                            {previousGoals.map(g => (
+                                                                <label
+                                                                    key={g.id}
+                                                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all border ${selectedRepeatIds.has(g.id)
+                                                                            ? 'bg-[#2E7D73]/5 border-[#2E7D73]/30'
+                                                                            : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                                                                        }`}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedRepeatIds.has(g.id)}
+                                                                        onChange={() => handleToggleRepeatSelection(g.id)}
+                                                                        className="rounded border-gray-300 text-[#2E7D73] focus:ring-[#2E7D73] w-4 h-4 shrink-0"
+                                                                    />
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-1 block">{getGoalTitle(g)}</span>
+                                                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${g.completed ? 'text-emerald-600' : 'text-amber-600'
+                                                                            }`}>
+                                                                            {g.completed ? 'Completed' : 'Incomplete'} · {g.type === 'weekly' ? 'Weekly' : 'Daily'}
+                                                                        </span>
+                                                                    </div>
+                                                                </label>
+                                                            ))}
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
+                                                            <span className="text-[10px] text-gray-400 font-medium">
+                                                                {selectedRepeatIds.size}/{previousGoals.length} selected
+                                                            </span>
+                                                            <button
+                                                                onClick={handleConfirmRepeat}
+                                                                disabled={repeating || selectedRepeatIds.size === 0}
+                                                                className="flex items-center gap-1.5 bg-[#2E7D73] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#25665e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                <Repeat className="w-3 h-3" />
+                                                                {repeating ? 'Repeating...' : 'Repeat for Today'}
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Recent Victories */}
                             <div>
-                                <div className="flex items-center justify-between mb-4">
-                                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide">Recent Victories</h4>
-                                    {totalVictoriesPages > 1 && (
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => setVictoriesPage(p => Math.max(0, p - 1))}
-                                                disabled={victoriesPage === 0}
-                                                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                                <ChevronLeft className="w-4 h-4 text-gray-500" />
-                                            </button>
-                                            <span className="text-xs text-gray-400">{victoriesPage + 1}/{totalVictoriesPages}</span>
-                                            <button
-                                                onClick={() => setVictoriesPage(p => Math.min(totalVictoriesPages - 1, p + 1))}
-                                                disabled={victoriesPage >= totalVictoriesPages - 1}
-                                                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                            >
-                                                <ChevronRight className="w-4 h-4 text-gray-500" />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="space-y-3 pl-2">
-                                    {recentVictories.length > 0 ? (
-                                        recentVictories.map((g, i) => (
-                                            <div key={g.id || i} className="flex items-center gap-3 group cursor-default">
-                                                <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                                                    <Check className="w-3 h-3 text-emerald-600" strokeWidth={3} />
-                                                </div>
-                                                <span className="text-sm font-medium text-gray-600 dark:text-gray-300 group-hover:text-[#2E7D73] transition-colors line-clamp-1">
-                                                    {getGoalTitle(g)}
-                                                </span>
+                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                                    <Trophy className="w-3 h-3 text-amber-500" /> Recent Victories
+                                </h4>
+                                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                    {allCompletedGoals.length > 0 ? (
+                                        <>
+                                            <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
+                                                {recentVictories.map((g, i) => {
+                                                    const completedDate = new Date((g as GoalWithMeta).completed_at || g.completedAt || g.createdAt || Date.now());
+                                                    const dateStr = completedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+                                                    return (
+                                                        <div
+                                                            key={g.id || i}
+                                                            className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-50 dark:border-gray-700/50 last:border-b-0 group hover:bg-emerald-50/50 dark:hover:bg-emerald-500/5 transition-colors"
+                                                        >
+                                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shrink-0 shadow-sm">
+                                                                <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 group-hover:text-[#2E7D73] transition-colors line-clamp-1 block">
+                                                                    {getGoalTitle(g)}
+                                                                </span>
+                                                                <div className="flex items-center gap-2 mt-0.5">
+                                                                    <span className="text-[10px] text-gray-400 dark:text-gray-500">{dateStr}</span>
+                                                                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${g.type === 'weekly'
+                                                                            ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400'
+                                                                            : 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                                                                        }`}>
+                                                                        {g.type === 'weekly' ? 'Weekly' : 'Daily'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            <Sparkles className="w-3.5 h-3.5 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        ))
+                                            {totalVictoriesPages > 1 && (
+                                                <div className="flex items-center justify-center gap-3 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/30">
+                                                    <button
+                                                        onClick={() => setVictoriesPage(p => Math.max(0, p - 1))}
+                                                        disabled={victoriesPage === 0}
+                                                        className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        <ChevronLeft className="w-4 h-4 text-gray-500" />
+                                                    </button>
+                                                    <span className="text-xs text-gray-400 font-medium">{victoriesPage + 1} / {totalVictoriesPages}</span>
+                                                    <button
+                                                        onClick={() => setVictoriesPage(p => Math.min(totalVictoriesPages - 1, p + 1))}
+                                                        disabled={victoriesPage >= totalVictoriesPages - 1}
+                                                        className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        <ChevronRight className="w-4 h-4 text-gray-500" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
                                     ) : (
-                                        <p className="text-sm text-gray-400 italic pl-1">No completed goals yet</p>
+                                        <div className="p-6 text-center">
+                                            <Trophy className="w-8 h-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
+                                            <p className="text-sm text-gray-400 italic">No completed goals yet</p>
+                                            <p className="text-xs text-gray-300 dark:text-gray-600 mt-1">Complete a goal to see it here!</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>

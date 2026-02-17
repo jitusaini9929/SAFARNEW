@@ -137,6 +137,27 @@ export const dataService = {
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to delete goal"));
     },
 
+    async getPreviousGoals(period: "daily" | "weekly" = "daily"): Promise<Goal[]> {
+        const res = await apiFetch(`${API_URL}/goals/previous-goals?period=${period}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: 'include',
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch previous goals"));
+        return res.json();
+    },
+
+    async repeatPlan(goalIds: string[]): Promise<{ message: string; goals: Goal[] }> {
+        const res = await apiFetch(`${API_URL}/goals/repeat-plan`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ goalIds }),
+            credentials: 'include',
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to repeat plan"));
+        return res.json();
+    },
+
     // --- Streaks ---
     async getStreaks(): Promise<{ loginStreak: number; checkInStreak: number; goalCompletionStreak: number; lastActiveDate: string | null }> {
         const res = await apiFetch(`${API_URL}/streaks`, {

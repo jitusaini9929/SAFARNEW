@@ -531,4 +531,114 @@ router.delete('/:id', requireAuth, async (req: Request, res) => {
     }
 });
 
+// Get previous day/week goals for repeat-plan preview
+router.get('/previous-goals', requireAuth, async (req: Request, res) => {
+    try {
+        const userId = req.session.userId!;
+        const period = (req.query.period as string) || 'daily';
+        const now = new Date();
+        const todayKey = getISTDateKey(now);
+
+        let filter: any = { user_id: userId };
+
+        if (period === 'weekly') {
+            // Get all goals from the last 7 days (excluding today)
+            const sevenDaysAgoKey = getISTDateKeyAfterDays(now, -7);
+            filter.$or = [
+                { scheduled_date: { $gte: sevenDaysAgoKey, $lt: todayKey } },
+                {
+                    scheduled_date: { $exists: false },
+                    created_at: { $gte: new Date(new Date(sevenDaysAgoKey).getTime()), $lt: new Date(new Date(todayKey).getTime()) }
+                }
+            ];
+        } else {
+            // daily: Get goals from yesterday
+            const yesterdayKey = getISTDateKeyAfterDays(now, -1);
+            filter.$or = [
+                { scheduled_date: yesterdayKey },
+                {
+                    scheduled_date: { $exists: false },
+                    created_at: {
+                        $gte: new Date(new Date(yesterdayKey).getTime()),
+                        $lt: new Date(new Date(todayKey).getTime())
+                    }
+                }
+            ];
+        }
+
+        const previousGoals = await collections.goals().find(filter).toArray();
+        const normalized = previousGoals.map(normalizeGoalResponse);
+        res.json(normalized);
+    } catch (error) {
+        console.error('Get previous goals error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Repeat plan: create copies of selected previous goals for today
+router.post('/repeat-plan', requireAuth, async (req: Request, res) => {
+    try {
+        const userId = req.session.userId!;
+        const { goalIds } = req.body;
+
+        if (!Array.isArray(goalIds) || goalIds.length === 0) {
+            return res.status(400).json({ message: 'Please select at least one goal to repeat' });
+        }
+
+        if (goalIds.length > 50) {
+            return res.status(400).json({ message: 'Cannot repeat more than 50 goals at once' });
+        }
+
+        // Fetch the source goals
+        const sourceGoals = await collections.goals().find({
+            id: { $in: goalIds },
+            user_id: userId,
+        }).toArray();
+
+        if (sourceGoals.length === 0) {
+            return res.status(404).json({ message: 'No matching goals found' });
+        }
+
+        const now = new Date();
+        const todayKey = getISTDateKey(now);
+
+        // Create new goal copies for today
+        const newGoals = sourceGoals.map(goal => {
+            const newId = uuidv4();
+            const goalType = normalizeGoalType(goal.type) || 'daily';
+            return {
+                id: newId,
+                user_id: userId,
+                text: goal.text || goal.title || '',
+                title: goal.title || goal.text || '',
+                description: goal.description || '',
+                type: goalType,
+                completed: false,
+                completed_at: null,
+                scheduled_date: todayKey,
+                created_at: now,
+                updated_at: now,
+                lifecycle_status: 'active' as GoalLifecycleStatus,
+                rollover_prompt_pending: false,
+                repeated_from: goal.id, // track origin
+            };
+        });
+
+        if (newGoals.length > 0) {
+            await collections.goals().insertMany(newGoals);
+
+            // Log activities
+            for (const goal of newGoals) {
+                await logGoalActivity(userId, goal.id, goal.type as GoalType, 'CREATED', now);
+            }
+        }
+
+        const normalized = newGoals.map(normalizeGoalResponse);
+        res.json({ message: `${normalized.length} goal(s) repeated for today`, goals: normalized });
+    } catch (error) {
+        console.error('Repeat plan error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 export const goalRoutes = router;

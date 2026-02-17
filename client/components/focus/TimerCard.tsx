@@ -53,8 +53,8 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                                 onClick={() => onSetMode(tab.key)}
                                 disabled={isRunning}
                                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${mode === tab.key
-                                        ? "text-white shadow-md"
-                                        : "text-white/60 hover:text-white/90 hover:bg-white/10"
+                                    ? "text-white shadow-md"
+                                    : "text-white/60 hover:text-white/90 hover:bg-white/10"
                                     } ${isRunning && mode !== tab.key ? "opacity-40 cursor-not-allowed" : ""}`}
                                 style={mode === tab.key ? { backgroundColor: currentTheme.accent } : undefined}
                             >

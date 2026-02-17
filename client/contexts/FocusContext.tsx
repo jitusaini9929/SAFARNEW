@@ -92,7 +92,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     });
     const [isMusicPlaying, setIsMusicPlaying] = useState<boolean>(() => {
         try {
-            return localStorage.getItem("focus_music_playing") === "1";
+            // Use sessionStorage so music only persists within the same browsing session
+            // (i.e. across page navigations) but does NOT autoplay on fresh page loads
+            return sessionStorage.getItem("focus_music_playing") === "1";
         } catch {
             return false;
         }
@@ -150,7 +152,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         try {
-            localStorage.setItem("focus_music_playing", isMusicPlaying ? "1" : "0");
+            sessionStorage.setItem("focus_music_playing", isMusicPlaying ? "1" : "0");
         } catch {
             // Ignore storage failures.
         }

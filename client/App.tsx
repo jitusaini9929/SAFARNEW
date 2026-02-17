@@ -11,7 +11,6 @@ import { authService } from "./utils/authService";
 import { GuidedTourProvider } from "@/contexts/GuidedTourContext";
 import { GuidedTour } from "@/components/guided-tour";
 import { FocusProvider } from "@/contexts/FocusContext";
-import PersistentFocusOverlay from "@/components/focus/PersistentFocusOverlay";
 
 // Lazy-loaded pages (code splitting)
 const Test = React.lazy(() => import("./pages/Test"));
@@ -220,7 +219,6 @@ const App = () => (
               </Routes>
             </Suspense>
             <GuidedTour />
-            <PersistentFocusOverlay />
           </GuidedTourProvider>
         </FocusProvider>
       </BrowserRouter>
