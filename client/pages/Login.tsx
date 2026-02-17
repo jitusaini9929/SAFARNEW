@@ -111,7 +111,7 @@ export default function Login() {
             {/* Logo and Title */}
             <div className="flex flex-col items-center mb-8">
               <div className="relative w-24 h-24 mb-4 rounded-full shadow-lg overflow-hidden border-2 border-white/50 dark:border-white/10 group hover:scale-105 transition-transform duration-300">
-                <img
+                <img loading="lazy"
                   src={nishthaLogo}
                   alt="Nishtha wellness logo"
                   className="w-full h-full object-cover"

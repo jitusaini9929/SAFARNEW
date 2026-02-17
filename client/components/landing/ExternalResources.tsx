@@ -26,7 +26,7 @@ const ExternalResources = () => {
                         className="group bg-white dark:bg-[#1E293B] rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
                     >
                         <div className="relative aspect-video bg-gradient-to-br from-red-900/20 to-red-600/20 overflow-hidden">
-                            <img
+                            <img loading="lazy"
                                 src={youtubeImg}
                                 alt="Safar Parmar YouTube Channel"
                                 className="w-full h-full object-cover"
@@ -59,7 +59,7 @@ const ExternalResources = () => {
                         className="group bg-white dark:bg-[#1E293B] rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
                     >
                         <div className="relative aspect-video bg-gradient-to-br from-pink-900/20 to-pink-600/20 overflow-hidden">
-                            <img
+                            <img loading="lazy"
                                 src={courseImg}
                                 alt="Parmar Academy Course"
                                 className="w-full h-full object-contain bg-white p-4 group-hover:scale-105 transition-transform duration-300"

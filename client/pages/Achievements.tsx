@@ -335,7 +335,7 @@ export default function Achievements() {
                                                     <div className="absolute inset-0 bg-teal-500/20 dark:bg-teal-500/10 blur-[50px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                                 )}
 
-                                                <img
+                                                <img loading="lazy"
                                                     src={achievementImages[achievement.id]}
                                                     alt={achievement.name}
                                                     className={`w-full h-full object-contain filter drop-shadow-2xl 
@@ -451,7 +451,7 @@ export default function Achievements() {
                             {achievementImages[detailAchievement.id] && (
                                 <div className="w-32 h-32 mx-auto mb-4 relative">
                                     <div className="absolute inset-0 bg-gradient-to-br from-teal-500/20 to-purple-500/20 rounded-full blur-xl"></div>
-                                    <img
+                                    <img loading="lazy"
                                         src={achievementImages[detailAchievement.id]}
                                         alt={detailAchievement.name}
                                         className="relative w-full h-full object-contain drop-shadow-[0_0_20px_rgba(20,184,166,0.6)]"

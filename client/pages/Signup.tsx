@@ -99,7 +99,7 @@ export default function Signup() {
         <CardHeader className="space-y-2">
           <div className="text-center">
             <div className="w-24 h-24 mx-auto mb-4 flex items-center justify-center">
-              <img
+              <img loading="lazy"
                 src={nishthaLogo}
                 alt="Nishtha Logo"
                 className="w-full h-full rounded-full object-cover shadow-lg border-2 border-primary/20"
@@ -120,7 +120,7 @@ export default function Signup() {
               <label htmlFor="profile-upload" className="cursor-pointer group">
                 <div className="w-20 h-20 rounded-full bg-muted border-2 border-dashed border-primary/50 flex items-center justify-center overflow-hidden hover:border-primary transition-colors">
                   {profilePreview ? (
-                    <img src={profilePreview} alt="Profile Preview" className="w-full h-full object-cover" />
+                    <img loading="lazy" src={profilePreview} alt="Profile Preview" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-xs text-muted-foreground text-center px-2">Click to upload photo</span>
                   )}

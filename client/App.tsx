@@ -6,35 +6,46 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { authService } from "./utils/authService";
 import { GuidedTourProvider } from "@/contexts/GuidedTourContext";
 import { GuidedTour } from "@/components/guided-tour";
-
-
-import Test from "./pages/Test";
-
-// Pages
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Dashboard from "./pages/Dashboard";
-import CheckIn from "./pages/CheckIn";
-import Journal from "./pages/Journal";
-import Goals from "./pages/Goals";
-import Streaks from "./pages/Streaks";
-import Analytics from "./pages/Analytics";
-import Suggestions from "./pages/Suggestions";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
-import ForgotPassword from "./pages/ForgotPassword";
-import StudyWithMe from "./pages/StudyWithMe";
-import Achievements from "./pages/Achievements";
-import Landing from "./pages/Landing";
-import Mehfil from "./pages/Mehfil";
-import Meditation from "./pages/Meditation";
+import { FocusProvider } from "@/contexts/FocusContext";
 import PersistentFocusOverlay from "@/components/focus/PersistentFocusOverlay";
 
+// Lazy-loaded pages (code splitting)
+const Test = React.lazy(() => import("./pages/Test"));
+const Login = React.lazy(() => import("./pages/Login"));
+const Signup = React.lazy(() => import("./pages/Signup"));
+const Dashboard = React.lazy(() => import("./pages/Dashboard"));
+const CheckIn = React.lazy(() => import("./pages/CheckIn"));
+const Journal = React.lazy(() => import("./pages/Journal"));
+const Goals = React.lazy(() => import("./pages/Goals"));
+const Streaks = React.lazy(() => import("./pages/Streaks"));
+const Analytics = React.lazy(() => import("./pages/Analytics"));
+const Suggestions = React.lazy(() => import("./pages/Suggestions"));
+const Profile = React.lazy(() => import("./pages/Profile"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+const ForgotPassword = React.lazy(() => import("./pages/ForgotPassword"));
+const StudyWithMe = React.lazy(() => import("./pages/StudyWithMe"));
+const Achievements = React.lazy(() => import("./pages/Achievements"));
+const Landing = React.lazy(() => import("./pages/Landing"));
+const Mehfil = React.lazy(() => import("./pages/Mehfil"));
+const Meditation = React.lazy(() => import("./pages/Meditation"));
+
 const queryClient = new QueryClient();
+
+// Suspense fallback spinner
+function PageLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <div className="text-center">
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary mx-auto mb-4 animate-pulse"></div>
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -57,14 +68,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isAuthenticated === null) {
     console.log("🟡 [PROTECTED ROUTE] Still checking auth, showing loading...");
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary mx-auto mb-4 animate-pulse"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoadingFallback />;
   }
 
   if (!isAuthenticated) {
@@ -78,8 +82,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/?signin=true" replace />;
 }
 
-import { FocusProvider } from "@/contexts/FocusContext";
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -88,133 +90,135 @@ const App = () => (
       <BrowserRouter>
         <FocusProvider>
           <GuidedTourProvider>
-            <Routes>
-              {/* Auth Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ForgotPassword />} />
+            <Suspense fallback={<PageLoadingFallback />}>
+              <Routes>
+                {/* Auth Routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ForgotPassword />} />
 
-              {/* Protected Routes */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
+                {/* Protected Routes */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
 
-              {/* Nishtha - Wellness App with 5 sections */}
-              <Route path="/nishtha">
-                <Route
-                  index
-                  element={
-                    <ProtectedRoute>
-                      <Navigate to="/nishtha/check-in" replace />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="check-in"
-                  element={
-                    <ProtectedRoute>
-                      <CheckIn />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="journal"
-                  element={
-                    <ProtectedRoute>
-                      <Journal />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="goals"
-                  element={
-                    <ProtectedRoute>
-                      <Goals />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="streaks"
-                  element={
-                    <ProtectedRoute>
-                      <Streaks />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="suggestions"
-                  element={
-                    <ProtectedRoute>
-                      <Suggestions />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="analytics"
-                  element={
-                    <ProtectedRoute>
-                      <Analytics />
-                    </ProtectedRoute>
-                  }
-                />
-              </Route>
+                {/* Nishtha - Wellness App with 5 sections */}
+                <Route path="/nishtha">
+                  <Route
+                    index
+                    element={
+                      <ProtectedRoute>
+                        <Navigate to="/nishtha/check-in" replace />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="check-in"
+                    element={
+                      <ProtectedRoute>
+                        <CheckIn />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="journal"
+                    element={
+                      <ProtectedRoute>
+                        <Journal />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="goals"
+                    element={
+                      <ProtectedRoute>
+                        <Goals />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="streaks"
+                    element={
+                      <ProtectedRoute>
+                        <Streaks />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="suggestions"
+                    element={
+                      <ProtectedRoute>
+                        <Suggestions />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="analytics"
+                    element={
+                      <ProtectedRoute>
+                        <Analytics />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Route>
 
-              <Route
-                path="/study"
-                element={
-                  <ProtectedRoute>
-                    <StudyWithMe />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/achievements"
-                element={
-                  <ProtectedRoute>
-                    <Achievements />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/mehfil"
-                element={
-                  <ProtectedRoute>
-                    <Mehfil />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/meditation"
-                element={
-                  <ProtectedRoute>
-                    <Meditation />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/study"
+                  element={
+                    <ProtectedRoute>
+                      <StudyWithMe />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/achievements"
+                  element={
+                    <ProtectedRoute>
+                      <Achievements />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <Profile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/mehfil"
+                  element={
+                    <ProtectedRoute>
+                      <Mehfil />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/meditation"
+                  element={
+                    <ProtectedRoute>
+                      <Meditation />
+                    </ProtectedRoute>
+                  }
+                />
 
-              {/* Landing page - Public Home */}
-              <Route path="/landing" element={<Landing />} />
+                {/* Landing page - Public Home */}
+                <Route path="/landing" element={<Landing />} />
 
-              {/* Default route - Landing page is now home */}
-              <Route path="/" element={<Landing />} />
+                {/* Default route - Landing page is now home */}
+                <Route path="/" element={<Landing />} />
 
-              {/* 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+                {/* 404 */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
             <GuidedTour />
             <PersistentFocusOverlay />
           </GuidedTourProvider>

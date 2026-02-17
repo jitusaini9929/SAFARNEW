@@ -479,7 +479,7 @@ export default function Meditation() {
                 <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden px-6">
                     {/* Background Image — very subtle */}
                     <div className="absolute inset-0 opacity-[0.06] dark:opacity-[0.03] pointer-events-none select-none">
-                        <img src={meditationBg} alt="" className="w-full h-full object-cover" />
+                        <img loading="lazy" src={meditationBg} alt="" className="w-full h-full object-cover" />
                     </div>
 
                     {/* Floating Gradient Orbs */}
@@ -492,7 +492,7 @@ export default function Meditation() {
                         {/* Meditation Image */}
                         <div className="relative">
                             <div className="absolute inset-0 bg-gradient-to-b from-sky-300/30 to-transparent rounded-3xl blur-2xl scale-125" />
-                            <img
+                            <img loading="lazy"
                                 src={meditationBg}
                                 alt="Meditation"
                                 className="relative w-56 h-32 md:w-72 md:h-40 object-cover object-top rounded-2xl shadow-lg shadow-sky-200/30 dark:shadow-sky-900/20"
@@ -598,7 +598,7 @@ export default function Meditation() {
                 </div>
 
                 {/* ═══ RIGHT SIDEBAR — Breathing Techniques ═══════ */}
-                <div className="hidden md:flex flex-col w-[300px] min-w-[300px] border-l border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0d0d14]/60 backdrop-blur-sm p-4">
+                <div className="hidden lg:flex flex-col w-[300px] min-w-[300px] border-l border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0d0d14]/60 backdrop-blur-sm p-4">
                     <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Breathing Techniques</h3>
 
                     <div data-tour="session-cards" className="flex flex-col gap-3">

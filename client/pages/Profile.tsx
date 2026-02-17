@@ -132,7 +132,7 @@ export default function Profile() {
         <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <img
+              <img loading="lazy"
                 src="/safar-logo.png.jpeg"
                 alt="Safar Logo"
                 className="w-10 h-10 rounded-full border border-emerald-500 object-cover shadow-sm"
@@ -180,7 +180,7 @@ export default function Profile() {
                 {/* Profile Picture */}
                 <div className="relative inline-block mb-6">
                   <div className="profile-ring">
-                    <img
+                    <img loading="lazy"
                       alt={`${user.name} profile picture`}
                       className="w-26 h-26 rounded-3xl object-cover border-4 border-white dark:border-slate-900"
                       src={avatarPreview || user.avatar || "https://via.placeholder.com/150"}

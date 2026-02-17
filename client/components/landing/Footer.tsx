@@ -8,7 +8,7 @@ const Footer = () => {
                 {/* Top Section - Logo & Tagline */}
                 <div className="text-center mb-6">
                     <div className="flex items-center justify-center gap-3 mb-2">
-                        <img
+                        <img loading="lazy"
                             src="/safar-logo.png.jpeg"
                             alt="Safar Logo"
                             className="w-16 h-16 rounded-full border-2 border-brand-accent object-cover shadow-lg"

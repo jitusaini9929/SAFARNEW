@@ -523,6 +523,7 @@ export default function StudyWithMe() {
                         onToggle={toggleTimer}
                         onReset={resetTimer}
                         onTogglePiP={togglePiP}
+                        onSetMode={handleModeChange}
                         isPiPActive={isPiPActive}
                     />
 

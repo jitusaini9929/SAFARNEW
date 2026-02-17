@@ -1,3 +1,4 @@
+import { apiFetch } from "@/utils/apiFetch";
 import { MoodEntry, JournalEntry, Goal, MonthlyReport } from "@shared/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
@@ -15,7 +16,7 @@ async function getApiErrorMessage(res: Response, fallback: string): Promise<stri
 export const dataService = {
     // --- Moods ---
     async getMoods(): Promise<MoodEntry[]> {
-        const res = await fetch(`${API_URL}/moods`, {
+        const res = await apiFetch(`${API_URL}/moods`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
@@ -25,7 +26,7 @@ export const dataService = {
     },
 
     async addMood(mood: string, intensity: number, notes: string): Promise<MoodEntry> {
-        const res = await fetch(`${API_URL}/moods`, {
+        const res = await apiFetch(`${API_URL}/moods`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ mood, intensity, notes }),
@@ -37,7 +38,7 @@ export const dataService = {
 
     // --- Journal ---
     async getJournalEntries(): Promise<JournalEntry[]> {
-        const res = await fetch(`${API_URL}/journal`, {
+        const res = await apiFetch(`${API_URL}/journal`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
@@ -47,7 +48,7 @@ export const dataService = {
     },
 
     async addJournalEntry(content: string, moodId?: string, tags?: string[]): Promise<JournalEntry> {
-        const res = await fetch(`${API_URL}/journal`, {
+        const res = await apiFetch(`${API_URL}/journal`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ content, moodId, tags }),
@@ -58,7 +59,7 @@ export const dataService = {
     },
 
     async deleteJournalEntry(id: string): Promise<void> {
-        const res = await fetch(`${API_URL}/journal/${id}`, {
+        const res = await apiFetch(`${API_URL}/journal/${id}`, {
             method: "DELETE",
             credentials: 'include',
         });
@@ -67,7 +68,7 @@ export const dataService = {
 
     // --- Goals ---
     async getGoals(): Promise<Goal[]> {
-        const res = await fetch(`${API_URL}/goals`, {
+        const res = await apiFetch(`${API_URL}/goals`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
@@ -77,7 +78,7 @@ export const dataService = {
     },
 
     async addGoal(title: string, type: string, scheduledDate?: string, description?: string): Promise<Goal> {
-        const res = await fetch(`${API_URL}/goals`, {
+        const res = await apiFetch(`${API_URL}/goals`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ text: title, title, description, type, scheduledDate }),
@@ -88,7 +89,7 @@ export const dataService = {
     },
 
     async getGoalRolloverPrompts(): Promise<Goal[]> {
-        const res = await fetch(`${API_URL}/goals/rollover-prompts`, {
+        const res = await apiFetch(`${API_URL}/goals/rollover-prompts`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -98,7 +99,7 @@ export const dataService = {
     },
 
     async respondToGoalRollover(goalId: string, action: "retry" | "archive"): Promise<{ message: string; goal?: Goal }> {
-        const res = await fetch(`${API_URL}/goals/${goalId}/rollover-action`, {
+        const res = await apiFetch(`${API_URL}/goals/${goalId}/rollover-action`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action }),
@@ -109,7 +110,7 @@ export const dataService = {
     },
 
     async updateGoal(id: string, completed: boolean): Promise<void> {
-        const res = await fetch(`${API_URL}/goals/${id}`, {
+        const res = await apiFetch(`${API_URL}/goals/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ completed }),
@@ -119,7 +120,7 @@ export const dataService = {
     },
 
     async updateGoalDetails(id: string, title: string, description?: string): Promise<void> {
-        const res = await fetch(`${API_URL}/goals/${id}`, {
+        const res = await apiFetch(`${API_URL}/goals/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ title, description }),
@@ -129,7 +130,7 @@ export const dataService = {
     },
 
     async deleteGoal(id: string): Promise<void> {
-        const res = await fetch(`${API_URL}/goals/${id}`, {
+        const res = await apiFetch(`${API_URL}/goals/${id}`, {
             method: "DELETE",
             credentials: 'include',
         });
@@ -138,7 +139,7 @@ export const dataService = {
 
     // --- Streaks ---
     async getStreaks(): Promise<{ loginStreak: number; checkInStreak: number; goalCompletionStreak: number; lastActiveDate: string | null }> {
-        const res = await fetch(`${API_URL}/streaks`, {
+        const res = await apiFetch(`${API_URL}/streaks`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
@@ -161,7 +162,7 @@ export const dataService = {
         }>;
         counts: { badges: number; titles: number };
     }> {
-        const res = await fetch(`${API_URL}/achievements`, {
+        const res = await apiFetch(`${API_URL}/achievements`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
@@ -171,7 +172,7 @@ export const dataService = {
     },
 
     async getActiveTitle(): Promise<{ title: string | null; type?: string; selectedId?: string }> {
-        const res = await fetch(`${API_URL}/achievements/active-title`, {
+        const res = await apiFetch(`${API_URL}/achievements/active-title`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
@@ -197,7 +198,7 @@ export const dataService = {
             targetValue: number;
         }>;
     }> {
-        const res = await fetch(`${API_URL}/achievements/all`, {
+        const res = await apiFetch(`${API_URL}/achievements/all`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
@@ -208,7 +209,7 @@ export const dataService = {
 
     async getMonthlyReport(month?: string): Promise<MonthlyReport> {
         const suffix = month ? `?month=${encodeURIComponent(month)}` : "";
-        const res = await fetch(`${API_URL}/analytics/monthly-report${suffix}`, {
+        const res = await apiFetch(`${API_URL}/analytics/monthly-report${suffix}`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -218,7 +219,7 @@ export const dataService = {
     },
 
     async generateMonthlyReport(month?: string): Promise<MonthlyReport> {
-        const res = await fetch(`${API_URL}/analytics/monthly-report/generate`, {
+        const res = await apiFetch(`${API_URL}/analytics/monthly-report/generate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(month ? { month } : {}),
@@ -229,7 +230,7 @@ export const dataService = {
     },
 
     async selectAchievement(achievementId: string | null): Promise<{ message: string; selectedId: string | null; title?: string; type?: string }> {
-        const res = await fetch(`${API_URL}/achievements/select`, {
+        const res = await apiFetch(`${API_URL}/achievements/select`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ achievementId }),

@@ -101,7 +101,7 @@ export default function ForgotPassword() {
                 <CardHeader className="space-y-2">
                     <div className="text-center">
                         <div className="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-                            <img
+                            <img loading="lazy"
                                 src={nishthaLogo}
                                 alt="Nishtha Logo"
                                 className="w-full h-full rounded-full object-cover shadow-lg border-2 border-primary/20"

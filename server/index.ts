@@ -1,6 +1,10 @@
 import "./load-env";
 import express from "express";
 import cors from "cors";
+import compression from "compression";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import crypto from "crypto";
 import session, { type SessionData } from "express-session";
 import cookieParser from "cookie-parser";
 import { createServer as createHttpServer } from "http";
@@ -257,6 +261,15 @@ export async function createServer() {
   await seedPerkDefinitions();
 
 
+  // Performance: gzip/brotli compression
+  app.use(compression());
+
+  // Security headers (relaxed CSP to allow Vite dev & inline styles)
+  app.use(helmet({
+    contentSecurityPolicy: false, // Vite uses inline scripts; enable in prod with proper policy
+    crossOriginEmbedderPolicy: false, // Allow loading external fonts & images
+  }));
+
   // Middleware
   app.use(cors({
     origin: true,
@@ -295,6 +308,46 @@ export async function createServer() {
   if (!redisSession) {
     console.warn("[SESSION][MEMORY] using in-memory store (not recommended for production)");
   }
+
+  // ── Rate Limiting (100 requests per minute per IP) ──
+  const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,        // 1 minute window
+    max: 100,                   // max 100 requests per window
+    standardHeaders: true,      // Return rate limit info in `RateLimit-*` headers
+    legacyHeaders: false,       // Disable `X-RateLimit-*` headers
+    message: { message: "Too many requests, please try again later." },
+  });
+  app.use("/api/", apiLimiter);
+
+  // ── CSRF Protection (Double-Submit Cookie) ──
+  // Generate a CSRF token and set it in a cookie
+  app.get("/api/csrf-token", (req, res) => {
+    const token = crypto.randomBytes(32).toString("hex");
+    // Store token in session so we can verify later
+    (req.session as any).csrfToken = token;
+    res.cookie("XSRF-TOKEN", token, {
+      httpOnly: false,           // JS must read this cookie
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    res.json({ csrfToken: token });
+  });
+
+  // Verify CSRF token on state-changing requests
+  app.use("/api/", (req, res, next) => {
+    // Skip CSRF for safe methods and auth routes (login/signup don't have a token yet)
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+    if (req.path.startsWith("/auth/")) return next();
+
+    const headerToken = req.headers["x-csrf-token"] as string;
+    const sessionToken = (req.session as any)?.csrfToken;
+
+    if (!headerToken || !sessionToken || headerToken !== sessionToken) {
+      return res.status(403).json({ message: "Invalid or missing CSRF token." });
+    }
+    return next();
+  });
 
   // Routes
   app.use("/api/auth", authRoutes);

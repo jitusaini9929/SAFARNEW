@@ -319,7 +319,7 @@ export default function Dashboard() {
 
                                         {activeTitleId && achievementImages[activeTitleId] ? (
                                             <div className="relative w-32 h-32 md:w-36 md:h-36 mb-2 filter drop-shadow-lg">
-                                                <img
+                                                <img loading="lazy"
                                                     src={achievementImages[activeTitleId]}
                                                     alt={activeTitle || 'Title'}
                                                     className="w-full h-full object-contain transform group-hover/badge:scale-110 transition-transform duration-500 ease-out"
@@ -456,7 +456,7 @@ export default function Dashboard() {
 
                                         {achievementImages[activeBadge.id] ? (
                                             <div className="relative w-40 h-40 flex items-center justify-center transition-transform duration-500 hover:scale-110">
-                                                <img
+                                                <img loading="lazy"
                                                     src={achievementImages[activeBadge.id]}
                                                     alt={activeBadge.name}
                                                     className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(20,184,166,0.6)]"
@@ -804,7 +804,7 @@ export default function Dashboard() {
                             {achievementImages[selectedAchievement.id] && (
                                 <div className="w-32 h-32 mx-auto mb-4 relative">
                                     <div className="absolute inset-0 bg-gradient-to-br from-teal-500/20 to-purple-500/20 rounded-full blur-xl"></div>
-                                    <img
+                                    <img loading="lazy"
                                         src={achievementImages[selectedAchievement.id]}
                                         alt={selectedAchievement.name}
                                         className="relative w-full h-full object-contain drop-shadow-[0_0_20px_rgba(20,184,166,0.6)]"

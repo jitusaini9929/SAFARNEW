@@ -303,7 +303,7 @@ export default function CelebrationModal({ isOpen, onClose, achievement, achieve
                     {achievementImage && (
                         <div className="relative w-28 h-28 mx-auto mb-3 animate-in zoom-in-50 duration-700 delay-300">
                             <div className="absolute inset-0 bg-white/30 rounded-full blur-2xl animate-pulse" />
-                            <img
+                            <img loading="lazy"
                                 src={achievementImage}
                                 alt={achievement.name}
                                 className="relative w-full h-full object-contain drop-shadow-[0_0_25px_rgba(255,255,255,0.6)] animate-in spin-in-180 duration-700 delay-300"

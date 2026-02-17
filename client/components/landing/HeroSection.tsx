@@ -70,7 +70,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                     {/* Logo and SAFAR Title */}
                     <div className="flex items-center gap-3 md:gap-4">
                         <div className="flex items-center justify-center rounded-full shadow-2xl shadow-black/25 dark:shadow-white/15">
-                            <img
+                            <img loading="lazy"
                                 src="/safar-logo.png.jpeg"
                                 alt="Safar Logo"
                                 className="w-10 h-10 md:w-[74px] md:h-[74px] rounded-full object-cover shadow-md"
@@ -93,7 +93,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                         {/* Conditional: Sign In Button vs Profile Avatar */}
                         {user ? (
                             <Link to="/profile" className="w-[52px] h-[52px] rounded-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md flex items-center justify-center p-0.5 border-2 border-amber-300/30 dark:border-slate-600 shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:border-amber-400 dark:hover:border-slate-500 transition-all duration-300 cursor-pointer overflow-hidden">
-                                <img
+                                <img loading="lazy"
                                     alt="User Avatar"
                                     className="w-full h-full rounded-lg object-cover object-top"
                                     src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDpC23e9Ij3Kzg310AyhS08hUZzUO5wS83FP5YrPuwjRF6AdxBcC0qMEWdFAJiBHiiKEpJHNEbk9vqBSUUAUjgF2APRS9xFACSDScYRjzU5e2Jdzerz_s7hmwhryXd5GYbqUBly6WOzSLclpR9PSy-7IzNLc4H3bsD04CkD_UDuiADxphkdk_S6XJUWlkbEJLC8p79msm7_L_2qzmoVs8sriSKSPq99rcz8ANuarcX1JwGcgGg6NcLBVgUPi59TaljhiM80PD-94ds"}
@@ -116,7 +116,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
             <header className="relative w-full min-h-screen flex items-center justify-center">
                 <div className="absolute inset-0 z-0">
                     {/* Static Background Image */}
-                    <img
+                    <img loading="lazy"
                         src="/hero-background.png"
                         alt="Hero background"
                         className="absolute inset-0 w-full h-full object-cover"

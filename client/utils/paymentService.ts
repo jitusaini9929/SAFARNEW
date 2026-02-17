@@ -1,3 +1,4 @@
+import { apiFetch } from "@/utils/apiFetch";
 import { useState } from "react";
 import type { Course, CreateOrderResponse, VerifyPaymentResponse } from "@shared/payments";
 
@@ -38,7 +39,7 @@ export function loadRazorpayScript(): Promise<boolean> {
 
 // Create an order on the server
 export async function createOrder(courseId: string): Promise<CreateOrderResponse> {
-  const response = await fetch("/api/payments/create-order", {
+  const response = await apiFetch("/api/payments/create-order", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ courseId }),
@@ -60,7 +61,7 @@ export async function verifyPayment(
   razorpay_signature: string,
   courseId: string
 ): Promise<VerifyPaymentResponse> {
-  const response = await fetch("/api/payments/verify", {
+  const response = await apiFetch("/api/payments/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -84,7 +85,7 @@ export async function verifyPayment(
 export async function checkPurchaseStatus(
   courseId: string
 ): Promise<{ purchased: boolean; payment?: any }> {
-  const response = await fetch(`/api/payments/status/${courseId}`, {
+  const response = await apiFetch(`/api/payments/status/${courseId}`, {
     credentials: "include",
   });
 

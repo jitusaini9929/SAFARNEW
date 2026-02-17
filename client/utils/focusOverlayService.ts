@@ -1,3 +1,4 @@
+import { apiFetch } from "@/utils/apiFetch";
 export interface OverlayPosition {
   x: number;
   y: number;
@@ -37,7 +38,7 @@ const API_BASE = "/api/focus-overlay";
 
 export const focusOverlayService = {
   async getState(): Promise<{ state: FocusOverlayState | null; stats: FocusOverlayStats | null }> {
-    const response = await fetch(`${API_BASE}/state`, {
+    const response = await apiFetch(`${API_BASE}/state`, {
       method: "GET",
       credentials: "include",
     });
@@ -52,7 +53,7 @@ export const focusOverlayService = {
   },
 
   async saveState(state: FocusOverlayState): Promise<void> {
-    await fetch(`${API_BASE}/state`, {
+    await apiFetch(`${API_BASE}/state`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -67,7 +68,7 @@ export const focusOverlayService = {
     totalActiveMs: number;
     isRunning: boolean;
   }): Promise<void> {
-    await fetch(`${API_BASE}/flush`, {
+    await apiFetch(`${API_BASE}/flush`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

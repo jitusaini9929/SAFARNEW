@@ -1,3 +1,4 @@
+import { apiFetch } from "@/utils/apiFetch";
 export interface FocusSession {
     id: string;
     userId: string;
@@ -31,7 +32,7 @@ export const focusService = {
     // Log a focus session to the backend
     logSession: async (session: Omit<FocusSession, 'id' | 'userId' | 'completedAt'>): Promise<{ success: boolean; id: string }> => {
         try {
-            const response = await fetch(API_BASE, {
+            const response = await apiFetch(API_BASE, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -64,7 +65,7 @@ export const focusService = {
     // Get stats from the backend
     getStats: async (): Promise<FocusStats> => {
         try {
-            const response = await fetch(`${API_BASE}/stats`, {
+            const response = await apiFetch(`${API_BASE}/stats`, {
                 method: 'GET',
                 credentials: 'include'
             });

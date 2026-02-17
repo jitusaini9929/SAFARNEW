@@ -114,7 +114,7 @@ export default function CourseBanner({ user, courseId = "safar-30" }: CourseBann
         }}
       >
         <div className="relative">
-          <img
+          <img loading="lazy"
             src={course.imageUrl || "/Banner.jpeg"}
             alt={course.name}
             className="w-full h-auto object-cover"
