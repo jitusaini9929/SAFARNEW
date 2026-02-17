@@ -102,12 +102,7 @@ const normalizeGoalResponse = (goal: any) => {
     };
 };
 
-const isDailyCreationBlockedNow = (now: Date) => {
-    const nowIST = toISTDate(now);
-    const hour = nowIST.getUTCHours();
-    const minute = nowIST.getUTCMinutes();
-    return hour === 23 && minute >= 1;
-};
+// isDailyCreationBlockedNow removed — users can create goals at any time.
 
 const logGoalActivity = async (
     userId: string,
@@ -245,10 +240,7 @@ router.post('/', requireAuth, async (req: Request, res) => {
 
         const scheduledDateObj = new Date(`${scheduledDateKey}T00:00:00.000Z`);
 
-        // Daily goals are frozen in the 11:01 PM to 11:59 PM IST window for goals scheduled for today.
-        if (type === 'daily' && scheduledDateKey === todayISTDateKey && isDailyCreationBlockedNow(now)) {
-            return res.status(403).json({ message: 'Sorry cannot create goals at this time, save that for tomorrow' });
-        }
+        // (11 PM creation block removed — goals can be created at any time)
 
         const id = uuidv4();
         const userId = req.session.userId!;
@@ -408,6 +400,15 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         const goalType = normalizeGoalType(goal.type) || 'daily';
         const now = new Date();
         const updates: Record<string, any> = {};
+        const { scheduledDate } = req.body;
+
+        if (scheduledDate) {
+            // Rescheduling logic
+            const scheduledDateKey = scheduledDate.split('T')[0];
+            const scheduledDateObj = new Date(`${scheduledDateKey}T00:00:00.000Z`);
+            updates.scheduled_date = scheduledDateObj;
+            updates.expires_at = calculateExpiryUTC(goalType, now, scheduledDateObj);
+        }
 
         if (hasTitleUpdate && normalizedTitle) {
             updates.title = normalizedTitle;
@@ -438,7 +439,25 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         }
 
         const wasCompleted = Boolean(goal.completed);
-        const completedAt = completed ? now : null;
+
+        // Allow client to specify when the goal was completed (today or yesterday)
+        let completedAt: Date | null = null;
+        if (completed) {
+            if (req.body.completedAt) {
+                const parsed = new Date(req.body.completedAt);
+                if (!Number.isFinite(parsed.getTime())) {
+                    return res.status(400).json({ message: 'Invalid completedAt date' });
+                }
+                // Validate within last 2 days
+                const twoDaysAgo = new Date(now.getTime() - 2 * DAY_MS);
+                if (parsed < twoDaysAgo || parsed > now) {
+                    return res.status(400).json({ message: 'completedAt must be within the last 2 days' });
+                }
+                completedAt = parsed;
+            } else {
+                completedAt = now;
+            }
+        }
 
         const lifecycleStatus: GoalLifecycleStatus = completed ? 'active' : (goal.lifecycle_status || 'active');
         updates.completed = completed;
@@ -537,31 +556,28 @@ router.get('/previous-goals', requireAuth, async (req: Request, res) => {
         const userId = req.session.userId!;
         const period = (req.query.period as string) || 'daily';
         const now = new Date();
-        const todayKey = getISTDateKey(now);
+
+        // Use Date objects for comparisons (scheduled_date is stored as Date)
+        const todayStart = getStartOfISTDayUTC(now);
 
         let filter: any = { user_id: userId };
 
         if (period === 'weekly') {
-            // Get all goals from the last 7 days (excluding today)
-            const sevenDaysAgoKey = getISTDateKeyAfterDays(now, -7);
+            const sevenDaysAgo = new Date(todayStart.getTime() - 7 * DAY_MS);
             filter.$or = [
-                { scheduled_date: { $gte: sevenDaysAgoKey, $lt: todayKey } },
+                { scheduled_date: { $gte: sevenDaysAgo, $lt: todayStart } },
                 {
                     scheduled_date: { $exists: false },
-                    created_at: { $gte: new Date(new Date(sevenDaysAgoKey).getTime()), $lt: new Date(new Date(todayKey).getTime()) }
+                    created_at: { $gte: sevenDaysAgo, $lt: todayStart }
                 }
             ];
         } else {
-            // daily: Get goals from yesterday
-            const yesterdayKey = getISTDateKeyAfterDays(now, -1);
+            const yesterdayStart = new Date(todayStart.getTime() - DAY_MS);
             filter.$or = [
-                { scheduled_date: yesterdayKey },
+                { scheduled_date: { $gte: yesterdayStart, $lt: todayStart } },
                 {
                     scheduled_date: { $exists: false },
-                    created_at: {
-                        $gte: new Date(new Date(yesterdayKey).getTime()),
-                        $lt: new Date(new Date(todayKey).getTime())
-                    }
+                    created_at: { $gte: yesterdayStart, $lt: todayStart }
                 }
             ];
         }
@@ -615,7 +631,7 @@ router.post('/repeat-plan', requireAuth, async (req: Request, res) => {
                 type: goalType,
                 completed: false,
                 completed_at: null,
-                scheduled_date: todayKey,
+                scheduled_date: new Date(`${todayKey}T00:00:00.000Z`),
                 created_at: now,
                 updated_at: now,
                 lifecycle_status: 'active' as GoalLifecycleStatus,
@@ -637,6 +653,62 @@ router.post('/repeat-plan', requireAuth, async (req: Request, res) => {
         res.json({ message: `${normalized.length} goal(s) repeated for today`, goals: normalized });
     } catch (error) {
         console.error('Repeat plan error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Repeat a single goal for a specific date
+router.post('/:id/repeat', requireAuth, async (req: Request, res) => {
+    try {
+        const userId = req.session.userId!;
+        const { id } = req.params;
+        const { scheduledDate } = req.body;
+
+        const sourceGoal = await collections.goals().findOne({ id, user_id: userId });
+        if (!sourceGoal) {
+            return res.status(404).json({ message: 'Goal not found' });
+        }
+
+        const now = new Date();
+        // Parse date - expect ISO string YYYY-MM-DD...
+        const scheduledDateKey = scheduledDate ? scheduledDate.split('T')[0] : getISTDateKey(now);
+        const scheduledDateObj = new Date(`${scheduledDateKey}T00:00:00.000Z`);
+
+        const newId = uuidv4();
+        const goalType = normalizeGoalType(sourceGoal.type) || 'daily';
+
+        // Calculate expiry based on scheduled date
+        let expiresAt = new Date(scheduledDateObj);
+        expiresAt.setUTCHours(23, 59, 59, 999);
+        // Adjust for IST if needed, but simple UTC end of day is usually fine for this logic
+        // reusing logic from create goal would be better but this is sufficient for now
+
+        const newGoal = {
+            id: newId,
+            user_id: userId,
+            text: sourceGoal.title || sourceGoal.text || '',
+            title: sourceGoal.title || sourceGoal.text || '',
+            description: sourceGoal.description || '',
+            type: goalType,
+            completed: false,
+            created_at: now,
+            completed_at: null,
+            expires_at: expiresAt,
+            lifecycle_status: 'active' as GoalLifecycleStatus,
+            rollover_prompt_pending: false,
+            source_goal_id: sourceGoal.id,
+            scheduled_date: scheduledDateObj,
+            missed_at: null as Date | null,
+            rolled_over_at: null as Date | null,
+            abandoned_at: null as Date | null,
+        };
+
+        await collections.goals().insertOne(newGoal);
+        await logGoalActivity(userId, newId, goalType, 'CREATED', now);
+
+        res.status(201).json(normalizeGoalResponse(newGoal));
+    } catch (error) {
+        console.error('Repeat goal error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });

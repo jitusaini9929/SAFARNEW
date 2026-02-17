@@ -82,6 +82,16 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const isPiPActiveRef = useRef(false);
     const studyRoute = "/study";
 
+    // Notification sound ref — plays when any timer mode completes
+    const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
+    useEffect(() => {
+        const audio = new Audio("https://del1.vultrobjects.com/qms-images/Safar/notification.mp3");
+        audio.preload = "auto";
+        audio.volume = 0.7;
+        notificationAudioRef.current = audio;
+        return () => { audio.pause(); audio.src = ""; };
+    }, []);
+
     // Global Music
     const [musicSource, setMusicSourceState] = useState<string>(() => {
         try {
@@ -200,10 +210,18 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         } else if (remainingSeconds === 0 && isRunning) {
             setIsRunning(false);
 
-            // Log Session
+            // 🔔 Play notification sound for ALL modes (pomodoro, short break, long break)
+            try {
+                const na = notificationAudioRef.current;
+                if (na) {
+                    na.currentTime = 0;
+                    na.play().catch(() => { /* autoplay may be blocked */ });
+                }
+            } catch { /* ignore */ }
+
+            // Log Session (only for focus/pomodoro sessions)
             if (modeRef.current === "Timer") {
                 const durationMins = Math.floor(totalSecondsRef.current / 60);
-                // Dynamic import to avoid circular dependencies if any
                 import("@/utils/focusService").then(({ focusService }) => {
                     focusService.logSession({
                         durationMinutes: durationMins,

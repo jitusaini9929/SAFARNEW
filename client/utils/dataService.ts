@@ -109,11 +109,11 @@ export const dataService = {
         return res.json();
     },
 
-    async updateGoal(id: string, completed: boolean): Promise<void> {
+    async updateGoal(id: string, completed: boolean, completedAt?: string): Promise<void> {
         const res = await apiFetch(`${API_URL}/goals/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ completed }),
+            body: JSON.stringify({ completed, ...(completedAt ? { completedAt } : {}) }),
             credentials: 'include',
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update goal"));
@@ -127,6 +127,31 @@ export const dataService = {
             credentials: 'include',
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update goal details"));
+    },
+
+    async rescheduleGoal(id: string, date: Date): Promise<void> {
+        const res = await apiFetch(`${API_URL}/goals/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                completed: false,
+                scheduledDate: date.toISOString()
+            }),
+            credentials: 'include',
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to reschedule goal"));
+    },
+
+    async repeatGoal(id: string, date: Date): Promise<void> {
+        const res = await apiFetch(`${API_URL}/goals/${id}/repeat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                scheduledDate: date.toISOString()
+            }),
+            credentials: 'include',
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to repeat goal"));
     },
 
     async deleteGoal(id: string): Promise<void> {

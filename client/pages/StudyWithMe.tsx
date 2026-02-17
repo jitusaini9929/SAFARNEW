@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
 import { FocusAnalytics } from "@/components/focus/FocusAnalytics";
@@ -18,6 +18,14 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { focusTimerTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
@@ -94,6 +102,27 @@ const normalizeMinutes = (value: number, min = TIMER_MINUTES_MIN, step = TIMER_S
     return Math.max(min, rounded);
 };
 
+const getTasksStorageKey = (userId?: string) => (userId ? `focus-tasks-${userId}` : "focus-tasks");
+
+const loadTasks = (userId?: string): Task[] => {
+    try {
+        const key = getTasksStorageKey(userId);
+        const saved = localStorage.getItem(key);
+        return saved ? JSON.parse(saved) : [];
+    } catch {
+        return [];
+    }
+};
+
+const saveTasks = (tasks: Task[], userId?: string) => {
+    try {
+        const key = getTasksStorageKey(userId);
+        localStorage.setItem(key, JSON.stringify(tasks));
+    } catch {
+        // Ignore storage failures.
+    }
+};
+
 export default function StudyWithMe() {
     const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
@@ -137,13 +166,20 @@ export default function StudyWithMe() {
     const [showThemeSelector, setShowThemeSelector] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [tasks, setTasks] = useState<Task[]>([]);
+    const [completedTask, setCompletedTask] = useState<Task | null>(null);
+    const [awaitingProceed, setAwaitingProceed] = useState(false);
+    const [showDurationPrompt, setShowDurationPrompt] = useState(false);
+    const [nextDurationInput, setNextDurationInput] = useState("");
 
     // Get current task (first uncompleted)
-    const currentTask = tasks.find(task => !task.completed);
+    const activeTask = tasks.find(task => !task.completed);
+    const currentTask = awaitingProceed ? undefined : activeTask;
 
     // Audio/Video refs and states
     const videoRef = useRef<HTMLVideoElement>(null);
     const [customTimerInput, setCustomTimerInput] = useState("");
+    const completionSoundRef = useRef<HTMLAudioElement | null>(null);
+    const completionHandledRef = useRef(false);
 
     // Deep link handling for analytics
     useEffect(() => {
@@ -153,20 +189,76 @@ export default function StudyWithMe() {
         }
     }, [window.location.search]);
 
-    // Auto-complete task on session end (listening to context state)
     useEffect(() => {
-        if (remainingSeconds === 0 && !isRunning && mode === 'Timer') {
-            // Auto-complete current task logic
-            // Note: Logging is handled by Context
-            if (currentTask) {
-                const updatedTasks = tasks.map(task =>
-                    task.id === currentTask.id ? { ...task, completed: true } : task
-                );
-                setTasks(updatedTasks);
-                localStorage.setItem(user?.id ? `focus-tasks-${user.id}` : 'focus-tasks', JSON.stringify(updatedTasks));
-            }
+        const audio = new Audio("https://del1.vultrobjects.com/qms-images/Safar/notification.mp3");
+        audio.preload = "auto";
+        audio.volume = 0.8;
+        completionSoundRef.current = audio;
+        const unlock = () => {
+            const current = completionSoundRef.current;
+            if (!current) return;
+            current.play()
+                .then(() => {
+                    current.pause();
+                    current.currentTime = 0;
+                })
+                .catch(() => { /* ignore */ });
+            window.removeEventListener("pointerdown", unlock);
+        };
+        window.addEventListener("pointerdown", unlock);
+        return () => {
+            window.removeEventListener("pointerdown", unlock);
+            audio.pause();
+            audio.src = "";
+        };
+    }, []);
+
+    const persistTasks = useCallback((nextTasks: Task[]) => {
+        setTasks(nextTasks);
+        saveTasks(nextTasks, user?.id);
+    }, [user?.id]);
+
+    const updateTasks = useCallback((updater: (prev: Task[]) => Task[]) => {
+        setTasks((prev) => {
+            const next = updater(prev);
+            saveTasks(next, user?.id);
+            return next;
+        });
+    }, [user?.id]);
+
+    // Auto-complete task on session end (listening to context state)
+    // Triggers for ALL modes — when any timer reaches 0, mark the current task done
+    // and the next uncompleted task automatically becomes the "current task".
+    const prevRemainingRef = useRef(remainingSeconds);
+    useEffect(() => {
+        const justCompleted = remainingSeconds === 0 && prevRemainingRef.current > 0;
+        prevRemainingRef.current = remainingSeconds;
+
+        if (remainingSeconds > 0) {
+            completionHandledRef.current = false;
         }
-    }, [remainingSeconds, isRunning, mode, currentTask, tasks, user]);
+
+        if (!justCompleted || completionHandledRef.current) return;
+        completionHandledRef.current = true;
+
+        const taskToComplete = activeTask;
+        if (taskToComplete) {
+            updateTasks((prev) =>
+                prev.map(task =>
+                    task.id === taskToComplete.id ? { ...task, completed: true } : task
+                )
+            );
+            setCompletedTask(taskToComplete);
+            setAwaitingProceed(true);
+            setShowDurationPrompt(false);
+        }
+
+        const audio = completionSoundRef.current;
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(() => { /* autoplay may be blocked */ });
+        }
+    }, [remainingSeconds, activeTask, updateTasks]);
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -181,6 +273,12 @@ export default function StudyWithMe() {
         };
         fetchUser();
     }, []);
+
+    useEffect(() => {
+        setTasks(loadTasks(user?.id));
+        setCompletedTask(null);
+        setAwaitingProceed(false);
+    }, [user?.id]);
 
     // Guided tour integration
     const { startTour } = useGuidedTour();
@@ -252,6 +350,33 @@ export default function StudyWithMe() {
 
     const handleCustomTimerInputKeyDown = (key: string) => {
         if (key === "Enter") applyCustomTimer();
+    };
+
+    const nextTask = awaitingProceed ? activeTask : undefined;
+
+    const handleProceedToNext = () => {
+        if (!nextTask) return;
+        setNextDurationInput(String(sliderValue));
+        setShowDurationPrompt(true);
+    };
+
+    const handleNextDurationChange = (value: string) => {
+        setNextDurationInput(value.replace(/\D/g, ""));
+    };
+
+    const confirmNextDuration = () => {
+        const parsed = parseInt(nextDurationInput.trim(), 10);
+        if (!Number.isFinite(parsed)) return;
+        const normalized = normalizeMinutes(parsed);
+        handleSetTimer(normalized);
+        setShowDurationPrompt(false);
+        setAwaitingProceed(false);
+        setCompletedTask(null);
+        setNextDurationInput("");
+    };
+
+    const cancelNextDuration = () => {
+        setShowDurationPrompt(false);
     };
 
     const handleThemeChange = (newTheme: FocusTheme) => {
@@ -497,12 +622,49 @@ export default function StudyWithMe() {
                 </div>
             )}
 
+            {/* Next Task Duration Prompt */}
+            <Dialog
+                open={showDurationPrompt}
+                onOpenChange={(open) => {
+                    setShowDurationPrompt(open);
+                    if (!open) setNextDurationInput("");
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Set Timer Duration</DialogTitle>
+                        <DialogDescription>
+                            Choose the focus duration for your next task.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            value={nextDurationInput}
+                            onChange={(e) => handleNextDurationChange(e.target.value)}
+                            placeholder={`${TIMER_MINUTES_MIN} minutes`}
+                            className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={cancelNextDuration}>
+                            Cancel
+                        </Button>
+                        <Button onClick={confirmNextDuration} disabled={!nextDurationInput.trim()}>
+                            Set Timer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Tasks Sidebar */}
             <TasksSidebar
                 isOpen={isTasksOpen}
                 onClose={() => setIsTasksOpen(false)}
-                onTasksChange={setTasks}
-                userId={user?.id}
+                tasks={tasks}
+                onTasksChange={persistTasks}
             />
 
             {/* Main Content or Analytics */}
@@ -520,6 +682,9 @@ export default function StudyWithMe() {
                         mode={mode}
                         currentTheme={currentTheme}
                         currentTask={currentTask}
+                        completedTask={completedTask ?? undefined}
+                        nextTask={nextTask}
+                        onProceed={handleProceedToNext}
                         onToggle={toggleTimer}
                         onReset={resetTimer}
                         onTogglePiP={togglePiP}

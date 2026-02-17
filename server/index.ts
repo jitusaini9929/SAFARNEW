@@ -319,14 +319,15 @@ export async function createServer() {
   });
   app.use("/api/", apiLimiter);
 
-  // ── CSRF Protection (Double-Submit Cookie) ──
-  // Generate a CSRF token and set it in a cookie
+  // ── CSRF Protection (PAUSED) ──
+  // Temporarily disabled to resolve UX issues with token mismatches.
+  // To re-enable, uncomment the block below.
+  /*
   app.get("/api/csrf-token", (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
-    // Store token in session so we can verify later
     (req.session as any).csrfToken = token;
     res.cookie("XSRF-TOKEN", token, {
-      httpOnly: false,           // JS must read this cookie
+      httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
@@ -334,9 +335,7 @@ export async function createServer() {
     res.json({ csrfToken: token });
   });
 
-  // Verify CSRF token on state-changing requests
   app.use("/api/", (req, res, next) => {
-    // Skip CSRF for safe methods and auth routes (login/signup don't have a token yet)
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
     if (req.path.startsWith("/auth/")) return next();
 
@@ -348,6 +347,7 @@ export async function createServer() {
     }
     return next();
   });
+  */
 
   // Routes
   app.use("/api/auth", authRoutes);

@@ -112,6 +112,8 @@ export default function Goals() {
     const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
     const [editingTitle, setEditingTitle] = useState("");
     const [editingDescription, setEditingDescription] = useState("");
+    const [reschedulePromptGoalId, setReschedulePromptGoalId] = useState<string | null>(null);
+    const [rescheduleDate, setRescheduleDate] = useState<string>("");
     const [victoriesPage, setVictoriesPage] = useState(0);
     const victoriesPerPage = 5;
     const dateConstraints = getDatePickerConstraints();
@@ -202,13 +204,35 @@ export default function Goals() {
     };
 
     const handleToggleGoal = async (goal: Goal) => {
+        if (goal.completed) {
+            // Completed — Show Repeat/Reschedule Prompt
+            setReschedulePromptGoalId(goal.id);
+            // Default to today or the goal's original scheduled date if available and future
+            const defaultDate = new Date().toISOString().split('T')[0];
+            setRescheduleDate(defaultDate);
+        } else {
+            // Completing — Immediate
+            try {
+                await dataService.updateGoal(goal.id, true, new Date().toISOString());
+                await refreshGoalsData();
+                toast.success("Goal completed!");
+            } catch (error: any) {
+                toast.error(error?.message || "Failed to update goal");
+            }
+        }
+    };
+
+    const handleConfirmReschedule = async (goalId: string) => {
         try {
-            const newStatus = !goal.completed;
-            await dataService.updateGoal(goal.id, newStatus);
+            if (!rescheduleDate) return;
+            // Use 'repeatGoal' instead of 'rescheduleGoal' to create a COPY
+            await dataService.repeatGoal(goalId, new Date(rescheduleDate));
             await refreshGoalsData();
-            if (newStatus) toast.success("Goal completed!");
+            toast.success("Goal scheduled for " + rescheduleDate);
         } catch (error: any) {
-            toast.error(error?.message || "Failed to update goal");
+            toast.error(error?.message || "Failed to schedule goal");
+        } finally {
+            setReschedulePromptGoalId(null);
         }
     };
 
@@ -452,6 +476,38 @@ export default function Goals() {
 
                                     return (
                                         <div key={goal.id} data-tour="goal-cards" className="relative group bg-white dark:bg-[#111827] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 flex flex-col justify-between min-h-[160px]">
+
+                                            {/* Repeat Prompt Overlay (when clicking completed goal) */}
+                                            {reschedulePromptGoalId === goal.id && (
+                                                <div className="absolute inset-0 z-20 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center gap-4 p-6 animate-in fade-in zoom-in-95 duration-200">
+                                                    <p className="text-sm font-bold text-gray-700 dark:text-gray-200 text-center">
+                                                        Repeat this goal on:
+                                                    </p>
+                                                    <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                                                        <input
+                                                            type="date"
+                                                            value={rescheduleDate}
+                                                            onChange={(e) => setRescheduleDate(e.target.value)}
+                                                            className="w-full bg-muted/50 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-[#2E7D73]/30 dark:bg-gray-800 dark:text-white"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        />
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleConfirmReschedule(goal.id); }}
+                                                            disabled={!rescheduleDate}
+                                                            className="w-full flex items-center justify-center gap-1.5 bg-[#2E7D73] text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-[#25665e] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            <Calendar className="w-4 h-4" />
+                                                            Set Date
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setReschedulePromptGoalId(null); }}
+                                                        className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            )}
 
                                             <div className="flex justify-between items-start mb-3 gap-3">
                                                 <div className="min-w-0 flex-1">
@@ -761,8 +817,8 @@ export default function Goals() {
                                                                 <label
                                                                     key={g.id}
                                                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all border ${selectedRepeatIds.has(g.id)
-                                                                            ? 'bg-[#2E7D73]/5 border-[#2E7D73]/30'
-                                                                            : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                                                                        ? 'bg-[#2E7D73]/5 border-[#2E7D73]/30'
+                                                                        : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50'
                                                                         }`}
                                                                 >
                                                                     <input
@@ -830,8 +886,8 @@ export default function Goals() {
                                                                 <div className="flex items-center gap-2 mt-0.5">
                                                                     <span className="text-[10px] text-gray-400 dark:text-gray-500">{dateStr}</span>
                                                                     <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${g.type === 'weekly'
-                                                                            ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400'
-                                                                            : 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                                                                        ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400'
+                                                                        : 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
                                                                         }`}>
                                                                         {g.type === 'weekly' ? 'Weekly' : 'Daily'}
                                                                     </span>

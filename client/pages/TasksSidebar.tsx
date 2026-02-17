@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Plus, Trash2, CheckCircle, Circle } from 'lucide-react';
 
 interface Task {
@@ -10,55 +10,25 @@ interface Task {
 interface TasksSidebarProps {
     isOpen: boolean;
     onClose: () => void;
-    onTasksChange?: (tasks: Task[]) => void;
-    userId?: string;
+    tasks: Task[];
+    onTasksChange: (tasks: Task[]) => void;
 }
-
-// Load tasks from localStorage (scoped per user)
-const loadTasks = (userId?: string): Task[] => {
-    try {
-        const key = userId ? `focus-tasks-${userId}` : 'focus-tasks';
-        const saved = localStorage.getItem(key);
-        return saved ? JSON.parse(saved) : [];
-    } catch {
-        return [];
-    }
-};
-
-// Save tasks to localStorage (scoped per user)
-const saveTasks = (tasks: Task[], userId?: string) => {
-    const key = userId ? `focus-tasks-${userId}` : 'focus-tasks';
-    localStorage.setItem(key, JSON.stringify(tasks));
-};
-
-const TasksSidebar: React.FC<TasksSidebarProps> = ({ isOpen, onClose, onTasksChange, userId }) => {
-    const [tasks, setTasks] = useState<Task[]>(() => loadTasks(userId));
+const TasksSidebar: React.FC<TasksSidebarProps> = ({ isOpen, onClose, onTasksChange, tasks }) => {
     const [newTask, setNewTask] = useState("");
-
-    // Reload tasks when userId changes
-    useEffect(() => {
-        setTasks(loadTasks(userId));
-    }, [userId]);
-
-    // Save to localStorage and notify parent whenever tasks change
-    useEffect(() => {
-        saveTasks(tasks, userId);
-        onTasksChange?.(tasks);
-    }, [tasks, onTasksChange]);
 
     const handleAddTask = () => {
         if (newTask.trim()) {
-            setTasks([...tasks, { id: Date.now(), text: newTask, completed: false }]);
+            onTasksChange([...tasks, { id: Date.now(), text: newTask, completed: false }]);
             setNewTask("");
         }
     };
 
     const toggleTask = (id: number) => {
-        setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+        onTasksChange(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
     };
 
     const deleteTask = (id: number) => {
-        setTasks(tasks.filter(t => t.id !== id));
+        onTasksChange(tasks.filter(t => t.id !== id));
     };
 
     if (!isOpen) return null;

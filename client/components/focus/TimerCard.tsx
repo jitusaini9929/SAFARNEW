@@ -8,6 +8,9 @@ interface TimerCardProps {
     mode: "Timer" | "short" | "long";
     currentTheme: { accent: string };
     currentTask?: { text: string };
+    completedTask?: { text: string };
+    nextTask?: { text: string };
+    onProceed?: () => void;
     onToggle: () => void;
     onReset: () => void;
     onTogglePiP: () => void;
@@ -28,6 +31,9 @@ export const TimerCard: React.FC<TimerCardProps> = ({
     mode,
     currentTheme,
     currentTask,
+    completedTask,
+    nextTask,
+    onProceed,
     onToggle,
     onReset,
     onTogglePiP,
@@ -71,8 +77,33 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                 {formatTime(minutes, seconds)}
             </div>
 
-            {/* Current Task Display */}
-            {currentTask && (
+            {/* Task Display */}
+            {completedTask ? (
+                <div className="mb-6 md:mb-8 px-4 py-3 rounded-xl bg-white/30 dark:bg-slate-800/30 backdrop-blur-sm border-2 border-white/20 max-w-md mx-auto">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-semibold">Task Completed</div>
+                            <div className="text-sm md:text-base font-medium text-foreground">
+                                Task {completedTask.text} is completed
+                            </div>
+                            {nextTask && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                    Up next: {nextTask.text}
+                                </div>
+                            )}
+                        </div>
+                        {nextTask && onProceed && (
+                            <button
+                                onClick={onProceed}
+                                className="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-md transition-all"
+                                style={{ backgroundColor: currentTheme.accent }}
+                            >
+                                Proceed
+                            </button>
+                        )}
+                    </div>
+                </div>
+            ) : currentTask ? (
                 <div className="mb-6 md:mb-8 px-4 py-3 rounded-xl bg-white/30 dark:bg-slate-800/30 backdrop-blur-sm border-2 border-white/20 max-w-md mx-auto">
                     <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-semibold">Current Task</div>
                     <div className="text-sm md:text-base font-medium text-foreground flex items-center gap-2">
@@ -80,7 +111,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                         {currentTask.text}
                     </div>
                 </div>
-            )}
+            ) : null}
 
             {/* Control Buttons */}
             <div className="flex items-center justify-center gap-4">
