@@ -103,7 +103,7 @@ export default function Achievements() {
     const [user, setUser] = useState<any>(null);
     const [achievements, setAchievements] = useState<Achievement[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'all' | 'badge' | 'title'>('all');
+    const [filter, setFilter] = useState<'all' | 'mood' | 'consistency' | 'productivity'>('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [selecting, setSelecting] = useState(false);
     const [evaluating, setEvaluating] = useState(false);
@@ -215,7 +215,17 @@ export default function Achievements() {
         }
     };
 
-    const filteredAchievements = filter === 'all' ? achievements : achievements.filter(a => a.type === filter);
+    const filteredAchievements =
+        filter === 'all'
+            ? achievements
+            : achievements.filter((achievement) => {
+                if (filter === 'mood') return achievement.category === 'emotional';
+                if (filter === 'consistency') {
+                    return achievement.category === 'goals' || achievement.category === 'streak';
+                }
+                if (filter === 'productivity') return achievement.category === 'focus';
+                return true;
+            });
     const badges = achievements.filter(a => a.type === 'badge');
     const titles = achievements.filter(a => a.type === 'title');
 
@@ -291,16 +301,28 @@ export default function Achievements() {
 
                     {/* Filter Tabs */}
                     <div className="flex gap-2 mb-6">
-                        {(['all', 'badge', 'title'] as const).map(tab => (
+                        {(['all', 'mood', 'consistency', 'productivity'] as const).map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setFilter(tab)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === tab
-                                    ? tab === 'badge' ? 'bg-teal-500 text-white' : tab === 'title' ? 'bg-red-600 text-white' : 'bg-primary text-primary-foreground'
+                                    ? tab === 'mood'
+                                        ? 'bg-rose-500 text-white'
+                                        : tab === 'consistency'
+                                            ? 'bg-amber-500 text-white'
+                                            : tab === 'productivity'
+                                                ? 'bg-teal-500 text-white'
+                                                : 'bg-primary text-primary-foreground'
                                     : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                                     }`}
                             >
-                                {tab === 'all' ? 'All' : tab === 'badge' ? 'Badges' : 'Titles'}
+                                {tab === 'all'
+                                    ? 'All'
+                                    : tab === 'mood'
+                                        ? 'Mood'
+                                        : tab === 'consistency'
+                                            ? 'Consistency'
+                                            : 'Productivity'}
                             </button>
                         ))}
                     </div>

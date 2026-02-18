@@ -351,7 +351,7 @@ export default function Dashboard() {
                                 <h3 className="font-semibold text-lg">Daily Inspiration</h3>
                             </div>
                             <blockquote className="text-2xl font-serif text-foreground/90 leading-relaxed italic text-center px-4">
-                                "Every effort counts. Be proud of yourself."
+                                "{getDailyQuote()}"
                             </blockquote>
                         </div>
                     </div>
