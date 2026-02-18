@@ -20,12 +20,12 @@ function emitAuthChanged(isAuthenticated: boolean, user?: User | null) {
 }
 
 export const authService = {
-  async login(email: string, password: string): Promise<User> {
+  async login(email: string, password: string, rememberMe?: boolean): Promise<User> {
     const normalizedEmail = normalizeEmail(email);
     const response = await apiFetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: normalizedEmail, password }),
+      body: JSON.stringify({ email: normalizedEmail, password, rememberMe }),
       credentials: "include",
     });
 

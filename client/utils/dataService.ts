@@ -162,8 +162,12 @@ export const dataService = {
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to delete goal"));
     },
 
-    async getPreviousGoals(period: "daily" | "weekly" = "daily"): Promise<Goal[]> {
-        const res = await apiFetch(`${API_URL}/goals/previous-goals?period=${period}`, {
+    async getPreviousGoals(period: "daily" | "weekly" | "monthly" | "custom" = "daily", customDays?: number): Promise<Goal[]> {
+        let url = `${API_URL}/goals/previous-goals?period=${period}`;
+        if (period === 'custom' && customDays) {
+            url += `&days=${customDays}`;
+        }
+        const res = await apiFetch(url, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',

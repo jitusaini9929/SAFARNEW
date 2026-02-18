@@ -550,37 +550,38 @@ router.delete('/:id', requireAuth, async (req: Request, res) => {
     }
 });
 
-// Get previous day/week goals for repeat-plan preview
+// Get previous goals (yesterday, last week, last month, or custom)
 router.get('/previous-goals', requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
         const period = (req.query.period as string) || 'daily';
+        const days = req.query.days ? parseInt(req.query.days as string) : 1;
         const now = new Date();
 
         // Use Date objects for comparisons (scheduled_date is stored as Date)
         const todayStart = getStartOfISTDayUTC(now);
 
         let filter: any = { user_id: userId };
+        let startDate: Date;
 
         if (period === 'weekly') {
-            const sevenDaysAgo = new Date(todayStart.getTime() - 7 * DAY_MS);
-            filter.$or = [
-                { scheduled_date: { $gte: sevenDaysAgo, $lt: todayStart } },
-                {
-                    scheduled_date: { $exists: false },
-                    created_at: { $gte: sevenDaysAgo, $lt: todayStart }
-                }
-            ];
+            startDate = new Date(todayStart.getTime() - 7 * DAY_MS);
+        } else if (period === 'monthly') {
+            startDate = new Date(todayStart.getTime() - 30 * DAY_MS);
+        } else if (period === 'custom') {
+            startDate = new Date(todayStart.getTime() - days * DAY_MS);
         } else {
-            const yesterdayStart = new Date(todayStart.getTime() - DAY_MS);
-            filter.$or = [
-                { scheduled_date: { $gte: yesterdayStart, $lt: todayStart } },
-                {
-                    scheduled_date: { $exists: false },
-                    created_at: { $gte: yesterdayStart, $lt: todayStart }
-                }
-            ];
+            // Daily
+            startDate = new Date(todayStart.getTime() - DAY_MS);
         }
+
+        filter.$or = [
+            { scheduled_date: { $gte: startDate, $lt: todayStart } },
+            {
+                scheduled_date: { $exists: false },
+                created_at: { $gte: startDate, $lt: todayStart }
+            }
+        ];
 
         const previousGoals = await collections.goals().find(filter).toArray();
         const normalized = previousGoals.map(normalizeGoalResponse);

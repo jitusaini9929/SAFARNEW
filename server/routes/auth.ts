@@ -322,7 +322,14 @@ router.post('/login', async (req: any, res) => {
         }
 
         req.session.userId = authenticatedUser.id;
-        console.log('[LOGIN] Session userId set:', req.session.userId);
+
+        // Handle "Remember Me" - 30 days if checked, 24 hours if not
+        const rememberMe = req.body.rememberMe === true;
+        req.session.cookie.maxAge = rememberMe
+            ? 30 * 24 * 60 * 60 * 1000 // 30 days
+            : 24 * 60 * 60 * 1000;     // 24 hours
+
+        console.log(`[LOGIN] Session userId set: ${req.session.userId}, RememberMe: ${rememberMe}, MaxAge: ${req.session.cookie.maxAge}`);
 
         // Update login streak (best effort)
         try {
@@ -554,6 +561,13 @@ router.get('/me', requireAuth, async (req: Request, res) => {
         }
 
         const avatarUrl = user.avatar || 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png';
+
+        // Update login streak (eagerly updating on session restore)
+        try {
+            await updateLoginStreak(user.id);
+        } catch (streakError) {
+            console.error('[ME] Streak update failed (non-fatal):', streakError);
+        }
 
         // Get streaks
         const streaks = await collections.streaks().findOne({ user_id: user.id });

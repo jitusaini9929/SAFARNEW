@@ -120,7 +120,7 @@ export default function Goals() {
 
     // Repeat Plan state
     const [showRepeatPlan, setShowRepeatPlan] = useState(false);
-    const [repeatPeriod, setRepeatPeriod] = useState<"daily" | "weekly">("daily");
+    const [repeatPeriod, setRepeatPeriod] = useState<"daily" | "weekly" | "monthly" | "custom">("daily");
     const [previousGoals, setPreviousGoals] = useState<Goal[]>([]);
     const [selectedRepeatIds, setSelectedRepeatIds] = useState<Set<string>>(new Set());
     const [loadingRepeat, setLoadingRepeat] = useState(false);
@@ -213,7 +213,7 @@ export default function Goals() {
         } else {
             // Completing — Immediate
             try {
-                await dataService.updateGoal(goal.id, true, new Date().toISOString());
+                await dataService.updateGoal(goal.id, true);
                 await refreshGoalsData();
                 toast.success("Goal completed!");
             } catch (error: any) {
@@ -257,12 +257,12 @@ export default function Goals() {
     };
 
     // --- Repeat Plan handlers ---
-    const handleOpenRepeatPlan = async (period: "daily" | "weekly" = "daily") => {
+    const handleOpenRepeatPlan = async (period: "daily" | "weekly" | "monthly" | "custom" = "daily", customDays?: number) => {
         setRepeatPeriod(period);
         setShowRepeatPlan(true);
         setLoadingRepeat(true);
         try {
-            const prev = await dataService.getPreviousGoals(period);
+            const prev = await dataService.getPreviousGoals(period, customDays);
             setPreviousGoals(prev);
             setSelectedRepeatIds(new Set(prev.map(g => g.id)));
         } catch (error: any) {
@@ -771,30 +771,62 @@ export default function Goals() {
                                     </h4>
                                     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
                                         {!showRepeatPlan ? (
-                                            <div className="p-5 space-y-3">
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">Repeat your previous goals for today</p>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <button
-                                                        onClick={() => handleOpenRepeatPlan("daily")}
-                                                        className="flex items-center justify-center gap-1.5 bg-[#2E7D73]/10 text-[#2E7D73] px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-[#2E7D73]/20 transition-colors"
-                                                    >
-                                                        <RotateCcw className="w-3 h-3" />
-                                                        Yesterday
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleOpenRepeatPlan("weekly")}
-                                                        className="flex items-center justify-center gap-1.5 bg-[#9C1C4C]/10 text-[#9C1C4C] px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-[#9C1C4C]/20 transition-colors"
-                                                    >
-                                                        <Calendar className="w-3 h-3" />
-                                                        Last Week
-                                                    </button>
+                                            <div className="p-5 space-y-4">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Select which past goals to repeat today</p>
+
+                                                <div className="flex gap-2">
+                                                    <div className="relative flex-1">
+                                                        <select
+                                                            value={repeatPeriod}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value as any;
+                                                                setRepeatPeriod(val);
+                                                                // If switching away from custom, fetch immediately
+                                                                if (val !== 'custom') {
+                                                                    handleOpenRepeatPlan(val);
+                                                                } else {
+                                                                    // Clear list when switching to custom until they click "Fetch" or we could auto-fetch default
+                                                                    setPreviousGoals([]);
+                                                                }
+                                                            }}
+                                                            className="w-full appearance-none bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-3 py-2 rounded-xl text-xs font-medium text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2E7D73]/20"
+                                                        >
+                                                            <option value="daily">Daily (Yesterday)</option>
+                                                            <option value="weekly">Weekly (Last 7 Days)</option>
+                                                            <option value="monthly">Monthly (Last 30 Days)</option>
+                                                            <option value="custom">Custom Range</option>
+                                                        </select>
+                                                        <ChevronRight className="w-3 h-3 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 rotate-90 pointer-events-none" />
+                                                    </div>
+
+                                                    {repeatPeriod === 'custom' && (
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            max="365"
+                                                            placeholder="Days"
+                                                            className="w-16 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-2 py-2 rounded-xl text-xs font-medium text-center focus:outline-none focus:ring-2 focus:ring-[#2E7D73]/20 dark:text-white"
+                                                            onBlur={(e) => {
+                                                                const days = parseInt(e.target.value);
+                                                                if (days > 0) handleOpenRepeatPlan('custom', days);
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    const days = parseInt(e.currentTarget.value);
+                                                                    if (days > 0) handleOpenRepeatPlan('custom', days);
+                                                                }
+                                                            }}
+                                                        />
+                                                    )}
                                                 </div>
                                             </div>
                                         ) : (
                                             <div className="p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
-                                                        {repeatPeriod === "daily" ? "Yesterday's Goals" : "Last Week's Goals"}
+                                                        {repeatPeriod === 'daily' ? "Yesterday's Goals" :
+                                                            repeatPeriod === 'weekly' ? "Last Week's Goals" :
+                                                                repeatPeriod === 'monthly' ? "Last Month's Goals" : "Custom Range Goals"}
                                                     </span>
                                                     <button
                                                         onClick={() => { setShowRepeatPlan(false); setPreviousGoals([]); setSelectedRepeatIds(new Set()); }}

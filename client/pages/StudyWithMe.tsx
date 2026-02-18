@@ -647,7 +647,7 @@ export default function StudyWithMe() {
                     <FocusAnalytics />
                 </div>
             ) : (
-                <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 min-h-full">
+                <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 min-h-full pb-32 landscape:pb-24">
                     {/* Timer Card */}
                     <TimerCard
                         minutes={minutes}

@@ -8,6 +8,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -27,7 +28,7 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      const user = await authService.login(email, password);
+      const user = await authService.login(email, password, rememberMe);
       toast.success("Welcome back!");
       sessionStorage.setItem("showWelcomeNishtha", "true");
       // Redirect after a brief delay to ensure state is saved
@@ -163,7 +164,20 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
                 />
-                <div className="flex justify-end mt-2">
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center">
+                    <input
+                      id="remember-me"
+                      name="remember-me"
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded cursor-pointer transition-colors"
+                    />
+                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300 font-medium cursor-pointer select-none">
+                      Remember me
+                    </label>
+                  </div>
                   <Link
                     to="/forgot-password"
                     className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors"
