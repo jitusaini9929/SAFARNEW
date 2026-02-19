@@ -141,7 +141,9 @@ export default function StudyWithMe() {
         setMusicSource,
         toggleMusic,
         toggleMusicMuted,
-        setMusicVolume
+        setMusicVolume,
+        setLongBreakDuration,
+        longBreakDuration
     } = useFocus(); // Use Context
 
     // Destructure from Context State
@@ -157,6 +159,7 @@ export default function StudyWithMe() {
     useEffect(() => {
         if (mode === 'Timer') setSliderValue(normalizeMinutes(Math.floor(totalSeconds / 60)));
         if (mode === 'short') setBreakSliderValue(normalizeMinutes(Math.floor(totalSeconds / 60), BREAK_MINUTES_MIN, BREAK_STEP_MINUTES));
+        if (mode === 'long') setBreakSliderValue(normalizeMinutes(Math.floor(totalSeconds / 60), BREAK_MINUTES_MIN, BREAK_STEP_MINUTES));
     }, [mode, totalSeconds]);
 
 
@@ -273,7 +276,7 @@ export default function StudyWithMe() {
     const modeSettings = {
         Timer: { minutes: sliderValue, label: "Pomodoro" },
         short: { minutes: breakSliderValue, label: "Short break" },
-        long: { minutes: 15, label: "Long break" },
+        long: { minutes: longBreakDuration, label: "Long break" },
     };
 
     // Removed local timer Effects (handled by FocusContext)
@@ -291,7 +294,11 @@ export default function StudyWithMe() {
     const handleBreakSliderChange = (value: number) => {
         const normalized = normalizeMinutes(value, BREAK_MINUTES_MIN, BREAK_STEP_MINUTES);
         setBreakSliderValue(normalized);
-        setBreakDuration(normalized);
+        if (mode === 'long') {
+            setLongBreakDuration(normalized);
+        } else {
+            setBreakDuration(normalized);
+        }
     };
 
     // Removed local toggleTimer, resetTimer, formatTime
@@ -313,8 +320,16 @@ export default function StudyWithMe() {
         const parsed = parseInt(customTimerInput.trim(), 10);
         if (!Number.isFinite(parsed)) return;
         const normalized = normalizeMinutes(parsed);
-        setSliderValue(normalized);
-        setTimerDuration(normalized);
+
+        if (mode === 'Timer') {
+            setSliderValue(normalized);
+            setTimerDuration(normalized);
+        } else if (mode === 'short') {
+            setBreakSliderValue(normalized);
+            setBreakDuration(normalized);
+        } else if (mode === 'long') {
+            setLongBreakDuration(normalized);
+        }
         setCustomTimerInput("");
     };
 

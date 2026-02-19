@@ -20,6 +20,8 @@ interface FocusContextType {
     timerState: TimerState;
     setTimerDuration: (minutes: number) => void;
     setBreakDuration: (minutes: number) => void;
+    setLongBreakDuration: (minutes: number) => void;
+    longBreakDuration: number;
     setMode: (mode: FocusMode) => void;
     startTimer: () => void;
     pauseTimer: () => void;
@@ -642,7 +644,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         let duration = 25;
         if (newMode === "Timer") duration = timerDuration;
         if (newMode === "short") duration = breakDuration;
-        if (newMode === "long") duration = 15;
+        if (newMode === "long") duration = longBreakDuration;
 
         setTotalSeconds(duration * 60);
         setRemainingSeconds(duration * 60);
@@ -667,6 +669,17 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         }
     }, [mode]);
 
+    const [longBreakDuration, setLongBreakDuration] = useState(15);
+
+    const handleSetLongBreakDuration = useCallback((mins: number) => {
+        setLongBreakDuration(mins);
+        if (mode === "long") {
+            setTotalSeconds(mins * 60);
+            setRemainingSeconds(mins * 60);
+            setIsRunning(false);
+        }
+    }, [mode]);
+
     const value: FocusContextType = {
         timerState: {
             minutes: Math.floor(remainingSeconds / 60),
@@ -678,6 +691,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         },
         setTimerDuration: handleSetTimerDuration,
         setBreakDuration: handleSetBreakDuration,
+        setLongBreakDuration: handleSetLongBreakDuration,
+        longBreakDuration: longBreakDuration,
         setMode: handleSetMode,
         startTimer,
         pauseTimer,
