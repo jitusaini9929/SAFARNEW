@@ -75,7 +75,7 @@ const focusThemes: FocusTheme[] = [
         gradient: "linear-gradient(135deg, #1e3a5f 0%, #2e7144 50%, #4ade80 100%)",
         icon: <MoonStar className="w-4 h-4" />,
         videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_4.mp4",
-        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/music_2.mp3"
+        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/WhatsApp_Audio_2026-02-18_at_10.05.04_AM.mpeg"
     },
     {
         id: "solitude",
