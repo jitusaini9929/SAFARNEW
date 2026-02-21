@@ -16,6 +16,20 @@
   .pb-safe {
     padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   }
+  .action-btn-nowrap {
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  .action-label-mobile-hidden {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 639px) {
+  .action-label-mobile-hidden {
+    display: none;
+  }
 }
 
 @layer base {

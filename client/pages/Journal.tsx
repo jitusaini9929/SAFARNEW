@@ -287,10 +287,11 @@ export default function Journal() {
                     <div className="relative">
                       <button
                         onClick={() => setShowMoodDropdown(!showMoodDropdown)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-medium hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
+                        aria-label={`Feeling ${selectedMood}`}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-medium hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors action-btn-nowrap"
                       >
                         <span>{moodOptions.find(m => m.label === selectedMood)?.emoji || "😌"}</span>
-                        <span>Feeling {selectedMood}</span>
+                        <span className="action-label-mobile-hidden">Feeling {selectedMood}</span>
                         <ChevronDown className={`w-4 h-4 transition-transform ${showMoodDropdown ? 'rotate-180' : ''}`} />
                       </button>
 
@@ -365,10 +366,11 @@ export default function Journal() {
                   <button
                     onClick={handleAddEntry}
                     disabled={isSubmitting}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-3 px-6 md:px-8 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center"
+                    aria-label={isSubmitting ? "Saving entry" : "Save entry"}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-3 px-6 md:px-8 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center action-btn-nowrap"
                   >
                     <CheckCircle className="w-5 h-5" />
-                    {isSubmitting ? "Saving..." : "Save Entry"}
+                    <span className="action-label-mobile-hidden">{isSubmitting ? "Saving..." : "Save Entry"}</span>
                   </button>
                 </div>
               </div>

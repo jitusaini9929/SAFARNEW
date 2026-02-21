@@ -119,10 +119,11 @@ export default function Analytics() {
                             <button
                                 onClick={handleGenerate}
                                 disabled={generating}
-                                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-60 inline-flex items-center gap-2"
+                                aria-label={generating ? "Generating report" : "Generate report"}
+                                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-60 inline-flex items-center gap-2 action-btn-nowrap"
                             >
                                 <RefreshCw className={`w-4 h-4 ${generating ? "animate-spin" : ""}`} />
-                                Generate
+                                <span className="action-label-mobile-hidden">Generate</span>
                             </button>
                         </div>
                     </div>

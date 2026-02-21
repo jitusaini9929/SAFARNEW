@@ -294,9 +294,11 @@ export default function Dashboard() {
                                 <div className="pt-2 flex flex-wrap justify-center md:justify-start gap-3">
                                     <button
                                         onClick={() => navigate('/landing')}
-                                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 transition-all text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm hover:shadow-md"
+                                        aria-label="Go to home"
+                                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 transition-all text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm hover:shadow-md action-btn-nowrap"
                                     >
-                                        <Home className="w-4 h-4" /> Home
+                                        <Home className="w-4 h-4" />
+                                        <span className="action-label-mobile-hidden">Home</span>
                                     </button>
                                 </div>
                             </div>
@@ -375,9 +377,11 @@ export default function Dashboard() {
                                             <p className="text-muted-foreground text-sm">Intensity: {todayMood.intensity}/5</p>
                                             <button
                                                 onClick={() => navigate('/nishtha/check-in')}
-                                                className="mt-4 text-primary text-sm hover:underline flex items-center gap-1"
+                                                aria-label="Update check-in"
+                                                className="mt-4 text-primary text-sm hover:underline flex items-center gap-1 action-btn-nowrap"
                                             >
-                                                Update Check-In <ArrowRight className="w-3 h-3" />
+                                                <span className="action-label-mobile-hidden">Update Check-In</span>
+                                                <ArrowRight className="w-3 h-3" />
                                             </button>
                                         </>
                                     ) : (
@@ -385,9 +389,10 @@ export default function Dashboard() {
                                             <p className="text-muted-foreground italic mb-6 text-lg font-light">No check-in yet today</p>
                                             <button
                                                 onClick={() => navigate('/nishtha/check-in')}
-                                                className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white px-8 py-3 rounded-full font-medium transition-all shadow-lg hover:shadow-orange-500/25 flex items-center gap-2"
+                                                aria-label="Check in now"
+                                                className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white px-8 py-3 rounded-full font-medium transition-all shadow-lg hover:shadow-orange-500/25 flex items-center gap-2 action-btn-nowrap"
                                             >
-                                                Check In Now
+                                                <span className="action-label-mobile-hidden">Check In Now</span>
                                                 <ArrowRight className="w-4 h-4" />
                                             </button>
                                         </>
@@ -529,9 +534,10 @@ export default function Dashboard() {
 
                             <button
                                 onClick={() => navigate('/nishtha/goals')}
-                                className="w-full mt-auto bg-muted hover:bg-muted/80 text-blue-600 border border-blue-500/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group"
+                                aria-label={goals.total > 0 ? "View goals" : "Set goals"}
+                                className="w-full mt-auto bg-muted hover:bg-muted/80 text-blue-600 border border-blue-500/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group action-btn-nowrap"
                             >
-                                {goals.total > 0 ? 'View Goals' : 'Set Goals'}
+                                <span className="action-label-mobile-hidden">{goals.total > 0 ? 'View Goals' : 'Set Goals'}</span>
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
@@ -571,9 +577,10 @@ export default function Dashboard() {
 
                             <button
                                 onClick={() => navigate('/nishtha/analytics')}
-                                className="w-full mt-auto bg-muted hover:bg-muted/80 text-primary border border-primary/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group"
+                                aria-label="Open analytics"
+                                className="w-full mt-auto bg-muted hover:bg-muted/80 text-primary border border-primary/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group action-btn-nowrap"
                             >
-                                Open Analytics
+                                <span className="action-label-mobile-hidden">Open Analytics</span>
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
@@ -728,9 +735,11 @@ export default function Dashboard() {
                                 </div>
                                 <button
                                     onClick={() => navigate('/nishtha/goals')}
-                                    className="text-xs font-bold text-primary uppercase tracking-wider hover:underline flex items-center gap-1"
+                                    aria-label="View all goals"
+                                    className="text-xs font-bold text-primary uppercase tracking-wider hover:underline flex items-center gap-1 action-btn-nowrap"
                                 >
-                                    View All <ArrowRight className="w-3 h-3" />
+                                    <span className="action-label-mobile-hidden">View All</span>
+                                    <ArrowRight className="w-3 h-3" />
                                 </button>
                             </div>
                             <p className="text-muted-foreground text-sm mb-6">Your recent goals and their completion status</p>

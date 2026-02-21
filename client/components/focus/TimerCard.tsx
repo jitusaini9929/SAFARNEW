@@ -84,7 +84,8 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                                 key={tab.key}
                                 onClick={() => onSetMode(tab.key)}
                                 disabled={isRunning}
-                                className={`flex items-center gap-1.5 px-4 py-2 landscape:px-3 landscape:py-1 rounded-full text-sm font-semibold transition-all duration-200 ${mode === tab.key
+                                aria-label={tab.label}
+                                className={`flex items-center gap-1.5 px-4 py-2 landscape:px-3 landscape:py-1 rounded-full text-sm font-semibold transition-all duration-200 action-btn-nowrap ${mode === tab.key
                                     ? "text-white shadow-md"
                                     : "text-white/60 hover:text-white/90 hover:bg-white/10"
                                     } ${isRunning && mode !== tab.key ? "opacity-40 cursor-not-allowed" : ""}`}
@@ -237,7 +238,8 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                 <button
                     data-tour="start-button"
                     onClick={onToggle}
-                    className="group relative px-8 py-4 md:px-16 md:py-5 landscape:px-6 landscape:py-3 text-white text-lg md:text-xl landscape:text-base font-bold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden"
+                    aria-label={isRunning ? "Pause timer" : "Start timer"}
+                    className="group relative px-8 py-4 md:px-16 md:py-5 landscape:px-6 landscape:py-3 text-white text-lg md:text-xl landscape:text-base font-bold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden action-btn-nowrap"
                     style={{
                         backgroundColor: currentTheme.accent,
                         boxShadow: `0 0 30px ${currentTheme.accent}50`
@@ -246,11 +248,13 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                     <span className="relative z-10 uppercase tracking-widest flex items-center gap-3">
                         {isRunning ? (
                             <>
-                                <Pause className="w-6 h-6 landscape:w-5 landscape:h-5" /> Pause
+                                <Pause className="w-6 h-6 landscape:w-5 landscape:h-5" />
+                                <span className="action-label-mobile-hidden">Pause</span>
                             </>
                         ) : (
                             <>
-                                <Play className="w-6 h-6 landscape:w-5 landscape:h-5" /> Start
+                                <Play className="w-6 h-6 landscape:w-5 landscape:h-5" />
+                                <span className="action-label-mobile-hidden">Start</span>
                             </>
                         )}
                     </span>

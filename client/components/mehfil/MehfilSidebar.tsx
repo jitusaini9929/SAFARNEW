@@ -130,28 +130,31 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
             variant={activeView === 'saved' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveView('saved')}
-            className="min-w-fit gap-2"
+            aria-label="Saved posts"
+            className="min-w-fit gap-2 action-btn-nowrap"
           >
             <Bookmark className="w-4 h-4" />
-            Saved
+            <span className="action-label-mobile-hidden">Saved</span>
           </Button>
           <Button
             variant={activeView === 'analytics' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveView('analytics')}
-            className="min-w-fit gap-2"
+            aria-label="Activity analytics"
+            className="min-w-fit gap-2 action-btn-nowrap"
           >
             <BarChart3 className="w-4 h-4" />
-            Activity
+            <span className="action-label-mobile-hidden">Activity</span>
           </Button>
           <Button
             variant={activeView === 'privacy' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveView('privacy')}
-            className="min-w-fit gap-2"
+            aria-label="Privacy guidelines"
+            className="min-w-fit gap-2 action-btn-nowrap"
           >
             <Shield className="w-4 h-4" />
-            Privacy
+            <span className="action-label-mobile-hidden">Privacy</span>
           </Button>
         </div>
 

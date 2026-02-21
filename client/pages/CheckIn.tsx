@@ -299,9 +299,10 @@ export default function CheckIn() {
                 data-tour="submit-checkin"
                 onClick={handleSubmit}
                 disabled={!selectedMood || isSubmitting}
-                className="mt-8 md:mt-0 w-full py-4 bg-gradient-to-r from-secondary to-secondary/80 hover:from-secondary/90 hover:to-secondary/70 disabled:opacity-50 disabled:cursor-not-allowed text-secondary-foreground rounded-xl font-bold tracking-wide shadow-lg hover:shadow-secondary/20 transform hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 group/btn"
+                aria-label={isSubmitting ? "Saving entry" : "Complete check-in"}
+                className="mt-8 md:mt-0 w-full py-4 bg-gradient-to-r from-secondary to-secondary/80 hover:from-secondary/90 hover:to-secondary/70 disabled:opacity-50 disabled:cursor-not-allowed text-secondary-foreground rounded-xl font-bold tracking-wide shadow-lg hover:shadow-secondary/20 transform hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 group/btn action-btn-nowrap"
               >
-                <span>{isSubmitting ? "Saving Entry..." : "Complete Check-In"}</span>
+                <span className="action-label-mobile-hidden">{isSubmitting ? "Saving Entry..." : "Complete Check-In"}</span>
                 <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
               </button>
             </div>

@@ -28,7 +28,7 @@ const RelateButton: React.FC<RelateButtonProps> = ({ count, onRelate }) => {
         <button
             onClick={handleClick}
             disabled={isClicked}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all transform shadow-md ${isClicked
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all transform shadow-md action-btn-nowrap ${isClicked
                     ? 'bg-gradient-to-r from-primary to-secondary text-primary-foreground scale-110 shadow-lg shadow-primary/50'
                     : 'glass-high hover:bg-primary/10 hover:scale-105'
                 }`}
@@ -36,7 +36,7 @@ const RelateButton: React.FC<RelateButtonProps> = ({ count, onRelate }) => {
             title={`${displayCount} people relate to this`}
         >
             <Sparkles className={`w-4 h-4 transition-transform ${isClicked ? 'animate-pulse' : ''}`} />
-            <span>{displayCount} relate</span>
+            <span className="action-label-mobile-hidden">{displayCount} relate</span>
         </button>
     );
 };
