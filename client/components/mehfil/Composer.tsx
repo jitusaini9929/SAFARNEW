@@ -49,9 +49,9 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRo
   };
 
   return (
-    <div className="glass-card rounded-3xl p-6 mb-8 border border-white/50 dark:border-white/5 shadow-xl shadow-teal-900/5 dark:shadow-black/20">
-      <div className="flex gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 shrink-0 overflow-hidden shadow-inner">
+    <div className="glass-card rounded-3xl p-4 sm:p-6 mb-8 border border-white/50 dark:border-white/5 shadow-xl shadow-teal-900/5 dark:shadow-black/20">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 shrink-0 overflow-hidden shadow-inner">
           {userAvatar ? (
             <img
               src={userAvatar}
@@ -78,9 +78,9 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRo
             className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 text-base focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-800 dark:text-slate-200 min-h-[140px] resize-none ${ringClass}`}
           />
 
-          <div className="flex items-center justify-between mt-4">
-            <div className="flex items-center gap-3">
-              <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer break-normal">
                 <input
                   type="checkbox"
                   checked={isAnonymous}
@@ -90,34 +90,37 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRo
                 Post anonymously
               </label>
               {isUnderMin && (
-                <span className="text-[10px] font-semibold text-rose-500">
+                <span className="text-[10px] font-semibold text-rose-500 break-normal">
                   Minimum {MIN_CHARS} characters
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-4">
-              <span className={`text-[10px] font-bold ${counterClass}`}>
+            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto">
+              <span className={`text-[10px] font-bold ${counterClass} shrink-0`}>
                 {charCount} /{MAX_CHARS}
               </span>
               <button
                 onClick={handleSend as any}
                 disabled={!canSubmit}
-                className={`text-white px-8 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0 whitespace-nowrap ${buttonClass}`}
+                aria-label={isSubmitting ? "Posting" : "Publish"}
+                className={`text-white px-3 sm:px-8 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0 whitespace-nowrap break-normal shrink-0 min-w-[44px] sm:min-w-0 ${buttonClass}`}
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    Posting...
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    <span className="hidden sm:inline">Posting...</span>
                   </>
                 ) : (
                   <>
-                    <Send className="w-3.5 h-3.5" />
-                    {activeRoom === 'REFLECTIVE'
-                      ? 'Share to Thoughts'
-                      : activeRoom === 'ALL'
-                        ? 'Share to Mehfil'
-                        : 'Share to Academic Hall'}
+                    <Send className="w-3.5 h-3.5 shrink-0" />
+                    <span className="hidden sm:inline">
+                      {activeRoom === 'REFLECTIVE'
+                        ? 'Share to Thoughts'
+                        : activeRoom === 'ALL'
+                          ? 'Share to Mehfil'
+                          : 'Share to Academic Hall'}
+                    </span>
                   </>
                 )}
               </button>

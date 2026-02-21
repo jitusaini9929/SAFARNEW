@@ -143,7 +143,7 @@ const Badge = ({ label, color, bg }: { label: string, color: string, bg: string 
 );
 
 // ─── GOAL CARD ────────────────────────────────────────────────
-const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme }: any) => {
+const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme, isPhone }: any) => {
     const isDark = theme === 'dark';
     const [expanded, setExpanded] = useState(false);
     const cat = getCat(goal.category);
@@ -160,7 +160,8 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme }: 
 
     return (
         <div style={{
-            display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px",
+            display: "flex", alignItems: "flex-start", gap: isPhone ? 10 : 12, padding: isPhone ? "12px" : "12px 14px",
+            flexWrap: isPhone ? "wrap" : "nowrap",
             borderRadius: 14, transition: "background 0.15s",
             background: "transparent",
             opacity: goal.completed ? 0.65 : 1,
@@ -168,18 +169,18 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme }: 
             onMouseOver={e => e.currentTarget.style.background = hoverBg}
             onMouseOut={e => e.currentTarget.style.background = "transparent"}
         >
-            <div style={{ width: 40, height: 40, borderRadius: "50%", background: isDark ? cat.color + "33" : cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+            <div style={{ width: isPhone ? 34 : 40, height: isPhone ? 34 : 40, borderRadius: "50%", background: isDark ? cat.color + "33" : cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: isPhone ? 15 : 18, flexShrink: 0 }}>
                 {cat.emoji}
             </div>
 
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, minHeight: isPhone ? 34 : undefined }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, flexWrap: "wrap" }}>
                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: pri.color, display: "inline-block", flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: textColor, textDecoration: goal.completed ? "line-through" : "none" }}>
+                    <span style={{ fontSize: isPhone ? 12 : 13, fontWeight: 600, color: textColor, textDecoration: goal.completed ? "line-through" : "none" }}>
                         {goal.title}
                     </span>
                 </div>
-                <p style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400, margin: "0 0 6px" }}>
+                <p style={{ fontSize: isPhone ? 10 : 11, color: isDark ? T.darkTextMuted : T.slate400, margin: "0 0 6px", lineHeight: 1.45 }}>
                     {cat.label}
                     {goal.description ? " · " + goal.description : ""}
                     {goal.scheduledDate ? " · " + (overdue ? "⚠ Overdue" : formatDate(goal.scheduledDate)) : ""}
@@ -210,13 +211,13 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme }: 
                 )}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: 26, height: 26, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
-                <button onClick={() => onDelete(goal.id)} style={{ background: isDark ? "rgba(249, 128, 128, 0.1)" : T.maroon100, border: "none", borderRadius: 8, color: isDark ? T.maroon400 : T.maroon800, width: 26, height: 26, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete">✕</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: isPhone ? "auto" : 0, width: isPhone ? "100%" : "auto", justifyContent: isPhone ? "flex-end" : "flex-start" }}>
+                <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: isPhone ? 30 : 26, height: isPhone ? 30 : 26, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
+                <button onClick={() => onDelete(goal.id)} style={{ background: isDark ? "rgba(249, 128, 128, 0.1)" : T.maroon100, border: "none", borderRadius: 8, color: isDark ? T.maroon400 : T.maroon800, width: isPhone ? 30 : 26, height: isPhone ? 30 : 26, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete">✕</button>
                 <button
                     onClick={() => onToggle(goal.id, goal.completed)}
                     style={{
-                        width: 24, height: 24, borderRadius: "50%",
+                        width: isPhone ? 28 : 24, height: isPhone ? 28 : 24, borderRadius: "50%",
                         border: `2px solid ${goal.completed ? T.teal600 : T.slate300}`,
                         background: goal.completed ? T.teal600 : "transparent",
                         display: "flex", alignItems: "center", justifyContent: "center",
@@ -231,7 +232,7 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme }: 
 };
 
 // ─── MODAL ────────────────────────────────────────────────────
-const GoalModal = ({ goal, onSave, onClose, theme }: any) => {
+const GoalModal = ({ goal, onSave, onClose, theme, isPhone }: any) => {
     const isDark = theme === 'dark';
     const isEdit = !!goal?.id;
     const [title, setTitle] = useState(goal?.title || "");
@@ -251,9 +252,9 @@ const GoalModal = ({ goal, onSave, onClose, theme }: any) => {
     const lbl = { fontSize: 10, color: isDark ? T.maroon400 : T.maroon400, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as any, marginBottom: 5, display: "block" };
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20 }}>
-            <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: 24, padding: 0, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
-                <div style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, padding: "20px 24px", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", display: "flex", alignItems: isPhone ? "flex-end" : "center", justifyContent: "center", zIndex: 1000, padding: isPhone ? 0 : 20 }}>
+            <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? "20px 20px 0 0" : 24, padding: 0, width: "100%", maxWidth: 480, maxHeight: isPhone ? "94vh" : "90vh", overflowY: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+                <div style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, padding: isPhone ? "16px 14px" : "20px 24px", position: "relative", overflow: "hidden" }}>
                     <div style={{ position: "absolute", top: -30, right: -30, width: 100, height: 100, background: T.maroon600, borderRadius: "50%", opacity: 0.2, filter: "blur(20px)" }} />
                     <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <h2 style={{ color: T.white, fontSize: 17, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
@@ -263,7 +264,7 @@ const GoalModal = ({ goal, onSave, onClose, theme }: any) => {
                     </div>
                 </div>
 
-                <div style={{ padding: "22px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ padding: isPhone ? "16px 14px" : "22px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
                     <div>
                         <label style={lbl}>Title *</label>
                         <input style={inp} placeholder="e.g. Study 2 hours: Algebra Revision" value={title} onChange={e => setTitle(e.target.value)} autoFocus />
@@ -272,7 +273,7 @@ const GoalModal = ({ goal, onSave, onClose, theme }: any) => {
                         <label style={lbl}>Description (optional)</label>
                         <textarea style={{ ...inp, resize: "vertical", minHeight: 54 }} placeholder="Add details or context..." value={desc} onChange={e => setDesc(e.target.value)} />
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 12 }}>
                         <div>
                             <label style={lbl}>Category</label>
                             <select style={inp} value={category} onChange={e => setCategory(e.target.value)}>
@@ -286,7 +287,7 @@ const GoalModal = ({ goal, onSave, onClose, theme }: any) => {
                             </select>
                         </div>
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 12 }}>
                         <div>
                             <label style={lbl}>Type</label>
                             <select style={inp} value={type} onChange={e => setType(e.target.value)}>
@@ -309,9 +310,9 @@ const GoalModal = ({ goal, onSave, onClose, theme }: any) => {
                                 </div>
                             ))}
                         </div>
-                        <div style={{ display: "flex", gap: 8 }}>
+                        <div style={{ display: "flex", gap: 8, flexDirection: isPhone ? "column" : "row" }}>
                             <input style={{ ...inp, flex: 1 }} placeholder="Add a step..." value={newSub} onChange={e => setNewSub(e.target.value)} onKeyDown={e => e.key === "Enter" && addSub()} />
-                            <button onClick={addSub} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: `1px solid ${isDark ? T.teal700 : T.teal200}`, borderRadius: 10, color: isDark ? T.teal400 : T.teal700, padding: "0 14px", cursor: "pointer", fontWeight: 700, fontSize: 18 }}>+</button>
+                            <button onClick={addSub} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: `1px solid ${isDark ? T.teal700 : T.teal200}`, borderRadius: 10, color: isDark ? T.teal400 : T.teal700, padding: isPhone ? "8px 14px" : "0 14px", cursor: "pointer", fontWeight: 700, fontSize: 18 }}>+</button>
                         </div>
                     </div>
 
@@ -335,7 +336,7 @@ const GoalModal = ({ goal, onSave, onClose, theme }: any) => {
 };
 
 // ─── ANALYTICS ────────────────────────────────────────────────
-const Analytics = ({ goals, theme }: { goals: UIGoal[], theme: string }) => {
+const Analytics = ({ goals, theme, isPhone, isTablet }: { goals: UIGoal[], theme: string, isPhone: boolean, isTablet: boolean }) => {
     const isDark = theme === 'dark';
     const completed = goals.filter(g => g.completed);
     const total = goals.length;
@@ -349,16 +350,16 @@ const Analytics = ({ goals, theme }: { goals: UIGoal[], theme: string }) => {
     }).filter(c => c.total > 0);
 
     return (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1fr 340px", gap: isPhone ? 14 : 24, alignItems: "start" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 12 }}>
                     {[
                         ["Completion", `${rate}%`, rate >= 70 ? T.teal700 : rate >= 40 ? T.amber500 : "#dc2626"],
                         ["Completed", `${completed.length}/${total}`, T.teal700],
                         ["Overdue", String(overdueCount), overdueCount > 0 ? "#dc2626" : T.teal700],
                         ["High Pri Pending", String(highPriPending), highPriPending > 0 ? T.maroon800 : T.teal700],
                     ].map(([label, val, col]) => (
-                        <div key={label} style={{ background: isDark ? T.darkCard : T.white, borderRadius: 16, padding: "16px 18px", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                        <div key={label} style={{ background: isDark ? T.darkCard : T.white, borderRadius: 16, padding: isPhone ? "14px 16px" : "16px 18px", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                                 <span style={{ fontSize: 10, color: isDark ? T.darkTextMuted : T.slate500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</span>
                             </div>
@@ -411,6 +412,9 @@ const Analytics = ({ goals, theme }: { goals: UIGoal[], theme: string }) => {
 export default function Goals() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
+    const [viewportWidth, setViewportWidth] = useState(
+        typeof window !== "undefined" ? window.innerWidth : 1280
+    );
     const [goals, setGoals] = useState<UIGoal[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -445,6 +449,14 @@ export default function Goals() {
     };
 
     useEffect(() => { fetchGoals(); }, []);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const onResize = () => setViewportWidth(window.innerWidth);
+        onResize();
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
 
     const toggleGoal = async (id: string, currentCompleted: boolean) => {
         setGoals(gs => gs.map(g =>
@@ -559,7 +571,7 @@ export default function Goals() {
 
     const filterChip = (active: boolean, onClick: () => void, label: string, accentColor?: string) => (
         <button onClick={onClick} style={{
-            padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
+            padding: isPhone ? "5px 11px" : "5px 14px", borderRadius: 20, fontSize: isPhone ? 11 : 12, fontWeight: 600, cursor: "pointer",
             background: active ? (accentColor ? accentColor + "15" : (isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50)) : (isDark ? T.darkCardHover : T.white),
             border: `1px solid ${active ? (accentColor || (isDark ? T.teal400 : T.teal700)) : (isDark ? T.darkBorder : T.slate200)}`,
             color: active ? (accentColor || (isDark ? T.teal400 : T.teal700)) : (isDark ? T.darkTextMuted : T.slate500),
@@ -567,53 +579,58 @@ export default function Goals() {
         }}>{label}</button>
     );
 
+    const isPhone = viewportWidth < 640;
+    const isTablet = viewportWidth < 1024;
+    const contentGrid = isTablet ? "1fr" : "1fr 340px";
+    const pagePadding = isPhone ? "16px 12px 24px" : isTablet ? "22px 16px 28px" : "28px 20px";
+
     return (
         <NishthaLayout>
-            <div style={{ minHeight: "100vh", background: isDark ? T.darkBg : T.slate50, fontFamily: "'Plus Jakarta Sans',sans-serif", color: isDark ? T.darkText : T.slate800, width: "100%", transition: "background 0.3s ease" }}>
+            <div style={{ minHeight: "100vh", background: isDark ? T.darkBg : T.slate50, fontFamily: "'Plus Jakarta Sans',sans-serif", color: isDark ? T.darkText : T.slate800, width: "100%", transition: "background 0.3s ease", overflowX: "hidden" }}>
                 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
-                <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 20px", zoom: 1.3 } as any}>
-                    <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 }}>
+                <div style={{ maxWidth: 1200, margin: "0 auto", padding: pagePadding, width: "100%", boxSizing: "border-box" }}>
+                    <header style={{ display: "flex", justifyContent: "space-between", alignItems: isPhone ? "stretch" : "flex-start", marginBottom: isPhone ? 18 : 28, gap: isPhone ? 12 : 16, flexDirection: isPhone ? "column" : "row" }}>
                         <div>
-                            <h1 style={{ fontSize: 26, fontWeight: 800, color: isDark ? T.darkText : T.slate900, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+                            <h1 style={{ fontSize: isPhone ? 22 : 26, fontWeight: 800, color: isDark ? T.darkText : T.slate900, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
                                 Command Center
                             </h1>
-                            <p style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500, margin: "4px 0 0" }}>Manage your goals and track progress efficiently.</p>
+                            <p style={{ fontSize: isPhone ? 12 : 13, color: isDark ? T.darkTextMuted : T.slate500, margin: "4px 0 0" }}>Manage your goals and track progress efficiently.</p>
                         </div>
                         <button
                             onClick={() => setModal({ mode: "add" })}
-                            style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, border: "none", borderRadius: 12, color: T.white, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 4px 14px rgba(155,28,28,0.28)" }}
+                            style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, border: "none", borderRadius: 12, color: T.white, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 14px rgba(155,28,28,0.28)", width: isPhone ? "100%" : "auto" }}
                         >
                             ＋ New Goal
                         </button>
                     </header>
 
-                    <div style={{ display: "flex", gap: 4, marginBottom: 24, background: isDark ? T.darkCard : T.white, borderRadius: 12, padding: 4, width: "fit-content", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                    <div style={{ display: "flex", gap: 4, marginBottom: isPhone ? 16 : 24, background: isDark ? T.darkCard : T.white, borderRadius: 12, padding: 4, width: isPhone ? "100%" : "fit-content", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                         {[["goals", "Goals"], ["analytics", "Analytics"]].map(([k, l]) => (
                             <button key={k} onClick={() => setTab(k)} style={{
                                 background: tab === k ? `linear-gradient(135deg,${T.teal800},${T.teal900})` : "transparent",
                                 border: "none", borderRadius: 10, color: tab === k ? T.white : (isDark ? T.darkTextMuted : T.slate500),
-                                padding: "7px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
+                                padding: "7px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", flex: isPhone ? 1 : undefined,
                                 boxShadow: tab === k ? "0 2px 8px rgba(17,94,89,0.3)" : "none",
                             }}>{l}</button>
                         ))}
                     </div>
 
-                    {tab === "analytics" ? <Analytics goals={goals} theme={theme} /> : (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    {tab === "analytics" ? <Analytics goals={goals} theme={theme} isPhone={isPhone} isTablet={isTablet} /> : (
+                        <div style={{ display: "grid", gridTemplateColumns: contentGrid, gap: isPhone ? 14 : 24, alignItems: "start" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 14 : 20 }}>
                                 {heroGoal && (
-                                    <div style={{ background: `linear-gradient(135deg,${T.teal800},${T.teal900})`, borderRadius: 24, padding: "24px 28px", color: T.white, position: "relative", overflow: "hidden", boxShadow: "0 10px 30px rgba(17,94,89,0.22)" }}>
+                                    <div style={{ background: `linear-gradient(135deg,${T.teal800},${T.teal900})`, borderRadius: isPhone ? 18 : 24, padding: isPhone ? "16px" : "24px 28px", color: T.white, position: "relative", overflow: "hidden", boxShadow: "0 10px 30px rgba(17,94,89,0.22)" }}>
                                         <div style={{ position: "absolute", top: -50, right: -50, width: 180, height: 180, background: T.teal600, borderRadius: "50%", opacity: 0.2, filter: "blur(50px)" }} />
                                         <div style={{ position: "absolute", bottom: -30, left: -20, width: 120, height: 120, background: T.maroon700, borderRadius: "50%", opacity: 0.15, filter: "blur(30px)" }} />
                                         <div style={{ position: "relative", zIndex: 1 }}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: isPhone ? "flex-start" : "center", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
                                                 <span style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.teal100, border: "1px solid rgba(255,255,255,0.1)" }}>
                                                     Priority Focus
                                                 </span>
                                                 <span style={{ fontSize: 12, color: T.teal200, fontWeight: 500 }}>Due {formatDate(heroGoal.scheduledDate)}</span>
                                             </div>
-                                            <h2 style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.3, marginBottom: 8, margin: "0 0 8px" }}>{heroGoal.title}</h2>
+                                            <h2 style={{ fontSize: isPhone ? 18 : 22, fontWeight: 800, lineHeight: 1.3, marginBottom: 8, margin: "0 0 8px" }}>{heroGoal.title}</h2>
                                             {heroGoal.description && <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "0 0 16px" }}>{heroGoal.description}</p>}
 
                                             {heroGoal.subtasks.length > 0 && (
@@ -632,16 +649,16 @@ export default function Goals() {
                                                 </div>
                                             )}
 
-                                            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                                            <div style={{ display: "flex", gap: 10, marginTop: 20, flexDirection: isPhone ? "column" : "row" }}>
                                                 <button
                                                     onClick={() => toggleGoal(heroGoal.id, heroGoal.completed)}
-                                                    style={{ flex: 1, padding: "12px 0", background: T.white, color: T.teal900, border: "none", borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                                                    style={{ flex: 1, padding: "12px 0", background: T.white, color: T.teal900, border: "none", borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: isPhone ? "100%" : undefined }}
                                                 >
                                                     ✓ Mark Done
                                                 </button>
                                                 <button
                                                     onClick={() => setModal({ mode: "edit", goal: heroGoal })}
-                                                    style={{ padding: "12px 20px", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", color: T.white, border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                                                    style={{ padding: "12px 20px", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", color: T.white, border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, fontWeight: 600, fontSize: 13, cursor: "pointer", width: isPhone ? "100%" : undefined }}
                                                 >
                                                     Edit
                                                 </button>
@@ -650,8 +667,8 @@ export default function Goals() {
                                     </div>
                                 )}
 
-                                <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                                    <div style={{ padding: "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                                    <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                             <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>
                                                 {filterStatus === "completed" ? "Completed" : filterStatus === "overdue" ? "Overdue" : "Up Next"}
@@ -659,7 +676,7 @@ export default function Goals() {
                                             <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{processed.length} Goals</span>
                                         </div>
 
-                                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", width: isPhone ? "100%" : "auto" }}>
                                             <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400, fontWeight: 600 }}>Sort:</span>
                                             {[["priority", "Priority"], ["date", "Date"], ["category", "Category"]].map(([v, l]) => (
                                                 <button key={v} onClick={() => setSortBy(v)} style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", background: sortBy === v ? T.teal800 : (isDark ? T.darkCardHover : T.slate50), border: `1px solid ${sortBy === v ? T.teal800 : (isDark ? T.darkBorder : T.slate200)}`, color: sortBy === v ? T.white : (isDark ? T.darkTextMuted : T.slate500), transition: "all 0.15s" }}>{l}</button>
@@ -667,7 +684,7 @@ export default function Goals() {
                                         </div>
                                     </div>
 
-                                    <div style={{ padding: "12px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", flexDirection: "column", gap: 10 }}>
+                                    <div style={{ padding: isPhone ? "12px" : "12px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", flexDirection: "column", gap: 10 }}>
                                         <div style={{ position: "relative" }}>
                                             <input
                                                 style={{ width: "100%", background: isDark ? T.darkCardHover : T.slate50, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: 10, padding: "8px 12px", color: isDark ? T.darkText : T.slate800, fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
@@ -679,7 +696,7 @@ export default function Goals() {
                                             {[["pending", "Pending"], ["completed", "Done"], ["overdue", "Overdue"], ["all", "All"]].map(([v, l]) =>
                                                 filterChip(filterStatus === v, () => setFilterStatus(v), l, v === "overdue" ? "#dc2626" : undefined)
                                             )}
-                                            <div style={{ width: 1, background: isDark ? T.darkBorder : T.slate200, margin: "0 2px" }} />
+                                            <div style={{ width: 1, background: isDark ? T.darkBorder : T.slate200, margin: "0 2px", display: isPhone ? "none" : "block" }} />
                                             {filterChip(filterCat === "all", () => setFilterCat("all"), "All")}
                                             {CATEGORIES.map(c => filterChip(filterCat === c.value, () => setFilterCat(c.value), c.label, c.color))}
                                         </div>
@@ -693,7 +710,7 @@ export default function Goals() {
                                         <div>
                                             {processed.map((g, i) => (
                                                 <div key={g.id} style={{ borderBottom: i < processed.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                    <GoalCard theme={theme} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(g: any) => setModal({ mode: "edit", goal: g })} onToggleSubtask={toggleSubtask} />
+                                                    <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(g: any) => setModal({ mode: "edit", goal: g })} onToggleSubtask={toggleSubtask} />
                                                 </div>
                                             ))}
                                         </div>
@@ -701,8 +718,8 @@ export default function Goals() {
                                 </div>
                             </div>
 
-                            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                                <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: 20, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 14 : 18 }}>
+                                <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: isPhone ? 16 : 20, padding: isPhone ? 14 : 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                                     <h3 style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 14px", display: "flex", justifyContent: "space-between" }}>
                                         <span>Today</span>
                                         <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400, fontWeight: 500 }}>{todayDone}/{todayGoals.length} done</span>
@@ -718,7 +735,7 @@ export default function Goals() {
                                     </div>
                                 </div>
 
-                                <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: 20, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                                <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: isPhone ? 16 : 20, padding: isPhone ? 14 : 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                                         <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800 }}>History</span>
                                         <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400 }}>Last 7 Days</span>
@@ -732,7 +749,7 @@ export default function Goals() {
                                     </div>
                                 </div>
 
-                                <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: 20, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                                <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: isPhone ? 16 : 20, padding: isPhone ? 14 : 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                                     <h3 style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 12px" }}>Upcoming</h3>
                                     {goals
                                         .filter(g => !g.completed && getScheduledKey(g) && (getScheduledKey(g) as string) > todayStr)
@@ -763,7 +780,7 @@ export default function Goals() {
                                     )}
                                 </div>
 
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 10 }}>
                                     <div style={{ background: `linear-gradient(135deg,${T.teal800},${T.teal900})`, borderRadius: 16, padding: "14px 16px", color: T.white, boxShadow: `0 4px 14px rgba(17,94,89,0.22)` }}>
                                         <div style={{ fontSize: 24, fontWeight: 800 }}>{pendingCount}</div>
                                         <div style={{ fontSize: 11, color: T.teal200, fontWeight: 600, marginTop: 2 }}>Pending</div>
@@ -787,8 +804,9 @@ export default function Goals() {
                         </div>
                     )}
                 </div>
-                {modal && <GoalModal theme={theme} goal={modal.mode === "edit" ? modal.goal : null} onSave={saveGoal} onClose={() => setModal(null)} />}
+                {modal && <GoalModal theme={theme} isPhone={isPhone} goal={modal.mode === "edit" ? modal.goal : null} onSave={saveGoal} onClose={() => setModal(null)} />}
             </div>
         </NishthaLayout>
     );
 }
+

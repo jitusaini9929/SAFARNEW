@@ -27,6 +27,7 @@ const Profile = React.lazy(() => import("./pages/Profile"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const ForgotPassword = React.lazy(() => import("./pages/ForgotPassword"));
 const StudyWithMe = React.lazy(() => import("./pages/StudyWithMe"));
+const FocusAnalytics = React.lazy(() => import("./pages/FocusAnalytics"));
 const Achievements = React.lazy(() => import("./pages/Achievements"));
 const Landing = React.lazy(() => import("./pages/Landing"));
 const Mehfil = React.lazy(() => import("./pages/Mehfil"));
@@ -172,6 +173,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <StudyWithMe />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/study/analytics"
+                  element={
+                    <ProtectedRoute>
+                      <FocusAnalytics />
                     </ProtectedRoute>
                   }
                 />

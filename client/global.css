@@ -177,9 +177,14 @@
     font-family: 'Poppins', system-ui, -apple-system, sans-serif;
   }
 
-  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, button, label, td, th) {
+  :where(p, span, li, h1, h2, h3, h4, h5, h6, a, label, td, th) {
     overflow-wrap: anywhere;
-    word-break: break-word;
+    word-break: normal;
+  }
+
+  button {
+    overflow-wrap: normal;
+    word-break: normal;
   }
 
   pre,

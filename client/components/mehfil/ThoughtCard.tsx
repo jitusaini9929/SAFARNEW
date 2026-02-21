@@ -415,11 +415,11 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         )}
 
         {/* Action Bar */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               onClick={onReact}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${hasReacted
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${hasReacted
                 ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-2 ring-rose-200 dark:ring-rose-500/20"
                 : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-rose-500"
                 }`}
@@ -427,18 +427,22 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               <Heart
                 className={`w-4 h-4 transition-all ${hasReacted ? "fill-current" : ""}`}
               />
-              {hasReacted ? "Relatable" : "Relatable?"} {thought.relatableCount > 0 && `(${thought.relatableCount})`}
+              <span className="hidden sm:inline">
+                {hasReacted ? "Relatable" : "Relatable?"}
+              </span>
+              {thought.relatableCount > 0 && `(${thought.relatableCount})`}
             </button>
 
             <button
               onClick={() => setIsCommentsOpen(!isCommentsOpen)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${isCommentsOpen
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${isCommentsOpen
                 ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-200 dark:ring-teal-500/20"
                 : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-500"
                 }`}
             >
               <MessageCircle className="w-4 h-4" />
-              Comment {Math.max(thought.commentsCount || 0, comments.length) > 0 && `(${Math.max(thought.commentsCount || 0, comments.length)})`}
+              <span className="hidden sm:inline">Comment</span>
+              {Math.max(thought.commentsCount || 0, comments.length) > 0 && `(${Math.max(thought.commentsCount || 0, comments.length)})`}
             </button>
           </div>
         </div>

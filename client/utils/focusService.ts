@@ -19,11 +19,21 @@ export interface FocusStats {
     totalSessions: number;
     completedSessions: number;
     weeklyData: number[]; // Mon-Sun
+    weeklyBreaks: number[]; // Mon-Sun
     focusStreak: number;
     goalsSet: number; // For now mock or fetch from goals
     goalsCompleted: number;
     dailyGoalMinutes: number;
     dailyGoalProgress: number;
+    hourlyDistribution: number[]; // 24 hours
+    recentSessions: Array<{
+        id: string;
+        startedAt: string;
+        durationMinutes: number;
+        actualMinutes: number;
+        completed: boolean;
+        taskText: string | null;
+    }>;
 }
 
 const API_BASE = '/api/focus-sessions';
@@ -84,11 +94,14 @@ export const focusService = {
                 totalSessions: data.totalSessions || 0,
                 completedSessions: data.completedSessions || 0,
                 weeklyData: data.weeklyData || [0, 0, 0, 0, 0, 0, 0],
+                weeklyBreaks: data.weeklyBreaks || [0, 0, 0, 0, 0, 0, 0],
                 focusStreak: data.focusStreak || 0,
                 goalsSet: data.goalsSet || 0,
                 goalsCompleted: data.goalsCompleted || 0,
                 dailyGoalMinutes: 240, // 4 hours default daily goal
-                dailyGoalProgress: Math.min(100, Math.round(((data.totalFocusMinutes || 0) / 240) * 100))
+                dailyGoalProgress: Math.min(100, Math.round(((data.totalFocusMinutes || 0) / 240) * 100)),
+                hourlyDistribution: data.hourlyDistribution || Array.from({ length: 24 }, () => 0),
+                recentSessions: data.recentSessions || []
             };
         } catch (error) {
             console.error('Get focus stats error:', error);
@@ -99,11 +112,14 @@ export const focusService = {
                 totalSessions: 0,
                 completedSessions: 0,
                 weeklyData: [0, 0, 0, 0, 0, 0, 0],
+                weeklyBreaks: [0, 0, 0, 0, 0, 0, 0],
                 focusStreak: 0,
                 goalsSet: 0,
                 goalsCompleted: 0,
                 dailyGoalMinutes: 240,
-                dailyGoalProgress: 0
+                dailyGoalProgress: 0,
+                hourlyDistribution: Array.from({ length: 24 }, () => 0),
+                recentSessions: []
             };
         }
     }

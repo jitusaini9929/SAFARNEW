@@ -402,7 +402,7 @@ const SandeshCard = () => {
 
     return (
         <div
-            className="backdrop-blur-3xl bg-white/60 dark:bg-[#0a0a0a]/60 border border-white/40 dark:border-white/10 shadow-glass rounded-[2rem] p-5 min-h-[500px] w-full lg:w-[108%] -ml-[4%] transition-all duration-300 hover:shadow-glass-hover group relative z-10"
+            className="backdrop-blur-3xl bg-white/60 dark:bg-[#0a0a0a]/60 border border-white/40 dark:border-white/10 shadow-glass rounded-[2rem] p-4 sm:p-5 min-h-[500px] w-full lg:w-full lg:ml-0 xl:w-[108%] xl:-ml-[4%] transition-all duration-300 hover:shadow-glass-hover group relative z-10"
             onClick={markAsRead}
             onMouseEnter={markAsRead}
         >
@@ -454,7 +454,7 @@ const SandeshCard = () => {
 
             {showInput && (
                 <div className="mb-6 animate-in slide-in-from-top-2 bg-white/40 dark:bg-black/20 p-4 rounded-2xl border border-white/20">
-                    <div className="flex gap-2 mb-2 pb-2 border-b border-white/10">
+                    <div className="flex flex-wrap gap-2 mb-2 pb-2 border-b border-white/10">
                         <Button variant="ghost" size="sm" onClick={() => insertText('**', '**')} className="h-8 w-8 p-0" title="Bold">
                             <Bold className="w-4 h-4" />
                         </Button>
@@ -561,10 +561,11 @@ const SandeshCard = () => {
                             size="sm"
                             onClick={handlePost}
                             disabled={isPosting || (!newContent.trim() && !imageUrl && !audioUrl) || isUploadingAudio}
-                            className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl"
+                            aria-label={isPosting ? "Posting update" : (isEditing ? "Update" : "Publish")}
+                            className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl min-w-[40px] sm:min-w-0 break-normal"
                         >
-                            {isPosting ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : (isEditing ? <Pencil className="w-3 h-3 mr-1" /> : <Send className="w-3 h-3 mr-1" />)}
-                            {isEditing ? 'Update' : 'Post'}
+                            {isPosting ? <Loader2 className="w-3 h-3 animate-spin sm:mr-1" /> : (isEditing ? <Pencil className="w-3 h-3 sm:mr-1" /> : <Send className="w-3 h-3 sm:mr-1" />)}
+                            <span className="hidden sm:inline">{isEditing ? 'Update' : 'Post'}</span>
                         </Button>
                     </div>
                 </div>

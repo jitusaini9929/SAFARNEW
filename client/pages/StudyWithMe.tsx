@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
-import { FocusAnalytics } from "@/components/focus/FocusAnalytics";
+import FocusAnalytics from "@/pages/FocusAnalytics";
 import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
 import TasksSidebar, { type Task } from "./TasksSidebar";
 import { TimerCard } from "@/components/focus/TimerCard";
 import { useFocus } from "@/contexts/FocusContext";
-import { focusService } from "@/utils/focusService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ThemeToggle from "@/components/ui/theme-toggle";
 
@@ -659,7 +658,7 @@ export default function StudyWithMe() {
             {/* Main Content or Analytics */}
             {showAnalytics ? (
                 <div className="flex-1 overflow-auto bg-white dark:bg-slate-950 relative z-30 flex flex-col items-center justify-center p-4">
-                    <FocusAnalytics />
+                    <FocusAnalytics onBack={() => setShowAnalytics(false)} />
                 </div>
             ) : (
                 <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 min-h-full pb-32 landscape:pb-24">

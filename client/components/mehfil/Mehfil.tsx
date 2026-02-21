@@ -19,7 +19,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 
 
 interface MehfilProps {
@@ -381,10 +380,10 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         <div className="gradient-blob bg-sky-300/30 dark:bg-sky-500/20 w-[500px] h-[500px] bottom-0 left-1/3 opacity-40" />
       </div>
 
-      <nav className="fixed top-4 left-4 right-4 h-16 glass-2-0 rounded-2xl z-50 px-6 flex items-center justify-between border border-white/40 dark:border-white/10 shadow-lg shadow-black/5">
+      <nav className="fixed top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 min-h-16 glass-2-0 rounded-2xl z-50 px-3 sm:px-6 py-2 sm:py-0 flex items-center justify-between border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 gap-2">
         <Link to="/landing" className="flex items-center gap-3 group cursor-pointer text-inherit no-underline">
-          <div className={`px-4 py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
-            <span className="text-white font-bold text-lg tracking-tight">Mehfil</span>
+          <div className={`px-3 sm:px-4 py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
+            <span className="text-white font-bold text-base sm:text-lg tracking-tight whitespace-nowrap break-normal">Mehfil</span>
           </div>
         </Link>
 
@@ -393,7 +392,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm w-96 focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-900 dark:text-slate-100 ${roomPalette.ring}`}
+            className={`bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm w-72 lg:w-96 focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-900 dark:text-slate-100 ${roomPalette.ring}`}
             placeholder={`Search in ${ROOM_CONFIG[activeRoom].title}...`}
             type="text"
           />
@@ -402,16 +401,16 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
 
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <ThemeToggle />
 
-          <Link to="/landing" className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors" title="Home">
+          <Link to="/landing" className="p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors" title="Home">
             <Home className="w-5 h-5" />
           </Link>
 
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+            className="p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
             title="Mehfil Hub"
           >
             <Menu className="w-5 h-5" />
@@ -419,17 +418,17 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
 
 
-          <div className="flex items-center gap-3 pl-2 ml-2 border-l border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2 sm:gap-3 pl-2 ml-1 sm:ml-2 border-l border-slate-200 dark:border-slate-800">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 group outline-none">
-                  <div className="text-right hidden sm:block">
+                  <div className="text-right hidden lg:block">
                     <p className="text-sm font-bold leading-none text-slate-900 dark:text-slate-100">
                       {user?.name || 'Guest User'}
                     </p>
                     <p className="text-[10px] text-slate-500 font-semibold mt-0.5 tracking-wide uppercase">Member</p>
                   </div>
-                  <Avatar className="w-[52px] h-[52px] rounded-xl border-2 border-white dark:border-slate-700 shadow-sm cursor-pointer transition-transform group-hover:scale-105">
+                  <Avatar className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl border-2 border-white dark:border-slate-700 shadow-sm cursor-pointer transition-transform group-hover:scale-105">
                     <AvatarImage src={user?.avatar} className="rounded-xl" />
                     <AvatarFallback className="rounded-xl bg-teal-100 text-teal-700 font-bold">
                       {user?.name?.[0]?.toUpperCase() || 'G'}
@@ -453,22 +452,22 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         </div>
       </nav>
 
-      <div className="w-full max-w-7xl mx-auto px-6 pt-28 pb-12">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-24 sm:pt-28 pb-8 sm:pb-12">
         <main className="scrollbar-blend">
           <section className="mb-6 rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 p-4 backdrop-blur-xl flex flex-col items-center text-center">
-            <div className="flex items-center gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/70 rounded-2xl w-fit">
+            <div className="flex flex-wrap items-center justify-center gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/70 rounded-2xl w-full sm:w-fit">
               {(['ALL', 'ACADEMIC', 'REFLECTIVE'] as MehfilFeedRoom[]).map((room) => (
                 <button
                   key={room}
                   onClick={() => setActiveRoom(room)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${room === activeRoom ? roomPalette.tabActive : roomPalette.tabIdle
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap break-normal ${room === activeRoom ? roomPalette.tabActive : roomPalette.tabIdle
                     }`}
                 >
                   {ROOM_CONFIG[room].title}
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 max-w-3xl">
               {ROOM_CONFIG[activeRoom].subtitle}
             </p>
           </section>
@@ -484,14 +483,14 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
 
           {/* Main Layout Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8 max-w-7xl mx-auto relative z-10">
 
             {/* Center Feed - Spans 8 columns */}
-            <main className="lg:col-span-8 flex flex-col gap-6">
+            <main className="lg:col-span-8 flex flex-col gap-4 sm:gap-6">
 
-              <div className="backdrop-blur-2xl bg-white/40 dark:bg-black/40 border border-white/40 dark:border-white/10 shadow-glass rounded-[2rem] p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
+              <div className="backdrop-blur-2xl bg-white/40 dark:bg-black/40 border border-white/40 dark:border-white/10 shadow-glass rounded-[2rem] p-4 sm:p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
                 <div className="mb-6">
-                  <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">Community Space</h1>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">Community Space</h1>
                   <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
                     The student lounge for unfiltered thoughts and academic life-hacks.
                   </p>

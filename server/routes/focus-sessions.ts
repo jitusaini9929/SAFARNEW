@@ -104,7 +104,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             },
             {
                 $group: {
-                    _id: { $dayOfWeek: '$completed_at' },
+                    _id: { $dayOfWeek: { date: '$completed_at', timezone: '+05:30' } },
                     minutes: { $sum: '$duration_minutes' }
                 }
             }
@@ -120,13 +120,36 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             weeklyData[ourDay] = row.minutes;
         }
 
+        const weeklyBreakPipeline = [
+            {
+                $match: {
+                    user_id: userId,
+                    completed: true,
+                    completed_at: { $gte: sevenDaysAgo }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dayOfWeek: { date: '$completed_at', timezone: '+05:30' } },
+                    minutes: { $sum: '$break_minutes' }
+                }
+            }
+        ];
+        const weeklyBreakResult = await collections.focusSessions().aggregate(weeklyBreakPipeline).toArray();
+        const weeklyBreaks = [0, 0, 0, 0, 0, 0, 0];
+        for (const row of weeklyBreakResult) {
+            const mongoDay = row._id as number;
+            const ourDay = mongoDay === 1 ? 6 : mongoDay - 2;
+            weeklyBreaks[ourDay] = row.minutes;
+        }
+
         // Calculate focus streak (consecutive days with completed sessions)
         const distinctDays = await collections.focusSessions().aggregate([
             { $match: { user_id: userId, completed: true } },
             {
                 $group: {
                     _id: {
-                        $dateToString: { format: '%Y-%m-%d', date: '$completed_at' }
+                        $dateToString: { format: '%Y-%m-%d', date: '$completed_at', timezone: '+05:30' }
                     }
                 }
             },
@@ -169,11 +192,41 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
         const goalsResult = await collections.goals().aggregate(goalsPipeline).toArray();
         const goals = goalsResult[0] || { total_goals: 0, completed_goals: 0 };
 
+        const hourlyPipeline = [
+            { $match: { user_id: userId, completed: true } },
+            {
+                $group: {
+                    _id: { $hour: { date: '$completed_at', timezone: '+05:30' } },
+                    minutes: { $sum: '$duration_minutes' }
+                }
+            }
+        ];
+        const hourlyResult = await collections.focusSessions().aggregate(hourlyPipeline).toArray();
+        const hourlyDistribution = Array.from({ length: 24 }, () => 0);
+        for (const row of hourlyResult) {
+            const hour = row._id as number;
+            if (hour >= 0 && hour <= 23) hourlyDistribution[hour] = row.minutes;
+        }
+
+        const recentSessionsRaw = await collections.focusSessions()
+            .find({ user_id: userId })
+            .sort({ completed_at: -1 })
+            .limit(6)
+            .toArray();
+        const recentSessions = recentSessionsRaw.map((session) => ({
+            id: session.id,
+            startedAt: session.started_at,
+            durationMinutes: session.duration_minutes || 0,
+            actualMinutes: session.duration_minutes || 0,
+            completed: Boolean(session.completed),
+            taskText: null,
+        }));
+
         res.json({
             totalFocusMinutes: (() => {
                 // DEBUG: Analytics
                 console.log(`[FocusStats] User: ${userId}`, {
-                    totals, weeklyData, focusStreak, goals
+                    totals, weeklyData, weeklyBreaks, focusStreak, goals
                 });
                 return totals.total_focus_minutes || 0;
             })(),
@@ -181,11 +234,14 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             totalSessions: totals.total_sessions || 0,
             completedSessions: totals.completed_sessions || 0,
             weeklyData,
+            weeklyBreaks,
             focusStreak,
             goalsSet: goals.total_goals || 0,
             goalsCompleted: goals.completed_goals || 0,
             dailyGoalMinutes: 240,
-            dailyGoalProgress: Math.min(100, Math.round(((totals.total_focus_minutes || 0) / 240) * 100))
+            dailyGoalProgress: Math.min(100, Math.round(((totals.total_focus_minutes || 0) / 240) * 100)),
+            hourlyDistribution,
+            recentSessions,
         });
     } catch (error) {
         console.error('Get focus stats error:', error);
