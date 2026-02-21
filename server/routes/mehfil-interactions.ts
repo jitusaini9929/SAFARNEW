@@ -191,6 +191,12 @@ mehfilInteractionRoutes.post("/comments", async (req: any, res: Response) => {
             created_at: now,
         });
 
+        // Increment comments_count on the thought
+        await collections.mehfilThoughts().updateOne(
+            { id: thoughtId },
+            { $inc: { comments_count: 1 } }
+        );
+
         // Get user info
         const user = await collections.users().findOne(
             { id: userId },

@@ -491,6 +491,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           content: t.content,
           imageUrl: t.image_url,
           relatableCount: t.relatable_count || 0,
+          commentsCount: t.comments_count || 0,
           createdAt: t.created_at,
           hasReacted: userReactions.includes(t.id),
           category: normalizeCategory(t.category || 'ACADEMIC'),
@@ -595,6 +596,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
             content,
             imageUrl: data?.imageUrl || null,
             relatableCount: 0,
+            commentsCount: 0,
             createdAt: now,
             hasReacted: false,
             category: requestedRoom, // Show it in the room they asked for
@@ -727,6 +729,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           content,
           imageUrl: data?.imageUrl || null,
           relatableCount: 0,
+          commentsCount: 0,
           createdAt: now,
           hasReacted: false,
           category: routeRoom,

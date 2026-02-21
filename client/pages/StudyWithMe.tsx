@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
 import { FocusAnalytics } from "@/components/focus/FocusAnalytics";
-import { Moon, Sun, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
+import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
 import TasksSidebar, { type Task } from "./TasksSidebar";
 import { TimerCard } from "@/components/focus/TimerCard";
 import { useFocus } from "@/contexts/FocusContext";
@@ -460,10 +460,10 @@ export default function StudyWithMe() {
                                 data-tour="add-task"
                                 onClick={() => setIsTasksOpen(true)}
                                 className={`flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all group ${isSidebarCollapsed ? 'justify-center' : ''}`}
-                                title="Add task"
+                                title="Task History"
                             >
-                                <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" style={{ color: currentTheme.accent }} />
-                                {!isSidebarCollapsed && <span className="font-medium">Add task</span>}
+                                <History className="w-5 h-5 group-hover:scale-110 transition-transform" style={{ color: currentTheme.accent }} />
+                                {!isSidebarCollapsed && <span className="font-medium">Task History</span>}
                             </button>
 
 
@@ -679,6 +679,53 @@ export default function StudyWithMe() {
                         onTogglePiP={togglePiP}
                         onSetMode={handleModeChange}
                         isPiPActive={isPiPActive}
+                        onAddTask={(text) => {
+                            const newTask = { id: Date.now(), text, completed: false };
+                            persistTasks([...tasks, newTask]);
+                        }}
+                        onEditTask={(newText) => {
+                            if (currentTask) {
+                                persistTasks(tasks.map(t => t.id === currentTask.id ? { ...t, text: newText } : t));
+                            }
+                        }}
+                        onDeleteTask={() => {
+                            if (currentTask) {
+                                persistTasks(tasks.filter(t => t.id !== currentTask.id));
+                            }
+                        }}
+                        onCompleteTask={async () => {
+                            if (!currentTask) return;
+
+                            // 1) Mark task as completed
+                            updateTasks((prev) =>
+                                prev.map(task =>
+                                    task.id === currentTask.id ? { ...task, completed: true } : task
+                                )
+                            );
+                            setCompletedTask(currentTask);
+
+                            // 2) Calculate elapsed time and log partial session if it's the focus timer
+                            const elapsedMinutes = Math.floor((timerState.totalSeconds - timerState.remainingSeconds) / 60);
+                            if (timerState.mode === 'Timer' && elapsedMinutes > 0) {
+                                try {
+                                    // Use dynamic import like context does to avoid strict dependency coupling issues
+                                    const { focusService: fs } = await import("@/utils/focusService");
+                                    await fs.logSession({
+                                        durationMinutes: elapsedMinutes,
+                                        breakMinutes: 0,
+                                        completed: true // Counted as completed for the task's sake
+                                    });
+                                } catch (e) {
+                                    console.error("Failed to log partial session on early completion", e);
+                                }
+                            }
+
+                            // 3) Automatically pause the timer or just show the proceed prompt
+                            setAwaitingProceed(true);
+                            setShowDurationPrompt(false);
+                            // Optionally, we could stop the timer here
+                            // if (timerState.isRunning) toggleTimer();
+                        }}
                     />
 
                     {/* Progress Section */}

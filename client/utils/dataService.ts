@@ -1,5 +1,5 @@
 import { apiFetch } from "@/utils/apiFetch";
-import { MoodEntry, JournalEntry, Goal, MonthlyReport } from "@shared/api";
+import { MoodEntry, JournalEntry, Goal, GoalSubtask, MonthlyReport } from "@shared/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -77,11 +77,28 @@ export const dataService = {
         return res.json();
     },
 
-    async addGoal(title: string, type: string, scheduledDate?: string, description?: string): Promise<Goal> {
+    async addGoal(payload: {
+        title: string;
+        type: string;
+        scheduledDate?: string;
+        description?: string;
+        category?: string;
+        priority?: string;
+        subtasks?: GoalSubtask[];
+    }): Promise<Goal> {
         const res = await apiFetch(`${API_URL}/goals`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: title, title, description, type, scheduledDate }),
+            body: JSON.stringify({
+                text: payload.title,
+                title: payload.title,
+                description: payload.description,
+                type: payload.type,
+                scheduledDate: payload.scheduledDate,
+                category: payload.category,
+                priority: payload.priority,
+                subtasks: payload.subtasks,
+            }),
             credentials: 'include',
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to add goal"));
@@ -119,11 +136,21 @@ export const dataService = {
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update goal"));
     },
 
-    async updateGoalDetails(id: string, title: string, description?: string): Promise<void> {
+    async updateGoalDetails(
+        id: string,
+        payload: {
+            title?: string;
+            description?: string;
+            category?: string;
+            priority?: string;
+            subtasks?: GoalSubtask[];
+            type?: string;
+        }
+    ): Promise<void> {
         const res = await apiFetch(`${API_URL}/goals/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title, description }),
+            body: JSON.stringify(payload),
             credentials: 'include',
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update goal details"));
@@ -134,7 +161,6 @@ export const dataService = {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                completed: false,
                 scheduledDate: date.toISOString()
             }),
             credentials: 'include',

@@ -16,6 +16,10 @@ interface TimerCardProps {
     onTogglePiP: () => void;
     onSetMode?: (mode: "Timer" | "short" | "long") => void;
     isPiPActive: boolean;
+    onAddTask: (taskText: string) => void;
+    onEditTask?: (newText: string) => void;
+    onDeleteTask?: () => void;
+    onCompleteTask?: () => void;
 }
 
 const MODE_TABS: { key: "Timer" | "short" | "long"; label: string; icon: React.ReactNode }[] = [
@@ -39,7 +43,29 @@ export const TimerCard: React.FC<TimerCardProps> = ({
     onTogglePiP,
     onSetMode,
     isPiPActive,
+    onAddTask,
+    onEditTask,
+    onDeleteTask,
+    onCompleteTask,
 }) => {
+    const [newTaskText, setNewTaskText] = React.useState("");
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [editText, setEditText] = React.useState(currentTask?.text || "");
+
+    React.useEffect(() => {
+        if (currentTask) {
+            setEditText(currentTask.text);
+        }
+    }, [currentTask]);
+
+    const handleAddTaskSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newTaskText.trim()) {
+            onAddTask(newTaskText);
+            setNewTaskText("");
+        }
+    };
+
     const formatTime = (mins: number, secs: number) => {
         return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     };
@@ -104,14 +130,99 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                     </div>
                 </div>
             ) : currentTask ? (
-                <div className="mb-6 md:mb-8 landscape:mb-4 px-4 py-3 rounded-xl bg-white/30 dark:bg-slate-800/30 backdrop-blur-sm border-2 border-white/20 max-w-md mx-auto">
-                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-semibold">Current Task</div>
-                    <div className="text-sm md:text-base font-medium text-foreground flex items-center gap-2">
-                        <Target className="w-4 h-4" style={{ color: currentTheme.accent }} />
-                        {currentTask.text}
-                    </div>
+                <div className="mb-6 md:mb-8 landscape:mb-4 px-4 py-3 rounded-xl bg-white/30 dark:bg-slate-800/30 backdrop-blur-sm border-2 border-white/20 max-w-md mx-auto group">
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-semibold text-left">Current Task</div>
+
+                    {isEditing ? (
+                        <div className="flex items-center gap-2 mt-2">
+                            <input
+                                type="text"
+                                value={editText}
+                                onChange={(e) => setEditText(e.target.value)}
+                                autoFocus
+                                className="flex-1 bg-white/50 dark:bg-slate-800/80 border border-white/40 dark:border-white/20 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2"
+                                style={{ '--tw-ring-color': currentTheme.accent } as React.CSSProperties}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        onEditTask?.(editText);
+                                        setIsEditing(false);
+                                    } else if (e.key === 'Escape') {
+                                        setIsEditing(false);
+                                        setEditText(currentTask.text);
+                                    }
+                                }}
+                            />
+                            <button
+                                onClick={() => {
+                                    onEditTask?.(editText);
+                                    setIsEditing(false);
+                                }}
+                                className="text-xs px-3 py-1.5 rounded-lg text-white font-medium"
+                                style={{ backgroundColor: currentTheme.accent }}
+                            >
+                                Save
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2 text-sm md:text-base font-medium text-foreground text-left">
+                                <Target className="shrink-0 w-4 h-4" style={{ color: currentTheme.accent }} />
+                                <span className="line-clamp-2">{currentTask.text}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+                                <button
+                                    onClick={() => onCompleteTask?.()}
+                                    className="p-1.5 rounded-lg hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors"
+                                    title="Mark as done"
+                                >
+                                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </button>
+                                <button
+                                    onClick={() => setIsEditing(true)}
+                                    className="p-1.5 rounded-lg hover:bg-white/40 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300 transition-colors"
+                                    title="Edit task"
+                                >
+                                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (window.confirm("Are you sure you want to delete the active task?")) {
+                                            onDeleteTask?.();
+                                        }
+                                    }}
+                                    className="p-1.5 rounded-lg hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-colors"
+                                    title="Delete task"
+                                >
+                                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            ) : null}
+            ) : (
+                <div className="mb-6 md:mb-8 landscape:mb-4 max-w-md mx-auto relative z-20">
+                    <form onSubmit={handleAddTaskSubmit} className="flex gap-2">
+                        <input
+                            type="text"
+                            value={newTaskText}
+                            onChange={(e) => setNewTaskText(e.target.value)}
+                            placeholder="What are you working on?"
+                            className="flex-1 bg-white/30 dark:bg-slate-800/50 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 placeholder:text-foreground/50 text-foreground transition-all"
+                            style={{ '--tw-ring-color': currentTheme.accent } as React.CSSProperties}
+                        />
+                        <button
+                            type="submit"
+                            disabled={!newTaskText.trim()}
+                            className="shrink-0 px-4 rounded-xl text-white font-semibold transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-1 shadow-md"
+                            style={{ backgroundColor: currentTheme.accent }}
+                        >
+                            <span className="hidden sm:inline">Add Task</span>
+                            <span className="sm:hidden">+</span>
+                        </button>
+                    </form>
+                </div>
+            )}
 
             {/* Control Buttons */}
             <div className="flex items-center justify-center gap-4 landscape:gap-3">
@@ -147,17 +258,6 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                 </button>
             </div>
 
-            <div className="mt-6 landscape:mt-3 flex justify-center">
-                <button
-                    onClick={onTogglePiP}
-                    className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${isPiPActive ? "bg-emerald-500 text-white" : "bg-white/70 text-slate-900 hover:bg-white"
-                        }`}
-                    title={isPiPActive ? "Disable Picture-in-Picture timer" : "Enable Picture-in-Picture timer"}
-                >
-                    <PictureInPicture2 className="w-4 h-4" />
-                    {isPiPActive ? "PiP Active" : "Open PiP Timer"}
-                </button>
-            </div>
         </div>
     );
 };

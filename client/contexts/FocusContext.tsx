@@ -60,6 +60,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const [mode, setMode] = useState<FocusMode>("Timer");
     const [timerDuration, setTimerDuration] = useState(25);
     const [breakDuration, setBreakDuration] = useState(5);
+    const [longBreakDuration, setLongBreakDuration] = useState(15);
     const [totalSeconds, setTotalSeconds] = useState(25 * 60);
     const [remainingSeconds, setRemainingSeconds] = useState(25 * 60);
     const [isRunning, setIsRunning] = useState(false);
@@ -242,7 +243,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 const durationMins = Math.floor(totalSecondsRef.current / 60);
                 import("@/utils/focusService").then(({ focusService }) => {
                     focusService.logSession({
-                        durationMinutes: durationMins,
+                        durationMinutes: durationMins, // Full duration reached
                         breakMinutes: 0,
                         completed: true
                     }).then(() => console.log("Session logged via Context"));
@@ -432,8 +433,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const pauseTimer = useCallback(() => {
         isRunningRef.current = false;
         setIsRunning(false);
+        setMusicPlaying(false);
         syncPiPVideoPlayback(false);
-    }, [syncPiPVideoPlayback]);
+    }, [setMusicPlaying, syncPiPVideoPlayback]);
 
     // PiP Toggle
     const togglePiP = useCallback(async () => {
@@ -635,9 +637,25 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, [pauseTimer, startTimer]);
 
     const resetTimer = useCallback(() => {
+        // Log partial session before resetting if some time elapsed
+        if (mode === "Timer" && isRunning) {
+            const elapsedSeconds = totalSeconds - remainingSeconds;
+            const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+            if (elapsedMinutes > 0) {
+                import("@/utils/focusService").then(({ focusService }) => {
+                    focusService.logSession({
+                        durationMinutes: elapsedMinutes,
+                        breakMinutes: 0,
+                        completed: false // Interrupted/partial session
+                    }).then(() => console.log("Partial Session logged via reset"));
+                });
+            }
+        }
+
         setIsRunning(false);
+        setMusicPlaying(false);
         setRemainingSeconds(totalSeconds);
-    }, [totalSeconds]);
+    }, [totalSeconds, remainingSeconds, isRunning, mode, setMusicPlaying]);
 
     const handleSetMode = useCallback((newMode: FocusMode) => {
         setMode(newMode);
@@ -649,7 +667,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setTotalSeconds(duration * 60);
         setRemainingSeconds(duration * 60);
         setIsRunning(false);
-    }, [timerDuration, breakDuration]);
+        setMusicPlaying(false);
+    }, [timerDuration, breakDuration, longBreakDuration, setMusicPlaying]);
 
     const handleSetTimerDuration = useCallback((mins: number) => {
         setTimerDuration(mins);
@@ -657,8 +676,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setTotalSeconds(mins * 60);
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
+            setMusicPlaying(false);
         }
-    }, [mode]);
+    }, [mode, setMusicPlaying]);
 
     const handleSetBreakDuration = useCallback((mins: number) => {
         setBreakDuration(mins);
@@ -666,10 +686,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setTotalSeconds(mins * 60);
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
+            setMusicPlaying(false);
         }
-    }, [mode]);
-
-    const [longBreakDuration, setLongBreakDuration] = useState(15);
+    }, [mode, setMusicPlaying]);
 
     const handleSetLongBreakDuration = useCallback((mins: number) => {
         setLongBreakDuration(mins);
@@ -677,8 +696,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setTotalSeconds(mins * 60);
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
+            setMusicPlaying(false);
         }
-    }, [mode]);
+    }, [mode, setMusicPlaying]);
 
     const value: FocusContextType = {
         timerState: {

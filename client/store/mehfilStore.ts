@@ -12,6 +12,7 @@ export interface Thought {
     content: string;
     imageUrl?: string | null;
     relatableCount: number;
+    commentsCount?: number;
     createdAt: string | Date;
     category?: MehfilCategory;
     aiTags?: string[];

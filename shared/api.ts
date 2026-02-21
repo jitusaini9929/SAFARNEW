@@ -21,6 +21,12 @@ export interface DemoResponse {
   message: string;
 }
 
+export interface GoalSubtask {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface Goal {
   id: string;
   userId: string;
@@ -30,12 +36,15 @@ export interface Goal {
   type: "daily" | "weekly";
   completed: boolean;
   createdAt: string;
-  completedAt?: string;
-  expiresAt?: string;
+  completedAt?: string | null;
+  expiresAt?: string | null;
   lifecycleStatus?: "active" | "missed" | "rolled_over" | "abandoned";
   rollover_prompt_pending?: boolean;
   source_goal_id?: string | null;
-  scheduledDate?: string; // ISO date string for future goals
+  scheduledDate?: string | null; // ISO date string for future goals
+  category?: "academic" | "health" | "personal" | "other";
+  priority?: "high" | "medium" | "low";
+  subtasks?: GoalSubtask[];
   created_at?: string;
   completed_at?: string;
   expires_at?: string;

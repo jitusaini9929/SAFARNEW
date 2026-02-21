@@ -13,6 +13,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 type GoalType = 'daily' | 'weekly';
 type GoalEventType = 'CREATED' | 'COMPLETED' | 'ABANDONED' | 'ROLLED_OVER';
 type GoalLifecycleStatus = 'active' | 'missed' | 'rolled_over' | 'abandoned';
+type GoalCategory = 'academic' | 'health' | 'personal' | 'other';
+type GoalPriority = 'high' | 'medium' | 'low';
+type GoalSubtask = { id: string; text: string; done: boolean };
+
+const ALLOWED_CATEGORIES = new Set<GoalCategory>(['academic', 'health', 'personal', 'other']);
+const ALLOWED_PRIORITIES = new Set<GoalPriority>(['high', 'medium', 'low']);
 
 const toISTDate = (date: Date) => new Date(date.getTime() + IST_OFFSET_MS);
 
@@ -75,6 +81,32 @@ const normalizeGoalDescription = (raw: unknown) => {
     return description || null;
 };
 
+const normalizeGoalCategory = (raw: unknown): GoalCategory | null => {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (ALLOWED_CATEGORIES.has(value as GoalCategory)) return value as GoalCategory;
+    return null;
+};
+
+const normalizeGoalPriority = (raw: unknown): GoalPriority | null => {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (ALLOWED_PRIORITIES.has(value as GoalPriority)) return value as GoalPriority;
+    return null;
+};
+
+const normalizeGoalSubtasks = (raw: unknown): GoalSubtask[] | null => {
+    if (raw === undefined || raw === null) return [];
+    if (!Array.isArray(raw)) return null;
+    const normalized: GoalSubtask[] = [];
+    for (const entry of raw) {
+        const text = String((entry as any)?.text ?? '').trim();
+        if (!text) continue;
+        const id = String((entry as any)?.id ?? '').trim() || uuidv4();
+        const done = Boolean((entry as any)?.done);
+        normalized.push({ id, text, done });
+    }
+    return normalized;
+};
+
 const getGoalExpiry = (goal: any) => {
     if (goal?.expires_at) return new Date(goal.expires_at);
     if (goal?.expiresAt) return new Date(goal.expiresAt);
@@ -89,11 +121,17 @@ const normalizeGoalResponse = (goal: any) => {
     const expiresAt = getGoalExpiry(goal);
     const title = normalizeGoalTitle(goal.title, goal.text) || '';
     const description = normalizeGoalDescription(goal.description);
+    const category = normalizeGoalCategory(goal.category) || 'other';
+    const priority = normalizeGoalPriority(goal.priority) || 'medium';
+    const subtasks = normalizeGoalSubtasks(goal.subtasks) || [];
     return {
         ...goal,
         text: title,
         title,
         description,
+        category,
+        priority,
+        subtasks,
         createdAt: createdAt.toISOString(),
         completedAt: completedAt ? completedAt.toISOString() : null,
         expiresAt: expiresAt.toISOString(),
@@ -210,10 +248,13 @@ router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
 
 // Create goal
 router.post('/', requireAuth, async (req: Request, res) => {
-    const { text, title, description, scheduledDate } = req.body;
+    const { text, title, description, scheduledDate, category, priority, subtasks } = req.body;
     const type = normalizeGoalType(req.body?.type);
     const normalizedTitle = normalizeGoalTitle(title, text);
     const normalizedDescription = normalizeGoalDescription(description);
+    const normalizedCategory = normalizeGoalCategory(category) || 'other';
+    const normalizedPriority = normalizeGoalPriority(priority) || 'medium';
+    const normalizedSubtasks = normalizeGoalSubtasks(subtasks) || [];
 
     if (!normalizedTitle || !type) {
         return res.status(400).json({ message: 'Title and type are required' });
@@ -253,6 +294,9 @@ router.post('/', requireAuth, async (req: Request, res) => {
             text: normalizedTitle,
             title: normalizedTitle,
             description: normalizedDescription,
+            category: normalizedCategory,
+            priority: normalizedPriority,
+            subtasks: normalizedSubtasks,
             type,
             completed: false,
             created_at: createdAt,
@@ -312,6 +356,9 @@ router.post('/:id/rollover-action', requireAuth, async (req: Request, res) => {
                 text: normalizeGoalTitle(goal.title, goal.text) || '',
                 title: normalizeGoalTitle(goal.title, goal.text) || '',
                 description: normalizeGoalDescription(goal.description),
+                category: normalizeGoalCategory(goal.category) || 'other',
+                priority: normalizeGoalPriority(goal.priority) || 'medium',
+                subtasks: normalizeGoalSubtasks(goal.subtasks) || [],
                 type: goalType,
                 completed: false,
                 created_at: now,
@@ -374,15 +421,34 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
     const hasCompletedUpdate = typeof req.body?.completed === 'boolean';
     const hasTitleUpdate = req.body && ('title' in req.body || 'text' in req.body);
     const hasDescriptionUpdate = req.body && 'description' in req.body;
+    const hasScheduleUpdate = req.body && 'scheduledDate' in req.body;
+    const hasCategoryUpdate = req.body && 'category' in req.body;
+    const hasPriorityUpdate = req.body && 'priority' in req.body;
+    const hasSubtasksUpdate = req.body && 'subtasks' in req.body;
+    const hasTypeUpdate = req.body && 'type' in req.body;
     const normalizedTitle = hasTitleUpdate ? normalizeGoalTitle(req.body?.title, req.body?.text) : null;
     const normalizedDescription = hasDescriptionUpdate ? normalizeGoalDescription(req.body?.description) : undefined;
+    const normalizedType = hasTypeUpdate ? normalizeGoalType(req.body?.type) : null;
 
-    if (!hasCompletedUpdate && !hasTitleUpdate && !hasDescriptionUpdate) {
+    if (
+        !hasCompletedUpdate &&
+        !hasTitleUpdate &&
+        !hasDescriptionUpdate &&
+        !hasScheduleUpdate &&
+        !hasCategoryUpdate &&
+        !hasPriorityUpdate &&
+        !hasSubtasksUpdate &&
+        !hasTypeUpdate
+    ) {
         return res.status(400).json({ message: 'Nothing to update' });
     }
 
     if (hasTitleUpdate && !normalizedTitle) {
         return res.status(400).json({ message: 'Goal title cannot be empty' });
+    }
+
+    if (hasTypeUpdate && !normalizedType) {
+        return res.status(400).json({ message: 'Invalid goal type' });
     }
 
     try {
@@ -401,13 +467,27 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         const now = new Date();
         const updates: Record<string, any> = {};
         const { scheduledDate } = req.body;
+        let scheduledDateObj: Date | null = null;
 
-        if (scheduledDate) {
-            // Rescheduling logic
-            const scheduledDateKey = scheduledDate.split('T')[0];
-            const scheduledDateObj = new Date(`${scheduledDateKey}T00:00:00.000Z`);
+        if (hasScheduleUpdate) {
+            const parsedScheduledDateKey = parseScheduledDateInput(scheduledDate);
+            if (!parsedScheduledDateKey) {
+                return res.status(400).json({ message: 'Invalid scheduled date' });
+            }
+
+            const todayISTDateKey = getISTDateKey(now);
+            const maxAllowedISTDateKey = getISTDateKeyAfterDays(now, 7);
+
+            if (parsedScheduledDateKey < todayISTDateKey) {
+                return res.status(400).json({ message: 'Cannot schedule goals in the past' });
+            }
+
+            if (parsedScheduledDateKey > maxAllowedISTDateKey) {
+                return res.status(400).json({ message: 'Cannot schedule goals more than 7 days ahead' });
+            }
+
+            scheduledDateObj = new Date(`${parsedScheduledDateKey}T00:00:00.000Z`);
             updates.scheduled_date = scheduledDateObj;
-            updates.expires_at = calculateExpiryUTC(goalType, now, scheduledDateObj);
         }
 
         if (hasTitleUpdate && normalizedTitle) {
@@ -419,6 +499,38 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
             updates.description = normalizedDescription ?? null;
         }
 
+        if (hasCategoryUpdate) {
+            updates.category = normalizeGoalCategory(req.body?.category) || 'other';
+        }
+
+        if (hasPriorityUpdate) {
+            updates.priority = normalizeGoalPriority(req.body?.priority) || 'medium';
+        }
+
+        if (hasSubtasksUpdate) {
+            const normalizedSubtasks = normalizeGoalSubtasks(req.body?.subtasks);
+            if (!normalizedSubtasks) {
+                return res.status(400).json({ message: 'Invalid subtasks' });
+            }
+            updates.subtasks = normalizedSubtasks;
+        }
+
+        const effectiveType = normalizedType || goalType;
+        if (hasTypeUpdate && normalizedType) {
+            updates.type = normalizedType;
+        }
+
+        if (hasScheduleUpdate || hasTypeUpdate) {
+            const baseDate = scheduledDateObj
+                ?? goal.scheduled_date
+                ?? goal.scheduledDate
+                ?? goal.created_at
+                ?? goal.createdAt
+                ?? now;
+            const baseDateObj = baseDate instanceof Date ? baseDate : new Date(baseDate);
+            updates.expires_at = calculateExpiryUTC(effectiveType, now, baseDateObj);
+        }
+
         if (!hasCompletedUpdate) {
             await collections.goals().updateOne(
                 { id, user_id: userId },
@@ -428,7 +540,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         }
 
         const completed = Boolean(req.body.completed);
-        const expiresAt = getGoalExpiry(goal);
+        const expiresAt = updates.expires_at instanceof Date ? updates.expires_at : getGoalExpiry(goal);
 
         if (completed && now.getTime() >= expiresAt.getTime()) {
             await collections.goals().updateOne(
@@ -471,7 +583,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         );
 
         if (completed && !wasCompleted) {
-            await logGoalActivity(userId, id, goalType, 'COMPLETED', now);
+            await logGoalActivity(userId, id, effectiveType, 'COMPLETED', now);
 
             const todayIST = getISTDateKey(now);
             const startOfDay = getStartOfISTDayUTC(now);
@@ -629,6 +741,9 @@ router.post('/repeat-plan', requireAuth, async (req: Request, res) => {
                 text: goal.text || goal.title || '',
                 title: goal.title || goal.text || '',
                 description: goal.description || '',
+                category: normalizeGoalCategory(goal.category) || 'other',
+                priority: normalizeGoalPriority(goal.priority) || 'medium',
+                subtasks: normalizeGoalSubtasks(goal.subtasks) || [],
                 type: goalType,
                 completed: false,
                 completed_at: null,
@@ -690,6 +805,9 @@ router.post('/:id/repeat', requireAuth, async (req: Request, res) => {
             text: sourceGoal.title || sourceGoal.text || '',
             title: sourceGoal.title || sourceGoal.text || '',
             description: sourceGoal.description || '',
+            category: normalizeGoalCategory(sourceGoal.category) || 'other',
+            priority: normalizeGoalPriority(sourceGoal.priority) || 'medium',
+            subtasks: normalizeGoalSubtasks(sourceGoal.subtasks) || [],
             type: goalType,
             completed: false,
             created_at: now,

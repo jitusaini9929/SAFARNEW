@@ -89,12 +89,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     setEditText(thought.content);
   }, [thought.content]);
 
-  // Fetch comments when opened
+  // Fetch comments on mount
   useEffect(() => {
-    if (isCommentsOpen) {
-      fetchComments();
-    }
-  }, [isCommentsOpen, thought.id]);
+    fetchComments();
+  }, [thought.id]);
 
   // ── helpers ──────────────────────────────────────────
   const toComment = (comment: any): Comment => ({
@@ -429,7 +427,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               <Heart
                 className={`w-4 h-4 transition-all ${hasReacted ? "fill-current" : ""}`}
               />
-              {hasReacted ? "Relatable" : "Relatable?"}
+              {hasReacted ? "Relatable" : "Relatable?"} {thought.relatableCount > 0 && `(${thought.relatableCount})`}
             </button>
 
             <button
@@ -440,19 +438,9 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 }`}
             >
               <MessageCircle className="w-4 h-4" />
-              Comment {comments.length > 0 && `(${comments.length})`}
+              Comment {Math.max(thought.commentsCount || 0, comments.length) > 0 && `(${Math.max(thought.commentsCount || 0, comments.length)})`}
             </button>
           </div>
-
-          {thought.relatableCount > 0 && (
-            <span className="text-xs font-bold text-slate-400">
-              {thought.relatableCount}{" "}
-              {thought.relatableCount === 1
-                ? "person finds"
-                : "people find"}{" "}
-              this relatable
-            </span>
-          )}
         </div>
 
         {/* Comment Section (Collapsible) */}
