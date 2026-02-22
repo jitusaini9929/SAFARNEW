@@ -552,20 +552,18 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
 
         const wasCompleted = Boolean(goal.completed);
 
-        // Allow client to specify when the goal was completed (today or yesterday)
+        // Allow client to specify when the goal was completed (fallback to now if invalid/out of range)
         let completedAt: Date | null = null;
         if (completed) {
             if (req.body.completedAt) {
                 const parsed = new Date(req.body.completedAt);
                 if (!Number.isFinite(parsed.getTime())) {
-                    return res.status(400).json({ message: 'Invalid completedAt date' });
+                    completedAt = now;
+                } else {
+                    // Accept client timestamp only if it is reasonably recent; otherwise fallback to now.
+                    const twoDaysAgo = new Date(now.getTime() - 2 * DAY_MS);
+                    completedAt = (parsed < twoDaysAgo || parsed > now) ? now : parsed;
                 }
-                // Validate within last 2 days
-                const twoDaysAgo = new Date(now.getTime() - 2 * DAY_MS);
-                if (parsed < twoDaysAgo || parsed > now) {
-                    return res.status(400).json({ message: 'completedAt must be within the last 2 days' });
-                }
-                completedAt = parsed;
             } else {
                 completedAt = now;
             }
