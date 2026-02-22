@@ -94,7 +94,7 @@ export default function Login() {
         }
       `}</style>
 
-      <div className="mesh-gradient min-h-screen flex items-center justify-center p-4 antialiased text-gray-800 dark:text-gray-100 font-sans transition-colors duration-500">
+      <div className="mesh-gradient min-h-[100dvh] flex items-center justify-center p-4 antialiased text-gray-800 dark:text-gray-100 font-sans transition-colors duration-500">
         {/* Floating decorative blobs */}
         <div
           className="fixed top-20 left-20 w-32 h-32 bg-teal-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 hidden lg:block dark:bg-teal-900"

@@ -661,7 +661,7 @@ export default function StudyWithMe() {
                     <FocusAnalytics onBack={() => setShowAnalytics(false)} />
                 </div>
             ) : (
-                <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 min-h-full pb-32 landscape:pb-24">
+                <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 pt-24 sm:pt-4 min-h-full pb-32 landscape:pb-24">
                     {/* Timer Card */}
                     <TimerCard
                         minutes={minutes}
@@ -956,10 +956,10 @@ export default function StudyWithMe() {
                 </div>
             </MobileDrawer>
 
-            {/* Floating Controls - Music & Profile */}
-            <div className="fixed top-6 right-8 z-[60] flex items-center gap-3">
+            {/* Floating Controls - Music & Profile - Desktop & Mobile */}
+            <div className="fixed top-6 right-4 sm:right-8 z-[60] flex flex-wrap justify-end items-center gap-2 sm:gap-3 max-w-[80vw]">
                 {/* Theme Toggle */}
-                <ThemeToggle className={showAnalytics ? "bg-slate-200/50 dark:bg-slate-800/50 border border-slate-300 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-300/50 dark:hover:bg-slate-700/50" : "bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 hover:text-white"} />
+                <ThemeToggle className={showAnalytics ? "bg-slate-200/50 dark:bg-slate-800/50 border border-slate-300 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-300/50 dark:hover:bg-slate-700/50" : "bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 hover:text-white shrink-0"} />
 
 
                 {/* Music Control */}
@@ -998,10 +998,10 @@ export default function StudyWithMe() {
                     />
                 </div>
 
-                {/* Analytics Toggle */}
+                {/* Analytics Toggle - Hidden on Mobile */}
                 <button
                     onClick={() => setShowAnalytics(!showAnalytics)}
-                    className={`p-2 rounded-full border transition-all ${showAnalytics ? "bg-white dark:bg-slate-800 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white shadow-md hover:bg-slate-100 dark:hover:bg-slate-700" : "bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-md"}`}
+                    className={`hidden sm:flex p-2 rounded-full border transition-all ${showAnalytics ? "bg-white dark:bg-slate-800 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white shadow-md hover:bg-slate-100 dark:hover:bg-slate-700" : "bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-md shrink-0"}`}
                     title={showAnalytics ? "Show Timer" : "Show Analytics"}
                 >
                     {showAnalytics ? <LayoutDashboard className="w-5 h-5" /> : <BarChart2 className="w-5 h-5" />}

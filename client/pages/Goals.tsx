@@ -6,21 +6,11 @@ import { Goal } from "@shared/api";
 import { toast } from "sonner";
 
 // ─── TYPES ────────────────────────────────────────────────────
-type GoalCategory = "academic" | "health" | "personal" | "other";
-type GoalPriority = "high" | "medium" | "low";
-
-interface Subtask {
-    id: string;
-    text: string;
-    done: boolean;
-}
-
 interface UIGoal extends Goal {
-    category: GoalCategory;
-    priority: GoalPriority;
-    subtasks: Subtask[];
     title: string;
 }
+
+const MAX_COMPLETED_DISPLAY = 5;
 
 // ─── DESIGN TOKENS (matching Command Center palette exactly) ──
 const T = {
@@ -45,40 +35,28 @@ const T = {
     darkBorder: "#334155", // slate700
 };
 
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const IST_TIME_ZONE = "Asia/Kolkata";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const toISTDate = (date: Date) => new Date(date.getTime() + IST_OFFSET_MS);
-const getISTDateKey = (date: Date) => toISTDate(date).toISOString().split("T")[0];
+const formatISTDate = (date: Date, options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-US", { timeZone: IST_TIME_ZONE, ...options }).format(date);
+const getISTDateKey = (date: Date) => {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: IST_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(date);
+    const year = parts.find(p => p.type === "year")?.value ?? "1970";
+    const month = parts.find(p => p.type === "month")?.value ?? "01";
+    const day = parts.find(p => p.type === "day")?.value ?? "01";
+    return `${year}-${month}-${day}`;
+};
 const dateKeyToUtcDate = (dateKey: string) => new Date(`${dateKey}T00:00:00.000Z`);
 const diffISTDays = (aKey: string, bKey: string) =>
     Math.round((dateKeyToUtcDate(aKey).getTime() - dateKeyToUtcDate(bKey).getTime()) / DAY_MS);
 
-const today = new Date();
-const todayStr = getISTDateKey(today);
-const maxDate = new Date(today.getTime() + 7 * DAY_MS);
-const maxDateStr = getISTDateKey(maxDate);
-
 // ─── CONSTANTS ────────────────────────────────────────────────
-const CATEGORIES = [
-    { value: "academic", label: "Study & Learning", emoji: "", color: T.teal700, bg: T.teal50 },
-    { value: "health", label: "Physical Health", emoji: "", color: T.maroon800, bg: T.maroon100 },
-    { value: "personal", label: "Mindfulness", emoji: "", color: T.indigo500, bg: T.indigo50 },
-    { value: "other", label: "Other", emoji: "", color: T.amber500, bg: T.amber50 },
-];
-const PRIORITIES = [
-    { value: "high", label: "High", color: "#dc2626", bg: "#fee2e2" },
-    { value: "medium", label: "Medium", color: T.amber500, bg: "#fef3c7" },
-    { value: "low", label: "Low", color: T.slate500, bg: T.slate100 },
-];
-const TYPES = [
-    { value: "daily", label: "Daily" },
-    { value: "weekly", label: "Weekly" },
-];
-
-const getCat = (v: string) => CATEGORIES.find(c => c.value === v) || CATEGORIES[3];
-const getPri = (v: string) => PRIORITIES.find(p => p.value === v) || PRIORITIES[1];
-const uniqueId = () => Math.random().toString(36).slice(2, 10);
 
 // ─── HELPERS ─────────────────────────────────────────────────
 const formatDate = (str?: string) => {
@@ -90,17 +68,78 @@ const formatDate = (str?: string) => {
     if (diff === 0) return "Today";
     if (diff === 1) return "Tomorrow";
     if (diff === -1) return "Yesterday";
-    const istDate = toISTDate(d);
-    if (diff > 0 && diff < 7) return istDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-    return istDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    if (diff > 0 && diff < 7) return formatISTDate(d, { weekday: "short", month: "short", day: "numeric" });
+    return formatISTDate(d, { month: "short", day: "numeric", year: "numeric" });
 };
-const isOverdue = (g: UIGoal) => {
-    if (g.completed || !g.scheduledDate) return false;
-    const scheduledKey = getISTDateKey(new Date(g.scheduledDate));
-    const todayKey = getISTDateKey(new Date());
-    return scheduledKey < todayKey;
+const formatTime = (date?: Date | null) => {
+    if (!date || !Number.isFinite(date.getTime())) return "";
+    return new Intl.DateTimeFormat("en-US", {
+        timeZone: IST_TIME_ZONE,
+        hour: "numeric",
+        minute: "2-digit",
+    }).format(date);
 };
-
+const formatDuration = (ms?: number | null) => {
+    if (!ms || !Number.isFinite(ms) || ms <= 0) return "";
+    const totalMinutes = Math.round(ms / 60000);
+    if (totalMinutes < 60) return `${totalMinutes}m`;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+};
+const getGoalDurationMs = (goal: UIGoal) => {
+    if (!goal.completedAt) return null;
+    const end = new Date(goal.completedAt);
+    if (!Number.isFinite(end.getTime())) return null;
+    const createdRaw = (goal as any).createdAt || (goal as any).created_at;
+    const scheduledRaw = (goal as any).scheduledDate || (goal as any).scheduled_date;
+    const createdAt = createdRaw ? new Date(createdRaw) : null;
+    const scheduledAt = scheduledRaw ? new Date(scheduledRaw) : null;
+    const candidates = [createdAt, scheduledAt].filter(
+        (d): d is Date => !!d && Number.isFinite(d.getTime())
+    );
+    if (candidates.length === 0) return null;
+    const start = candidates.reduce((latest, current) =>
+        current.getTime() > latest.getTime() ? current : latest
+    );
+    if (end.getTime() < start.getTime()) return null;
+    return end.getTime() - start.getTime();
+};
+const getISTMinutesSinceMidnight = (date: Date) => {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: IST_TIME_ZONE,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+    }).formatToParts(date);
+    const hours = Number(parts.find(p => p.type === "hour")?.value ?? 0);
+    const minutes = Number(parts.find(p => p.type === "minute")?.value ?? 0);
+    return hours * 60 + minutes;
+};
+const formatTimeFromMinutes = (minutes?: number | null) => {
+    if (minutes === null || minutes === undefined || !Number.isFinite(minutes)) return "";
+    const total = Math.round(minutes);
+    const hours = Math.floor(total / 60);
+    const mins = total % 60;
+    const hour12 = hours % 12 || 12;
+    const ampm = hours >= 12 ? "PM" : "AM";
+    return `${hour12}:${String(mins).padStart(2, "0")} ${ampm}`;
+};
+const getDailyCompletionMetrics = (completedGoals: UIGoal[], dayKey: string) => {
+    const dayGoals = completedGoals.filter(g => g.completedAt && getISTDateKey(new Date(g.completedAt)) === dayKey);
+    const durations = dayGoals
+        .map(getGoalDurationMs)
+        .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
+    const totalDuration = durations.reduce((sum, v) => sum + v, 0);
+    const avgDuration = durations.length ? totalDuration / durations.length : 0;
+    const completionMinutes = dayGoals
+        .map(g => g.completedAt ? getISTMinutesSinceMidnight(new Date(g.completedAt)) : null)
+        .filter((v): v is number => v !== null && Number.isFinite(v));
+    const avgCompletionMinutes = completionMinutes.length
+        ? completionMinutes.reduce((sum, v) => sum + v, 0) / completionMinutes.length
+        : null;
+    return { count: dayGoals.length, totalDuration, avgDuration, avgCompletionMinutes };
+};
 // ─── WEEK CHART ───────────────────────────────────────────────
 const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
     const todayKey = getISTDateKey(new Date());
@@ -109,7 +148,7 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
         const d = new Date(base.getTime() - (6 - i) * DAY_MS);
         const ds = getISTDateKey(d);
         return {
-            day: toISTDate(d).toLocaleDateString("en-US", { weekday: "short" })[0],
+            day: formatISTDate(d, { weekday: "short" })[0],
             count: goals.filter(g => g.completed && g.completedAt && getISTDateKey(new Date(g.completedAt)).startsWith(ds)).length,
         };
     });
@@ -136,27 +175,24 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
 };
 
 // ─── BADGE ───────────────────────────────────────────────────
-const Badge = ({ label, color, bg }: { label: string, color: string, bg: string }) => (
-    <span style={{ color, background: bg, fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 20, letterSpacing: "0.05em", textTransform: "uppercase", whiteSpace: "nowrap" }}>
-        {label}
-    </span>
-);
-
 // ─── GOAL CARD ────────────────────────────────────────────────
-const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme, isPhone }: any) => {
+const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone }: any) => {
     const isDark = theme === 'dark';
-    const [expanded, setExpanded] = useState(false);
-    const cat = getCat(goal.category);
-    const pri = getPri(goal.priority);
-    const overdue = isOverdue(goal);
-    const hasSubs = goal.subtasks.length > 0;
-    const subsDone = goal.subtasks.filter((s: any) => s.done).length;
-
     const hoverBg = isDark ? T.darkCardHover : T.slate50;
     const textColor = isDark ? (goal.completed ? T.darkTextMuted : T.darkText) : (goal.completed ? T.slate400 : T.slate700);
-    const subTextColor = isDark ? (goal.completed ? T.slate600 : T.darkTextMuted) : (goal.completed ? T.slate400 : T.slate600);
-    const badgeBg = isDark ? T.darkCardHover : T.slate100;
-    const badgeText = isDark ? T.slate300 : T.slate600;
+    const metaColor = isDark ? T.darkTextMuted : T.slate400;
+
+    const completedAt = goal.completedAt ? new Date(goal.completedAt) : null;
+    const durationMs = getGoalDurationMs(goal);
+    const completedDateLabel = completedAt ? formatDate(completedAt.toISOString()) : "";
+    const completedTimeLabel = completedAt ? formatTime(completedAt) : "";
+    const completedLabel = completedAt
+        ? `Completed ${completedDateLabel}${completedTimeLabel ? ` · ${completedTimeLabel}` : ""}`
+        : "Completed";
+    const primaryMeta = goal.completed
+        ? completedLabel
+        : (goal.scheduledDate ? `Due ${formatDate(goal.scheduledDate)}` : "");
+    const secondaryMeta = goal.completed && durationMs ? `Took ${formatDuration(durationMs)}` : "";
 
     return (
         <div style={{
@@ -164,68 +200,51 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme, is
             flexWrap: isPhone ? "wrap" : "nowrap",
             borderRadius: 14, transition: "background 0.15s",
             background: "transparent",
-            opacity: goal.completed ? 0.65 : 1,
+            opacity: goal.completed ? 0.72 : 1,
         }}
             onMouseOver={e => e.currentTarget.style.background = hoverBg}
             onMouseOut={e => e.currentTarget.style.background = "transparent"}
         >
-            <div style={{ width: isPhone ? 34 : 40, height: isPhone ? 34 : 40, borderRadius: "50%", background: isDark ? cat.color + "33" : cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: isPhone ? 15 : 18, flexShrink: 0 }}>
-                {cat.emoji}
+            <div style={{ width: isPhone ? 34 : 40, height: isPhone ? 34 : 40, borderRadius: "50%", background: isDark ? "rgba(45, 212, 191, 0.18)" : T.teal50, display: "flex", alignItems: "center", justifyContent: "center", fontSize: isPhone ? 15 : 18, flexShrink: 0, color: isDark ? T.teal400 : T.teal700 }}>
+                {goal.completed ? "✓" : ""}
             </div>
 
             <div style={{ flex: 1, minWidth: 0, minHeight: isPhone ? 34 : undefined }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, flexWrap: "wrap" }}>
-                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: pri.color, display: "inline-block", flexShrink: 0 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
                     <span style={{ fontSize: isPhone ? 12 : 13, fontWeight: 600, color: textColor, textDecoration: goal.completed ? "line-through" : "none" }}>
                         {goal.title}
                     </span>
                 </div>
-                <p style={{ fontSize: isPhone ? 10 : 11, color: isDark ? T.darkTextMuted : T.slate400, margin: "0 0 6px", lineHeight: 1.45 }}>
-                    {cat.label}
-                    {goal.description ? " · " + goal.description : ""}
-                    {goal.scheduledDate ? " · " + (overdue ? "⚠ Overdue" : formatDate(goal.scheduledDate)) : ""}
-                </p>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <Badge label={pri.label} color={pri.color} bg={isDark ? pri.color + "22" : pri.bg} />
-                    <Badge label={TYPES.find(t => t.value === goal.type)?.label || goal.type} color={badgeText} bg={badgeBg} />
-                    {hasSubs && (
-                        <button onClick={() => setExpanded(e => !e)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: T.teal600, fontWeight: 600, padding: 0 }}>
-                            {subsDone}/{goal.subtasks.length} steps {expanded ? "▲" : "▼"}
-                        </button>
-                    )}
-                </div>
-                {expanded && hasSubs && (
-                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
-                        {goal.subtasks.map((sub: any) => (
-                            <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                <button
-                                    onClick={() => onToggleSubtask(goal.id, sub.id)}
-                                    style={{ width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${sub.done ? T.teal700 : T.slate300}`, background: sub.done ? T.teal700 : "transparent", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
-                                >
-                                    {sub.done && <span style={{ color: T.white, fontSize: 8, fontWeight: 900 }}>✓</span>}
-                                </button>
-                                <span style={{ fontSize: 11, color: subTextColor, textDecoration: sub.done ? "line-through" : "none" }}>{sub.text}</span>
-                            </div>
-                        ))}
-                    </div>
+                {goal.description && (
+                    <p style={{ fontSize: isPhone ? 10 : 11, color: metaColor, margin: "0 0 6px", lineHeight: 1.45 }}>
+                        {goal.description}
+                    </p>
+                )}
+                {(primaryMeta || secondaryMeta) && (
+                    <p style={{ fontSize: isPhone ? 10 : 11, color: metaColor, margin: 0, lineHeight: 1.45 }}>
+                        {[primaryMeta, secondaryMeta].filter(Boolean).join(" · ")}
+                    </p>
                 )}
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: isPhone ? "auto" : 0, width: isPhone ? "100%" : "auto", justifyContent: isPhone ? "flex-end" : "flex-start" }}>
-                <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: isPhone ? 30 : 26, height: isPhone ? 30 : 26, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
-                <button onClick={() => onDelete(goal.id)} style={{ background: isDark ? "rgba(249, 128, 128, 0.1)" : T.maroon100, border: "none", borderRadius: 8, color: isDark ? T.maroon400 : T.maroon800, width: isPhone ? 30 : 26, height: isPhone ? 30 : 26, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete">✕</button>
+                <button onClick={() => onRepeat(goal)} style={{ background: isDark ? "rgba(99, 102, 241, 0.1)" : T.indigo50, border: "none", borderRadius: 8, color: isDark ? T.indigo500 : T.indigo500, width: isPhone ? 60 : 44, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: isPhone ? 60 : undefined }} title="Repeat">Repeat</button>
+                <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
+                <button onClick={() => onDelete(goal.id)} style={{ background: isDark ? "rgba(249, 128, 128, 0.1)" : T.maroon100, border: "none", borderRadius: 8, color: isDark ? T.maroon400 : T.maroon800, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete">✕</button>
                 <button
-                    onClick={() => onToggle(goal.id, goal.completed)}
+                    onClick={goal.completed ? undefined : () => onToggle(goal.id, goal.completed)}
                     style={{
-                        width: isPhone ? 28 : 24, height: isPhone ? 28 : 24, borderRadius: "50%",
+                        width: isPhone ? 44 : 28, height: isPhone ? 44 : 28, borderRadius: "50%",
                         border: `2px solid ${goal.completed ? T.teal600 : T.slate300}`,
                         background: goal.completed ? T.teal600 : "transparent",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: "pointer", flexShrink: 0, transition: "all 0.15s",
+                        cursor: goal.completed ? "default" : "pointer", flexShrink: 0, transition: "all 0.15s",
+                        opacity: goal.completed ? 0.85 : 1,
                     }}
-                    title={goal.completed ? "Unmark as done" : "Mark as done"}
+                    title={goal.completed ? "Completed" : "Mark as done"}
+                    aria-disabled={goal.completed}
                 >
-                    {goal.completed && <span style={{ color: T.white, fontSize: 10, fontWeight: 900 }}>✓</span>}
+                    {goal.completed && <span style={{ color: T.white, fontSize: 14, fontWeight: 900 }}>✓</span>}
                 </button>
             </div>
         </div>
@@ -233,102 +252,93 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme, is
 };
 
 // ─── MODAL ────────────────────────────────────────────────────
-const GoalModal = ({ goal, onSave, onClose, theme, isPhone }: any) => {
+const GoalModal = ({ goal, mode, onSave, onClose, theme, isPhone, todayKey, maxDateKey }: any) => {
     const isDark = theme === 'dark';
-    const isEdit = !!goal?.id;
+    const isEdit = mode === "edit";
+    const isRepeat = mode === "repeat";
+    const initialDateKey = useMemo(
+        () => (goal?.scheduledDate ? getISTDateKey(new Date(goal.scheduledDate)) : todayKey),
+        [goal?.scheduledDate, todayKey]
+    );
     const [title, setTitle] = useState(goal?.title || "");
     const [desc, setDesc] = useState(goal?.description || "");
-    const [category, setCategory] = useState(goal?.category || "academic");
-    const [priority, setPriority] = useState(goal?.priority || "medium");
-    const [type, setType] = useState(goal?.type === "weekly" ? "weekly" : "daily");
-    const [date, setDate] = useState(goal?.scheduledDate ? getISTDateKey(new Date(goal.scheduledDate)) : todayStr);
-    const [subtasks, setSubtasks] = useState<Subtask[]>(goal?.subtasks || []);
-    const [newSub, setNewSub] = useState("");
+    const [date, setDate] = useState(initialDateKey);
 
-    const addSub = () => { if (!newSub.trim()) return; setSubtasks(s => [...s, { id: uniqueId(), text: newSub.trim(), done: false }]); setNewSub(""); };
-    const removeSub = (id: string) => setSubtasks(s => s.filter(x => x.id !== id));
-    const submit = () => { if (!title.trim()) return; onSave({ title: title.trim(), description: desc.trim(), category, priority, type, scheduledDate: date, subtasks }); };
+    useEffect(() => {
+        setTitle(goal?.title || "");
+        setDesc(goal?.description || "");
+        setDate(initialDateKey);
+    }, [goal?.title, goal?.description, initialDateKey]);
+
+    const submit = () => {
+        if (!title.trim()) return;
+        if (date < todayKey && (!isEdit || date !== initialDateKey)) {
+            toast.error("Please choose today or a future date.");
+            setDate(todayKey);
+            return;
+        }
+        if (date > maxDateKey && (!isEdit || date !== initialDateKey)) {
+            toast.error("Please choose a date within the next 7 days.");
+            setDate(maxDateKey);
+            return;
+        }
+        onSave({ title: title.trim(), description: desc.trim(), scheduledDate: date });
+    };
+
+    useEffect(() => {
+        if (date < todayKey && (!isEdit || date !== initialDateKey)) {
+            setDate(todayKey);
+            return;
+        }
+        if (date > maxDateKey && (!isEdit || date !== initialDateKey)) {
+            setDate(maxDateKey);
+        }
+    }, [date, todayKey, maxDateKey, isEdit, initialDateKey]);
 
     const inp = { width: "100%", background: isDark ? T.darkCardHover : T.slate50, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, colorScheme: isDark ? 'dark' : 'light', borderRadius: 10, padding: "9px 12px", color: isDark ? T.darkText : T.slate800, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" as any };
     const lbl = { fontSize: 10, color: isDark ? T.maroon400 : T.maroon400, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as any, marginBottom: 5, display: "block" };
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", display: "flex", alignItems: isPhone ? "flex-end" : "center", justifyContent: "center", zIndex: 1000, padding: isPhone ? 0 : 20 }}>
-            <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? "20px 20px 0 0" : 24, padding: 0, width: "100%", maxWidth: 480, maxHeight: isPhone ? "94vh" : "90vh", overflowY: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
-                <div style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, padding: isPhone ? "16px 14px" : "20px 24px", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", display: "flex", alignItems: isPhone ? "flex-end" : "center", justifyContent: "center", zIndex: 1000, padding: isPhone ? 0 : 20, overflowY: isPhone ? "auto" : "hidden" }}>
+            <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? "20px 20px 0 0" : 24, width: "100%", maxWidth: 480, height: isPhone ? "90dvh" : "auto", maxHeight: isPhone ? "90dvh" : "85vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(0,0,0,0.2)", overflowX: "hidden" }}>
+                <div style={{ flexShrink: 0, background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, padding: isPhone ? "16px 14px" : "20px 24px", position: "relative", overflow: "hidden" }}>
                     <div style={{ position: "absolute", top: -30, right: -30, width: 100, height: 100, background: T.maroon600, borderRadius: "50%", opacity: 0.2, filter: "blur(20px)" }} />
                     <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <h2 style={{ color: T.white, fontSize: 17, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                            {isEdit ? "Edit Goal" : "New Goal"}
+                            {isEdit ? "Edit Goal" : isRepeat ? "Repeat Goal" : "New Goal"}
                         </h2>
                         <button onClick={onClose} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: T.white, fontSize: 15, cursor: "pointer", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                     </div>
                 </div>
 
-                <div style={{ padding: isPhone ? "16px 14px" : "22px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
-                    <div>
+                <div style={{ flex: 1, minHeight: 0, padding: isPhone ? "16px 14px 40px" : "22px 24px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" as any }}>
+                    <div style={{ flexShrink: 0 }}>
                         <label style={lbl}>Title *</label>
                         <input style={inp} placeholder="e.g. Study 2 hours: Algebra Revision" value={title} onChange={e => setTitle(e.target.value)} autoFocus />
                     </div>
-                    <div>
+                    <div style={{ flexShrink: 0 }}>
                         <label style={lbl}>Description (optional)</label>
-                        <textarea style={{ ...inp, resize: "vertical", minHeight: 54 }} placeholder="Add details or context..." value={desc} onChange={e => setDesc(e.target.value)} />
+                        <textarea style={{ ...inp, resize: "vertical", minHeight: 80 }} placeholder="Add details or context..." value={desc} onChange={e => setDesc(e.target.value)} />
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 12 }}>
-                        <div>
-                            <label style={lbl}>Category</label>
-                            <select style={inp} value={category} onChange={e => setCategory(e.target.value)}>
-                                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label style={lbl}>Priority</label>
-                            <select style={inp} value={priority} onChange={e => setPriority(e.target.value)}>
-                                {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 12 }}>
-                        <div>
-                            <label style={lbl}>Type</label>
-                            <select style={inp} value={type} onChange={e => setType(e.target.value)}>
-                                {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label style={lbl}>Due Date</label>
-                            <input type="date" style={inp} value={date} onChange={e => setDate(e.target.value)} min={todayStr} max={maxDateStr} />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label style={lbl}>Steps / Sub-tasks</label>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
-                            {subtasks.map(s => (
-                                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, background: isDark ? T.darkCardHover : T.slate50, borderRadius: 8, padding: "6px 10px", border: `1px solid ${isDark ? T.darkBorder : T.slate200}` }}>
-                                    <span style={{ flex: 1, fontSize: 12, color: isDark ? T.darkText : T.slate700 }}>{s.text}</span>
-                                    <button onClick={() => removeSub(s.id)} style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 13 }}>✕</button>
-                                </div>
-                            ))}
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexDirection: isPhone ? "column" : "row" }}>
-                            <input style={{ ...inp, flex: 1 }} placeholder="Add a step..." value={newSub} onChange={e => setNewSub(e.target.value)} onKeyDown={e => e.key === "Enter" && addSub()} />
-                            <button onClick={addSub} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: `1px solid ${isDark ? T.teal700 : T.teal200}`, borderRadius: 10, color: isDark ? T.teal400 : T.teal700, padding: isPhone ? "8px 14px" : "0 14px", cursor: "pointer", fontWeight: 700, fontSize: 18 }}>+</button>
-                        </div>
+                    <div style={{ flexShrink: 0 }}>
+                        <label style={lbl}>Date</label>
+                        <input type="date" style={inp} value={date} onChange={e => setDate(e.target.value)} min={todayKey} max={maxDateKey} />
                     </div>
 
                     <button
                         onClick={submit}
                         disabled={!title.trim()}
                         style={{
+                            marginTop: "10px",
                             background: title.trim() ? `linear-gradient(135deg,${T.maroon700},${T.maroon900})` : T.slate100,
                             border: "none", borderRadius: 12, color: title.trim() ? T.white : T.slate400,
                             padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: title.trim() ? "pointer" : "not-allowed",
                             width: "100%", letterSpacing: "0.02em", transition: "all 0.2s",
                             boxShadow: title.trim() ? "0 4px 14px rgba(155,28,28,0.3)" : "none",
+                            flexShrink: 0
                         }}
                     >
-                        {isEdit ? "Save Changes" : "Create Goal"}
+                        {isEdit ? "Save Changes" : isRepeat ? "Repeat Goal" : "Create Goal"}
                     </button>
                 </div>
             </div>
@@ -339,32 +349,64 @@ const GoalModal = ({ goal, onSave, onClose, theme, isPhone }: any) => {
 // ─── ANALYTICS ────────────────────────────────────────────────
 const Analytics = ({ goals, theme, isPhone, isTablet }: { goals: UIGoal[], theme: string, isPhone: boolean, isTablet: boolean }) => {
     const isDark = theme === 'dark';
-    const completed = goals.filter(g => g.completed);
-    const total = goals.length;
-    const rate = total > 0 ? Math.round((completed.length / total) * 100) : 0;
-    const overdueCount = goals.filter(g => isOverdue(g)).length;
-    const highPriPending = goals.filter(g => !g.completed && g.priority === "high").length;
-    const byCategory = CATEGORIES.map(cat => {
-        const cg = goals.filter(g => g.category === cat.value);
-        const cd = cg.filter(g => g.completed).length;
-        return { ...cat, total: cg.length, done: cd, rate: cg.length ? Math.round((cd / cg.length) * 100) : 0 };
-    }).filter(c => c.total > 0);
+    const completedGoals = goals.filter(g => g.completed && g.completedAt);
+    const todayKey = getISTDateKey(new Date());
+    const base = dateKeyToUtcDate(todayKey);
+
+    const days = Array.from({ length: 7 }, (_, i) => {
+        const dayDate = new Date(base.getTime() - (6 - i) * DAY_MS);
+        const key = getISTDateKey(dayDate);
+        const dayGoals = completedGoals.filter(g => g.completedAt && getISTDateKey(new Date(g.completedAt)) === key);
+        const durations = dayGoals
+            .map(getGoalDurationMs)
+            .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
+        const totalDuration = durations.reduce((sum, v) => sum + v, 0);
+        const avgDuration = durations.length ? totalDuration / durations.length : 0;
+        const completionMinutes = dayGoals
+            .map(g => g.completedAt ? getISTMinutesSinceMidnight(new Date(g.completedAt)) : null)
+            .filter((v): v is number => v !== null && Number.isFinite(v));
+        const avgCompletionMinutes = completionMinutes.length
+            ? completionMinutes.reduce((sum, v) => sum + v, 0) / completionMinutes.length
+            : null;
+
+        return {
+            key,
+            label: formatISTDate(dayDate, { weekday: "short" }),
+            count: dayGoals.length,
+            totalDuration,
+            avgDuration,
+            avgCompletionMinutes,
+        };
+    });
+
+    const totalCompleted = completedGoals.length;
+    const totalDuration = days.reduce((sum, d) => sum + d.totalDuration, 0);
+    const avgDuration = totalCompleted ? totalDuration / totalCompleted : 0;
+    const allCompletionMinutes = completedGoals
+        .map(g => g.completedAt ? getISTMinutesSinceMidnight(new Date(g.completedAt)) : null)
+        .filter((v): v is number => v !== null && Number.isFinite(v));
+    const avgCompletionMinutes = allCompletionMinutes.length
+        ? allCompletionMinutes.reduce((sum, v) => sum + v, 0) / allCompletionMinutes.length
+        : null;
+    const avgDurationLabel = totalCompleted ? (formatDuration(avgDuration) || "0m") : "—";
+    const avgCompletionLabel = avgCompletionMinutes !== null ? formatTimeFromMinutes(avgCompletionMinutes) : "—";
+    const totalDurationLabel = totalDuration ? formatDuration(totalDuration) : "—";
 
     return (
         <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1fr 340px", gap: isPhone ? 14 : 24, alignItems: "start" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 12 }}>
                     {[
-                        ["Completion", `${rate}%`, rate >= 70 ? T.teal700 : rate >= 40 ? T.amber500 : "#dc2626"],
-                        ["Completed", `${completed.length}/${total}`, T.teal700],
-                        ["Overdue", String(overdueCount), overdueCount > 0 ? "#dc2626" : T.teal700],
-                        ["High Pri Pending", String(highPriPending), highPriPending > 0 ? T.maroon800 : T.teal700],
+                        ["Completed (7d)", String(totalCompleted), T.teal700],
+                        ["Avg Duration", avgDurationLabel, T.indigo500],
+                        ["Avg Completion Time", avgCompletionLabel, T.maroon800],
+                        ["Total Duration", totalDurationLabel, T.teal700],
                     ].map(([label, val, col]) => (
                         <div key={label} style={{ background: isDark ? T.darkCard : T.white, borderRadius: 16, padding: isPhone ? "14px 16px" : "16px 18px", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                                 <span style={{ fontSize: 10, color: isDark ? T.darkTextMuted : T.slate500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</span>
                             </div>
-                            <div style={{ fontSize: 26, fontWeight: 800, color: col }}>{val}</div>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: col }}>{val}</div>
                         </div>
                     ))}
                 </div>
@@ -376,34 +418,24 @@ const Analytics = ({ goals, theme, isPhone, isTablet }: { goals: UIGoal[], theme
                     </div>
                     <WeekChart goals={goals} />
                     <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500 }}>Completion</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{rate}%</span>
+                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500 }}>Goals Completed</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{totalCompleted}</span>
                     </div>
                 </div>
             </div>
 
             <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: 20, padding: 20, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 16px" }}>Focus Areas</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    {byCategory.map(cat => (
-                        <div key={cat.value}>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                                <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate600, fontWeight: 600 }}>{cat.label}</span>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: cat.color }}>{cat.done}/{cat.total}</span>
-                            </div>
-                            <div style={{ height: 6, background: isDark ? T.darkCardHover : T.slate100, borderRadius: 10, overflow: "hidden" }}>
-                                <div style={{ height: "100%", width: `${cat.rate}%`, background: cat.color, borderRadius: 10, transition: "width 0.6s ease" }} />
-                            </div>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 16px" }}>Daily Breakdown</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {days.map(day => (
+                        <div key={day.key} style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "90px 1fr 1fr 1fr", gap: 6, padding: "8px 10px", borderRadius: 12, background: isDark ? T.darkCardHover : T.slate50 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.darkText : T.slate700 }}>{day.label}</span>
+                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{day.count} completed</span>
+                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{day.count ? (formatDuration(day.totalDuration) || "0m") : "—"} total</span>
+                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{day.avgCompletionMinutes !== null ? formatTimeFromMinutes(day.avgCompletionMinutes) : "—"}</span>
                         </div>
                     ))}
                 </div>
-                {highPriPending > 0 && (
-                    <div style={{ marginTop: 16, background: isDark ? "rgba(30, 64, 175, 0.2)" : T.blue50, borderRadius: 12, padding: "10px 14px", display: "flex", alignItems: "flex-start", gap: 8 }}>
-                        <p style={{ fontSize: 11, color: isDark ? T.blue50 : T.blue800, lineHeight: 1.5, margin: 0 }}>
-                            You have {highPriPending} high-priority goal{highPriPending > 1 ? "s" : ""} pending — tackle those first!
-                        </p>
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -413,41 +445,41 @@ const Analytics = ({ goals, theme, isPhone, isTablet }: { goals: UIGoal[], theme
 export default function Goals() {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
+    const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
+    const maxDateKey = useMemo(() => {
+        const base = dateKeyToUtcDate(todayKey);
+        return getISTDateKey(new Date(base.getTime() + 7 * DAY_MS));
+    }, [todayKey]);
     const [viewportWidth, setViewportWidth] = useState(
         typeof window !== "undefined" ? window.innerWidth : 1280
     );
     const [goals, setGoals] = useState<UIGoal[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [search, setSearch] = useState("");
-    const [filterCat, setFilterCat] = useState("all");
-    const [filterStatus, setFilterStatus] = useState("pending");
-    const [sortBy, setSortBy] = useState("priority");
     const [modal, setModal] = useState<any>(null);
     const [tab, setTab] = useState("goals");
     const getErrorMessage = (error: unknown, fallback: string) =>
         error instanceof Error && error.message ? error.message : fallback;
     const getScheduledKey = (g: UIGoal) => g.scheduledDate ? getISTDateKey(new Date(g.scheduledDate)) : null;
-    const isScheduledForToday = (g: UIGoal) => getScheduledKey(g) === todayStr;
 
     const fetchGoals = async () => {
         try {
             const res = await dataService.getGoals();
             const data: UIGoal[] = (res || []).map(g => ({
                 ...g,
-                subtasks: (g as any).subtasks || [],
-                priority: (g as any).priority || 'medium',
-                category: (g as any).category || 'other',
                 title: g.title || g.text || '',
-                type: g.type === "weekly" || g.type === "daily" ? g.type : "daily"
             }));
             setGoals(data);
         } catch (error) {
             console.error(error);
             toast.error(getErrorMessage(error, "Failed to load goals"));
-        } finally {
-            setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTodayKey(getISTDateKey(new Date()));
+        }, 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => { fetchGoals(); }, []);
 
@@ -461,35 +493,19 @@ export default function Goals() {
 
     const toggleGoal = async (id: string, currentCompleted: boolean) => {
         if (currentCompleted) {
-            const confirmed = window.confirm("Are you sure you want to un-complete this goal? This will remove it from your history graph.");
-            if (!confirmed) return;
+            toast.info("Completed goals stay completed. Edit to plan it again.");
+            return;
         }
 
+        const nowIso = new Date().toISOString();
         setGoals(gs => gs.map(g =>
-            g.id !== id ? g : { ...g, completed: !currentCompleted, completedAt: !currentCompleted ? todayStr : null }
+            g.id !== id ? g : { ...g, completed: true, completedAt: nowIso }
         ));
         try {
-            await dataService.updateGoal(id, !currentCompleted);
-            toast.success(!currentCompleted ? "Goal completed!" : "Goal marked uncompleted");
+            await dataService.updateGoal(id, true, nowIso);
+            toast.success("Goal completed!");
         } catch (error) {
             toast.error(getErrorMessage(error, "Failed to update goal"));
-            fetchGoals();
-        }
-    };
-
-    const toggleSubtask = async (goalId: string, subId: string) => {
-        const goal = goals.find(g => g.id === goalId);
-        if (!goal) return;
-        const updatedSubtasks = goal.subtasks.map(s => s.id === subId ? { ...s, done: !s.done } : s);
-
-        setGoals(gs => gs.map(g =>
-            g.id !== goalId ? g : { ...g, subtasks: updatedSubtasks }
-        ));
-
-        try {
-            await dataService.updateGoalDetails(goalId, { subtasks: updatedSubtasks });
-        } catch (error) {
-            toast.error(getErrorMessage(error, "Failed to update subtask"));
             fetchGoals();
         }
     };
@@ -507,93 +523,89 @@ export default function Goals() {
 
     const saveGoal = async (data: any) => {
         if (modal?.mode === "edit") {
-            const isReschedulingToFuture = getScheduledKey(modal.goal) !== data.scheduledDate && data.scheduledDate > todayStr;
-            const newCompletedState = isReschedulingToFuture ? false : modal.goal.completed;
-            const newCompletedAtState = isReschedulingToFuture ? null : modal.goal.completedAt;
+            const scheduleChanged = getScheduledKey(modal.goal) !== data.scheduledDate;
+            const shouldRepeat = modal.goal.completed && scheduleChanged;
 
-            setGoals(gs => gs.map(g => g.id === modal.goal.id ? { ...g, ...data, text: data.title, completed: newCompletedState, completedAt: newCompletedAtState } as UIGoal : g));
             setModal(null);
+            if (shouldRepeat) {
+                try {
+                    await dataService.addGoal({
+                        title: data.title,
+                        type: "daily",
+                        scheduledDate: data.scheduledDate,
+                        description: data.description,
+                    });
+                    toast.success(`Goal copied to ${formatDate(data.scheduledDate)}`);
+                    fetchGoals();
+                } catch (error) {
+                    toast.error(getErrorMessage(error, "Creation failed"));
+                    fetchGoals();
+                }
+                return;
+            }
+
             try {
                 await dataService.updateGoalDetails(modal.goal.id, {
                     title: data.title,
                     description: data.description,
-                    category: data.category,
-                    priority: data.priority,
-                    subtasks: data.subtasks,
-                    type: data.type,
                 });
 
-                if (getScheduledKey(modal.goal) !== data.scheduledDate) {
+                if (scheduleChanged) {
                     await dataService.rescheduleGoal(modal.goal.id, new Date(data.scheduledDate));
                 }
 
-                if (isReschedulingToFuture && modal.goal.completed) {
-                    await dataService.updateGoal(modal.goal.id, false);
-                }
-
                 toast.success("Goal updated");
+                fetchGoals();
             } catch (error) { toast.error(getErrorMessage(error, "Update failed")); fetchGoals(); }
         } else {
-            const tempId = uniqueId();
-            const newG: UIGoal = { id: tempId, userId: "mock", text: data.title, ...data, completed: false, completedAt: null, createdAt: new Date().toISOString() };
-            setGoals(gs => [...gs, newG]);
             setModal(null);
             try {
                 await dataService.addGoal({
                     title: data.title,
-                    type: data.type,
+                    type: "daily",
                     scheduledDate: data.scheduledDate,
                     description: data.description,
-                    category: data.category,
-                    priority: data.priority,
-                    subtasks: data.subtasks,
                 });
-                toast.success("Goal Created");
+                toast.success(modal?.mode === "repeat" ? "Goal repeated" : "Goal created");
                 fetchGoals();
             } catch (error) { toast.error(getErrorMessage(error, "Creation failed")); fetchGoals(); }
         }
     };
 
-    const priOrder: any = { high: 0, medium: 1, low: 2 };
-    const processed = useMemo(() =>
-        goals.filter(g => {
-            const q = search.toLowerCase();
-            if (q && !g.title.toLowerCase().includes(q) && !(g.description || "").toLowerCase().includes(q)) return false;
-            if (filterCat !== "all" && g.category !== filterCat) return false;
-            if (filterStatus === "pending") return !g.completed;
-            if (filterStatus === "completed") return g.completed;
-            if (filterStatus === "overdue") return isOverdue(g);
-            return true;
-        }).sort((a, b) => {
-            if (sortBy === "priority") return priOrder[a.priority] - priOrder[b.priority];
-            if (sortBy === "date") {
-                const aKey = getScheduledKey(a) || "9999-12-31";
-                const bKey = getScheduledKey(b) || "9999-12-31";
-                return aKey < bKey ? -1 : 1;
-            }
-            if (sortBy === "category") return a.category.localeCompare(b.category);
-            return 0;
-        }),
-        [goals, search, filterCat, filterStatus, sortBy]);
+    const pendingGoals = useMemo(() => (
+        goals.filter(g => !g.completed).sort((a, b) => {
+            const aKey = getScheduledKey(a) || "9999-12-31";
+            const bKey = getScheduledKey(b) || "9999-12-31";
+            return aKey < bKey ? -1 : 1;
+        })
+    ), [goals]);
 
-    const pendingCount = goals.filter(g => !g.completed).length;
-    const overdueCount = goals.filter(g => isOverdue(g)).length;
-    const todayGoals = goals.filter(g => isScheduledForToday(g));
-    const todayDone = todayGoals.filter(g => g.completed).length;
-    const todayPct = todayGoals.length > 0 ? Math.round((todayDone / todayGoals.length) * 100) : 0;
-
-    const heroGoal = goals.find(g => !g.completed && g.priority === "high" && isScheduledForToday(g))
-        || goals.find(g => !g.completed && isScheduledForToday(g));
-
-    const filterChip = (active: boolean, onClick: () => void, label: string, accentColor?: string) => (
-        <button onClick={onClick} style={{
-            padding: isPhone ? "5px 11px" : "5px 14px", borderRadius: 20, fontSize: isPhone ? 11 : 12, fontWeight: 600, cursor: "pointer",
-            background: active ? (accentColor ? accentColor + "15" : (isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50)) : (isDark ? T.darkCardHover : T.white),
-            border: `1px solid ${active ? (accentColor || (isDark ? T.teal400 : T.teal700)) : (isDark ? T.darkBorder : T.slate200)}`,
-            color: active ? (accentColor || (isDark ? T.teal400 : T.teal700)) : (isDark ? T.darkTextMuted : T.slate500),
-            transition: "all 0.15s",
-        }}>{label}</button>
+    const completedGoals = useMemo(() => (
+        goals.filter(g => g.completed).sort((a, b) => {
+            const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+            const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+            return bTime - aTime;
+        })
+    ), [goals]);
+    const completedGoalsDisplay = useMemo(
+        () => completedGoals.slice(0, MAX_COMPLETED_DISPLAY),
+        [completedGoals]
     );
+
+    const todayMetrics = useMemo(() => getDailyCompletionMetrics(completedGoals, todayKey), [completedGoals, todayKey]);
+    const weekKeys = useMemo(() => (
+        Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(dateKeyToUtcDate(todayKey).getTime() - (6 - i) * DAY_MS);
+            return getISTDateKey(d);
+        })
+    ), [todayKey]);
+    const weekGoals = useMemo(() => (
+        completedGoals.filter(g => g.completedAt && weekKeys.includes(getISTDateKey(new Date(g.completedAt))))
+    ), [completedGoals, weekKeys]);
+    const weekDuration = weekGoals
+        .map(getGoalDurationMs)
+        .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0)
+        .reduce((sum, v) => sum + v, 0);
 
     const isPhone = viewportWidth < 640;
     const isTablet = viewportWidth < 1024;
@@ -614,8 +626,8 @@ export default function Goals() {
                             <p style={{ fontSize: isPhone ? 12 : 13, color: isDark ? T.darkTextMuted : T.slate500, margin: "4px 0 0" }}>Manage your goals and track progress efficiently.</p>
                         </div>
                         <button
-                            onClick={() => setModal({ mode: "add" })}
-                            style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, border: "none", borderRadius: 12, color: T.white, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 14px rgba(155,28,28,0.28)", width: isPhone ? "100%" : "auto" }}
+                            onClick={() => setModal({ mode: "add", goal: null })}
+                            style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, border: "none", borderRadius: 12, color: T.white, padding: isPhone ? "14px 20px" : "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 14px rgba(155,28,28,0.28)", width: isPhone ? "100%" : "auto" }}
                         >
                             ＋ New Goal
                         </button>
@@ -626,7 +638,7 @@ export default function Goals() {
                             <button key={k} onClick={() => setTab(k)} style={{
                                 background: tab === k ? `linear-gradient(135deg,${T.teal800},${T.teal900})` : "transparent",
                                 border: "none", borderRadius: 10, color: tab === k ? T.white : (isDark ? T.darkTextMuted : T.slate500),
-                                padding: "7px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", flex: isPhone ? 1 : undefined,
+                                padding: isPhone ? "12px 18px" : "7px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", flex: isPhone ? 1 : undefined,
                                 boxShadow: tab === k ? "0 2px 8px rgba(17,94,89,0.3)" : "none",
                             }}>{l}</button>
                         ))}
@@ -635,98 +647,46 @@ export default function Goals() {
                     {tab === "analytics" ? <Analytics goals={goals} theme={theme} isPhone={isPhone} isTablet={isTablet} /> : (
                         <div style={{ display: "grid", gridTemplateColumns: contentGrid, gap: isPhone ? 14 : 24, alignItems: "start" }}>
                             <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 14 : 20 }}>
-                                {heroGoal && (
-                                    <div style={{ background: `linear-gradient(135deg,${T.teal800},${T.teal900})`, borderRadius: isPhone ? 18 : 24, padding: isPhone ? "16px" : "24px 28px", color: T.white, position: "relative", overflow: "hidden", boxShadow: "0 10px 30px rgba(17,94,89,0.22)" }}>
-                                        <div style={{ position: "absolute", top: -50, right: -50, width: 180, height: 180, background: T.teal600, borderRadius: "50%", opacity: 0.2, filter: "blur(50px)" }} />
-                                        <div style={{ position: "absolute", bottom: -30, left: -20, width: 120, height: 120, background: T.maroon700, borderRadius: "50%", opacity: 0.15, filter: "blur(30px)" }} />
-                                        <div style={{ position: "relative", zIndex: 1 }}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: isPhone ? "flex-start" : "center", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
-                                                <span style={{ background: "rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.teal100, border: "1px solid rgba(255,255,255,0.1)" }}>
-                                                    Priority Focus
-                                                </span>
-                                                <span style={{ fontSize: 12, color: T.teal200, fontWeight: 500 }}>Due {formatDate(heroGoal.scheduledDate)}</span>
-                                            </div>
-                                            <h2 style={{ fontSize: isPhone ? 18 : 22, fontWeight: 800, lineHeight: 1.3, marginBottom: 8, margin: "0 0 8px" }}>{heroGoal.title}</h2>
-                                            {heroGoal.description && <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "0 0 16px" }}>{heroGoal.description}</p>}
-
-                                            {heroGoal.subtasks.length > 0 && (
-                                                <div style={{ margin: "16px 0" }}>
-                                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                                                        <span style={{ fontSize: 12, color: T.teal200 }}>
-                                                            {heroGoal.subtasks.filter((s: any) => s.done).length} of {heroGoal.subtasks.length} steps done
-                                                        </span>
-                                                        <span style={{ fontSize: 12, fontWeight: 700 }}>
-                                                            {Math.round((heroGoal.subtasks.filter((s: any) => s.done).length / heroGoal.subtasks.length) * 100)}%
-                                                        </span>
-                                                    </div>
-                                                    <div style={{ height: 8, background: "rgba(0,0,0,0.2)", borderRadius: 10, overflow: "hidden" }}>
-                                                        <div style={{ height: "100%", width: `${Math.round((heroGoal.subtasks.filter((s: any) => s.done).length / heroGoal.subtasks.length) * 100)}%`, background: `linear-gradient(90deg,${T.teal300},${T.white})`, borderRadius: 10, boxShadow: "0 0 12px rgba(94,234,212,0.4)" }} />
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div style={{ display: "flex", gap: 10, marginTop: 20, flexDirection: isPhone ? "column" : "row" }}>
-                                                <button
-                                                    onClick={() => toggleGoal(heroGoal.id, heroGoal.completed)}
-                                                    style={{ flex: 1, padding: "12px 0", background: T.white, color: T.teal900, border: "none", borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: isPhone ? "100%" : undefined }}
-                                                >
-                                                    ✓ Mark Done
-                                                </button>
-                                                <button
-                                                    onClick={() => setModal({ mode: "edit", goal: heroGoal })}
-                                                    style={{ padding: "12px 20px", background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", color: T.white, border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, fontWeight: 600, fontSize: 13, cursor: "pointer", width: isPhone ? "100%" : undefined }}
-                                                >
-                                                    Edit
-                                                </button>
-                                            </div>
+                                <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                                    <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                            <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Pending</h3>
+                                            <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{pendingGoals.length}</span>
                                         </div>
                                     </div>
-                                )}
+
+                                    {pendingGoals.length === 0 ? (
+                                        <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
+                                            <div style={{ fontSize: 14, fontWeight: 600 }}>No pending goals.</div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            {pendingGoals.map((g, i) => (
+                                                <div key={g.id} style={{ borderBottom: i < pendingGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
+                                                    <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
                                     <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                            <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>
-                                                {filterStatus === "completed" ? "Completed" : filterStatus === "overdue" ? "Overdue" : "Up Next"}
-                                            </h3>
-                                            <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{processed.length} Goals</span>
-                                        </div>
-
-                                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", width: isPhone ? "100%" : "auto" }}>
-                                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400, fontWeight: 600 }}>Sort:</span>
-                                            {[["priority", "Priority"], ["date", "Date"], ["category", "Category"]].map(([v, l]) => (
-                                                <button key={v} onClick={() => setSortBy(v)} style={{ padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", background: sortBy === v ? T.teal800 : (isDark ? T.darkCardHover : T.slate50), border: `1px solid ${sortBy === v ? T.teal800 : (isDark ? T.darkBorder : T.slate200)}`, color: sortBy === v ? T.white : (isDark ? T.darkTextMuted : T.slate500), transition: "all 0.15s" }}>{l}</button>
-                                            ))}
+                                            <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Recent</h3>
+                                            <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{completedGoalsDisplay.length}</span>
                                         </div>
                                     </div>
 
-                                    <div style={{ padding: isPhone ? "12px" : "12px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", flexDirection: "column", gap: 10 }}>
-                                        <div style={{ position: "relative" }}>
-                                            <input
-                                                style={{ width: "100%", background: isDark ? T.darkCardHover : T.slate50, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: 10, padding: "8px 12px", color: isDark ? T.darkText : T.slate800, fontSize: 12, outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
-                                                placeholder="Search all goals..."
-                                                value={search} onChange={e => setSearch(e.target.value)}
-                                            />
-                                        </div>
-                                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                                            {[["pending", "Pending"], ["completed", "Done"], ["overdue", "Overdue"], ["all", "All"]].map(([v, l]) =>
-                                                filterChip(filterStatus === v, () => setFilterStatus(v), l, v === "overdue" ? "#dc2626" : undefined)
-                                            )}
-                                            <div style={{ width: 1, background: isDark ? T.darkBorder : T.slate200, margin: "0 2px", display: isPhone ? "none" : "block" }} />
-                                            {filterChip(filterCat === "all", () => setFilterCat("all"), "All")}
-                                            {CATEGORIES.map(c => filterChip(filterCat === c.value, () => setFilterCat(c.value), c.label, c.color))}
-                                        </div>
-                                    </div>
-
-                                    {processed.length === 0 ? (
-                                        <div style={{ textAlign: "center", padding: "40px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
-                                            <div style={{ fontSize: 14, fontWeight: 600 }}>No goals match your filters.</div>
+                                    {completedGoalsDisplay.length === 0 ? (
+                                        <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
+                                            <div style={{ fontSize: 14, fontWeight: 600 }}>No completed goals yet.</div>
                                         </div>
                                     ) : (
                                         <div>
-                                            {processed.map((g, i) => (
-                                                <div key={g.id} style={{ borderBottom: i < processed.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                    <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(g: any) => setModal({ mode: "edit", goal: g })} onToggleSubtask={toggleSubtask} />
+                                            {completedGoalsDisplay.map((g, i) => (
+                                                <div key={g.id} style={{ borderBottom: i < completedGoalsDisplay.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
+                                                    <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} />
                                                 </div>
                                             ))}
                                         </div>
@@ -736,93 +696,44 @@ export default function Goals() {
 
                             <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 14 : 18 }}>
                                 <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: isPhone ? 16 : 20, padding: isPhone ? 14 : 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                    <h3 style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 14px", display: "flex", justifyContent: "space-between" }}>
-                                        <span>Today</span>
-                                        <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400, fontWeight: 500 }}>{todayDone}/{todayGoals.length} done</span>
+                                    <h3 style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 14px" }}>
+                                        Today
                                     </h3>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 8 }}>
-                                        <span style={{ fontSize: 30, fontWeight: 800, color: todayPct === 100 ? (isDark ? T.teal400 : T.teal700) : (isDark ? T.darkText : T.slate800) }}>
-                                            {todayPct}<span style={{ fontSize: 16, color: isDark ? T.darkTextMuted : T.slate400, fontWeight: 400 }}>%</span>
-                                        </span>
-                                        {todayPct === 100 && <span style={{ fontSize: 12, color: isDark ? T.teal400 : T.teal700, fontWeight: 700 }}>All done!</span>}
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500 }}>Completed</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{todayMetrics.count}</span>
                                     </div>
-                                    <div style={{ height: 8, background: isDark ? T.darkCardHover : T.slate100, borderRadius: 10, overflow: "hidden" }}>
-                                        <div style={{ height: "100%", width: `${todayPct}%`, background: todayPct === 100 ? `linear-gradient(90deg,${T.teal500},${T.teal700})` : `linear-gradient(90deg,${T.teal400},${T.teal700})`, borderRadius: 10, transition: "width 0.5s ease" }} />
+                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500 }}>Total Duration</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{todayMetrics.count ? (formatDuration(todayMetrics.totalDuration) || "0m") : "—"}</span>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500 }}>Avg Completion Time</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{todayMetrics.count ? (todayMetrics.avgCompletionMinutes !== null ? formatTimeFromMinutes(todayMetrics.avgCompletionMinutes) : "—") : "—"}</span>
                                     </div>
                                 </div>
 
                                 <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: isPhone ? 16 : 20, padding: isPhone ? 14 : 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                                        <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800 }}>History</span>
-                                        <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400 }}>Last 7 Days</span>
+                                        <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800 }}>Last 7 Days</span>
+                                        <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400 }}>Completion count</span>
                                     </div>
                                     <WeekChart goals={goals} />
                                     <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between" }}>
-                                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500 }}>Completion</span>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>
-                                            {goals.length > 0 ? Math.round((goals.filter(g => g.completed).length / goals.length) * 100) : 0}%
-                                        </span>
+                                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500 }}>Completed</span>
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{weekGoals.length}</span>
                                     </div>
-                                </div>
-
-                                <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: isPhone ? 16 : 20, padding: isPhone ? 14 : 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                    <h3 style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 12px" }}>Upcoming</h3>
-                                    {goals
-                                        .filter(g => !g.completed && getScheduledKey(g) && (getScheduledKey(g) as string) > todayStr)
-                                        .sort((a, b) => {
-                                            const aKey = getScheduledKey(a) || "9999-12-31";
-                                            const bKey = getScheduledKey(b) || "9999-12-31";
-                                            return aKey < bKey ? -1 : 1;
-                                        })
-                                        .slice(0, 4)
-                                        .map(g => {
-                                            const cat = getCat(g.category);
-                                            return (
-                                                <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 12, marginBottom: 4, cursor: "pointer", transition: "background 0.15s" }}
-                                                    onMouseOver={e => e.currentTarget.style.background = isDark ? T.darkCardHover : T.slate50}
-                                                    onMouseOut={e => e.currentTarget.style.background = "transparent"}
-                                                >
-                                                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: isDark ? cat.color + "33" : cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{cat.emoji}</div>
-                                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                                        <div style={{ fontSize: 12, fontWeight: 600, color: isDark ? T.darkText : T.slate700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{g.title}</div>
-                                                        <div style={{ fontSize: 10, color: isDark ? T.darkTextMuted : T.slate400 }}>{cat.label} · {formatDate(g.scheduledDate)}</div>
-                                                    </div>
-                                                    <div style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${isDark ? T.darkBorder : T.slate200}`, flexShrink: 0 }} />
-                                                </div>
-                                            );
-                                        })}
-                                    {goals.filter(g => !g.completed && getScheduledKey(g) && (getScheduledKey(g) as string) > todayStr).length === 0 && (
-                                        <p style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate400, textAlign: "center", padding: "8px 0" }}>Nothing scheduled ahead.</p>
-                                    )}
-                                </div>
-
-                                <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 10 }}>
-                                    <div style={{ background: `linear-gradient(135deg,${T.teal800},${T.teal900})`, borderRadius: 16, padding: "14px 16px", color: T.white, boxShadow: `0 4px 14px rgba(17,94,89,0.22)` }}>
-                                        <div style={{ fontSize: 24, fontWeight: 800 }}>{pendingCount}</div>
-                                        <div style={{ fontSize: 11, color: T.teal200, fontWeight: 600, marginTop: 2 }}>Pending</div>
-                                    </div>
-                                    <div style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, borderRadius: 16, padding: "14px 16px", color: T.white, boxShadow: `0 4px 14px rgba(155,28,28,0.22)` }}>
-                                        <div style={{ fontSize: 24, fontWeight: 800 }}>{overdueCount}</div>
-                                        <div style={{ fontSize: 11, color: T.maroon200, fontWeight: 600, marginTop: 2 }}>Overdue</div>
-                                    </div>
-                                </div>
-
-                                <div style={{ background: `linear-gradient(135deg,${T.slate800},${T.slate900})`, borderRadius: 16, padding: "16px 18px", color: T.white, position: "relative", overflow: "hidden" }}>
-                                    <div style={{ position: "absolute", top: -24, right: -24, width: 80, height: 80, background: T.teal500, borderRadius: "50%", opacity: 0.18, filter: "blur(20px)" }} />
-                                    <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 10 }}>
-                                        <div>
-                                            <p style={{ fontSize: 10, fontWeight: 700, color: T.teal400, letterSpacing: "0.07em", textTransform: "uppercase", margin: "0 0 5px" }}>Wellness Tip</p>
-                                            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.55, margin: 0, fontStyle: "italic" }}>"Take breaks, stay balanced, succeed sustainably."</p>
-                                        </div>
+                                    <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between" }}>
+                                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500 }}>Total Duration</span>
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{weekGoals.length ? (formatDuration(weekDuration) || "0m") : "—"}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     )}
                 </div>
-                {modal && <GoalModal theme={theme} isPhone={isPhone} goal={modal.mode === "edit" ? modal.goal : null} onSave={saveGoal} onClose={() => setModal(null)} />}
+                {modal && <GoalModal theme={theme} isPhone={isPhone} goal={modal.goal || null} mode={modal.mode} onSave={saveGoal} onClose={() => setModal(null)} todayKey={todayKey} maxDateKey={maxDateKey} />}
             </div>
         </NishthaLayout>
     );
 }
-

@@ -249,15 +249,15 @@ router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
 // Create goal
 router.post('/', requireAuth, async (req: Request, res) => {
     const { text, title, description, scheduledDate, category, priority, subtasks } = req.body;
-    const type = normalizeGoalType(req.body?.type);
+    const type: GoalType = 'daily';
     const normalizedTitle = normalizeGoalTitle(title, text);
     const normalizedDescription = normalizeGoalDescription(description);
     const normalizedCategory = normalizeGoalCategory(category) || 'other';
     const normalizedPriority = normalizeGoalPriority(priority) || 'medium';
     const normalizedSubtasks = normalizeGoalSubtasks(subtasks) || [];
 
-    if (!normalizedTitle || !type) {
-        return res.status(400).json({ message: 'Title and type are required' });
+    if (!normalizedTitle) {
+        return res.status(400).json({ message: 'Title is required' });
     }
 
     try {
@@ -343,7 +343,7 @@ router.post('/:id/rollover-action', requireAuth, async (req: Request, res) => {
             return res.status(400).json({ message: 'Goal is not pending rollover action' });
         }
 
-        const goalType = normalizeGoalType(goal.type) || 'daily';
+        const goalType: GoalType = 'daily';
         const now = new Date();
 
         if (action === 'retry') {
@@ -447,8 +447,8 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         return res.status(400).json({ message: 'Goal title cannot be empty' });
     }
 
-    if (hasTypeUpdate && !normalizedType) {
-        return res.status(400).json({ message: 'Invalid goal type' });
+    if (hasTypeUpdate && (!normalizedType || normalizedType !== 'daily')) {
+        return res.status(400).json({ message: 'Only daily goals are supported' });
     }
 
     try {
@@ -463,7 +463,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
             return res.status(400).json({ message: 'This goal is archived and cannot be updated' });
         }
 
-        const goalType = normalizeGoalType(goal.type) || 'daily';
+        const goalType: GoalType = 'daily';
         const now = new Date();
         const updates: Record<string, any> = {};
         const { scheduledDate } = req.body;
@@ -803,7 +803,7 @@ router.post('/:id/repeat', requireAuth, async (req: Request, res) => {
         const scheduledDateObj = new Date(`${scheduledDateKey}T00:00:00.000Z`);
 
         const newId = uuidv4();
-        const goalType = normalizeGoalType(sourceGoal.type) || 'daily';
+        const goalType: GoalType = 'daily';
 
         // Calculate expiry based on scheduled date
         let expiresAt = new Date(scheduledDateObj);

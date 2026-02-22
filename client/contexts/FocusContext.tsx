@@ -195,30 +195,87 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         }
     }, [isRunning]);
 
-    // Timer Logic
+    // Memoize the tick handler so we can use it in both interval and visibilitychange
+    const handleTick = useCallback(() => {
+        if (!isRunningRef.current || remainingSecondsRef.current <= 0) return;
+
+        const now = Date.now();
+        const deltaMs = now - lastTickRef.current;
+        const elapsedSeconds = Math.floor(deltaMs / 1000);
+
+        if (elapsedSeconds <= 0) return;
+
+        // Keep sub-second remainder so delayed/throttled ticks catch up correctly.
+        lastTickRef.current = now - (deltaMs % 1000);
+
+        // Update Countdown
+        setRemainingSeconds(prev => Math.max(0, prev - elapsedSeconds));
+
+        // Update Tracking
+        if (userId) {
+            setTotalActiveMs(prev => prev + deltaMs);
+        }
+    }, [userId]);
+
+    // Timer Interval Worker
     useEffect(() => {
-        let interval: NodeJS.Timeout | null = null;
-        if (isRunning && remainingSeconds > 0) {
-            lastTickRef.current = Date.now();
-            interval = setInterval(() => {
-                const now = Date.now();
-                const deltaMs = now - lastTickRef.current;
-                const elapsedSeconds = Math.floor(deltaMs / 1000);
+        if (!isRunning) return;
 
-                if (elapsedSeconds <= 0) return;
+        lastTickRef.current = Date.now();
 
-                // Keep sub-second remainder so delayed/throttled ticks catch up correctly.
-                lastTickRef.current = now - (deltaMs % 1000);
-
-                // Update Countdown
-                setRemainingSeconds(prev => Math.max(0, prev - elapsedSeconds));
-
-                // Update Tracking
-                if (userId) {
-                    setTotalActiveMs(prev => prev + deltaMs);
+        // Create a Web Worker from a Blob URL
+        const workerCode = `
+            let intervalId = null;
+            self.onmessage = function(e) {
+                if (e.data === 'start') {
+                    intervalId = setInterval(() => {
+                        self.postMessage('tick');
+                    }, 1000);
+                } else if (e.data === 'stop' && intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null;
                 }
-            }, 1000);
-        } else if (remainingSeconds === 0 && isRunning) {
+            };
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(blob);
+        const worker = new Worker(workerUrl);
+
+        worker.onmessage = (e) => {
+            if (e.data === 'tick') {
+                handleTick();
+            }
+        };
+
+        worker.postMessage('start');
+
+        return () => {
+            worker.postMessage('stop');
+            worker.terminate();
+            URL.revokeObjectURL(workerUrl);
+        };
+    }, [isRunning, handleTick]);
+
+    const setMusicPlaying = useCallback((playing: boolean) => {
+        const audioEl = audioRef.current;
+        setIsMusicPlaying(playing);
+        if (!audioEl) return;
+
+        if (playing) {
+            audioEl.play().catch(() => { });
+            return;
+        }
+
+        suppressMusicPauseRef.current = true;
+        audioEl.pause();
+        window.setTimeout(() => {
+            suppressMusicPauseRef.current = false;
+        }, 0);
+    }, []);
+
+    // Timer Completion Detection
+    useEffect(() => {
+        if (remainingSeconds === 0 && isRunning) {
             setIsRunning(false);
 
             // 🔔 Play notification sound for ALL modes (pomodoro, short break, long break)
@@ -250,10 +307,22 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 });
             }
         }
-        return () => {
-            if (interval) clearInterval(interval);
+    }, [remainingSeconds, isRunning, setMusicPlaying]);
+
+    // Visibility Change explicitly for catching up on Mobile
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden && isRunningRef.current) {
+                // Instantly catch up timer when tab is visible again
+                handleTick();
+            }
         };
-    }, [isRunning, remainingSeconds, userId]);
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [handleTick]);
 
     // PiP Draw Loop
     const drawToCanvas = useCallback(() => {
@@ -334,23 +403,6 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         const normalized = Number.isFinite(volume) ? volume : 0.5;
         const clamped = Math.max(0, Math.min(1, normalized));
         setMusicVolumeState(clamped);
-    }, []);
-
-    const setMusicPlaying = useCallback((playing: boolean) => {
-        const audioEl = audioRef.current;
-        setIsMusicPlaying(playing);
-        if (!audioEl) return;
-
-        if (playing) {
-            audioEl.play().catch(() => { });
-            return;
-        }
-
-        suppressMusicPauseRef.current = true;
-        audioEl.pause();
-        window.setTimeout(() => {
-            suppressMusicPauseRef.current = false;
-        }, 0);
     }, []);
 
     const toggleMusic = useCallback(() => {

@@ -18,7 +18,7 @@ export default function Index() {
 
   // Loading screen while redirecting
   return (
-    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+    <div className="min-h-[100dvh] bg-gradient-subtle flex items-center justify-center">
       <div className="text-center">
         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary mx-auto mb-4 animate-pulse"></div>
         <p className="text-muted-foreground">Loading...</p>

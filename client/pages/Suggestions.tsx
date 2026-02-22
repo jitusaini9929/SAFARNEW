@@ -117,7 +117,7 @@ export default function Suggestions() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-[100dvh] flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
             <p className="text-slate-600 dark:text-slate-400">Personalizing your experience...</p>
@@ -130,7 +130,7 @@ export default function Suggestions() {
   if (!data) {
     return (
       <MainLayout>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-[100dvh] flex items-center justify-center">
           <p className="text-slate-600 dark:text-slate-400">Could not load suggestions. Please try again.</p>
         </div>
       </MainLayout>
@@ -139,7 +139,7 @@ export default function Suggestions() {
 
   return (
     <MainLayout>
-      <div className="min-h-screen pb-20 px-4 md:px-6 max-w-5xl mx-auto">
+      <div className="min-h-[100dvh] pb-20 px-4 md:px-6 max-w-5xl mx-auto">
 
         {/* ═══════ Hero Section ═══════ */}
         <div className="relative pt-10 pb-8">

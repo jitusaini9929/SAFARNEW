@@ -120,7 +120,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
   if (isPaused) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="min-h-[100dvh] bg-black flex items-center justify-center p-4">
         <div className="text-center space-y-4">
           <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-indigo-500 animate-pulse">
             Mehfil under construction
@@ -373,7 +373,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       };
 
   return (
-    <div className={`min-h-screen ${roomPalette.page} text-foreground ${roomPalette.selection} overflow-x-hidden font-sans`}>
+    <div className={`min-h-[100dvh] ${roomPalette.page} text-foreground ${roomPalette.selection} overflow-x-hidden font-sans`}>
       <div className={`fixed inset-0 pointer-events-none overflow-hidden -z-10 ${roomPalette.page}`}>
         <div className={`gradient-blob ${roomPalette.blobA} w-[800px] h-[800px] -top-64 -left-32`} />
         <div className={`gradient-blob ${roomPalette.blobB} w-[600px] h-[600px] top-1/2 -right-32`} />

@@ -63,7 +63,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
     }, []);
 
     return (
-        <div className="relative w-full min-h-screen">
+        <div className="relative w-full min-h-[100dvh]">
             {/* Simplified Header - Scrollable (Absolute) */}
             <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-5 md:px-8 md:py-6">
                 <div className="w-full max-w-[1400px] flex items-center justify-between">
@@ -113,7 +113,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
             </div>
 
             {/* Header / Hero with Video */}
-            <header className="relative w-full min-h-screen flex items-center justify-center">
+            <header className="relative w-full min-h-[100dvh] flex items-center justify-center">
                 <div className="absolute inset-0 z-0">
                     {/* Static Background Image */}
                     <img loading="lazy"

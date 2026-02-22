@@ -94,7 +94,7 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 py-8 transition-colors duration-300">
+    <div className="min-h-[100dvh] bg-background flex items-center justify-center p-4 py-8 transition-colors duration-300">
       <Card className="w-full max-w-md border-primary/10 shadow-lg glass-card">
         <CardHeader className="space-y-2">
           <div className="text-center">

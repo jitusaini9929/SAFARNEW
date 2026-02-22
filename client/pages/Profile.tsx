@@ -127,7 +127,7 @@ export default function Profile() {
         }
       `}</style>
 
-      <div className="font-sans bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
+      <div className="font-sans bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-[100dvh] transition-colors duration-300">
         {/* Navbar */}
         <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">

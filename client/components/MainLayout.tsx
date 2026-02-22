@@ -22,7 +22,7 @@ export default function MainLayout({
   homeRoute = "/landing",
 }: MainLayoutProps) {
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#0B0F19] transition-colors duration-300 overflow-x-hidden">
+    <div className="flex flex-col min-h-[100dvh] bg-[#F8FAFC] dark:bg-[#0B0F19] transition-colors duration-300 overflow-x-hidden">
 
 
       <div className="flex flex-1 overflow-hidden relative">
@@ -30,7 +30,7 @@ export default function MainLayout({
         <div className="flex flex-col flex-1 relative z-10 w-full overflow-hidden">
           <TopNavbar userName={userName} userAvatar={userAvatar} onLogout={onLogout} homeRoute={homeRoute} />
           <main className="flex-1 overflow-y-auto overflow-x-hidden text-slate-800 dark:text-slate-100">
-            <div className="pb-20 lg:pb-0">
+            <div className="pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
               {children}
               <GlobalPageFooter />
             </div>

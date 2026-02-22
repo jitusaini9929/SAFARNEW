@@ -38,7 +38,7 @@ const queryClient = new QueryClient();
 // Suspense fallback spinner
 function PageLoadingFallback() {
   return (
-    <div className="flex items-center justify-center h-screen">
+    <div className="flex items-center justify-center h-[100dvh]">
       <div className="text-center">
         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary mx-auto mb-4 animate-pulse"></div>
         <p className="text-muted-foreground">Loading...</p>

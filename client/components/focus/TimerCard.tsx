@@ -85,7 +85,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                                 onClick={() => onSetMode(tab.key)}
                                 disabled={isRunning}
                                 aria-label={tab.label}
-                                className={`flex items-center gap-1.5 px-4 py-2 landscape:px-3 landscape:py-1 rounded-full text-sm font-semibold transition-all duration-200 action-btn-nowrap ${mode === tab.key
+                                className={`flex items-center gap-1.5 px-4 rounded-full min-h-[44px] text-sm font-semibold transition-all duration-200 action-btn-nowrap ${mode === tab.key
                                     ? "text-white shadow-md"
                                     : "text-white/60 hover:text-white/90 hover:bg-white/10"
                                     } ${isRunning && mode !== tab.key ? "opacity-40 cursor-not-allowed" : ""}`}
@@ -122,7 +122,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                         {nextTask && onProceed && (
                             <button
                                 onClick={onProceed}
-                                className="shrink-0 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-md transition-all"
+                                className="shrink-0 px-4 min-h-[44px] rounded-lg text-sm font-semibold text-white shadow-md transition-all flex items-center justify-center"
                                 style={{ backgroundColor: currentTheme.accent }}
                             >
                                 Proceed
@@ -141,7 +141,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                                 value={editText}
                                 onChange={(e) => setEditText(e.target.value)}
                                 autoFocus
-                                className="flex-1 bg-white/50 dark:bg-slate-800/80 border border-white/40 dark:border-white/20 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2"
+                                className="flex-1 bg-white/50 dark:bg-slate-800/80 border border-white/40 dark:border-white/20 rounded-lg px-3 min-h-[44px] text-sm focus:outline-none focus:ring-2"
                                 style={{ '--tw-ring-color': currentTheme.accent } as React.CSSProperties}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -158,7 +158,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                                     onEditTask?.(editText);
                                     setIsEditing(false);
                                 }}
-                                className="text-xs px-3 py-1.5 rounded-lg text-white font-medium"
+                                className="text-xs px-3 min-h-[44px] rounded-lg text-white font-medium flex items-center justify-center"
                                 style={{ backgroundColor: currentTheme.accent }}
                             >
                                 Save
@@ -174,14 +174,14 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                             <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                                 <button
                                     onClick={() => onCompleteTask?.()}
-                                    className="p-1.5 rounded-lg hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors"
+                                    className="p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors"
                                     title="Mark as done"
                                 >
                                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                 </button>
                                 <button
                                     onClick={() => setIsEditing(true)}
-                                    className="p-1.5 rounded-lg hover:bg-white/40 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300 transition-colors"
+                                    className="p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-white/40 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300 transition-colors"
                                     title="Edit task"
                                 >
                                     <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
@@ -192,7 +192,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                                             onDeleteTask?.();
                                         }
                                     }}
-                                    className="p-1.5 rounded-lg hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-colors"
+                                    className="p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-colors"
                                     title="Delete task"
                                 >
                                     <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>

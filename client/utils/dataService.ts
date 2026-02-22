@@ -1,5 +1,5 @@
 import { apiFetch } from "@/utils/apiFetch";
-import { MoodEntry, JournalEntry, Goal, GoalSubtask, MonthlyReport } from "@shared/api";
+import { MoodEntry, JournalEntry, Goal, MonthlyReport } from "@shared/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -79,12 +79,8 @@ export const dataService = {
 
     async addGoal(payload: {
         title: string;
-        type: string;
         scheduledDate?: string;
         description?: string;
-        category?: string;
-        priority?: string;
-        subtasks?: GoalSubtask[];
     }): Promise<Goal> {
         const res = await apiFetch(`${API_URL}/goals`, {
             method: "POST",
@@ -93,11 +89,8 @@ export const dataService = {
                 text: payload.title,
                 title: payload.title,
                 description: payload.description,
-                type: payload.type,
+                type: "daily",
                 scheduledDate: payload.scheduledDate,
-                category: payload.category,
-                priority: payload.priority,
-                subtasks: payload.subtasks,
             }),
             credentials: 'include',
         });
@@ -141,10 +134,6 @@ export const dataService = {
         payload: {
             title?: string;
             description?: string;
-            category?: string;
-            priority?: string;
-            subtasks?: GoalSubtask[];
-            type?: string;
         }
     ): Promise<void> {
         const res = await apiFetch(`${API_URL}/goals/${id}`, {

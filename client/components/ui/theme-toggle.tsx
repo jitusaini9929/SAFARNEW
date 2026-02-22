@@ -8,8 +8,8 @@ interface ThemeToggleProps {
   size?: "sm" | "default" | "lg";
 }
 
-export default function ThemeToggle({ 
-  variant = "icon-with-bg", 
+export default function ThemeToggle({
+  variant = "icon-with-bg",
   className = "",
   size = "default"
 }: ThemeToggleProps) {
@@ -42,7 +42,7 @@ export default function ThemeToggle({
     return (
       <button
         onClick={toggleTheme}
-        className={`transition-colors ${className}`}
+        className={`min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors ${className}`}
         title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
       >
         {theme === "dark" ? (
@@ -58,7 +58,7 @@ export default function ThemeToggle({
   return (
     <button
       onClick={toggleTheme}
-      className={`p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors ${className}`}
+      className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors ${className}`}
       title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
     >
       {theme === "dark" ? (
@@ -77,7 +77,7 @@ export function ThemeToggleContrast({ className = "" }: { className?: string }) 
   return (
     <button
       onClick={toggleTheme}
-      className={`p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors ${className}`}
+      className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors ${className}`}
       title="Toggle theme"
     >
       <Contrast className="w-5 h-5" />

@@ -43,7 +43,7 @@ export default function MehfilPage() {
 
   if (!checkedPause) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="min-h-[100dvh] bg-background flex items-center justify-center p-6">
         <div className="max-w-xl w-full rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
           <h1 className="text-xl font-semibold text-foreground">Loading Mehfil...</h1>
         </div>
@@ -53,7 +53,7 @@ export default function MehfilPage() {
 
   if (pausedMessage) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="min-h-[100dvh] bg-background flex items-center justify-center p-6">
         <div className="max-w-xl w-full rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">
             {pausedMessage}

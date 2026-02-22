@@ -40,11 +40,11 @@ const Landing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen font-sans text-slate-800 dark:text-slate-100 selection:bg-brand-accent selection:text-black bg-slate-50 dark:bg-midnight">
+    <div className="min-h-[100dvh] font-sans text-slate-800 dark:text-slate-100 selection:bg-brand-accent selection:text-black bg-slate-50 dark:bg-midnight">
       {/* Theme Toggle - Fixed Position */}
 
 
-      <main className="w-full min-h-screen relative">
+      <main className="w-full min-h-[100dvh] relative">
         <HeroSection user={user} setIsAuthModalOpen={setIsAuthModalOpen} />
 
         {/* Combined Apps & Community Section */}

@@ -62,7 +62,7 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
             {showMobileMenu && (
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                className="lg:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
                 aria-label="Open menu"
               >
                 <Menu className="w-5 h-5" />
