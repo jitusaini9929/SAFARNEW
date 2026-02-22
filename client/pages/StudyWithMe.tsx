@@ -959,31 +959,31 @@ export default function StudyWithMe() {
             {/* Floating Controls - Music & Profile */}
             <div className="fixed top-6 right-8 z-[60] flex items-center gap-3">
                 {/* Theme Toggle */}
-                <ThemeToggle className="bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 hover:text-white" />
+                <ThemeToggle className={showAnalytics ? "bg-slate-200/50 dark:bg-slate-800/50 border border-slate-300 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-300/50 dark:hover:bg-slate-700/50" : "bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 hover:text-white"} />
 
 
                 {/* Music Control */}
-                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-3 py-2">
+                <div className={`flex items-center gap-2 backdrop-blur-md rounded-full px-3 py-2 ${showAnalytics ? "bg-white dark:bg-slate-800/50 border border-slate-300 dark:border-white/20" : "bg-white/10 border border-white/20"}`}>
                     <button
                         onClick={toggleMusic}
-                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                        className={`p-1.5 rounded-full transition-colors ${showAnalytics ? "hover:bg-slate-200 dark:hover:bg-slate-700/50 text-slate-700 dark:text-white" : "hover:bg-white/10 text-white"}`}
                         title={isMusicPlaying ? "Pause Music" : "Play Music"}
                     >
                         {isMusicPlaying ? (
-                            <Pause className="w-4 h-4 text-white" />
+                            <Pause className="w-4 h-4" />
                         ) : (
-                            <Music className="w-4 h-4 text-white" />
+                            <Music className="w-4 h-4" />
                         )}
                     </button>
                     <button
                         onClick={toggleMusicMuted}
-                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
+                        className={`p-1.5 rounded-full transition-colors ${showAnalytics ? "hover:bg-slate-200 dark:hover:bg-slate-700/50 text-slate-700 dark:text-white" : "hover:bg-white/10 text-white"}`}
                         title={isMusicMuted ? "Unmute" : "Mute"}
                     >
                         {isMusicMuted ? (
-                            <VolumeX className="w-4 h-4 text-white" />
+                            <VolumeX className="w-4 h-4" />
                         ) : (
-                            <Volume2 className="w-4 h-4 text-white" />
+                            <Volume2 className="w-4 h-4" />
                         )}
                     </button>
                     <input
@@ -993,7 +993,7 @@ export default function StudyWithMe() {
                         step="0.1"
                         value={musicVolume}
                         onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                        className="w-16 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-white"
+                        className={`w-16 h-1 rounded-full appearance-none cursor-pointer ${showAnalytics ? "bg-slate-300 dark:bg-slate-600 accent-teal-600 dark:accent-white focus:outline-none" : "bg-white/20 accent-white focus:outline-none"}`}
                         title="Volume"
                     />
                 </div>
@@ -1001,10 +1001,7 @@ export default function StudyWithMe() {
                 {/* Analytics Toggle */}
                 <button
                     onClick={() => setShowAnalytics(!showAnalytics)}
-                    className={`p-2 rounded-full border border-white/20 transition-all ${showAnalytics
-                        ? "bg-white text-slate-900 shadow-lg"
-                        : "bg-white/10 text-white hover:bg-white/20 backdrop-blur-md"
-                        }`}
+                    className={`p-2 rounded-full border transition-all ${showAnalytics ? "bg-white dark:bg-slate-800 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white shadow-md hover:bg-slate-100 dark:hover:bg-slate-700" : "bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-md"}`}
                     title={showAnalytics ? "Show Timer" : "Show Analytics"}
                 >
                     {showAnalytics ? <LayoutDashboard className="w-5 h-5" /> : <BarChart2 className="w-5 h-5" />}
@@ -1013,8 +1010,8 @@ export default function StudyWithMe() {
                 {/* Profile Icon */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="rounded-xl h-[52px] w-[52px] p-0 hover:bg-white/10 border border-white/20 bg-white/10 backdrop-blur-md">
-                            <Avatar className="h-[52px] w-[52px] rounded-lg border-2 border-white shadow-sm">
+                        <Button variant="ghost" className={`rounded-xl h-[52px] w-[52px] p-0 border backdrop-blur-md ${showAnalytics ? "bg-white dark:bg-slate-800/50 border-slate-300 dark:border-white/20 hover:bg-slate-100 dark:hover:bg-slate-700/50" : "bg-white/10 border-white/20 hover:bg-white/10"}`}>
+                            <Avatar className={`h-[52px] w-[52px] rounded-lg border-2 shadow-sm ${showAnalytics ? "border-slate-300 dark:border-slate-800" : "border-white"}`}>
                                 <AvatarImage src={user?.avatar} alt={user?.name || 'User'} className="rounded-lg" />
                                 <AvatarFallback className="rounded-lg text-white font-bold" style={{ backgroundColor: currentTheme.accent }}>
                                     {user?.name ? user.name[0].toUpperCase() : 'G'}

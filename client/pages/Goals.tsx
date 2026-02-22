@@ -223,6 +223,7 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onToggleSubtask, theme, is
                         display: "flex", alignItems: "center", justifyContent: "center",
                         cursor: "pointer", flexShrink: 0, transition: "all 0.15s",
                     }}
+                    title={goal.completed ? "Unmark as done" : "Mark as done"}
                 >
                     {goal.completed && <span style={{ color: T.white, fontSize: 10, fontWeight: 900 }}>✓</span>}
                 </button>
@@ -459,6 +460,11 @@ export default function Goals() {
     }, []);
 
     const toggleGoal = async (id: string, currentCompleted: boolean) => {
+        if (currentCompleted) {
+            const confirmed = window.confirm("Are you sure you want to un-complete this goal? This will remove it from your history graph.");
+            if (!confirmed) return;
+        }
+
         setGoals(gs => gs.map(g =>
             g.id !== id ? g : { ...g, completed: !currentCompleted, completedAt: !currentCompleted ? todayStr : null }
         ));
@@ -501,7 +507,11 @@ export default function Goals() {
 
     const saveGoal = async (data: any) => {
         if (modal?.mode === "edit") {
-            setGoals(gs => gs.map(g => g.id === modal.goal.id ? { ...g, ...data, text: data.title } as UIGoal : g));
+            const isReschedulingToFuture = getScheduledKey(modal.goal) !== data.scheduledDate && data.scheduledDate > todayStr;
+            const newCompletedState = isReschedulingToFuture ? false : modal.goal.completed;
+            const newCompletedAtState = isReschedulingToFuture ? null : modal.goal.completedAt;
+
+            setGoals(gs => gs.map(g => g.id === modal.goal.id ? { ...g, ...data, text: data.title, completed: newCompletedState, completedAt: newCompletedAtState } as UIGoal : g));
             setModal(null);
             try {
                 await dataService.updateGoalDetails(modal.goal.id, {
@@ -512,9 +522,15 @@ export default function Goals() {
                     subtasks: data.subtasks,
                     type: data.type,
                 });
+
                 if (getScheduledKey(modal.goal) !== data.scheduledDate) {
                     await dataService.rescheduleGoal(modal.goal.id, new Date(data.scheduledDate));
                 }
+
+                if (isReschedulingToFuture && modal.goal.completed) {
+                    await dataService.updateGoal(modal.goal.id, false);
+                }
+
                 toast.success("Goal updated");
             } catch (error) { toast.error(getErrorMessage(error, "Update failed")); fetchGoals(); }
         } else {

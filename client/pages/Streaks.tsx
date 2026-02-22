@@ -24,6 +24,36 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+const IST_TIME_ZONE = "Asia/Kolkata";
+
+const toISTDateStr = (date: Date): string =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: IST_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+
+const extractISTDateStr = (timestamp: string | undefined | null): string | null => {
+  if (!timestamp) return null;
+  const parsed = new Date(timestamp);
+  if (!isNaN(parsed.getTime())) return toISTDateStr(parsed);
+  const match = timestamp.match(/(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : null;
+};
+
+const shiftISTDateStr = (dateStr: string, days: number): string => {
+  const base = new Date(`${dateStr}T00:00:00.000Z`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return toISTDateStr(base);
+};
+
+const getISTWeekday = (dateStr: string): string =>
+  new Intl.DateTimeFormat("en-IN", {
+    timeZone: IST_TIME_ZONE,
+    weekday: "short",
+  }).format(new Date(`${dateStr}T00:00:00.000Z`));
+
 export default function Streaks() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
@@ -66,29 +96,15 @@ export default function Streaks() {
           // Generate last 7 days CONSISTENCY data (% of goals completed each day)
           const last7Days = [];
 
-          // Helper to get IST date string (YYYY-MM-DD)
-          const getISTDateString = (date: Date) => {
-            const istOffset = 5.5 * 60 * 60 * 1000;
-            const istDate = new Date(date.getTime() + istOffset);
-            return istDate.toISOString().split('T')[0];
-          };
-
-          // Helper to extract date from any timestamp
-          const extractDate = (timestamp: string) => {
-            if (!timestamp) return null;
-            const date = new Date(timestamp);
-            const istOffset = 5.5 * 60 * 60 * 1000;
-            return new Date(date.getTime() + istOffset).toISOString().split('T')[0];
-          };
+          const getISTDateString = (date: Date) => toISTDateStr(date);
+          const extractDate = (timestamp: string) => extractISTDateStr(timestamp);
 
           const now = new Date();
           const todayIST = getISTDateString(now);
 
           for (let i = 6; i >= 0; i--) {
-            const date = new Date(now);
-            date.setDate(date.getDate() - i);
-            const dateStr = getISTDateString(date);
-            const dayName = date.toLocaleDateString('en-IN', { weekday: 'short' });
+            const dateStr = shiftISTDateStr(todayIST, -i);
+            const dayName = getISTWeekday(dateStr);
             const isToday = dateStr === todayIST;
 
             let totalOnDay, completedOnDay, score;
@@ -153,31 +169,9 @@ export default function Streaks() {
     const lastDay = new Date(currentYear, currentMonth + 1, 0);
     const daysInMonth = lastDay.getDate();
 
-    // Simple date string in YYYY-MM-DD format (local time)
-    const getLocalDateString = (date: Date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
-    // Extract date from any timestamp string (handles various formats)
-    const extractDateFromTimestamp = (timestamp: string): string | null => {
-      if (!timestamp) return null;
-      try {
-        // Just extract the date portion directly from the string if possible
-        const match = timestamp.match(/(\d{4})-(\d{2})-(\d{2})/);
-        if (match) {
-          return `${match[1]}-${match[2]}-${match[3]}`;
-        }
-        // Fallback: parse as date and get local date string
-        const d = new Date(timestamp);
-        if (isNaN(d.getTime())) return null;
-        return getLocalDateString(d);
-      } catch {
-        return null;
-      }
-    };
+    const getLocalDateString = (date: Date) => toISTDateStr(date);
+    const extractDateFromTimestamp = (timestamp: string): string | null =>
+      extractISTDateStr(timestamp);
 
     const todayStr = getLocalDateString(today);
 
@@ -192,7 +186,7 @@ export default function Streaks() {
       const d = new Date(currentYear, currentMonth, day);
       const dateStr = getLocalDateString(d);
       const isToday = dateStr === todayStr;
-      const isFuture = d > today;
+      const isFuture = dateStr > todayStr;
 
       // Check activity on this day
       let level = 0;
