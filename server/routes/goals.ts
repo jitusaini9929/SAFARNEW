@@ -597,33 +597,45 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
 
             if (todayGoalsCount <= 1) {
                 const currentStreak = await collections.streaks().findOne({ user_id: userId });
+                const yesterdayKey = getISTDateKeyAfterDays(now, -1);
 
-                if (currentStreak) {
-                    const lastActiveDate = currentStreak.last_active_date
-                        ? String(currentStreak.last_active_date).split(' ')[0].split('T')[0]
-                        : null;
-
-                    const yesterday = new Date(now.getTime() + IST_OFFSET_MS);
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-                    if (lastActiveDate === todayIST) {
-                        await collections.streaks().updateOne(
-                            { user_id: userId },
-                            { $inc: { goal_completion_streak: 1 } }
-                        );
-                    } else if (lastActiveDate === yesterdayStr || currentStreak.goal_completion_streak === 0) {
-                        await collections.streaks().updateOne(
-                            { user_id: userId },
-                            { $inc: { goal_completion_streak: 1 } }
-                        );
-                    } else {
-                        await collections.streaks().updateOne(
-                            { user_id: userId },
-                            { $set: { goal_completion_streak: 1 } }
-                        );
+                let lastCompletionKey: string | null = null;
+                if (currentStreak?.last_goal_completion_date) {
+                    lastCompletionKey = getISTDateKey(new Date(currentStreak.last_goal_completion_date));
+                } else {
+                    const lastGoal = await collections.goals()
+                        .find({ user_id: userId, completed: true, completed_at: { $lt: startOfDay } })
+                        .sort({ completed_at: -1 })
+                        .limit(1)
+                        .toArray();
+                    if (lastGoal[0]?.completed_at) {
+                        lastCompletionKey = getISTDateKey(new Date(lastGoal[0].completed_at));
                     }
                 }
+
+                let nextStreak = 1;
+                if (lastCompletionKey === yesterdayKey) {
+                    const base = currentStreak?.goal_completion_streak || 0;
+                    nextStreak = Math.max(base + 1, 1);
+                }
+
+                await collections.streaks().updateOne(
+                    { user_id: userId },
+                    {
+                        $set: {
+                            goal_completion_streak: nextStreak,
+                            last_goal_completion_date: now,
+                            last_active_date: now,
+                        },
+                        $setOnInsert: {
+                            id: uuidv4(),
+                            user_id: userId,
+                            login_streak: 0,
+                            check_in_streak: 0,
+                        },
+                    },
+                    { upsert: true }
+                );
             }
         }
 

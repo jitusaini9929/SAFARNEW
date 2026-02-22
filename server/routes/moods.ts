@@ -5,6 +5,23 @@ import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const toISTDate = (date: Date) => new Date(date.getTime() + IST_OFFSET_MS);
+const getISTDateKey = (date: Date) => toISTDate(date).toISOString().split('T')[0];
+const getStartOfISTDayUTC = (date: Date) => {
+    const istKey = getISTDateKey(date);
+    const startUTC = new Date(`${istKey}T00:00:00.000Z`);
+    startUTC.setTime(startUTC.getTime() - IST_OFFSET_MS);
+    return startUTC;
+};
+const shiftISTDateKey = (dateKey: string, days: number) => {
+    const baseUTC = new Date(`${dateKey}T00:00:00.000Z`);
+    const shifted = new Date(baseUTC.getTime() + days * DAY_MS);
+    return getISTDateKey(shifted);
+};
+
 // Get all moods for the current user
 router.get('/', requireAuth, async (req: Request, res) => {
     try {
@@ -33,10 +50,9 @@ router.post('/', requireAuth, async (req: Request, res) => {
         const now = new Date();
 
         // Check if there's already a mood entry for today (IST)
-        const todayIST = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
-        const startOfDay = new Date(todayIST + 'T00:00:00.000Z');
-        startOfDay.setTime(startOfDay.getTime() - (5.5 * 60 * 60 * 1000)); // Convert IST midnight to UTC
-        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+        const todayIST = getISTDateKey(now);
+        const startOfDay = getStartOfISTDayUTC(now);
+        const endOfDay = new Date(startOfDay.getTime() + DAY_MS);
 
         const existingCount = await collections.moods().countDocuments({
             user_id: userId,
@@ -64,38 +80,42 @@ router.post('/', requireAuth, async (req: Request, res) => {
 
         // Only update check_in streak if this is the first check-in today
         if (isFirstCheckInToday) {
-            const currentStreak = await collections.streaks().findOne({ user_id: userId });
+            const recentSnapshots = await collections.moodSnapshots()
+                .find({ user_id: userId, source: 'check_in', date_key: { $lt: todayIST } })
+                .project({ date_key: 1 })
+                .sort({ date_key: -1 })
+                .limit(400)
+                .toArray();
 
-            if (currentStreak) {
-                let lastActiveDate: string | null = null;
-                if (currentStreak.last_active_date) {
-                    const dateObj = new Date(currentStreak.last_active_date);
-                    const istDate = new Date(dateObj.getTime() + (5.5 * 60 * 60 * 1000));
-                    lastActiveDate = istDate.toISOString().split('T')[0];
-                }
-
-                if (lastActiveDate === todayIST) {
-                    console.log('🟡 [CHECK-IN] Already checked in today, streak unchanged');
-                } else {
-                    const yesterday = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-                    if (lastActiveDate === yesterdayStr || currentStreak.check_in_streak === 0) {
-                        await collections.streaks().updateOne(
-                            { user_id: userId },
-                            { $inc: { check_in_streak: 1 }, $set: { last_active_date: todayIST } }
-                        );
-                        console.log('🟢 [CHECK-IN] Streak incremented');
-                    } else {
-                        await collections.streaks().updateOne(
-                            { user_id: userId },
-                            { $set: { check_in_streak: 1, last_active_date: todayIST } }
-                        );
-                        console.log('🔴 [CHECK-IN] Streak reset to 1 due to gap');
-                    }
-                }
+            const daySet = new Set(recentSnapshots.map(row => row.date_key).filter(Boolean));
+            let streakBeforeToday = 0;
+            let cursorKey = shiftISTDateKey(todayIST, -1);
+            while (daySet.has(cursorKey)) {
+                streakBeforeToday += 1;
+                cursorKey = shiftISTDateKey(cursorKey, -1);
             }
+
+            const nextStreak = Math.max(streakBeforeToday + 1, 1);
+
+            await collections.streaks().updateOne(
+                { user_id: userId },
+                {
+                    $set: {
+                        check_in_streak: nextStreak,
+                        last_check_in_date: todayIST,
+                        last_active_date: now,
+                    },
+                    $setOnInsert: {
+                        id: uuidv4(),
+                        user_id: userId,
+                        login_streak: 0,
+                        goal_completion_streak: 0,
+                    },
+                },
+                { upsert: true }
+            );
+
+            console.log(`🟢 [CHECK-IN] Streak updated to ${nextStreak}`);
         } else {
             console.log('🟡 [CHECK-IN] Additional check-in today, streak unchanged');
         }

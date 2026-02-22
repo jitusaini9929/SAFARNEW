@@ -187,6 +187,9 @@ router.post('/signup', async (req: Request, res) => {
             login_streak: 0,
             check_in_streak: 0,
             goal_completion_streak: 0,
+            last_login_date: null,
+            last_check_in_date: null,
+            last_goal_completion_date: null,
             last_active_date: new Date(),
         });
 
@@ -371,18 +374,22 @@ async function updateLoginStreak(userId: string) {
     const nowIST = new Date(now.getTime() + istOffset);
     const todayIST = nowIST.toISOString().split('T')[0];
 
-    if (currentStreak && currentStreak.last_active_date) {
-        const lastActiveDate = new Date(currentStreak.last_active_date);
-        const lastActiveIST = new Date(lastActiveDate.getTime() + istOffset);
-        const lastDateIST = lastActiveIST.toISOString().split('T')[0];
+    if (currentStreak) {
+        const lastLoginRaw = currentStreak.last_login_date ?? currentStreak.last_active_date ?? null;
+        const lastLoginDate = lastLoginRaw ? new Date(lastLoginRaw) : null;
+        const lastLoginIST = lastLoginDate ? new Date(lastLoginDate.getTime() + istOffset) : null;
+        const lastDateIST = lastLoginIST ? lastLoginIST.toISOString().split('T')[0] : null;
 
         if (currentStreak.login_streak === 0) {
             await collections.streaks().updateOne(
                 { user_id: userId },
-                { $set: { login_streak: 1, last_active_date: now } }
+                { $set: { login_streak: 1, last_login_date: now, last_active_date: now } }
             );
         } else if (lastDateIST === todayIST) {
-            // Already logged in today
+            await collections.streaks().updateOne(
+                { user_id: userId },
+                { $set: { last_login_date: now, last_active_date: now } }
+            );
         } else {
             const yesterday = new Date(nowIST);
             yesterday.setDate(yesterday.getDate() - 1);
@@ -391,19 +398,20 @@ async function updateLoginStreak(userId: string) {
             if (lastDateIST === yesterdayIST) {
                 await collections.streaks().updateOne(
                     { user_id: userId },
-                    { $inc: { login_streak: 1 }, $set: { last_active_date: now } }
+                    { $inc: { login_streak: 1 }, $set: { last_login_date: now, last_active_date: now } }
                 );
             } else {
                 await collections.streaks().updateOne(
                     { user_id: userId },
-                    { $set: { login_streak: 1, last_active_date: now } }
+                    { $set: { login_streak: 1, last_login_date: now, last_active_date: now } }
                 );
             }
         }
     } else {
         await collections.streaks().updateOne(
             { user_id: userId },
-            { $set: { login_streak: 1, last_active_date: now } }
+            { $set: { login_streak: 1, last_login_date: now, last_active_date: now } },
+            { upsert: true }
         );
     }
 }
