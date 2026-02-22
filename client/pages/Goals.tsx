@@ -110,6 +110,15 @@ const getGoalCreatedTime = (goal: UIGoal) => {
     const created = raw ? new Date(raw) : null;
     return created && Number.isFinite(created.getTime()) ? created.getTime() : 0;
 };
+const getGoalCreatedDateKey = (goal: UIGoal) => {
+    const raw = (goal as any).createdAt || (goal as any).created_at || goal.scheduledDate;
+    const created = raw ? new Date(raw) : null;
+    return created && Number.isFinite(created.getTime()) ? getISTDateKey(created) : null;
+};
+const getGoalCreatedLabel = (goal: UIGoal) => {
+    const key = getGoalCreatedDateKey(goal);
+    return key ? formatISTDate(dateKeyToUtcDate(key), { month: "short", day: "numeric", year: "numeric" }) : "";
+};
 const getISTMinutesSinceMidnight = (date: Date) => {
     const parts = new Intl.DateTimeFormat("en-GB", {
         timeZone: IST_TIME_ZONE,
@@ -181,7 +190,7 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
 
 // ─── BADGE ───────────────────────────────────────────────────
 // ─── GOAL CARD ────────────────────────────────────────────────
-const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone, hideActions = false }: any) => {
+const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone, hideActions = false, createdMeta }: any) => {
     const isDark = theme === 'dark';
     const hoverBg = isDark ? T.darkCardHover : T.slate50;
     const textColor = isDark ? (goal.completed ? T.darkTextMuted : T.darkText) : (goal.completed ? T.slate400 : T.slate700);
@@ -198,6 +207,7 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone, 
         ? completedLabel
         : (goal.scheduledDate ? `Due ${formatDate(goal.scheduledDate)}` : "");
     const secondaryMeta = goal.completed && durationMs ? `Took ${formatDuration(durationMs)}` : "";
+    const metaPieces = [primaryMeta, secondaryMeta, createdMeta].filter(Boolean);
 
     return (
         <div style={{
@@ -225,9 +235,9 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone, 
                         {goal.description}
                     </p>
                 )}
-                {(primaryMeta || secondaryMeta) && (
+                {metaPieces.length > 0 && (
                     <p style={{ fontSize: isPhone ? 10 : 11, color: metaColor, margin: 0, lineHeight: 1.45 }}>
-                        {[primaryMeta, secondaryMeta].filter(Boolean).join(" · ")}
+                        {metaPieces.join(" - ")}
                     </p>
                 )}
             </div>
@@ -463,6 +473,7 @@ export default function Goals() {
     const [goals, setGoals] = useState<UIGoal[]>([]);
     const [modal, setModal] = useState<any>(null);
     const [tab, setTab] = useState("goals");
+    const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
     const getErrorMessage = (error: unknown, fallback: string) =>
         error instanceof Error && error.message ? error.message : fallback;
     const getScheduledKey = (g: UIGoal) => g.scheduledDate ? getISTDateKey(new Date(g.scheduledDate)) : null;
@@ -601,6 +612,24 @@ export default function Goals() {
     const historyGoals = useMemo(() => (
         [...goals].sort((a, b) => getGoalCreatedTime(a) - getGoalCreatedTime(b))
     ), [goals]);
+    const historyDateKeys = useMemo(() => {
+        const keys = historyGoals
+            .map(getGoalCreatedDateKey)
+            .filter((key): key is string => !!key);
+        return Array.from(new Set(keys)).sort();
+    }, [historyGoals]);
+    const filteredHistoryGoals = useMemo(() => (
+        historyDateFilter
+            ? historyGoals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter)
+            : historyGoals
+    ), [historyGoals, historyDateFilter]);
+    const historyFilterLabel = useMemo(() => (
+        historyDateFilter
+            ? formatISTDate(dateKeyToUtcDate(historyDateFilter), { month: "short", day: "numeric", year: "numeric" })
+            : "All dates"
+    ), [historyDateFilter]);
+    const historyMinKey = historyDateKeys[0];
+    const historyMaxKey = historyDateKeys[historyDateKeys.length - 1];
 
     const todayMetrics = useMemo(() => getDailyCompletionMetrics(completedGoals, todayKey), [completedGoals, todayKey]);
     const weekKeys = useMemo(() => (
@@ -621,6 +650,27 @@ export default function Goals() {
     const isTablet = viewportWidth < 1024;
     const contentGrid = isTablet ? "1fr" : "1fr 340px";
     const pagePadding = isPhone ? "16px 12px 24px" : isTablet ? "22px 16px 28px" : "28px 20px";
+    const historyFilterInputStyle = {
+        background: isDark ? T.darkCardHover : T.slate50,
+        border: `1px solid ${isDark ? T.darkBorder : T.slate200}`,
+        color: isDark ? T.darkText : T.slate800,
+        borderRadius: 8,
+        padding: "6px 8px",
+        fontSize: 11,
+        outline: "none",
+        colorScheme: isDark ? "dark" : "light",
+    } as const;
+    const historyFilterButtonStyle = {
+        background: isDark ? "rgba(99, 102, 241, 0.12)" : T.indigo50,
+        border: "none",
+        borderRadius: 8,
+        color: isDark ? T.indigo500 : T.indigo500,
+        padding: "6px 10px",
+        fontSize: 11,
+        fontWeight: 700,
+        cursor: historyDateFilter ? "pointer" : "not-allowed",
+        opacity: historyDateFilter ? 1 : 0.6,
+    } as const;
 
     return (
         <NishthaLayout>
@@ -707,20 +757,42 @@ export default function Goals() {
                                     <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                             <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Goal History</h3>
-                                            <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{historyGoals.length}</span>
+                                            <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{historyDateFilter ? filteredHistoryGoals.length : historyGoals.length}</span>
                                         </div>
-                                        <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>Oldest → Newest</span>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{historyFilterLabel}</span>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                <input
+                                                    type="date"
+                                                    value={historyDateFilter}
+                                                    onChange={e => setHistoryDateFilter(e.target.value)}
+                                                    min={historyMinKey}
+                                                    max={historyMaxKey}
+                                                    style={historyFilterInputStyle}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setHistoryDateFilter("")}
+                                                    disabled={!historyDateFilter}
+                                                    style={historyFilterButtonStyle}
+                                                >
+                                                    Clear
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    {historyGoals.length === 0 ? (
+                                    {filteredHistoryGoals.length === 0 ? (
                                         <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
-                                            <div style={{ fontSize: 14, fontWeight: 600 }}>No goals yet.</div>
+                                            <div style={{ fontSize: 14, fontWeight: 600 }}>
+                                                {historyGoals.length === 0 ? "No goals yet." : "No goals created on this date."}
+                                            </div>
                                         </div>
                                     ) : (
                                         <div style={{ maxHeight: isPhone ? 280 : 360, overflowY: "auto" }}>
-                                            {historyGoals.map((g, i) => (
-                                                <div key={g.id} style={{ borderBottom: i < historyGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                    <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} hideActions />
+                                            {filteredHistoryGoals.map((g, i) => (
+                                                <div key={g.id} style={{ borderBottom: i < filteredHistoryGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
+                                                    <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} createdMeta={getGoalCreatedLabel(g) ? `Created ${getGoalCreatedLabel(g)}` : ""} hideActions />
                                                 </div>
                                             ))}
                                         </div>
