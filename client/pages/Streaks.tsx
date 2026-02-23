@@ -270,7 +270,7 @@ export default function Streaks() {
                 </div>
               </div>
               <div className="relative z-10 mt-auto">
-                <div className="flex items-center gap-2 text-primary text-sm font-medium cursor-pointer" onClick={() => navigate('/check-in')}>
+                <div className="flex items-center gap-2 text-primary text-sm font-medium cursor-pointer" onClick={() => navigate('/nishtha/check-in')}>
                   Start your streak today!
                   <ArrowRight className="w-4 h-4 animate-bounce-x" />
                 </div>
