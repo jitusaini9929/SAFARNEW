@@ -76,6 +76,13 @@ export default function Streaks() {
         setUser(response.user);
         setStreakData(response.streaks || {});
 
+        try {
+          const streaks = await dataService.getStreaks();
+          setStreakData(streaks);
+        } catch (e) {
+          console.error('Failed to fetch streaks', e);
+        }
+
         // Fetch goals for consistency chart
         try {
           const goals = await dataService.getGoals();

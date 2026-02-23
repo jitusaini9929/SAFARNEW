@@ -30,7 +30,7 @@ const normalizeTimestamp = (value: unknown): Date | null => {
     return parsed;
 };
 
-const calculateCheckInStreakFromMoods = async (userId: string, todayIST: string) => {
+const calculateCheckInStreakFromMoods = async (userId: string) => {
     const recentMoods = await collections.moods()
         .find({ user_id: userId }, { projection: { timestamp: 1 } })
         .sort({ timestamp: -1 })
@@ -38,20 +38,25 @@ const calculateCheckInStreakFromMoods = async (userId: string, todayIST: string)
         .toArray();
 
     const daySet = new Set<string>();
+    let latestKey: string | null = null;
     for (const row of recentMoods) {
         const ts = normalizeTimestamp((row as any).timestamp);
         if (!ts) continue;
-        daySet.add(getISTDateKey(ts));
+        const key = getISTDateKey(ts);
+        daySet.add(key);
+        if (!latestKey || key > latestKey) latestKey = key;
     }
 
+    if (!latestKey) return 0;
+
     let streak = 0;
-    let cursorKey = todayIST;
+    let cursorKey = latestKey;
     while (daySet.has(cursorKey)) {
         streak += 1;
         cursorKey = shiftISTDateKey(cursorKey, -1);
     }
 
-    return Math.max(streak, 1);
+    return streak;
 };
 
 // Get all moods for the current user
@@ -110,7 +115,7 @@ router.post('/', requireAuth, async (req: Request, res) => {
             created_at: new Date(),
         });
 
-        const nextStreak = await calculateCheckInStreakFromMoods(userId, todayIST);
+        const nextStreak = await calculateCheckInStreakFromMoods(userId);
 
         await collections.streaks().updateOne(
             { user_id: userId },
