@@ -407,6 +407,63 @@ export default function Meditation() {
         }
     };
 
+    const renderMeditationVideoCard = (inputId: string, extraClassName = "") => (
+        <section className={`rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-[#11131C]/80 p-4 shadow-lg shadow-slate-300/20 dark:shadow-black/20 ${extraClassName}`}>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Latest Dhyan Video</h3>
+
+            <a
+                href={meditationVideoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 block rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 hover:opacity-95 transition-opacity"
+            >
+                <img
+                    loading="lazy"
+                    src={videoThumbnailSrc}
+                    alt="Latest Dhyan YouTube video thumbnail"
+                    className="w-full h-40 object-cover"
+                    onError={() => {
+                        if (videoThumbnailSrc !== fallbackVideoThumbnail) {
+                            setVideoThumbnailSrc(fallbackVideoThumbnail);
+                            return;
+                        }
+                        setVideoThumbnailSrc(DEFAULT_VIDEO_THUMBNAIL);
+                    }}
+                />
+            </a>
+
+            <p className="mt-2 text-xs italic text-slate-500 dark:text-slate-400">Click to visit the video</p>
+
+            {isMeditationAdmin && (
+                <div className="mt-4 space-y-2">
+                    <label htmlFor={inputId} className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Admin video link
+                    </label>
+                    <input
+                        id={inputId}
+                        type="url"
+                        value={videoDraftUrl}
+                        onChange={(event) => setVideoDraftUrl(event.target.value)}
+                        placeholder="Paste YouTube video URL"
+                        className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleSaveMeditationVideo}
+                        disabled={isSavingVideo}
+                        className="w-full"
+                    >
+                        {isSavingVideo ? "Saving..." : "Update Video"}
+                    </Button>
+                    {videoSettingsError && (
+                        <p className="text-xs text-red-500">{videoSettingsError}</p>
+                    )}
+                </div>
+            )}
+        </section>
+    );
+
     const progress = selectedSession.id === "dhyan-custom"
         ? ((sliderValue * 60 - timeLeft) / (sliderValue * 60)) * 100
         : ((selectedSession.duration * 60 - timeLeft) / (selectedSession.duration * 60)) * 100;
@@ -573,60 +630,7 @@ export default function Meditation() {
                         courseId="safar-30"
                     />
 
-                    <section className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-[#11131C]/80 p-4 shadow-lg shadow-slate-300/20 dark:shadow-black/20">
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Latest Dhyan Video</h3>
-
-                        <a
-                            href={meditationVideoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-3 block rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 hover:opacity-95 transition-opacity"
-                        >
-                            <img
-                                loading="lazy"
-                                src={videoThumbnailSrc}
-                                alt="Latest Dhyan YouTube video thumbnail"
-                                className="w-full h-40 object-cover"
-                                onError={() => {
-                                    if (videoThumbnailSrc !== fallbackVideoThumbnail) {
-                                        setVideoThumbnailSrc(fallbackVideoThumbnail);
-                                        return;
-                                    }
-                                    setVideoThumbnailSrc(DEFAULT_VIDEO_THUMBNAIL);
-                                }}
-                            />
-                        </a>
-
-                        <p className="mt-2 text-xs italic text-slate-500 dark:text-slate-400">Click to visit the video</p>
-
-                        {isMeditationAdmin && (
-                            <div className="mt-4 space-y-2">
-                                <label htmlFor="meditation-video-url" className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                                    Admin video link
-                                </label>
-                                <input
-                                    id="meditation-video-url"
-                                    type="url"
-                                    value={videoDraftUrl}
-                                    onChange={(event) => setVideoDraftUrl(event.target.value)}
-                                    placeholder="Paste YouTube video URL"
-                                    className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
-                                />
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={handleSaveMeditationVideo}
-                                    disabled={isSavingVideo}
-                                    className="w-full"
-                                >
-                                    {isSavingVideo ? "Saving..." : "Update Video"}
-                                </Button>
-                                {videoSettingsError && (
-                                    <p className="text-xs text-red-500">{videoSettingsError}</p>
-                                )}
-                            </div>
-                        )}
-                    </section>
+                    {renderMeditationVideoCard("meditation-video-url-desktop")}
 
                     {/* Audio Library Placeholder */}
                     <div className="flex-1 rounded-2xl border-2 border-dashed border-slate-200/70 dark:border-white/10 p-5 flex flex-col items-center justify-center text-center gap-3 min-h-[120px]">
@@ -654,6 +658,10 @@ export default function Meditation() {
 
                     {/* Center Content */}
                     <div className="relative z-10 flex flex-col items-center gap-5 max-w-md">
+                        <div className="lg:hidden w-full">
+                            {renderMeditationVideoCard("meditation-video-url-mobile", "mb-1")}
+                        </div>
+
                         {/* Meditation Image */}
                         <div className="relative">
                             <div className="absolute inset-0 bg-gradient-to-b from-sky-300/30 to-transparent rounded-3xl blur-2xl scale-125" />
