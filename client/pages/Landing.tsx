@@ -22,6 +22,9 @@ const getYoutubeVideoId = (url: string) => {
   return match?.[1] ?? null;
 };
 
+const getSkipStorageKey = (userId: string, videoId: string) =>
+  `landing.updateOverlay.skipped:${userId}:${videoId}`;
+
 const Landing = () => {
   const [user, setUser] = useState<any>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -62,11 +65,16 @@ const Landing = () => {
 
   useEffect(() => {
     if (user && !hasShownUpdateOverlay) {
+      const userId = String(user.id || "");
+      const currentVideoId = updateVideoId || "default-video";
+      const skipKey = getSkipStorageKey(userId, currentVideoId);
+      const wasSkipped = typeof window !== "undefined" && window.localStorage.getItem(skipKey) === "1";
+
       setUpdateThumbnailSrc(primaryUpdateThumbnail);
-      setShowUpdateOverlay(true);
+      setShowUpdateOverlay(!wasSkipped);
       setHasShownUpdateOverlay(true);
     }
-  }, [user, hasShownUpdateOverlay, primaryUpdateThumbnail]);
+  }, [user, hasShownUpdateOverlay, primaryUpdateThumbnail, updateVideoId]);
 
   useEffect(() => {
     if (!showUpdateOverlay) return;
@@ -83,6 +91,15 @@ const Landing = () => {
 
   const handleTakeMeThere = () => {
     window.open(LANDING_UPDATE_NOTIFICATION.youtubeUrl, '_blank', 'noopener,noreferrer');
+    setShowUpdateOverlay(false);
+  };
+
+  const handleSkipUpdateOverlay = () => {
+    const userId = String(user?.id || "");
+    const currentVideoId = updateVideoId || "default-video";
+    if (typeof window !== "undefined" && userId) {
+      window.localStorage.setItem(getSkipStorageKey(userId, currentVideoId), "1");
+    }
     setShowUpdateOverlay(false);
   };
 
@@ -167,7 +184,7 @@ const Landing = () => {
             <div className="mt-5 flex flex-col sm:flex-row gap-3 sm:justify-end">
               <button
                 type="button"
-                onClick={() => setShowUpdateOverlay(false)}
+                onClick={handleSkipUpdateOverlay}
                 className="inline-flex items-center justify-center rounded-md border border-slate-200 dark:border-white/20 bg-white dark:bg-transparent px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors"
               >
                 Skip
