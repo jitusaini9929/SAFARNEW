@@ -27,7 +27,7 @@ interface MehfilProps {
 }
 
 type MehfilFeedRoom = MehfilRoom | 'ALL';
-const FEED_PAGE_SIZE = 100;
+const FEED_PAGE_SIZE = 50;
 
 interface PostingBanPayload {
   isActive: boolean;
@@ -72,19 +72,22 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [activeRoom, setActiveRoom] = useState<MehfilFeedRoom>('ALL');
   const [postingBan, setPostingBan] = useState<PostingBanPayload | null>(null);
   const [banRemainingMs, setBanRemainingMs] = useState(0);
+  const [hasMoreThoughts, setHasMoreThoughts] = useState(true);
+  const [isLoadingThoughts, setIsLoadingThoughts] = useState(false);
 
   const userIdRef = useRef<string | undefined>(undefined);
+  const currentFeedPageRef = useRef(0);
+  const hasMoreThoughtsRef = useRef(true);
+  const isLoadingThoughtsRef = useRef(false);
 
   const {
     thoughts,
     userReactions,
-    setThoughts,
     addThought,
     updateThought,
     removeThought,
     updateRelatableCount,
     setUserReaction,
-    setUserReactions,
   } = useMehfilStore();
 
   const handleLogout = async () => {
@@ -196,14 +199,54 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       console.log('Connected to Mehfil server');
     });
 
-    newSocket.on('thoughts', (payload: { thoughts: any[] }) => {
+    newSocket.on('thoughts', (payload: { thoughts: any[]; page?: number; hasMore?: boolean }) => {
       const thoughtList = payload?.thoughts || [];
-      setThoughts(thoughtList);
-
+      const page = Number(payload?.page ?? 1);
+      const hasMore = Boolean(payload?.hasMore);
       const reactedThoughtIds = thoughtList
         .filter((t: any) => Boolean(t.hasReacted))
         .map((t: any) => t.id);
-      setUserReactions(reactedThoughtIds);
+
+      useMehfilStore.setState((state) => {
+        if (page <= 1) {
+          return {
+            thoughts: thoughtList,
+            userReactions: new Set(reactedThoughtIds),
+          };
+        }
+
+        const seen = new Set(state.thoughts.map((t) => t.id));
+        const mergedThoughts = [...state.thoughts];
+
+        for (const incomingThought of thoughtList) {
+          if (!seen.has(incomingThought.id)) {
+            seen.add(incomingThought.id);
+            mergedThoughts.push(incomingThought);
+            continue;
+          }
+
+          const existingIndex = mergedThoughts.findIndex((entry) => entry.id === incomingThought.id);
+          if (existingIndex >= 0) {
+            mergedThoughts[existingIndex] = { ...mergedThoughts[existingIndex], ...incomingThought };
+          }
+        }
+
+        const mergedReactions = new Set(state.userReactions);
+        for (const thoughtId of reactedThoughtIds) {
+          mergedReactions.add(thoughtId);
+        }
+
+        return {
+          thoughts: mergedThoughts,
+          userReactions: mergedReactions,
+        };
+      });
+
+      currentFeedPageRef.current = page;
+      hasMoreThoughtsRef.current = hasMore;
+      isLoadingThoughtsRef.current = false;
+      setHasMoreThoughts(hasMore);
+      setIsLoadingThoughts(false);
     });
 
     newSocket.on('thoughtCreated', (thought) => {
@@ -266,10 +309,16 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     return () => {
       newSocket.close();
     };
-  }, [backendUrl, setThoughts, addThought, updateThought, removeThought, updateRelatableCount, setUserReactions, setUserReaction]);
+  }, [backendUrl, addThought, updateThought, removeThought, updateRelatableCount, setUserReaction]);
 
   useEffect(() => {
     if (!socket) return;
+
+    const requestThoughtPage = (page: number) => {
+      isLoadingThoughtsRef.current = true;
+      setIsLoadingThoughts(true);
+      socket.emit('loadThoughts', { page, limit: FEED_PAGE_SIZE, room: 'ALL' });
+    };
 
     const syncSocketState = () => {
       if (user?.id) {
@@ -281,8 +330,13 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         socket.emit('checkPostingBan');
       }
 
-      socket.emit('joinRoom', { room: activeRoom });
-      socket.emit('loadThoughts', { page: 1, limit: FEED_PAGE_SIZE, room: activeRoom });
+      // Always load/join the combined feed so no category data is dropped.
+      // Tabs still filter locally in the UI.
+      socket.emit('joinRoom', { room: 'ALL' });
+      currentFeedPageRef.current = 0;
+      hasMoreThoughtsRef.current = true;
+      setHasMoreThoughts(true);
+      requestThoughtPage(1);
     };
 
     if (socket.connected) {
@@ -293,7 +347,29 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     return () => {
       socket.off('connect', syncSocketState);
     };
-  }, [socket, user?.id, user?.name, user?.avatar, activeRoom]);
+  }, [socket, user?.id, user?.name, user?.avatar]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleScrollLoad = () => {
+      if (isLoadingThoughtsRef.current || !hasMoreThoughtsRef.current) return;
+
+      const viewportBottom = window.innerHeight + window.scrollY;
+      const documentBottom = document.documentElement.scrollHeight;
+      const isNearBottom = viewportBottom >= documentBottom - 600;
+
+      if (!isNearBottom) return;
+
+      const nextPage = currentFeedPageRef.current + 1;
+      isLoadingThoughtsRef.current = true;
+      setIsLoadingThoughts(true);
+      socket.emit('loadThoughts', { page: nextPage, limit: FEED_PAGE_SIZE, room: 'ALL' });
+    };
+
+    window.addEventListener('scroll', handleScrollLoad, { passive: true });
+    return () => window.removeEventListener('scroll', handleScrollLoad);
+  }, [socket]);
 
   const handleSendThought = async (content: string, isAnonymous: boolean, room: MehfilFeedRoom) => {
     if (!socket || !user) {
@@ -591,6 +667,18 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                       isOwnThought={thought.userId === user?.id}
                     />
                   ))
+                )}
+
+                {isLoadingThoughts && (
+                  <div className="text-center py-4 text-sm text-slate-500 dark:text-slate-400">
+                    Loading more posts...
+                  </div>
+                )}
+
+                {!hasMoreThoughts && thoughts.length > 0 && (
+                  <div className="text-center py-3 text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    You have reached the end of the feed.
+                  </div>
                 )}
               </div>
             </main>

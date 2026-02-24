@@ -33,7 +33,7 @@ const socketToUser = new Map<string, string>();
 
 const DEFAULT_ROOM: MehfilRoom = 'ACADEMIC';
 const ROOM_ORDER: MehfilRoom[] = ['ACADEMIC', 'REFLECTIVE'];
-const DEFAULT_THOUGHTS_PAGE_SIZE = 100;
+const DEFAULT_THOUGHTS_PAGE_SIZE = 50;
 const MAX_THOUGHTS_PAGE_SIZE = 100;
 const MIN_THOUGHT_LENGTH = 15;
 const MAX_THOUGHT_LENGTH = 5000;
