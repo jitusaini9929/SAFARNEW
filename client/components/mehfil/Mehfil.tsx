@@ -8,6 +8,7 @@ import MehfilSidebar from './MehfilSidebar';
 import SandeshCard from './SandeshCard';
 import { toast } from 'sonner';
 import ThemeToggle from '@/components/ui/theme-toggle';
+import GlobalSidebar from '@/components/GlobalSidebar';
 
 import { Search, Settings, LogOut, Home, Menu, Info, ShieldAlert, AlertCircle, ChevronDown, ChevronUp, Clock, Ban, Ghost } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -66,6 +67,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [user, setUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
   const [activeRoom, setActiveRoom] = useState<MehfilFeedRoom>('ACADEMIC');
   const [postingBan, setPostingBan] = useState<PostingBanPayload | null>(null);
   const [banRemainingMs, setBanRemainingMs] = useState(0);
@@ -404,21 +406,13 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         <div className="flex items-center gap-1.5 sm:gap-3">
           <ThemeToggle />
 
-          <Link to="/landing" className="p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors" title="Home">
-            <Home className="w-5 h-5" />
-          </Link>
-
           <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-            title="Mehfil Hub"
+            onClick={() => setIsGlobalSidebarOpen(true)}
+            className="p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors hidden sm:block"
+            title="Menu"
           >
             <Menu className="w-5 h-5" />
-          </button>
-
-
-
-          <div className="flex items-center gap-2 sm:gap-3 pl-2 ml-1 sm:ml-2 border-l border-slate-200 dark:border-slate-800">
+          </button>          <div className="flex items-center gap-2 sm:gap-3 pl-2 ml-1 sm:ml-2 border-l border-slate-200 dark:border-slate-800">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 group outline-none">
@@ -611,7 +605,11 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       </div>
 
       <MehfilSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-
+      <GlobalSidebar
+        isOpen={isGlobalSidebarOpen}
+        onClose={() => setIsGlobalSidebarOpen(false)}
+        onOpenMehfilSidebar={() => setIsSidebarOpen(true)}
+      />
 
       {postingBan?.isActive && (
         <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">

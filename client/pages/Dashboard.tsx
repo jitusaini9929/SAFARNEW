@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import youtubeImg from "@/assets/youtube-thumbnail.png";
 import courseImg from "@/assets/course-thumbnail.png";
+import GlobalSidebar from "@/components/GlobalSidebar";
 
 
 const getMoodEmoji = (mood: string): string => {
@@ -99,6 +100,7 @@ export default function Dashboard() {
     const [showAchievementModal, setShowAchievementModal] = useState(false);
     const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
     const [monthlySummary, setMonthlySummary] = useState<{ month: string; consistencyScore: number; completionRate: number; focusDepth: number } | null>(null);
+    const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -293,12 +295,12 @@ export default function Dashboard() {
 
                                 <div className="pt-2 flex flex-wrap justify-center md:justify-start gap-3">
                                     <button
-                                        onClick={() => navigate('/landing')}
-                                        aria-label="Go to home"
+                                        onClick={() => setIsGlobalSidebarOpen(true)}
+                                        aria-label="Open menu"
                                         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 transition-all text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm hover:shadow-md action-btn-nowrap"
                                     >
-                                        <Home className="w-4 h-4" />
-                                        <span className="action-label-mobile-hidden">Home</span>
+                                        <Menu className="w-4 h-4" />
+                                        <span className="action-label-mobile-hidden">Menu</span>
                                     </button>
                                 </div>
                             </div>
@@ -795,6 +797,8 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
+
+            <GlobalSidebar isOpen={isGlobalSidebarOpen} onClose={() => setIsGlobalSidebarOpen(false)} />
 
             {/* Achievement Detail Modal */}
             {showAchievementModal && selectedAchievement && (

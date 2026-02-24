@@ -15,6 +15,7 @@ import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import safarLogo from "@/assets/safar-logo.png.jpeg";
 import { useState } from "react";
 import ThemeToggle from "@/components/ui/theme-toggle";
+import GlobalSidebar from "./GlobalSidebar";
 
 interface TopNavbarProps {
   userName?: string;
@@ -58,11 +59,11 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
         <div className="h-full px-6 flex items-center justify-between">
           {/* Left side - Hamburger (mobile) + Logo and Portal Name */}
           <div className="flex items-center gap-3">
-            {/* Hamburger Menu Button (mobile only) */}
+            {/* Hamburger Menu Button (visible on all screens if showMobileMenu is true) */}
             {showMobileMenu && (
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="lg:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
                 aria-label="Open menu"
               >
                 <Menu className="w-5 h-5" />
@@ -135,79 +136,13 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
         </div>
       </nav>
 
-      {/* Mobile Menu Drawer */}
-      {showMobileMenu && isMobileMenuOpen && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] lg:hidden"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-          <div className="fixed inset-y-0 left-0 w-[280px] max-w-[85vw] bg-background border-r border-border shadow-2xl z-[70] lg:hidden animate-in slide-in-from-left duration-300 overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <h2 className="text-lg font-semibold">Menu</h2>
-              <button
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2 hover:bg-muted rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Navigation Links */}
-            <div className="p-4 space-y-2">
-              <button
-                onClick={() => handleNavigation(homeRoute)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
-              >
-                <Home className="w-5 h-5" />
-                <span>Home</span>
-              </button>
-              <button
-                onClick={() => handleNavigation("/nishtha/check-in")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
-              >
-                <span className="text-lg">🧘</span>
-                <span>Nishtha</span>
-              </button>
-              <button
-                onClick={() => handleNavigation("/mehfil")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
-              >
-                <span className="text-lg">💬</span>
-                <span>Mehfil</span>
-              </button>
-              <button
-                onClick={() => handleNavigation("/study")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
-              >
-                <span className="text-lg">⏱️</span>
-                <span>Ekagramode</span>
-              </button>
-              <button
-                onClick={() => handleNavigation("/meditation")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
-              >
-                <span className="text-lg">🍃</span>
-                <span>Dhyan</span>
-              </button>
-              <button
-                onClick={() => handleNavigation("/profile")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
-              >
-                <Settings className="w-5 h-5" />
-                <span>Profile</span>
-              </button>
-              <button
-                onClick={() => handleNavigation("/study?view=analytics")}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-muted transition-colors text-left"
-              >
-                <span className="text-lg">📊</span>
-                <span>Analytics</span>
-              </button>
-            </div>
-          </div>
-        </>
+      {/* Global Navigation Sidebar */}
+      {showMobileMenu && (
+        <GlobalSidebar
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          homeRoute={homeRoute}
+        />
       )}
     </>
   );

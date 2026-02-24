@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import BreathingVisualizer from "@/components/meditation/BreathingVisualizer";
-import { useNavigate } from "react-router-dom";
 import meditationBg from "@/assets/meditation-bg.jpg";
 import { authService } from "@/utils/authService";
 import ThemeToggle from "@/components/ui/theme-toggle";
@@ -33,6 +32,8 @@ import { Button } from "@/components/ui/button";
 import BottomSheet from '@/components/ui/bottom-sheet';
 import FloatingActionButton from '@/components/ui/floating-action-button';
 import CourseBanner from '@/components/meditation/CourseBanner';
+import GlobalSidebar from "@/components/GlobalSidebar";
+import { Menu } from "lucide-react";
 
 interface Session {
     id: string;
@@ -131,7 +132,6 @@ const defaultDhyanSession: Session = {
 };
 
 export default function Meditation() {
-    const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
     const [selectedSession, setSelectedSession] = useState<Session>(defaultDhyanSession);
     const [isActive, setIsActive] = useState(false);
@@ -142,6 +142,7 @@ export default function Meditation() {
     const [showInstructions, setShowInstructions] = useState(false);
     const [showSessionList, setShowSessionList] = useState(false);
     const [showExercises, setShowExercises] = useState(false);
+    const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
 
 
 
@@ -331,10 +332,10 @@ export default function Meditation() {
             {/* Header */}
             <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-200/50 dark:border-white/5">
                 <button
-                    onClick={() => navigate("/landing")}
+                    onClick={() => setIsGlobalSidebarOpen(true)}
                     className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
                 >
-                    <Home className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                    <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
                 </button>
                 <div className="flex items-center gap-2">
                     <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Meditation</span>
@@ -704,6 +705,8 @@ export default function Meditation() {
                     position="bottom-right"
                 />
             </div>
+
+            <GlobalSidebar isOpen={isGlobalSidebarOpen} onClose={() => setIsGlobalSidebarOpen(false)} />
 
             {/* Mobile Bottom Sheets */}
             <BottomSheet

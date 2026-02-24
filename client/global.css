@@ -10,17 +10,21 @@
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
   .safe-area-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
   .pb-safe {
     padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   }
+
   .action-btn-nowrap {
     white-space: nowrap;
     overflow-wrap: normal;
     word-break: normal;
   }
+
   .action-label-mobile-hidden {
     white-space: nowrap;
   }
@@ -191,7 +195,10 @@
 }
 
 @layer base {
-  *, *::before, *::after {
+
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
     @apply border-border;
   }
@@ -201,7 +208,8 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  html, body {
+  html,
+  body {
     overflow-x: hidden;
     max-width: 100%;
   }
@@ -211,7 +219,12 @@
     font-family: 'Poppins', system-ui, -apple-system, sans-serif;
   }
 
-  img, picture, video, canvas, svg, iframe {
+  img,
+  picture,
+  video,
+  canvas,
+  svg,
+  iframe {
     display: block;
     max-width: 100%;
     height: auto;
@@ -219,7 +232,10 @@
 
   /* Prevent iOS zoom on inputs */
   @media screen and (max-width: 768px) {
-    input, textarea, select {
+
+    input,
+    textarea,
+    select {
       font-size: 16px !important;
     }
   }
@@ -234,9 +250,38 @@
     word-break: normal;
   }
 
-  pre, code {
+  pre,
+  code {
     overflow-x: auto;
     white-space: pre;
+  }
+
+  /* Style for native date/month picker icons */
+  input[type="month"]::-webkit-calendar-picker-indicator,
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 6px;
+    width: 28px;
+    height: 28px;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark input[type="month"]::-webkit-calendar-picker-indicator,
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    /* Pure white for dark mode */
+    filter: invert(1);
+  }
+
+  input[type="month"]::-webkit-calendar-picker-indicator:hover,
+  input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    background-color: rgba(45, 212, 191, 0.25);
+    transform: scale(1.1);
+  }
+
+  .dark input[type="month"]::-webkit-calendar-picker-indicator:hover,
+  .dark input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    background-color: rgba(45, 212, 191, 0.35);
   }
 }
 

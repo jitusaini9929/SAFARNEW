@@ -29,7 +29,7 @@ import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { focusTimerTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
 import MobileDrawer from "@/components/ui/mobile-drawer";
-import { Menu } from "lucide-react";
+import { Heart, MessageSquare, Wind, Menu } from "lucide-react";
 
 // Theme configuration
 interface FocusTheme {
@@ -430,26 +430,23 @@ export default function StudyWithMe() {
 
                     <div className={`p-4 ${isSidebarCollapsed ? 'px-2' : 'p-6'}`}>
                         {/* Logo */}
-                        <button
-                            onClick={() => navigate("/landing")}
-                            className={`flex items-center gap-3 mb-8 cursor-pointer group hover:opacity-80 transition-opacity ${isSidebarCollapsed ? 'justify-center' : ''}`}
-                            title="Back to Home"
-                        >
-                            <div
-                                className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-105"
-                                style={{ backgroundColor: currentTheme.accent }}
-                            >
-                                <Home className="w-5 h-5" />
-                            </div>
+                        <div className="flex items-center gap-2 mb-8">
                             {!isSidebarCollapsed && (
-                                <span
-                                    className="text-lg font-bold"
-                                    style={{ color: currentTheme.accent }}
+                                <button
+                                    onClick={() => navigate("/landing")}
+                                    className="flex items-center gap-2 group hover:opacity-80 transition-opacity"
+                                    title="Back to Home"
                                 >
-                                    Home
-                                </span>
+                                    <Home className="w-5 h-5" style={{ color: currentTheme.accent }} />
+                                    <span
+                                        className="text-lg font-bold"
+                                        style={{ color: currentTheme.accent }}
+                                    >
+                                        Home
+                                    </span>
+                                </button>
                             )}
-                        </button>
+                        </div>
 
                         {/* Navigation */}
                         <div className="space-y-2 flex-1">
@@ -466,6 +463,43 @@ export default function StudyWithMe() {
                             </button>
 
 
+
+                            {/* Global Navigation Section */}
+                            {!isSidebarCollapsed && (
+                                <div className="pt-4 pb-2">
+                                    <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Navigation</p>
+                                    <div className="space-y-1">
+                                        <button
+                                            onClick={() => navigate("/dashboard")}
+                                            className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-muted/50 transition-all group"
+                                        >
+                                            <LayoutDashboard className="w-4 h-4 text-indigo-500" />
+                                            <span className="text-sm font-medium">Dashboard</span>
+                                        </button>
+                                        <button
+                                            onClick={() => navigate("/nishtha/check-in")}
+                                            className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-muted/50 transition-all group"
+                                        >
+                                            <Heart className="w-4 h-4 text-emerald-500" />
+                                            <span className="text-sm font-medium">Nishtha</span>
+                                        </button>
+                                        <button
+                                            onClick={() => navigate("/mehfil")}
+                                            className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-muted/50 transition-all group"
+                                        >
+                                            <MessageSquare className="w-4 h-4 text-cyan-500" />
+                                            <span className="text-sm font-medium">Mehfil</span>
+                                        </button>
+                                        <button
+                                            onClick={() => navigate("/meditation")}
+                                            className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-muted/50 transition-all group"
+                                        >
+                                            <Wind className="w-4 h-4 text-teal-500" />
+                                            <span className="text-sm font-medium">Dhyan</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Theme Selector */}
                             <button
@@ -646,6 +680,8 @@ export default function StudyWithMe() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+
 
             {/* Tasks Sidebar */}
             <TasksSidebar
@@ -865,11 +901,45 @@ export default function StudyWithMe() {
                         </button>
                         <button
                             onClick={() => navigate("/landing")}
-                            className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all font-medium text-muted-foreground"
+                            className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all font-medium"
                         >
-                            <Home className="w-5 h-5" />
+                            <Home className="w-5 h-5" style={{ color: currentTheme.accent }} />
                             Back to Home
                         </button>
+
+                        <div className="pt-2 pb-1">
+                            <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Apps</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => navigate("/dashboard")}
+                                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-muted/30 hover:bg-muted/50 transition-all"
+                                >
+                                    <LayoutDashboard className="w-6 h-6 text-indigo-500" />
+                                    <span className="text-xs font-bold">Dashboard</span>
+                                </button>
+                                <button
+                                    onClick={() => navigate("/nishtha/check-in")}
+                                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-muted/30 hover:bg-muted/50 transition-all"
+                                >
+                                    <Heart className="w-6 h-6 text-emerald-500" />
+                                    <span className="text-xs font-bold">Nishtha</span>
+                                </button>
+                                <button
+                                    onClick={() => navigate("/mehfil")}
+                                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-muted/30 hover:bg-muted/50 transition-all"
+                                >
+                                    <MessageSquare className="w-6 h-6 text-cyan-500" />
+                                    <span className="text-xs font-bold">Mehfil</span>
+                                </button>
+                                <button
+                                    onClick={() => navigate("/meditation")}
+                                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-muted/30 hover:bg-muted/50 transition-all"
+                                >
+                                    <Wind className="w-6 h-6 text-teal-500" />
+                                    <span className="text-xs font-bold">Dhyan</span>
+                                </button>
+                            </div>
+                        </div>
                         <button
                             onClick={() => {
                                 setShowThemeSelector(true);

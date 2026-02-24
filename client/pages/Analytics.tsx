@@ -103,16 +103,17 @@ export default function Analytics() {
                             </h1>
                             <p className="text-sm text-muted-foreground mt-1">{monthLabel}</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-4 bg-card border-2 border-teal-500/20 p-4 sm:p-5 rounded-[24px] shadow-md transition-all hover:border-teal-500/30">
                             <input
                                 type="month"
+                                title="Select month for report"
                                 value={month}
                                 onChange={(e) => setMonth(e.target.value)}
-                                className="px-3 py-2 rounded-lg border bg-background"
+                                className="px-6 py-3 h-14 rounded-2xl border-2 border-teal-500/30 bg-background/50 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none transition-all text-lg font-bold min-w-[200px]"
                             />
                             <button
                                 onClick={handleFetch}
-                                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted"
+                                className="px-7 py-3 h-14 rounded-2xl border-2 border-teal-500/30 text-teal-600 dark:text-teal-400 text-lg font-bold hover:bg-teal-500/10 transition-colors flex items-center justify-center min-w-[100px]"
                             >
                                 Load
                             </button>
@@ -120,9 +121,9 @@ export default function Analytics() {
                                 onClick={handleGenerate}
                                 disabled={generating}
                                 aria-label={generating ? "Generating report" : "Generate report"}
-                                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-60 inline-flex items-center gap-2 action-btn-nowrap"
+                                className="px-8 py-3 h-14 rounded-2xl bg-teal-600 dark:bg-teal-500 text-white text-lg font-bold hover:opacity-90 disabled:opacity-60 inline-flex items-center gap-4 action-btn-nowrap shadow-lg shadow-teal-500/20 active:scale-95 transition-all"
                             >
-                                <RefreshCw className={`w-4 h-4 ${generating ? "animate-spin" : ""}`} />
+                                <RefreshCw className={`w-6 h-6 ${generating ? "animate-spin" : ""}`} />
                                 <span className="action-label-mobile-hidden">Generate</span>
                             </button>
                         </div>

@@ -243,26 +243,26 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone, 
             </div>
 
             {!hideActions && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: isPhone ? "auto" : 0, width: isPhone ? "100%" : "auto", justifyContent: isPhone ? "flex-end" : "flex-start" }}>
-                <button onClick={() => onRepeat(goal)} style={{ background: isDark ? "rgba(99, 102, 241, 0.1)" : T.indigo50, border: "none", borderRadius: 8, color: isDark ? T.indigo500 : T.indigo500, width: isPhone ? 60 : 44, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: isPhone ? 60 : undefined }} title="Repeat">Repeat</button>
-                <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
-                <button onClick={() => onDelete(goal.id)} style={{ background: isDark ? "rgba(249, 128, 128, 0.1)" : T.maroon100, border: "none", borderRadius: 8, color: isDark ? T.maroon400 : T.maroon800, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete">✕</button>
-                <button
-                    onClick={goal.completed ? undefined : () => onToggle(goal.id, goal.completed)}
-                    style={{
-                        width: isPhone ? 44 : 28, height: isPhone ? 44 : 28, borderRadius: "50%",
-                        border: `2px solid ${goal.completed ? T.teal600 : T.slate300}`,
-                        background: goal.completed ? T.teal600 : "transparent",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: goal.completed ? "default" : "pointer", flexShrink: 0, transition: "all 0.15s",
-                        opacity: goal.completed ? 0.85 : 1,
-                    }}
-                    title={goal.completed ? "Completed" : "Mark as done"}
-                    aria-disabled={goal.completed}
-                >
-                    {goal.completed && <span style={{ color: T.white, fontSize: 14, fontWeight: 900 }}>✓</span>}
-                </button>
-            </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: isPhone ? "auto" : 0, width: isPhone ? "100%" : "auto", justifyContent: isPhone ? "flex-end" : "flex-start" }}>
+                    <button onClick={() => onRepeat(goal)} style={{ background: isDark ? "rgba(99, 102, 241, 0.1)" : T.indigo50, border: "none", borderRadius: 8, color: isDark ? T.indigo500 : T.indigo500, width: isPhone ? 60 : 44, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: isPhone ? 60 : undefined }} title="Repeat">Repeat</button>
+                    <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
+                    <button onClick={() => onDelete(goal.id)} style={{ background: isDark ? "rgba(249, 128, 128, 0.1)" : T.maroon100, border: "none", borderRadius: 8, color: isDark ? T.maroon400 : T.maroon800, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete">✕</button>
+                    <button
+                        onClick={goal.completed ? undefined : () => onToggle(goal.id, goal.completed)}
+                        style={{
+                            width: isPhone ? 44 : 28, height: isPhone ? 44 : 28, borderRadius: "50%",
+                            border: `2px solid ${goal.completed ? T.teal600 : T.slate300}`,
+                            background: goal.completed ? T.teal600 : "transparent",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            cursor: goal.completed ? "default" : "pointer", flexShrink: 0, transition: "all 0.15s",
+                            opacity: goal.completed ? 0.85 : 1,
+                        }}
+                        title={goal.completed ? "Completed" : "Mark as done"}
+                        aria-disabled={goal.completed}
+                    >
+                        {goal.completed && <span style={{ color: T.white, fontSize: 14, fontWeight: 900 }}>✓</span>}
+                    </button>
+                </div>
             )}
         </div>
     );
@@ -549,9 +549,8 @@ export default function Goals() {
                 try {
                     await dataService.addGoal({
                         title: data.title,
-                        type: "daily",
                         scheduledDate: data.scheduledDate,
-                        description: data.description,
+                        description: data.description || "",
                     });
                     toast.success(`Goal copied to ${formatDate(data.scheduledDate)}`);
                     fetchGoals();
@@ -580,9 +579,8 @@ export default function Goals() {
             try {
                 await dataService.addGoal({
                     title: data.title,
-                    type: "daily",
                     scheduledDate: data.scheduledDate,
-                    description: data.description,
+                    description: data.description || "",
                 });
                 toast.success(modal?.mode === "repeat" ? "Goal repeated" : "Goal created");
                 fetchGoals();
@@ -694,7 +692,7 @@ export default function Goals() {
                     </header>
 
                     <div style={{ display: "flex", gap: 4, marginBottom: isPhone ? 16 : 24, background: isDark ? T.darkCard : T.white, borderRadius: 12, padding: 4, width: isPhone ? "100%" : "fit-content", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                        {[["goals", "Goals"], ["analytics", "Analytics"]].map(([k, l]) => (
+                        {[["goals", "Goals"], ["history", "History"], ["analytics", "Analytics"]].map(([k, l]) => (
                             <button key={k} onClick={() => setTab(k)} style={{
                                 background: tab === k ? `linear-gradient(135deg,${T.teal800},${T.teal900})` : "transparent",
                                 border: "none", borderRadius: 10, color: tab === k ? T.white : (isDark ? T.darkTextMuted : T.slate500),
@@ -707,97 +705,103 @@ export default function Goals() {
                     {tab === "analytics" ? <Analytics goals={goals} theme={theme} isPhone={isPhone} isTablet={isTablet} /> : (
                         <div style={{ display: "grid", gridTemplateColumns: contentGrid, gap: isPhone ? 14 : 24, alignItems: "start" }}>
                             <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 14 : 20 }}>
-                                <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                                    <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                            <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Pending</h3>
-                                            <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{pendingGoals.length}</span>
-                                        </div>
-                                    </div>
-
-                                    {pendingGoals.length === 0 ? (
-                                        <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
-                                            <div style={{ fontSize: 14, fontWeight: 600 }}>No pending goals.</div>
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            {pendingGoals.map((g, i) => (
-                                                <div key={g.id} style={{ borderBottom: i < pendingGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                    <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} />
+                                {tab === "goals" && (
+                                    <>
+                                        <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                                            <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                    <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Pending</h3>
+                                                    <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{pendingGoals.length}</span>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                            </div>
 
-                                <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                                    <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                            <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Recent</h3>
-                                            <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{completedGoalsDisplay.length}</span>
-                                        </div>
-                                    </div>
-
-                                    {completedGoalsDisplay.length === 0 ? (
-                                        <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
-                                            <div style={{ fontSize: 14, fontWeight: 600 }}>No completed goals yet.</div>
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            {completedGoalsDisplay.map((g, i) => (
-                                                <div key={g.id} style={{ borderBottom: i < completedGoalsDisplay.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                    <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} />
+                                            {pendingGoals.length === 0 ? (
+                                                <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
+                                                    <div style={{ fontSize: 14, fontWeight: 600 }}>No pending goals.</div>
                                                 </div>
-                                            ))}
+                                            ) : (
+                                                <div>
+                                                    {pendingGoals.map((g, i) => (
+                                                        <div key={g.id} style={{ borderBottom: i < pendingGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
+                                                            <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
 
-                                <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                                    <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                            <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Goal History</h3>
-                                            <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{historyDateFilter ? filteredHistoryGoals.length : historyGoals.length}</span>
+                                        <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                                            <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                    <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Recent Completed</h3>
+                                                    <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{completedGoalsDisplay.length}</span>
+                                                </div>
+                                            </div>
+
+                                            {completedGoalsDisplay.length === 0 ? (
+                                                <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
+                                                    <div style={{ fontSize: 14, fontWeight: 600 }}>No completed goals yet.</div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    {completedGoalsDisplay.map((g, i) => (
+                                                        <div key={g.id} style={{ borderBottom: i < completedGoalsDisplay.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
+                                                            <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{historyFilterLabel}</span>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                                <input
-                                                    type="date"
-                                                    value={historyDateFilter}
-                                                    onChange={e => setHistoryDateFilter(e.target.value)}
-                                                    min={historyMinKey}
-                                                    max={historyMaxKey}
-                                                    style={historyFilterInputStyle}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setHistoryDateFilter("")}
-                                                    disabled={!historyDateFilter}
-                                                    style={historyFilterButtonStyle}
-                                                >
-                                                    Clear
-                                                </button>
+                                    </>
+                                )}
+
+                                {tab === "history" && (
+                                    <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                                        <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                                <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Goal History</h3>
+                                                <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{historyDateFilter ? filteredHistoryGoals.length : historyGoals.length}</span>
+                                            </div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                                                <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{historyFilterLabel}</span>
+                                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                                    <input
+                                                        type="date"
+                                                        value={historyDateFilter}
+                                                        onChange={e => setHistoryDateFilter(e.target.value)}
+                                                        min={historyMinKey}
+                                                        max={historyMaxKey}
+                                                        style={historyFilterInputStyle}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setHistoryDateFilter("")}
+                                                        disabled={!historyDateFilter}
+                                                        style={historyFilterButtonStyle}
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {filteredHistoryGoals.length === 0 ? (
-                                        <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
-                                            <div style={{ fontSize: 14, fontWeight: 600 }}>
-                                                {historyGoals.length === 0 ? "No goals yet." : "No goals created on this date."}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div style={{ maxHeight: isPhone ? 280 : 360, overflowY: "auto" }}>
-                                            {filteredHistoryGoals.map((g, i) => (
-                                                <div key={g.id} style={{ borderBottom: i < filteredHistoryGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                    <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} createdMeta={getGoalCreatedLabel(g) ? `Created ${getGoalCreatedLabel(g)}` : ""} hideActions />
+                                        {filteredHistoryGoals.length === 0 ? (
+                                            <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
+                                                <div style={{ fontSize: 14, fontWeight: 600 }}>
+                                                    {historyGoals.length === 0 ? "No goals yet." : "No goals created on this date."}
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                            </div>
+                                        ) : (
+                                            <div style={{ maxHeight: isPhone ? 400 : 600, overflowY: "auto" }}>
+                                                {filteredHistoryGoals.map((g, i) => (
+                                                    <div key={g.id} style={{ borderBottom: i < filteredHistoryGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
+                                                        <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} createdMeta={getGoalCreatedLabel(g) ? `Created ${getGoalCreatedLabel(g)}` : ""} hideActions />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 14 : 18 }}>

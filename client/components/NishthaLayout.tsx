@@ -54,7 +54,7 @@ export default function NishthaLayout({
             <div className="flex flex-1 overflow-hidden relative">
                 <LeftSidebar />
                 <div className="flex flex-col flex-1 relative z-10 w-full overflow-hidden">
-                    <TopNavbar userName={userName} userAvatar={userAvatar} onLogout={onLogout} showMobileMenu={false} />
+                    <TopNavbar userName={userName} userAvatar={userAvatar} onLogout={onLogout} showMobileMenu={true} />
                     <main className="flex-1 overflow-y-auto overflow-x-hidden text-slate-800 dark:text-slate-100 flex flex-col">
                         <div className="flex-1 flex flex-col min-h-full pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
                             <div className="flex-1 flex flex-col relative z-0">
