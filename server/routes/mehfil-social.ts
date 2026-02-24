@@ -7,9 +7,87 @@ export const mehfilSocialRouter = Router();
 
 mehfilSocialRouter.use(requireAuth);
 
+const MEDITATION_VIDEO_SETTING_KEY = "meditation_latest_video";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/FRvwIgCs6T8?si=jQYpQXaKS9TkOIxf";
+const FALLBACK_ADMIN_EMAILS = ["steve123@gmail.com"];
+
+const getAdminEmailSet = () => {
+  const configured = String(process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  return new Set([...configured, ...FALLBACK_ADMIN_EMAILS]);
+};
+
+const getYoutubeVideoId = (url: string) => {
+  const match = String(url || "").match(
+    /(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+  );
+  return match?.[1] ?? null;
+};
+
 // ═══════════════════════════════════════════════════════════
 // SAVED POSTS
 // ═══════════════════════════════════════════════════════════
+
+mehfilSocialRouter.get("/meditation-video", async (_req: any, res: Response) => {
+  try {
+    const setting = await collections.appSettings().findOne({ key: MEDITATION_VIDEO_SETTING_KEY });
+    const configuredUrl = typeof setting?.value === "string" ? setting.value : "";
+    const videoUrl = getYoutubeVideoId(configuredUrl)
+      ? configuredUrl
+      : DEFAULT_MEDITATION_VIDEO_URL;
+
+    res.json({ videoUrl });
+  } catch (error) {
+    console.error("Error fetching meditation video setting:", error);
+    res.status(500).json({ error: "Failed to fetch meditation video setting" });
+  }
+});
+
+mehfilSocialRouter.post("/meditation-video", async (req: any, res: Response) => {
+  try {
+    const userId = req.session.userId;
+    const user = await collections.users().findOne(
+      { id: userId },
+      { projection: { id: 1, email: 1 } },
+    );
+    const email = String(user?.email || "").toLowerCase();
+    const adminEmails = getAdminEmailSet();
+
+    if (!email || !adminEmails.has(email)) {
+      return res.status(403).json({ error: "Unauthorized: Admin access required" });
+    }
+
+    const candidateUrl = String(req.body?.videoUrl || "").trim();
+    if (!getYoutubeVideoId(candidateUrl)) {
+      return res.status(400).json({ error: "Please provide a valid YouTube video link." });
+    }
+
+    const now = new Date();
+    await collections.appSettings().updateOne(
+      { key: MEDITATION_VIDEO_SETTING_KEY },
+      {
+        $set: {
+          key: MEDITATION_VIDEO_SETTING_KEY,
+          value: candidateUrl,
+          updated_at: now,
+          updated_by: userId,
+        },
+        $setOnInsert: {
+          created_at: now,
+        },
+      },
+      { upsert: true },
+    );
+
+    res.json({ success: true, videoUrl: candidateUrl });
+  } catch (error) {
+    console.error("Error updating meditation video setting:", error);
+    res.status(500).json({ error: "Failed to update meditation video setting" });
+  }
+});
 
 mehfilSocialRouter.get("/saved-posts", async (req: any, res: Response) => {
   try {

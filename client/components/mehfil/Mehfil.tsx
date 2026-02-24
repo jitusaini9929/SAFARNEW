@@ -27,6 +27,7 @@ interface MehfilProps {
 }
 
 type MehfilFeedRoom = MehfilRoom | 'ALL';
+const FEED_PAGE_SIZE = 100;
 
 interface PostingBanPayload {
   isActive: boolean;
@@ -68,7 +69,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
-  const [activeRoom, setActiveRoom] = useState<MehfilFeedRoom>('ACADEMIC');
+  const [activeRoom, setActiveRoom] = useState<MehfilFeedRoom>('ALL');
   const [postingBan, setPostingBan] = useState<PostingBanPayload | null>(null);
   const [banRemainingMs, setBanRemainingMs] = useState(0);
 
@@ -281,7 +282,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       }
 
       socket.emit('joinRoom', { room: activeRoom });
-      socket.emit('loadThoughts', { page: 1, limit: 20, room: activeRoom });
+      socket.emit('loadThoughts', { page: 1, limit: FEED_PAGE_SIZE, room: activeRoom });
     };
 
     if (socket.connected) {

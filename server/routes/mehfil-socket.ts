@@ -33,6 +33,8 @@ const socketToUser = new Map<string, string>();
 
 const DEFAULT_ROOM: MehfilRoom = 'ACADEMIC';
 const ROOM_ORDER: MehfilRoom[] = ['ACADEMIC', 'REFLECTIVE'];
+const DEFAULT_THOUGHTS_PAGE_SIZE = 100;
+const MAX_THOUGHTS_PAGE_SIZE = 100;
 const MIN_THOUGHT_LENGTH = 15;
 const MAX_THOUGHT_LENGTH = 5000;
 const BULLSHIT_TTL_HOURS = Number(process.env.MEHFIL_BULLSHIT_TTL_HOURS || 24);
@@ -459,8 +461,13 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
 
     socket.on('loadThoughts', async (data: { page?: number; limit?: number; room?: string }) => {
       try {
-        const page = data?.page || 1;
-        const limit = Math.min(data?.limit || 20, 50);
+        const requestedPage = Number(data?.page ?? 1);
+        const page = Number.isFinite(requestedPage) ? Math.max(1, Math.floor(requestedPage)) : 1;
+        const requestedLimit = Number(data?.limit ?? DEFAULT_THOUGHTS_PAGE_SIZE);
+        const normalizedLimit = Number.isFinite(requestedLimit)
+          ? Math.max(1, Math.floor(requestedLimit))
+          : DEFAULT_THOUGHTS_PAGE_SIZE;
+        const limit = Math.min(normalizedLimit, MAX_THOUGHTS_PAGE_SIZE);
         const skip = (page - 1) * limit;
         const room = normalizeFeedRoom(data?.room);
 

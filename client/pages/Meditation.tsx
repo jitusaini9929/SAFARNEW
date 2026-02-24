@@ -23,6 +23,8 @@ import {
     Image,
     List,
     Dumbbell,
+    ExternalLink,
+    Menu,
     X,
 } from "lucide-react";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
@@ -33,7 +35,6 @@ import BottomSheet from '@/components/ui/bottom-sheet';
 import FloatingActionButton from '@/components/ui/floating-action-button';
 import CourseBanner from '@/components/meditation/CourseBanner';
 import GlobalSidebar from "@/components/GlobalSidebar";
-import { Menu } from "lucide-react";
 
 interface Session {
     id: string;
@@ -120,6 +121,27 @@ const sessions: Session[] = [
 
 const exercises = sessions; // Alias for mobile view compatibility
 
+const ADMIN_EMAIL = "steve123@gmail.com";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/FRvwIgCs6T8?si=jQYpQXaKS9TkOIxf";
+const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.png";
+
+const getYoutubeVideoId = (url: string) => {
+    const match = String(url || "").match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return match?.[1] ?? null;
+};
+
+const getYoutubeThumbnailPair = (url: string) => {
+    const id = getYoutubeVideoId(url);
+    if (!id) {
+        return { primary: DEFAULT_VIDEO_THUMBNAIL, fallback: DEFAULT_VIDEO_THUMBNAIL };
+    }
+
+    return {
+        primary: `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
+        fallback: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+    };
+};
+
 const defaultDhyanSession: Session = {
     id: "dhyan-custom",
     title: "Dhyan",
@@ -143,6 +165,13 @@ export default function Meditation() {
     const [showSessionList, setShowSessionList] = useState(false);
     const [showExercises, setShowExercises] = useState(false);
     const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
+    const [meditationVideoUrl, setMeditationVideoUrl] = useState(DEFAULT_MEDITATION_VIDEO_URL);
+    const [videoDraftUrl, setVideoDraftUrl] = useState(DEFAULT_MEDITATION_VIDEO_URL);
+    const [videoSettingsError, setVideoSettingsError] = useState("");
+    const [isSavingVideo, setIsSavingVideo] = useState(false);
+    const [videoThumbnailSrc, setVideoThumbnailSrc] = useState(() => getYoutubeThumbnailPair(DEFAULT_MEDITATION_VIDEO_URL).primary);
+    const isMeditationAdmin = String(user?.email || "").toLowerCase() === ADMIN_EMAIL;
+    const { primary: primaryVideoThumbnail, fallback: fallbackVideoThumbnail } = getYoutubeThumbnailPair(meditationVideoUrl);
 
 
 
@@ -167,6 +196,47 @@ export default function Meditation() {
         };
         fetchUser();
     }, []);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const loadMeditationVideo = async () => {
+            try {
+                const response = await fetch("/api/mehfil/meditation-video", {
+                    method: "GET",
+                    credentials: "include",
+                });
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch meditation video.");
+                }
+
+                const data = await response.json().catch(() => null);
+                const nextVideoUrl = typeof data?.videoUrl === "string" ? data.videoUrl.trim() : "";
+                const safeVideoUrl = getYoutubeVideoId(nextVideoUrl) ? nextVideoUrl : DEFAULT_MEDITATION_VIDEO_URL;
+
+                if (!isCancelled) {
+                    setMeditationVideoUrl(safeVideoUrl);
+                    setVideoDraftUrl(safeVideoUrl);
+                    setVideoSettingsError("");
+                }
+            } catch {
+                if (!isCancelled) {
+                    setMeditationVideoUrl(DEFAULT_MEDITATION_VIDEO_URL);
+                    setVideoDraftUrl(DEFAULT_MEDITATION_VIDEO_URL);
+                }
+            }
+        };
+
+        loadMeditationVideo();
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        setVideoThumbnailSrc(primaryVideoThumbnail);
+    }, [primaryVideoThumbnail]);
 
     // Guided tour integration
     const { startTour } = useGuidedTour();
@@ -296,6 +366,45 @@ export default function Meditation() {
         setShowInstructions(false);
         setIsModalOpen(true);
         setIsActive(true);
+    };
+
+    const handleSaveMeditationVideo = async () => {
+        if (!isMeditationAdmin) return;
+
+        const trimmedUrl = videoDraftUrl.trim();
+        if (!getYoutubeVideoId(trimmedUrl)) {
+            setVideoSettingsError("Please enter a valid YouTube video URL.");
+            return;
+        }
+
+        setIsSavingVideo(true);
+        setVideoSettingsError("");
+
+        try {
+            const response = await fetch("/api/mehfil/meditation-video", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ videoUrl: trimmedUrl }),
+            });
+
+            const payload = await response.json().catch(() => null);
+            if (!response.ok) {
+                throw new Error(payload?.error || payload?.message || "Failed to update meditation video.");
+            }
+
+            const nextUrl = typeof payload?.videoUrl === "string" ? payload.videoUrl.trim() : trimmedUrl;
+            if (!getYoutubeVideoId(nextUrl)) {
+                throw new Error("Server returned an invalid YouTube URL.");
+            }
+
+            setMeditationVideoUrl(nextUrl);
+            setVideoDraftUrl(nextUrl);
+        } catch (error: any) {
+            setVideoSettingsError(error?.message || "Unable to update meditation video right now.");
+        } finally {
+            setIsSavingVideo(false);
+        }
     };
 
     const progress = selectedSession.id === "dhyan-custom"
@@ -463,6 +572,61 @@ export default function Meditation() {
                         user={user ? { name: user.name, email: user.email } : null}
                         courseId="safar-30"
                     />
+
+                    <section className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-[#11131C]/80 p-4 shadow-lg shadow-slate-300/20 dark:shadow-black/20">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Latest Dhyan Video</h3>
+
+                        <a
+                            href={meditationVideoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 block rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 hover:opacity-95 transition-opacity"
+                        >
+                            <img
+                                loading="lazy"
+                                src={videoThumbnailSrc}
+                                alt="Latest Dhyan YouTube video thumbnail"
+                                className="w-full h-40 object-cover"
+                                onError={() => {
+                                    if (videoThumbnailSrc !== fallbackVideoThumbnail) {
+                                        setVideoThumbnailSrc(fallbackVideoThumbnail);
+                                        return;
+                                    }
+                                    setVideoThumbnailSrc(DEFAULT_VIDEO_THUMBNAIL);
+                                }}
+                            />
+                        </a>
+
+                        <p className="mt-2 text-xs italic text-slate-500 dark:text-slate-400">Click to visit the video</p>
+
+                        {isMeditationAdmin && (
+                            <div className="mt-4 space-y-2">
+                                <label htmlFor="meditation-video-url" className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                    Admin video link
+                                </label>
+                                <input
+                                    id="meditation-video-url"
+                                    type="url"
+                                    value={videoDraftUrl}
+                                    onChange={(event) => setVideoDraftUrl(event.target.value)}
+                                    placeholder="Paste YouTube video URL"
+                                    className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                />
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={handleSaveMeditationVideo}
+                                    disabled={isSavingVideo}
+                                    className="w-full"
+                                >
+                                    {isSavingVideo ? "Saving..." : "Update Video"}
+                                </Button>
+                                {videoSettingsError && (
+                                    <p className="text-xs text-red-500">{videoSettingsError}</p>
+                                )}
+                            </div>
+                        )}
+                    </section>
 
                     {/* Audio Library Placeholder */}
                     <div className="flex-1 rounded-2xl border-2 border-dashed border-slate-200/70 dark:border-white/10 p-5 flex flex-col items-center justify-center text-center gap-3 min-h-[120px]">
