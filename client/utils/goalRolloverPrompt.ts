@@ -19,7 +19,7 @@ export async function runGoalRolloverPromptFlow(userId?: string | null) {
         }
 
         for (const goal of prompts) {
-            const shouldRetry = window.confirm(`You missed "${goal.text}". Do you want to try again today?`);
+            const shouldRetry = window.confirm(`You missed "${goal.text}" goal yesterday, would you like to reschedule it for today?`);
             if (shouldRetry) {
                 await dataService.respondToGoalRollover(goal.id, "retry");
                 toast.success(`Rolled over "${goal.text}" for today.`);
