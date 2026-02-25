@@ -326,11 +326,10 @@ router.post('/login', async (req: any, res) => {
 
         req.session.userId = authenticatedUser.id;
 
-        // Handle "Remember Me" - 30 days if checked, 24 hours if not
-        const rememberMe = req.body.rememberMe === true;
-        req.session.cookie.maxAge = rememberMe
-            ? 30 * 24 * 60 * 60 * 1000 // 30 days
-            : 24 * 60 * 60 * 1000;     // 24 hours
+        // Always use 30-day sessions - matching the global session cookie config.
+        // Rolling sessions (rolling: true) auto-renew on activity, so active
+        // users are never logged out without explicitly logging out themselves.
+        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days always
 
         console.log(`[LOGIN] Session userId set: ${req.session.userId}, RememberMe: ${rememberMe}, MaxAge: ${req.session.cookie.maxAge}`);
 

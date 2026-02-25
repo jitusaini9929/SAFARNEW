@@ -6,8 +6,37 @@ interface AuthResponse {
   streaks?: Streak;
 }
 
+const AUTH_CACHE_KEY = "safar.cached_user";
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function readCachedUser(): User | null {
+  if (typeof window === "undefined") return null;
+  try {
+    // Use localStorage so the cache persists across browser restarts/tab closes.
+    // sessionStorage was wiped on tab close, causing unnecessary re-auth on open.
+    const raw = window.localStorage.getItem(AUTH_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed.id === "string" ? (parsed as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUser(user: User | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!user) {
+      window.localStorage.removeItem(AUTH_CACHE_KEY);
+      return;
+    }
+    window.localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(user));
+  } catch {
+    // Non-fatal cache failure
+  }
 }
 
 function emitAuthChanged(isAuthenticated: boolean, user?: User | null) {
@@ -35,6 +64,7 @@ export const authService = {
     }
 
     const user = await response.json();
+    writeCachedUser(user);
     emitAuthChanged(true, user);
     return user;
   },
@@ -70,6 +100,7 @@ export const authService = {
     }
 
     const user = await response.json();
+    writeCachedUser(user);
     emitAuthChanged(true, user);
     return user;
   },
@@ -79,6 +110,7 @@ export const authService = {
       method: "POST",
       credentials: "include",
     });
+    writeCachedUser(null);
     emitAuthChanged(false, null);
     resetCsrfToken();
   },
@@ -88,10 +120,32 @@ export const authService = {
       const response = await apiFetch("/api/auth/me", {
         credentials: "include",
       });
-      if (!response.ok) return null;
+
+      if (response.status === 401 || response.status === 403) {
+        writeCachedUser(null);
+        emitAuthChanged(false, null);
+        return null;
+      }
+
+      if (!response.ok) {
+        const cachedUser = readCachedUser();
+        if (cachedUser) {
+          return { user: cachedUser };
+        }
+        throw new Error(`Auth check failed with status ${response.status}`);
+      }
+
       const data = await response.json();
+      if (data?.user) {
+        writeCachedUser(data.user);
+        emitAuthChanged(true, data.user);
+      }
       return data;
     } catch {
+      const cachedUser = readCachedUser();
+      if (cachedUser) {
+        return { user: cachedUser };
+      }
       return null;
     }
   },

@@ -80,7 +80,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const [isPiPActive, setIsPiPActive] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const pipIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const pipIntervalRef = useRef<number | undefined>(undefined);
+    const pipRvfcHandleRef = useRef<number | undefined>(undefined);
     const suppressPiPVideoEventsRef = useRef(false);
     const isPiPActiveRef = useRef(false);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -501,6 +502,12 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
                 setIsPiPActive(false);
+                // Stop rVFC loop
+                if (pipRvfcHandleRef.current !== undefined && videoRef.current && 'cancelVideoFrameCallback' in videoRef.current) {
+                    (videoRef.current as any).cancelVideoFrameCallback(pipRvfcHandleRef.current);
+                    pipRvfcHandleRef.current = undefined;
+                }
+                // Stop fallback interval
                 if (pipIntervalRef.current) {
                     clearInterval(pipIntervalRef.current);
                     pipIntervalRef.current = undefined;
@@ -589,19 +596,46 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 await videoRef.current.requestPictureInPicture();
                 setIsPiPActive(true);
 
-                // Start Interval Loop (500ms)
-                drawToCanvas(); // Draw once immediately
-                pipIntervalRef.current = setInterval(() => {
-                    drawToCanvas();
-                    // Keep the stream alive only while timer is running.
-                    if (isRunningRef.current && videoRef.current?.paused) {
-                        suppressPiPVideoEventsRef.current = true;
-                        videoRef.current.play().catch(() => { });
-                        window.setTimeout(() => {
-                            suppressPiPVideoEventsRef.current = false;
-                        }, 0);
+                // Draw once immediately so the PiP window isn't blank.
+                drawToCanvas();
+
+                // Use requestVideoFrameCallback (rVFC) when available — it fires on every
+                // video frame even when the browser tab is minimized or the user has
+                // switched to another app, as long as the PiP window is active.
+                // Falls back to setInterval on browsers that don't support rVFC yet.
+                const startPiPDrawLoop = () => {
+                    const videoEl = videoRef.current;
+                    if (!videoEl || !isPiPActiveRef.current) return;
+
+                    if ('requestVideoFrameCallback' in videoEl) {
+                        // rVFC loop — background-safe
+                        const loop = () => {
+                            drawToCanvas();
+                            // Keep stream alive while timer is running
+                            if (isRunningRef.current && videoEl.paused) {
+                                suppressPiPVideoEventsRef.current = true;
+                                videoEl.play().catch(() => { });
+                                window.setTimeout(() => { suppressPiPVideoEventsRef.current = false; }, 0);
+                            }
+                            if (isPiPActiveRef.current) {
+                                pipRvfcHandleRef.current = (videoEl as any).requestVideoFrameCallback(loop);
+                            }
+                        };
+                        pipRvfcHandleRef.current = (videoEl as any).requestVideoFrameCallback(loop);
+                    } else {
+                        // Fallback: plain interval (may be throttled in background tab)
+                        const fallbackEl = videoEl as HTMLVideoElement;
+                        pipIntervalRef.current = window.setInterval(() => {
+                            drawToCanvas();
+                            if (isRunningRef.current && fallbackEl.paused) {
+                                suppressPiPVideoEventsRef.current = true;
+                                fallbackEl.play().catch(() => { });
+                                window.setTimeout(() => { suppressPiPVideoEventsRef.current = false; }, 0);
+                            }
+                        }, 500);
                     }
-                }, 500);
+                };
+                startPiPDrawLoop();
             }
         } catch (err) {
             console.error("PiP Error:", err);
@@ -635,20 +669,30 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
     // Cleanup PiP
     useEffect(() => {
-        const onLeavePiP = () => {
-            setIsPiPActive(false);
-            if (pipIntervalRef.current) {
+        const stopPiPLoop = () => {
+            const videoEl = videoRef.current;
+            // Cancel rVFC loop
+            if (pipRvfcHandleRef.current !== undefined && videoEl && 'cancelVideoFrameCallback' in videoEl) {
+                (videoEl as any).cancelVideoFrameCallback(pipRvfcHandleRef.current);
+                pipRvfcHandleRef.current = undefined;
+            }
+            // Cancel fallback interval
+            if (pipIntervalRef.current !== undefined) {
                 clearInterval(pipIntervalRef.current);
                 pipIntervalRef.current = undefined;
             }
         };
+
+        const onLeavePiP = () => {
+            setIsPiPActive(false);
+            stopPiPLoop();
+        };
+
         const videoEl = videoRef.current;
         videoEl?.addEventListener("leavepictureinpicture", onLeavePiP);
         return () => {
             videoEl?.removeEventListener("leavepictureinpicture", onLeavePiP);
-            if (pipIntervalRef.current) {
-                clearInterval(pipIntervalRef.current);
-            }
+            stopPiPLoop();
             if (audioContextRef.current) {
                 audioContextRef.current.close().catch(() => { });
                 audioContextRef.current = null;
