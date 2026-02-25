@@ -37,7 +37,7 @@ interface Sandesh {
 }
 
 const SandeshCard = () => {
-    const [sandesh, setSandesh] = useState<Sandesh | null>(null);
+    const [sandeshes, setSandeshes] = useState<Sandesh[]>([]);
     const [loading, setLoading] = useState(true);
     const [isPosting, setIsPosting] = useState(false);
     const [newContent, setNewContent] = useState('');
@@ -63,15 +63,14 @@ const SandeshCard = () => {
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Reaction & Comment State
-    const [likeCount, setLikeCount] = useState(0);
-    const [userLiked, setUserLiked] = useState(false);
-    const [comments, setComments] = useState<SandeshComment[]>([]);
-    const [commentCount, setCommentCount] = useState(0);
-    const [showComments, setShowComments] = useState(false);
-    const [newComment, setNewComment] = useState('');
-    const [isPostingComment, setIsPostingComment] = useState(false);
-    const [isLiking, setIsLiking] = useState(false);
-    const commentInputRef = useRef<HTMLInputElement>(null);
+    const [likeCountById, setLikeCountById] = useState<Record<string, number>>({});
+    const [userLikedById, setUserLikedById] = useState<Record<string, boolean>>({});
+    const [commentsById, setCommentsById] = useState<Record<string, SandeshComment[]>>({});
+    const [commentCountById, setCommentCountById] = useState<Record<string, number>>({});
+    const [showCommentsById, setShowCommentsById] = useState<Record<string, boolean>>({});
+    const [newCommentById, setNewCommentById] = useState<Record<string, string>>({});
+    const [isPostingCommentById, setIsPostingCommentById] = useState<Record<string, boolean>>({});
+    const [isLikingById, setIsLikingById] = useState<Record<string, boolean>>({});
 
 
 
@@ -80,7 +79,10 @@ const SandeshCard = () => {
             const res = await fetch(`${API_URL}/mehfil/sandesh`, { credentials: 'include' });
             if (res.ok) {
                 const data = await res.json();
-                setSandesh(data.sandesh);
+                const incomingSandeshes: Sandesh[] = Array.isArray(data.sandeshes)
+                    ? data.sandeshes
+                    : (data.sandesh ? [data.sandesh] : []);
+                setSandeshes(incomingSandeshes);
 
                 // Update admin status from backend source of truth
                 if (typeof data.isAdmin === 'boolean') {
@@ -88,14 +90,17 @@ const SandeshCard = () => {
                 }
 
                 // Check for new announcement
-                if (data.sandesh) {
+                if (incomingSandeshes.length > 0) {
+                    const latestSandesh = incomingSandeshes[0];
                     const lastReadId = localStorage.getItem('mehfil_last_read_sandesh_id');
-                    if (lastReadId !== data.sandesh.id) {
+                    if (lastReadId !== latestSandesh.id) {
                         setHasUnread(true);
                     }
-                    // Fetch reactions & comment count
-                    fetchReactions(data.sandesh.id);
-                    fetchCommentCount(data.sandesh.id);
+                    // Fetch reactions & comment counts for visible updates
+                    for (const item of incomingSandeshes) {
+                        fetchReactions(item.id);
+                        fetchCommentCount(item.id);
+                    }
                 }
             }
         } catch (err) {
@@ -110,8 +115,8 @@ const SandeshCard = () => {
             const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/reactions`, { credentials: 'include' });
             if (res.ok) {
                 const data = await res.json();
-                setLikeCount(data.count);
-                setUserLiked(data.userLiked);
+                setLikeCountById(prev => ({ ...prev, [sandeshId]: data.count }));
+                setUserLikedById(prev => ({ ...prev, [sandeshId]: data.userLiked }));
             }
         } catch (err) {
             console.error('Failed to fetch reactions', err);
@@ -123,68 +128,70 @@ const SandeshCard = () => {
             const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/comments`, { credentials: 'include' });
             if (res.ok) {
                 const data = await res.json();
-                setCommentCount(data.comments?.length || 0);
-                setComments(data.comments || []);
+                const nextComments = data.comments || [];
+                setCommentCountById(prev => ({ ...prev, [sandeshId]: nextComments.length || 0 }));
+                setCommentsById(prev => ({ ...prev, [sandeshId]: nextComments }));
             }
         } catch (err) {
             console.error('Failed to fetch comments', err);
         }
     };
 
-    const handleLike = async () => {
-        if (!sandesh || isLiking) return;
-        setIsLiking(true);
+    const handleLike = async (sandeshId: string) => {
+        if (isLikingById[sandeshId]) return;
+        setIsLikingById(prev => ({ ...prev, [sandeshId]: true }));
 
         // Optimistic update
-        const wasLiked = userLiked;
-        setUserLiked(!wasLiked);
-        setLikeCount(prev => wasLiked ? prev - 1 : prev + 1);
+        const wasLiked = !!userLikedById[sandeshId];
+        setUserLikedById(prev => ({ ...prev, [sandeshId]: !wasLiked }));
+        setLikeCountById(prev => ({ ...prev, [sandeshId]: wasLiked ? (prev[sandeshId] || 0) - 1 : (prev[sandeshId] || 0) + 1 }));
 
         try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandesh.id}/react`, {
+            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/react`, {
                 method: 'POST',
                 credentials: 'include',
             });
             if (res.ok) {
                 const data = await res.json();
-                setLikeCount(data.count);
-                setUserLiked(data.liked);
+                setLikeCountById(prev => ({ ...prev, [sandeshId]: data.count }));
+                setUserLikedById(prev => ({ ...prev, [sandeshId]: data.liked }));
             } else {
                 // Revert on failure
-                setUserLiked(wasLiked);
-                setLikeCount(prev => wasLiked ? prev + 1 : prev - 1);
+                setUserLikedById(prev => ({ ...prev, [sandeshId]: wasLiked }));
+                setLikeCountById(prev => ({ ...prev, [sandeshId]: wasLiked ? (prev[sandeshId] || 0) + 1 : (prev[sandeshId] || 0) - 1 }));
             }
         } catch (err) {
-            setUserLiked(wasLiked);
-            setLikeCount(prev => wasLiked ? prev + 1 : prev - 1);
+            setUserLikedById(prev => ({ ...prev, [sandeshId]: wasLiked }));
+            setLikeCountById(prev => ({ ...prev, [sandeshId]: wasLiked ? (prev[sandeshId] || 0) + 1 : (prev[sandeshId] || 0) - 1 }));
         } finally {
-            setIsLiking(false);
+            setIsLikingById(prev => ({ ...prev, [sandeshId]: false }));
         }
     };
 
-    const handlePostComment = async () => {
-        if (!sandesh || !newComment.trim() || isPostingComment) return;
-        setIsPostingComment(true);
+    const handlePostComment = async (sandeshId: string) => {
+        const content = (newCommentById[sandeshId] || '').trim();
+        if (!content || isPostingCommentById[sandeshId]) return;
+        setIsPostingCommentById(prev => ({ ...prev, [sandeshId]: true }));
 
         try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandesh.id}/comments`, {
+            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: newComment.trim() }),
+                body: JSON.stringify({ content }),
                 credentials: 'include',
             });
             if (res.ok) {
                 const data = await res.json();
-                setComments(prev => [...prev, data.comment]);
-                setCommentCount(prev => prev + 1);
-                setNewComment('');
+                setCommentsById(prev => ({ ...prev, [sandeshId]: [...(prev[sandeshId] || []), data.comment] }));
+                setCommentCountById(prev => ({ ...prev, [sandeshId]: (prev[sandeshId] || 0) + 1 }));
+                setNewCommentById(prev => ({ ...prev, [sandeshId]: '' }));
             } else {
                 toast.error('Failed to post comment');
             }
         } catch (err) {
             toast.error('Error posting comment');
         } finally {
-            setIsPostingComment(false);
+            setIsPostingCommentById(prev => ({ ...prev, [sandeshId]: false }));
         }
     };
 
@@ -196,8 +203,8 @@ const SandeshCard = () => {
     }, []);
 
     const markAsRead = () => {
-        if (sandesh && hasUnread) {
-            localStorage.setItem('mehfil_last_read_sandesh_id', sandesh.id);
+        if (sandeshes.length > 0 && hasUnread) {
+            localStorage.setItem('mehfil_last_read_sandesh_id', sandeshes[0].id);
             setHasUnread(false);
         }
     };
@@ -388,7 +395,6 @@ const SandeshCard = () => {
 
             if (res.ok) {
                 toast.success('Update deleted successfully');
-                setSandesh(null); // Clear displayed sandesh
                 fetchSandesh(); // Refresh to get next latest if any
             } else {
                 toast.error('Failed to delete update');
@@ -572,8 +578,9 @@ const SandeshCard = () => {
             )}
 
             <div className="space-y-4 pr-1 h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                {sandesh ? (
-                    <div className="backdrop-blur-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 rounded-2xl p-6 border border-white/20 group hover:-translate-y-1 shadow-lg">
+                {sandeshes.length > 0 ? (
+                    sandeshes.map((sandesh) => (
+                    <div key={sandesh.id} className="backdrop-blur-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 rounded-2xl p-6 border border-white/20 group hover:-translate-y-1 shadow-lg">
 
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center text-white shadow-lg ring-2 ring-white/20">
@@ -732,44 +739,45 @@ const SandeshCard = () => {
                             <div className="flex items-center gap-4">
                                 {/* Like Button */}
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); handleLike(); }}
-                                    disabled={isLiking}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${userLiked
+                                    onClick={(e) => { e.stopPropagation(); handleLike(sandesh.id); }}
+                                    disabled={!!isLikingById[sandesh.id]}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${userLikedById[sandesh.id]
                                         ? 'bg-rose-500/15 text-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.15)]'
                                         : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-rose-400'
                                         }`}
                                 >
-                                    <Heart className={`w-4 h-4 transition-all duration-300 ${userLiked ? 'fill-current scale-110' : ''}`} />
-                                    <span className="text-xs">{likeCount > 0 ? likeCount : ''}</span>
+                                    <Heart className={`w-4 h-4 transition-all duration-300 ${userLikedById[sandesh.id] ? 'fill-current scale-110' : ''}`} />
+                                    <span className="text-xs">{(likeCountById[sandesh.id] || 0) > 0 ? likeCountById[sandesh.id] : ''}</span>
                                 </button>
 
                                 {/* Comment Toggle */}
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        setShowComments(!showComments);
-                                        if (!showComments && sandesh) {
+                                        const shouldShow = !showCommentsById[sandesh.id];
+                                        setShowCommentsById(prev => ({ ...prev, [sandesh.id]: shouldShow }));
+                                        if (shouldShow) {
                                             fetchCommentCount(sandesh.id);
                                         }
                                     }}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${showComments
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${showCommentsById[sandesh.id]
                                         ? 'bg-indigo-500/15 text-indigo-400'
                                         : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-indigo-400'
                                         }`}
                                 >
                                     <MessageCircle className="w-4 h-4" />
-                                    <span className="text-xs">{commentCount > 0 ? commentCount : ''}</span>
-                                    {showComments ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                    <span className="text-xs">{(commentCountById[sandesh.id] || 0) > 0 ? commentCountById[sandesh.id] : ''}</span>
+                                    {showCommentsById[sandesh.id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                                 </button>
                             </div>
 
                             {/* Comments Section */}
-                            {showComments && (
+                            {showCommentsById[sandesh.id] && (
                                 <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
                                     {/* Comment List */}
-                                    {comments.length > 0 ? (
+                                    {(commentsById[sandesh.id] || []).length > 0 ? (
                                         <div className="space-y-3 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent mb-3">
-                                            {comments.map(comment => (
+                                            {(commentsById[sandesh.id] || []).map(comment => (
                                                 <div key={comment.id} className="flex gap-2.5 group/comment">
                                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-white/10">
                                                         {comment.authorAvatar ? (
@@ -797,14 +805,13 @@ const SandeshCard = () => {
                                     {/* Comment Input */}
                                     <div className="flex gap-2 items-center">
                                         <input
-                                            ref={commentInputRef}
                                             type="text"
-                                            value={newComment}
-                                            onChange={(e) => setNewComment(e.target.value)}
+                                            value={newCommentById[sandesh.id] || ''}
+                                            onChange={(e) => setNewCommentById(prev => ({ ...prev, [sandesh.id]: e.target.value }))}
                                             onKeyDown={(e) => {
                                                 if (e.key === 'Enter' && !e.shiftKey) {
                                                     e.preventDefault();
-                                                    handlePostComment();
+                                                    handlePostComment(sandesh.id);
                                                 }
                                             }}
                                             placeholder="Write a comment..."
@@ -812,17 +819,18 @@ const SandeshCard = () => {
                                         />
                                         <Button
                                             size="sm"
-                                            onClick={handlePostComment}
-                                            disabled={isPostingComment || !newComment.trim()}
+                                            onClick={() => handlePostComment(sandesh.id)}
+                                            disabled={!!isPostingCommentById[sandesh.id] || !(newCommentById[sandesh.id] || '').trim()}
                                             className="h-9 w-9 p-0 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white shrink-0 transition-all disabled:opacity-30"
                                         >
-                                            {isPostingComment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                            {isPostingCommentById[sandesh.id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                                         </Button>
                                     </div>
                                 </div>
                             )}
                         </div>
                     </div>
+                    ))
                 ) : (
                     <div className="text-center py-12 text-slate-400 text-sm italic flex flex-col items-center gap-2">
                         <Bell className="w-8 h-8 opacity-20" />

@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
-// Get latest Sandesh
+// Get Sandesh list (admin: all, users: latest 5)
 router.get('/', async (req: Request, res: Response) => {
     try {
         let isAdmin = false;
@@ -26,19 +26,22 @@ router.get('/', async (req: Request, res: Response) => {
             }
         }
 
-        const sandesh = await collections.sandeshMessages()
+        const sandeshQuery = collections.sandeshMessages()
             .find({})
-            .sort({ created_at: -1 })
-            .limit(1)
-            .toArray();
+            .sort({ created_at: -1 });
+        if (!isAdmin) {
+            sandeshQuery.limit(5);
+        }
+        const sandeshes = await sandeshQuery.toArray();
 
-        // If no sandesh, return null
-        if (!sandesh || sandesh.length === 0) {
-            return res.json({ sandesh: null, isAdmin });
+        // If no sandesh, return empty list
+        if (!sandeshes || sandeshes.length === 0) {
+            return res.json({ sandesh: null, sandeshes: [], isAdmin });
         }
 
         res.json({
-            sandesh: sandesh[0],
+            sandesh: sandeshes[0],
+            sandeshes,
             isAdmin
         });
     } catch (error) {
