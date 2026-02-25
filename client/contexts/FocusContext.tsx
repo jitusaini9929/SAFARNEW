@@ -574,6 +574,15 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                         navigator.mediaSession.setActionHandler("pause", () => {
                             pauseTimer();
                         });
+                        // Auto-PiP handler — Chrome (120+) calls this automatically when
+                        // the user switches apps on mobile, bypassing the user-gesture
+                        // requirement that blocks requestPictureInPicture() from background events.
+                        navigator.mediaSession.setActionHandler("enterpictureinpicture" as MediaSessionAction, () => {
+                            if (!isPiPActiveRef.current && videoRef.current) {
+                                togglePiP().catch(e => console.log("Auto-PiP via mediaSession blocked:", e));
+                            }
+                        });
+
                         // Clear other handlers to avoid confusion
                         navigator.mediaSession.setActionHandler("seekbackward", null);
                         navigator.mediaSession.setActionHandler("seekforward", null);
@@ -646,18 +655,43 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         }
     }, [drawToCanvas, startTimer, pauseTimer]);
 
-    // Auto-PiP on Visibility Change
+    // Register enterpictureinpicture media session handler whenever the timer
+    // is running. This allows Chrome (120+) to automatically trigger PiP when
+    // the user switches apps on mobile — even before they've manually opened PiP.
+    // The browser calls our handler with user-activation context, so
+    // requestPictureInPicture() is allowed.
     useEffect(() => {
-        const handleVisibilityChange = async () => {
+        if (!isRunning || !("mediaSession" in navigator)) return;
+
+        const handler = () => {
+            if (!isPiPActiveRef.current && videoRef.current && document.pictureInPictureEnabled) {
+                togglePiP().catch(e => console.log("Auto-PiP via mediaSession blocked:", e));
+            }
+        };
+
+        try {
+            navigator.mediaSession.setActionHandler("enterpictureinpicture" as MediaSessionAction, handler);
+        } catch {
+            // Browser doesn't support this action — fall through to visibilitychange below
+        }
+
+        return () => {
+            try {
+                navigator.mediaSession.setActionHandler("enterpictureinpicture" as MediaSessionAction, null);
+            } catch { /* ignore */ }
+        };
+    }, [isRunning, togglePiP]);
+
+    // Fallback auto-PiP via visibilitychange — works on desktop browsers where
+    // requestPictureInPicture() is allowed from non-gesture contexts.
+    // On mobile this will typically fail silently (NotAllowedError) which is fine;
+    // the mediaSession handler above covers that case.
+    useEffect(() => {
+        const handleVisibilityChange = () => {
             if (document.hidden && isRunning && !isPiPActiveRef.current && document.pictureInPictureEnabled) {
-                try {
-                    // Slight delay to ensure browser acknowledges the backgrounding/switching state
-                    setTimeout(() => {
-                        togglePiP().catch(e => console.log("Auto-PiP blocked:", e));
-                    }, 100);
-                } catch (e) {
-                    console.error("Auto PiP failed:", e);
-                }
+                setTimeout(() => {
+                    togglePiP().catch(() => { /* blocked on mobile, expected */ });
+                }, 100);
             }
         };
 

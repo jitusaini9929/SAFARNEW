@@ -245,23 +245,34 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone, 
             {!hideActions && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: isPhone ? "auto" : 0, width: isPhone ? "100%" : "auto", justifyContent: isPhone ? "flex-end" : "flex-start" }}>
                     <button onClick={() => onRepeat(goal)} style={{ background: isDark ? "rgba(99, 102, 241, 0.1)" : T.indigo50, border: "none", borderRadius: 8, color: isDark ? T.indigo500 : T.indigo500, width: isPhone ? 60 : 44, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: isPhone ? 60 : undefined }} title="Repeat">Repeat</button>
-                    <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
-                    <button onClick={() => onDelete(goal.id)} style={{ background: isDark ? "rgba(249, 128, 128, 0.1)" : T.maroon100, border: "none", borderRadius: 8, color: isDark ? T.maroon400 : T.maroon800, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete">✕</button>
-                    <button
-                        onClick={goal.completed ? undefined : () => onToggle(goal.id, goal.completed)}
-                        style={{
+                    {!goal.completed && (
+                        <>
+                            <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
+                            <button onClick={() => onDelete(goal.id)} style={{ background: isDark ? "rgba(249, 128, 128, 0.1)" : T.maroon100, border: "none", borderRadius: 8, color: isDark ? T.maroon400 : T.maroon800, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete">✕</button>
+                            <button
+                                onClick={() => onToggle(goal.id, goal.completed)}
+                                style={{
+                                    width: isPhone ? 44 : 28, height: isPhone ? 44 : 28, borderRadius: "50%",
+                                    border: `2px solid ${T.slate300}`,
+                                    background: "transparent",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    cursor: "pointer", flexShrink: 0, transition: "all 0.15s",
+                                }}
+                                title="Mark as done"
+                            />
+                        </>
+                    )}
+                    {goal.completed && (
+                        <div style={{
                             width: isPhone ? 44 : 28, height: isPhone ? 44 : 28, borderRadius: "50%",
-                            border: `2px solid ${goal.completed ? T.teal600 : T.slate300}`,
-                            background: goal.completed ? T.teal600 : "transparent",
+                            border: `2px solid ${T.teal600}`,
+                            background: T.teal600,
                             display: "flex", alignItems: "center", justifyContent: "center",
-                            cursor: goal.completed ? "default" : "pointer", flexShrink: 0, transition: "all 0.15s",
-                            opacity: goal.completed ? 0.85 : 1,
-                        }}
-                        title={goal.completed ? "Completed" : "Mark as done"}
-                        aria-disabled={goal.completed}
-                    >
-                        {goal.completed && <span style={{ color: T.white, fontSize: 14, fontWeight: 900 }}>✓</span>}
-                    </button>
+                            flexShrink: 0, opacity: 0.85,
+                        }} title="Completed">
+                            <span style={{ color: T.white, fontSize: 14, fontWeight: 900 }}>✓</span>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

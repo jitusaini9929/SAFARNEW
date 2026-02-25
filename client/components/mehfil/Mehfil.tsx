@@ -466,13 +466,13 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
           </div>
         </Link>
 
-        <div className="relative hidden md:block">
+        <div className="relative flex-1 min-w-0 md:flex-none">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm w-72 lg:w-96 focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-900 dark:text-slate-100 ${roomPalette.ring}`}
-            placeholder={`Search in ${ROOM_CONFIG[activeRoom].title}...`}
+            className={`bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-2 md:py-2.5 pl-10 pr-4 text-sm w-full md:w-72 lg:w-96 focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-900 dark:text-slate-100 ${roomPalette.ring}`}
+            placeholder={`Search...`}
             type="text"
           />
         </div>
@@ -485,7 +485,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
           <button
             onClick={() => setIsGlobalSidebarOpen(true)}
-            className="p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors hidden sm:block"
+            className="p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
             title="Menu"
           >
             <Menu className="w-5 h-5" />

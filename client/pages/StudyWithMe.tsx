@@ -818,54 +818,7 @@ export default function StudyWithMe() {
                         </div>
                     </div>
 
-                    {/* Mobile Controls */}
-                    <div className="lg:hidden fixed bottom-4 left-4 right-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                        <div className="flex items-center justify-between">
-                            <button
-                                onClick={() => setIsTasksOpen(true)}
-                                className="p-3 rounded-xl bg-muted hover:bg-muted/80 transition-colors"
-                                title="Add task"
-                                aria-label="Add task"
-                            >
-                                <Plus className="w-5 h-5" style={{ color: currentTheme.accent }} />
-                            </button>
 
-                            <div className="flex-1 mx-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        placeholder="Enter minutes"
-                                        value={customTimerInput}
-                                        onChange={(e) => handleCustomTimerInputChange(e.target.value)}
-                                        onKeyDown={(e) => handleCustomTimerInputKeyDown(e.key)}
-                                        className="min-w-0 flex-1 h-9 text-sm bg-muted px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 outline-none dark:bg-gray-800 dark:text-white"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={applyCustomTimer}
-                                        className="shrink-0 whitespace-nowrap h-9 text-sm font-semibold px-3 rounded-md bg-muted hover:bg-muted/80"
-                                    >
-                                        Set
-                                    </button>
-                                </div>
-                                <input
-                                    type="range"
-                                    min={TIMER_MINUTES_MIN}
-                                    max={TIMER_SLIDER_MAX}
-                                    step={TIMER_STEP_MINUTES}
-                                    value={timerSliderValue}
-                                    onChange={(e) => handleSliderChange(parseInt(e.target.value, 10))}
-                                    className="w-full"
-                                    style={{ accentColor: currentTheme.accent }}
-                                />
-                                <div className="text-center text-xs text-muted-foreground">{sliderValue} min</div>
-                            </div>
-                            <button onClick={() => setShowThemeSelector(true)} className="p-3 rounded-xl bg-muted">
-                                <Palette className="w-5 h-5" style={{ color: currentTheme.accent }} />
-                            </button>
-                        </div>
-                    </div>
                 </main>
             )}
 

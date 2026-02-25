@@ -359,10 +359,21 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
   const circumference = 2 * Math.PI * 36;
 
   return (
-    <div style={{ minHeight: "100vh", background: palette.slate50, fontFamily: "'Plus Jakarta Sans',sans-serif", color: palette.slate800 }}>
+    <div style={{ minHeight: "100vh", background: palette.slate50, fontFamily: "'Plus Jakarta Sans',sans-serif", color: palette.slate800, overflowX: "hidden" }}>
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <style>{`
+        .fa-stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+        .fa-chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        @media (max-width: 900px) {
+          .fa-stat-grid { grid-template-columns: repeat(2,1fr); }
+        }
+        @media (max-width: 640px) {
+          .fa-stat-grid { grid-template-columns: 1fr; }
+          .fa-chart-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
 
-      <div style={{ maxWidth: 1060, margin: "0 auto", padding: "28px 20px" }}>
+      <div style={{ maxWidth: 1060, margin: "0 auto", padding: "28px 16px" }}>
 
         {/* HEADER */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 26 }}>
@@ -397,7 +408,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
         </div>
 
         {/* TOP STAT CARDS */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+        <div className="fa-stat-grid">
           <StatCard
             icon={<Icons.Zap />}
             label="Total Focus Time"
@@ -455,7 +466,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
         </div>
 
         {/* MAIN GRID ROW 1 */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+        <div className="fa-chart-grid">
 
           {/* Weekly chart */}
           <div style={{ background: palette.white, border: `1px solid ${palette.slate200}`, borderRadius: 20, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
@@ -489,7 +500,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
         </div>
 
         {/* MAIN GRID ROW 2 */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+        <div className="fa-chart-grid">
 
           {/* Goals progress */}
           <div style={{ background: palette.white, border: `1px solid ${palette.slate200}`, borderRadius: 20, padding: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>

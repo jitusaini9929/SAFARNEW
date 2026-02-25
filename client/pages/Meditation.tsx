@@ -119,7 +119,7 @@ const sessions: Session[] = [
     },
 ];
 
-const exercises = sessions; // Alias for mobile view compatibility
+
 
 const ADMIN_EMAIL = "steve123@gmail.com";
 const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/FRvwIgCs6T8?si=jQYpQXaKS9TkOIxf";
@@ -857,12 +857,6 @@ export default function Meditation() {
                     onClick={() => setShowSessionList(true)}
                     icon={<List className="w-5 h-5" />}
                     label="Sessions"
-                    position="bottom-left"
-                />
-                <FloatingActionButton
-                    onClick={() => setShowExercises(true)}
-                    icon={<Dumbbell className="w-5 h-5" />}
-                    label="Exercises"
                     position="bottom-right"
                 />
             </div>
@@ -900,34 +894,10 @@ export default function Meditation() {
                 </div>
             </BottomSheet>
 
-            <BottomSheet
-                isOpen={showExercises}
-                onClose={() => setShowExercises(false)}
-                title="Breathing Exercises"
-            >
-                <div className="space-y-4">
-                    {exercises.map((exercise) => (
-                        <div
-                            key={exercise.id}
-                            className="p-4 rounded-xl bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700"
-                        >
-                            <div className="flex items-start gap-3">
-                                <span className="text-2xl text-emerald-500"><Wind className="w-6 h-6" /></span>
-                                <div className="flex-1">
-                                    <h3 className="font-semibold text-slate-900 dark:text-white mb-1">{exercise.title}</h3>
-                                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{exercise.description}</p>
-                                    <div className="text-xs text-slate-500 dark:text-slate-500">
-                                        <span className="font-medium">Pattern:</span> Inhale {exercise.cycle?.inhale}s • Hold {exercise.cycle?.holdIn}s • Exhale {exercise.cycle?.exhale}s
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </BottomSheet>
 
-            {/* Tour Prompt */}
-            <TourPrompt tour={meditationTour} featureName="Meditation" />
+
+        {/* Tour Prompt */}
+        <TourPrompt tour={meditationTour} featureName="Meditation" />
         </div>
     );
 }

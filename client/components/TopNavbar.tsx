@@ -94,8 +94,8 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="rounded-xl h-[52px] w-[52px] p-0 hover:bg-slate-100 dark:hover:bg-white/10">
-                  <Avatar className="h-[52px] w-[52px] rounded-xl border border-[#6EE7B7]/30">
+                <Button variant="ghost" className="rounded-xl h-9 w-9 p-0 hover:bg-slate-100 dark:hover:bg-white/10">
+                  <Avatar className="h-9 w-9 rounded-xl border border-[#6EE7B7]/30">
                     <AvatarImage src={userAvatar} alt={userName} className="rounded-xl" />
                     <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#6EE7B7] to-teal-600 text-black font-bold">
                       {userName

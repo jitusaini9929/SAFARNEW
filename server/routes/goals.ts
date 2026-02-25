@@ -459,9 +459,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
             return res.status(404).json({ message: 'Goal not found or unauthorized' });
         }
 
-        if (goal.lifecycle_status === 'abandoned' || goal.lifecycle_status === 'rolled_over') {
-            return res.status(400).json({ message: 'This goal is archived and cannot be updated' });
-        }
+
 
         const goalType: GoalType = 'daily';
         const now = new Date();
@@ -542,13 +540,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         const completed = Boolean(req.body.completed);
         const expiresAt = updates.expires_at instanceof Date ? updates.expires_at : getGoalExpiry(goal);
 
-        if (completed && now.getTime() >= expiresAt.getTime()) {
-            await collections.goals().updateOne(
-                { id, user_id: userId },
-                { $set: { lifecycle_status: 'missed', rollover_prompt_pending: true, missed_at: now } }
-            );
-            return res.status(400).json({ message: 'Goal expired. Continue it for tomorrow from missed goals.' });
-        }
+
 
         const wasCompleted = Boolean(goal.completed);
 
