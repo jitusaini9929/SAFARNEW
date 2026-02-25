@@ -16,7 +16,7 @@ router.get('/', async (req: Request, res: Response) => {
         if ((req as any).session && (req as any).session.userId) {
             const userId = (req as any).session.userId;
             const user = await collections.users().findOne({ id: userId });
-            const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com')
+            const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
                 .split(',')
                 .map(e => e.trim().toLowerCase())
                 .filter(e => e.length > 0);
@@ -107,7 +107,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
         const user = await collections.users().findOne({ id: userId });
 
         // Split and trim admin emails from env var
-        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com')
+        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
             .split(',')
             .map(e => e.trim().toLowerCase())
             .filter(e => e.length > 0);
@@ -153,7 +153,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
 
         // Check user
         const user = await collections.users().findOne({ id: userId });
-        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com')
+        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
             .split(',')
             .map(e => e.trim().toLowerCase())
             .filter(e => e.length > 0);
@@ -196,7 +196,7 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
 
         // Check user
         const user = await collections.users().findOne({ id: userId });
-        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com')
+        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
             .split(',')
             .map(e => e.trim().toLowerCase())
             .filter(e => e.length > 0);
