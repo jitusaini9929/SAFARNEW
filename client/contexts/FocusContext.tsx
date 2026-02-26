@@ -28,6 +28,11 @@ interface FocusContextType {
     toggleTimer: () => void;
     resetTimer: () => void;
 
+    // Goal linking
+    associatedGoalId: string | null;
+    associatedGoalTitle: string | null;
+    setAssociatedGoal: (goalId: string | null, goalTitle?: string | null) => void;
+
     // Stats / Tracking State
     stats: FocusOverlayStats | null;
     totalActiveMs: number;
@@ -64,6 +69,21 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const [totalSeconds, setTotalSeconds] = useState(25 * 60);
     const [remainingSeconds, setRemainingSeconds] = useState(25 * 60);
     const [isRunning, setIsRunning] = useState(false);
+
+    // Goal linking
+    const [associatedGoalId, setAssociatedGoalId] = useState<string | null>(null);
+    const [associatedGoalTitle, setAssociatedGoalTitle] = useState<string | null>(null);
+    const associatedGoalIdRef = useRef<string | null>(null);
+
+    const setAssociatedGoal = useCallback((goalId: string | null, goalTitle?: string | null) => {
+        setAssociatedGoalId(goalId);
+        setAssociatedGoalTitle(goalTitle ?? null);
+        associatedGoalIdRef.current = goalId;
+    }, []);
+
+    useEffect(() => {
+        associatedGoalIdRef.current = associatedGoalId;
+    }, [associatedGoalId]);
 
     // Tracking State
     const [stats, setStats] = useState<FocusOverlayStats | null>(null);
@@ -299,12 +319,14 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             // Log Session (only for focus/pomodoro sessions)
             if (modeRef.current === "Timer") {
                 const durationMins = Math.floor(totalSecondsRef.current / 60);
+                const goalId = associatedGoalIdRef.current;
                 import("@/utils/focusService").then(({ focusService }) => {
                     focusService.logSession({
                         durationMinutes: durationMins, // Full duration reached
                         breakMinutes: 0,
-                        completed: true
-                    }).then(() => console.log("Session logged via Context"));
+                        completed: true,
+                        associatedGoalId: goalId || undefined,
+                    }).then(() => console.log("Session logged via Context", goalId ? `(goal: ${goalId})` : ''));
                 });
             }
         }
@@ -370,6 +392,64 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         ctx.fillStyle = "#94a3b8";
         ctx.fillText(running ? "Running" : "Paused", 250, 375);
     }, []);
+
+    // Ensure the video element has a canvas stream attached so auto-PiP works
+    const ensurePiPReady = useCallback(async () => {
+        const video = videoRef.current;
+        if (!video) return;
+        // Already has a stream — nothing to do
+        if (video.srcObject) return;
+
+        // Create canvas
+        if (!canvasRef.current) {
+            canvasRef.current = document.createElement("canvas");
+            canvasRef.current.width = 500;
+            canvasRef.current.height = 500;
+        }
+        const ctx = canvasRef.current.getContext("2d");
+        if (ctx) {
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(0, 0, 500, 500);
+        }
+
+        const stream = canvasRef.current.captureStream(30);
+
+        // Add silent audio track to enable media controls
+        try {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (AudioContextClass && !audioContextRef.current) {
+                const audioCtx = new AudioContextClass();
+                audioContextRef.current = audioCtx;
+                const dest = audioCtx.createMediaStreamDestination();
+                const oscillator = audioCtx.createOscillator();
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(0, audioCtx.currentTime);
+                oscillator.connect(dest);
+                const audioTrack = dest.stream.getAudioTracks()[0];
+                stream.addTrack(audioTrack);
+                oscillator.start();
+            }
+        } catch (e) {
+            console.error("Failed to add silent audio track:", e);
+        }
+
+        video.srcObject = stream;
+        video.disableRemotePlayback = true;
+        video.controls = false;
+        video.defaultMuted = false;
+        video.muted = false;
+        // Safari auto-PiP attribute
+        (video as any).autoPictureInPicture = true;
+
+        suppressPiPVideoEventsRef.current = true;
+        await video.play().catch(() => { });
+        window.setTimeout(() => {
+            suppressPiPVideoEventsRef.current = false;
+        }, 0);
+
+        // Draw once so there's content
+        drawToCanvas();
+    }, [drawToCanvas]);
 
     const syncPiPVideoPlayback = useCallback((running: boolean) => {
         if (!isPiPActiveRef.current) return;
@@ -481,7 +561,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setIsRunning(true);
         setMusicPlaying(true);
         syncPiPVideoPlayback(true);
-    }, [setMusicPlaying, syncPiPVideoPlayback]);
+        // Pre-initialize PiP stream so auto-PiP works on app switch
+        ensurePiPReady();
+    }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady]);
 
     const pauseTimer = useCallback(() => {
         isRunningRef.current = false;
@@ -518,134 +600,90 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                     audioContextRef.current = null;
                 }
             } else {
-                // Initialize Canvas
-                if (!canvasRef.current) {
-                    canvasRef.current = document.createElement("canvas");
-                    canvasRef.current.width = 500;
-                    canvasRef.current.height = 500;
-                }
+                // Ensure canvas + stream are ready (might already be from startTimer)
+                await ensurePiPReady();
 
-                // Initial draw background to ensure stream has content
-                const ctx = canvasRef.current.getContext("2d");
-                if (ctx) {
-                    ctx.fillStyle = "#1e293b";
-                    ctx.fillRect(0, 0, 500, 500);
-                }
+                // Now request PiP
+                if (videoRef.current && !document.pictureInPictureElement) {
+                    // Set up Media Session Controls in PiP
+                    if ("mediaSession" in navigator) {
+                        try {
+                            navigator.mediaSession.metadata = new MediaMetadata({
+                                title: "Focus Timer",
+                                artist: "Safar",
+                                album: "Focus Session",
+                                artwork: [
+                                    { src: "https://del1.vultrobjects.com/qms-images/Safar/logo.png", sizes: "96x96", type: "image/png" },
+                                    { src: "https://del1.vultrobjects.com/qms-images/Safar/logo.png", sizes: "128x128", type: "image/png" },
+                                ]
+                            });
 
-                const stream = canvasRef.current.captureStream(30);
+                            navigator.mediaSession.setActionHandler("play", () => {
+                                startTimer();
+                            });
+                            navigator.mediaSession.setActionHandler("pause", () => {
+                                pauseTimer();
+                            });
+                            navigator.mediaSession.setActionHandler("enterpictureinpicture" as MediaSessionAction, () => {
+                                if (!isPiPActiveRef.current && videoRef.current) {
+                                    togglePiP().catch(e => console.log("Auto-PiP via mediaSession blocked:", e));
+                                }
+                            });
 
-                // Add silent audio track to enable media controls
-                try {
-                    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-                    if (AudioContextClass) {
-                        const audioCtx = new AudioContextClass();
-                        audioContextRef.current = audioCtx;
-                        const dest = audioCtx.createMediaStreamDestination();
-                        const oscillator = audioCtx.createOscillator();
-                        oscillator.type = 'sine';
-                        oscillator.frequency.setValueAtTime(0, audioCtx.currentTime); // Silent
-                        oscillator.connect(dest);
-                        const audioTrack = dest.stream.getAudioTracks()[0];
-                        stream.addTrack(audioTrack);
-                        oscillator.start();
+                            navigator.mediaSession.setActionHandler("seekbackward", null);
+                            navigator.mediaSession.setActionHandler("seekforward", null);
+                            navigator.mediaSession.setActionHandler("previoustrack", null);
+                            navigator.mediaSession.setActionHandler("nexttrack", null);
+                        } catch (e) {
+                            console.error("Media Session API error:", e);
+                        }
                     }
-                } catch (e) {
-                    console.error("Failed to add silent audio track:", e);
-                }
 
-                videoRef.current.srcObject = stream;
+                    await videoRef.current.requestPictureInPicture();
+                    setIsPiPActive(true);
 
-                // Enable Media Session Controls
-                if ("mediaSession" in navigator) {
-                    try {
-                        navigator.mediaSession.metadata = new MediaMetadata({
-                            title: "Focus Timer",
-                            artist: "Safar",
-                            album: "Focus Session",
-                            artwork: [
-                                { src: "https://del1.vultrobjects.com/qms-images/Safar/logo.png", sizes: "96x96", type: "image/png" },
-                                { src: "https://del1.vultrobjects.com/qms-images/Safar/logo.png", sizes: "128x128", type: "image/png" },
-                            ]
-                        });
+                    // Draw once immediately so the PiP window isn't blank.
+                    drawToCanvas();
 
-                        navigator.mediaSession.setActionHandler("play", () => {
-                            startTimer();
-                        });
-                        navigator.mediaSession.setActionHandler("pause", () => {
-                            pauseTimer();
-                        });
-                        // Auto-PiP handler — Chrome (120+) calls this automatically when
-                        // the user switches apps on mobile, bypassing the user-gesture
-                        // requirement that blocks requestPictureInPicture() from background events.
-                        navigator.mediaSession.setActionHandler("enterpictureinpicture" as MediaSessionAction, () => {
-                            if (!isPiPActiveRef.current && videoRef.current) {
-                                togglePiP().catch(e => console.log("Auto-PiP via mediaSession blocked:", e));
-                            }
-                        });
+                    // Use requestVideoFrameCallback (rVFC) when available — it fires on every
+                    // video frame even when the browser tab is minimized or the user has
+                    // switched to another app, as long as the PiP window is active.
+                    // Falls back to setInterval on browsers that don't support rVFC yet.
+                    const startPiPDrawLoop = () => {
+                        const videoEl = videoRef.current;
+                        if (!videoEl || !isPiPActiveRef.current) return;
 
-                        // Clear other handlers to avoid confusion
-                        navigator.mediaSession.setActionHandler("seekbackward", null);
-                        navigator.mediaSession.setActionHandler("seekforward", null);
-                        navigator.mediaSession.setActionHandler("previoustrack", null);
-                        navigator.mediaSession.setActionHandler("nexttrack", null);
-                    } catch (e) {
-                        console.error("Media Session API error:", e);
-                    }
-                }
-
-                videoRef.current.disableRemotePlayback = true;
-                videoRef.current.controls = false;
-                videoRef.current.defaultMuted = false; // Important: Must NOT be muted for controls to show
-                videoRef.current.muted = false;       // We have a silent track, so it won't make noise
-                suppressPiPVideoEventsRef.current = true;
-                await videoRef.current.play();
-                window.setTimeout(() => {
-                    suppressPiPVideoEventsRef.current = false;
-                }, 0);
-                await videoRef.current.requestPictureInPicture();
-                setIsPiPActive(true);
-
-                // Draw once immediately so the PiP window isn't blank.
-                drawToCanvas();
-
-                // Use requestVideoFrameCallback (rVFC) when available — it fires on every
-                // video frame even when the browser tab is minimized or the user has
-                // switched to another app, as long as the PiP window is active.
-                // Falls back to setInterval on browsers that don't support rVFC yet.
-                const startPiPDrawLoop = () => {
-                    const videoEl = videoRef.current;
-                    if (!videoEl || !isPiPActiveRef.current) return;
-
-                    if ('requestVideoFrameCallback' in videoEl) {
-                        // rVFC loop — background-safe
-                        const loop = () => {
-                            drawToCanvas();
-                            // Keep stream alive while timer is running
-                            if (isRunningRef.current && videoEl.paused) {
-                                suppressPiPVideoEventsRef.current = true;
-                                videoEl.play().catch(() => { });
-                                window.setTimeout(() => { suppressPiPVideoEventsRef.current = false; }, 0);
-                            }
-                            if (isPiPActiveRef.current) {
-                                pipRvfcHandleRef.current = (videoEl as any).requestVideoFrameCallback(loop);
-                            }
-                        };
-                        pipRvfcHandleRef.current = (videoEl as any).requestVideoFrameCallback(loop);
-                    } else {
-                        // Fallback: plain interval (may be throttled in background tab)
-                        const fallbackEl = videoEl as HTMLVideoElement;
-                        pipIntervalRef.current = window.setInterval(() => {
-                            drawToCanvas();
-                            if (isRunningRef.current && fallbackEl.paused) {
-                                suppressPiPVideoEventsRef.current = true;
-                                fallbackEl.play().catch(() => { });
-                                window.setTimeout(() => { suppressPiPVideoEventsRef.current = false; }, 0);
-                            }
-                        }, 500);
-                    }
-                };
-                startPiPDrawLoop();
-            }
+                        if ('requestVideoFrameCallback' in videoEl) {
+                            // rVFC loop — background-safe
+                            const loop = () => {
+                                drawToCanvas();
+                                // Keep stream alive while timer is running
+                                if (isRunningRef.current && videoEl.paused) {
+                                    suppressPiPVideoEventsRef.current = true;
+                                    videoEl.play().catch(() => { });
+                                    window.setTimeout(() => { suppressPiPVideoEventsRef.current = false; }, 0);
+                                }
+                                if (isPiPActiveRef.current) {
+                                    pipRvfcHandleRef.current = (videoEl as any).requestVideoFrameCallback(loop);
+                                }
+                            };
+                            pipRvfcHandleRef.current = (videoEl as any).requestVideoFrameCallback(loop);
+                        } else {
+                            // Fallback: plain interval (may be throttled in background tab)
+                            const fallbackEl = videoEl as HTMLVideoElement;
+                            pipIntervalRef.current = window.setInterval(() => {
+                                drawToCanvas();
+                                if (isRunningRef.current && fallbackEl.paused) {
+                                    suppressPiPVideoEventsRef.current = true;
+                                    fallbackEl.play().catch(() => { });
+                                    window.setTimeout(() => { suppressPiPVideoEventsRef.current = false; }, 0);
+                                }
+                            }, 500);
+                        }
+                    };
+                    startPiPDrawLoop();
+                } // Closes `if (videoRef.current && !document.pictureInPictureElement)`
+            } // Closes `else`
         } catch (err) {
             console.error("PiP Error:", err);
             if (audioContextRef.current) {
@@ -653,7 +691,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 audioContextRef.current = null;
             }
         }
-    }, [drawToCanvas, startTimer, pauseTimer]);
+    }, [drawToCanvas, startTimer, pauseTimer, ensurePiPReady]);
 
     // Register enterpictureinpicture media session handler whenever the timer
     // is running. This allows Chrome (120+) to automatically trigger PiP when
@@ -772,12 +810,14 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             const elapsedSeconds = totalSeconds - remainingSeconds;
             const elapsedMinutes = Math.floor(elapsedSeconds / 60);
             if (elapsedMinutes > 0) {
+                const goalId = associatedGoalIdRef.current;
                 import("@/utils/focusService").then(({ focusService }) => {
                     focusService.logSession({
                         durationMinutes: elapsedMinutes,
                         breakMinutes: 0,
-                        completed: false // Interrupted/partial session
-                    }).then(() => console.log("Partial Session logged via reset"));
+                        completed: false, // Interrupted/partial session
+                        associatedGoalId: goalId || undefined,
+                    }).then(() => console.log("Partial Session logged via reset", goalId ? `(goal: ${goalId})` : ''));
                 });
             }
         }
@@ -848,6 +888,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         pauseTimer,
         toggleTimer,
         resetTimer,
+        associatedGoalId,
+        associatedGoalTitle,
+        setAssociatedGoal,
         stats,
         totalActiveMs,
         isPiPActive,
@@ -874,6 +917,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 disableRemotePlayback
                 controlsList="nodownload nofullscreen noremoteplayback"
                 translate="no"
+                // @ts-ignore — Safari auto-PiP attribute
+                autoPictureInPicture
             // Removed explicit muted prop here; will be managed in code
             />
             <audio

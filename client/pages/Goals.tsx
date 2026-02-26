@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { useTheme } from "@/contexts/ThemeContext";
 import { dataService } from "@/utils/dataService";
+import { focusService } from "@/utils/focusService";
 import { Goal } from "@shared/api";
 import { toast } from "sonner";
 
@@ -190,7 +192,7 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
 
 // ─── BADGE ───────────────────────────────────────────────────
 // ─── GOAL CARD ────────────────────────────────────────────────
-const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone, hideActions = false, createdMeta }: any) => {
+const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, theme, isPhone, hideActions = false, createdMeta, focusMinutes }: any) => {
     const isDark = theme === 'dark';
     const hoverBg = isDark ? T.darkCardHover : T.slate50;
     const textColor = isDark ? (goal.completed ? T.darkTextMuted : T.darkText) : (goal.completed ? T.slate400 : T.slate700);
@@ -206,8 +208,11 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone, 
     const primaryMeta = goal.completed
         ? completedLabel
         : (goal.scheduledDate ? `Due ${formatDate(goal.scheduledDate)}` : "");
-    const secondaryMeta = goal.completed && durationMs ? `Took ${formatDuration(durationMs)}` : "";
-    const metaPieces = [primaryMeta, secondaryMeta, createdMeta].filter(Boolean);
+    const focusDurationLabel = typeof focusMinutes === 'number' && focusMinutes > 0
+        ? `Focused ${formatDuration(focusMinutes * 60000)}`
+        : null;
+    const secondaryMeta = goal.completed && durationMs && !focusDurationLabel ? `Took ${formatDuration(durationMs)}` : "";
+    const metaPieces = [primaryMeta, focusDurationLabel || secondaryMeta, createdMeta].filter(Boolean);
 
     return (
         <div style={{
@@ -236,15 +241,20 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, theme, isPhone, 
                     </p>
                 )}
                 {metaPieces.length > 0 && (
-                    <p style={{ fontSize: isPhone ? 10 : 11, color: metaColor, margin: 0, lineHeight: 1.45 }}>
-                        {metaPieces.join(" - ")}
+                    <p style={{ fontSize: isPhone ? 10 : 11, color: metaColor, margin: 0, lineHeight: 1.45, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {metaPieces.join(" · ")}
                     </p>
                 )}
             </div>
 
             {!hideActions && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: isPhone ? "auto" : 0, width: isPhone ? "100%" : "auto", justifyContent: isPhone ? "flex-end" : "flex-start" }}>
-                    <button onClick={() => onRepeat(goal)} style={{ background: isDark ? "rgba(99, 102, 241, 0.1)" : T.indigo50, border: "none", borderRadius: 8, color: isDark ? T.indigo500 : T.indigo500, width: isPhone ? 60 : 44, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: isPhone ? 60 : undefined }} title="Repeat">Repeat</button>
+                    {!goal.completed && onFocus && (
+                        <button onClick={() => onFocus(goal)} style={{ background: isDark ? "rgba(245, 158, 11, 0.1)" : T.amber50, border: "none", borderRadius: 8, color: isDark ? T.amber500 : T.amber500, padding: isPhone ? "0 12px" : "0 10px", height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: isPhone ? 60 : undefined, gap: 4 }} title="Start Focus Session">
+                            ▶ Focus
+                        </button>
+                    )}
+                    <button onClick={() => onRepeat(goal)} style={{ background: isDark ? "rgba(99, 102, 241, 0.1)" : T.indigo50, border: "none", borderRadius: 8, color: isDark ? T.indigo500 : T.indigo500, padding: isPhone ? "0 12px" : "0 10px", height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: isPhone ? 60 : undefined }} title="Repeat">Repeat</button>
                     {!goal.completed && (
                         <>
                             <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
@@ -432,9 +442,9 @@ const Analytics = ({ goals, theme, isPhone, isTablet }: { goals: UIGoal[], theme
                     ].map(([label, val, col]) => (
                         <div key={label} style={{ background: isDark ? T.darkCard : T.white, borderRadius: 16, padding: isPhone ? "14px 16px" : "16px 18px", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                <span style={{ fontSize: 10, color: isDark ? T.darkTextMuted : T.slate500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</span>
+                                <span style={{ fontSize: 10, color: isDark ? T.darkTextMuted : T.slate500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{label}</span>
                             </div>
-                            <div style={{ fontSize: 22, fontWeight: 800, color: col }}>{val}</div>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: col, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{val}</div>
                         </div>
                     ))}
                 </div>
@@ -456,11 +466,11 @@ const Analytics = ({ goals, theme, isPhone, isTablet }: { goals: UIGoal[], theme
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 16px" }}>Daily Breakdown</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {days.map(day => (
-                        <div key={day.key} style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "90px 1fr 1fr 1fr", gap: 6, padding: "8px 10px", borderRadius: 12, background: isDark ? T.darkCardHover : T.slate50 }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.darkText : T.slate700 }}>{day.label}</span>
-                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{day.count} completed</span>
-                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{day.count ? (formatDuration(day.totalDuration) || "0m") : "—"} total</span>
-                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{day.avgCompletionMinutes !== null ? formatTimeFromMinutes(day.avgCompletionMinutes) : "—"}</span>
+                        <div key={day.key} style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "56px 1fr 1fr 1fr", gap: isPhone ? 6 : 8, padding: "8px 10px", borderRadius: 12, background: isDark ? T.darkCardHover : T.slate50, alignItems: "center", minWidth: 0 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.darkText : T.slate700, whiteSpace: "nowrap" }}>{day.label}</span>
+                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{day.count} done</span>
+                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{day.count ? (formatDuration(day.totalDuration) || "0m") : "—"} total</span>
+                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{day.avgCompletionMinutes !== null ? formatTimeFromMinutes(day.avgCompletionMinutes) : "—"}</span>
                         </div>
                     ))}
                 </div>
@@ -472,6 +482,7 @@ const Analytics = ({ goals, theme, isPhone, isTablet }: { goals: UIGoal[], theme
 // ─── MAIN ─────────────────────────────────────────────────────
 export default function Goals() {
     const { theme } = useTheme();
+    const navigate = useNavigate();
     const isDark = theme === 'dark';
     const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
     const maxDateKey = useMemo(() => {
@@ -485,6 +496,7 @@ export default function Goals() {
     const [modal, setModal] = useState<any>(null);
     const [tab, setTab] = useState("goals");
     const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
+    const [goalFocusTimes, setGoalFocusTimes] = useState<Record<string, { totalMinutes: number; sessionCount: number }>>({});
     const getErrorMessage = (error: unknown, fallback: string) =>
         error instanceof Error && error.message ? error.message : fallback;
     const getScheduledKey = (g: UIGoal) => g.scheduledDate ? getISTDateKey(new Date(g.scheduledDate)) : null;
@@ -497,6 +509,14 @@ export default function Goals() {
                 title: g.title || g.text || '',
             }));
             setGoals(data);
+
+            // Fetch focus times for all goals in one batch
+            const allIds = data.map(g => g.id).filter(Boolean);
+            if (allIds.length > 0) {
+                focusService.getGoalsFocusTimes(allIds).then(times => {
+                    setGoalFocusTimes(times);
+                }).catch(() => { /* silent */ });
+            }
         } catch (error) {
             console.error(error);
             toast.error(getErrorMessage(error, "Failed to load goals"));
@@ -597,6 +617,13 @@ export default function Goals() {
                 fetchGoals();
             } catch (error) { toast.error(getErrorMessage(error, "Creation failed")); fetchGoals(); }
         }
+    };
+
+    const startFocusForGoal = (goal: UIGoal) => {
+        const params = new URLSearchParams();
+        params.set('goalId', goal.id);
+        params.set('goalTitle', goal.title || goal.text || '');
+        navigate(`/study?${params.toString()}`);
     };
 
     const pendingGoals = useMemo(() => (
@@ -734,7 +761,7 @@ export default function Goals() {
                                                 <div>
                                                     {pendingGoals.map((g, i) => (
                                                         <div key={g.id} style={{ borderBottom: i < pendingGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                            <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} />
+                                                            <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} onFocus={startFocusForGoal} focusMinutes={goalFocusTimes[g.id]?.totalMinutes} />
                                                         </div>
                                                     ))}
                                                 </div>
@@ -757,7 +784,7 @@ export default function Goals() {
                                                 <div>
                                                     {completedGoalsDisplay.map((g, i) => (
                                                         <div key={g.id} style={{ borderBottom: i < completedGoalsDisplay.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                            <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} />
+                                                            <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} focusMinutes={goalFocusTimes[g.id]?.totalMinutes} />
                                                         </div>
                                                     ))}
                                                 </div>
@@ -820,17 +847,17 @@ export default function Goals() {
                                     <h3 style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 14px" }}>
                                         Today
                                     </h3>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500 }}>Completed</span>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{todayMetrics.count}</span>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
+                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap" }}>Completed</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{todayMetrics.count}</span>
                                     </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500 }}>Total Duration</span>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{todayMetrics.count ? (formatDuration(todayMetrics.totalDuration) || "0m") : "—"}</span>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
+                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap" }}>Total Duration</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{todayMetrics.count ? (formatDuration(todayMetrics.totalDuration) || "0m") : "—"}</span>
                                     </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500 }}>Avg Completion Time</span>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{todayMetrics.count ? (todayMetrics.avgCompletionMinutes !== null ? formatTimeFromMinutes(todayMetrics.avgCompletionMinutes) : "—") : "—"}</span>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Avg Completion Time</span>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{todayMetrics.count ? (todayMetrics.avgCompletionMinutes !== null ? formatTimeFromMinutes(todayMetrics.avgCompletionMinutes) : "—") : "—"}</span>
                                     </div>
                                 </div>
 
@@ -840,13 +867,13 @@ export default function Goals() {
                                         <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400 }}>Completion count</span>
                                     </div>
                                     <WeekChart goals={goals} />
-                                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between" }}>
-                                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500 }}>Completed</span>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{weekGoals.length}</span>
+                                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap" }}>Completed</span>
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{weekGoals.length}</span>
                                     </div>
-                                    <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between" }}>
-                                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500 }}>Total Duration</span>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{weekGoals.length ? (formatDuration(weekDuration) || "0m") : "—"}</span>
+                                    <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap" }}>Total Duration</span>
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{weekGoals.length ? (formatDuration(weekDuration) || "0m") : "—"}</span>
                                     </div>
                                 </div>
                             </div>

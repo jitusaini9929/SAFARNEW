@@ -245,9 +245,20 @@
     word-break: normal;
   }
 
+  /* Prevent button text from ever overflowing or wrapping */
   button {
     overflow-wrap: normal;
     word-break: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Ensure grid/flex children can shrink below content size */
+  :where([style*="display: grid"], [style*="display:grid"],
+    [style*="display: flex"], [style*="display:flex"],
+    .grid, .flex)>* {
+    min-width: 0;
   }
 
   pre,

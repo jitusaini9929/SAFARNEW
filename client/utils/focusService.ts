@@ -122,6 +122,46 @@ export const focusService = {
                 recentSessions: []
             };
         }
-    }
-};
+    },
 
+    // Get total focus time for a specific goal
+    getGoalFocusTime: async (goalId: string): Promise<{ totalMinutes: number; sessionCount: number }> => {
+        try {
+            const response = await apiFetch(`${API_BASE}/by-goal/${encodeURIComponent(goalId)}`, {
+                method: 'GET',
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch goal focus time');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Get goal focus time error:', error);
+            return { totalMinutes: 0, sessionCount: 0 };
+        }
+    },
+
+    // Get total focus times for multiple goals at once (batch)
+    getGoalsFocusTimes: async (goalIds: string[]): Promise<Record<string, { totalMinutes: number; sessionCount: number }>> => {
+        if (!goalIds.length) return {};
+        try {
+            const response = await apiFetch(`${API_BASE}/by-goals`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ goalIds }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch goals focus times');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Get goals focus times error:', error);
+            return {};
+        }
+    },
+};

@@ -249,4 +249,82 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
     }
 });
 
+// Get total focus time for a specific goal
+router.get('/by-goal/:goalId', requireAuth, async (req: Request, res) => {
+    try {
+        const userId = req.session.userId!;
+        const { goalId } = req.params;
+
+        if (!goalId || typeof goalId !== 'string') {
+            return res.status(400).json({ message: 'Goal ID is required' });
+        }
+
+        const pipeline = [
+            { $match: { user_id: userId, associated_goal_id: goalId } },
+            {
+                $group: {
+                    _id: null,
+                    totalMinutes: { $sum: '$duration_minutes' },
+                    sessionCount: { $sum: 1 },
+                },
+            },
+        ];
+
+        const result = await collections.focusSessions().aggregate(pipeline).toArray();
+        const data = result[0] || { totalMinutes: 0, sessionCount: 0 };
+
+        res.json({
+            totalMinutes: data.totalMinutes || 0,
+            sessionCount: data.sessionCount || 0,
+        });
+    } catch (error) {
+        console.error('Get focus time by goal error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Get total focus time for multiple goals at once
+router.post('/by-goals', requireAuth, async (req: Request, res) => {
+    try {
+        const userId = req.session.userId!;
+        const { goalIds } = req.body;
+
+        if (!Array.isArray(goalIds) || goalIds.length === 0) {
+            return res.json({});
+        }
+
+        // Cap at 100 to prevent abuse
+        const ids = goalIds.slice(0, 100).filter((id: unknown) => typeof id === 'string' && id.length > 0);
+
+        if (ids.length === 0) {
+            return res.json({});
+        }
+
+        const pipeline = [
+            { $match: { user_id: userId, associated_goal_id: { $in: ids } } },
+            {
+                $group: {
+                    _id: '$associated_goal_id',
+                    totalMinutes: { $sum: '$duration_minutes' },
+                    sessionCount: { $sum: 1 },
+                },
+            },
+        ];
+
+        const results = await collections.focusSessions().aggregate(pipeline).toArray();
+        const map: Record<string, { totalMinutes: number; sessionCount: number }> = {};
+        for (const row of results) {
+            map[row._id] = {
+                totalMinutes: row.totalMinutes || 0,
+                sessionCount: row.sessionCount || 0,
+            };
+        }
+
+        res.json(map);
+    } catch (error) {
+        console.error('Get focus time by goals error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 export const focusSessionRoutes = router;

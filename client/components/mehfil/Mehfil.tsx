@@ -74,6 +74,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [banRemainingMs, setBanRemainingMs] = useState(0);
   const [hasMoreThoughts, setHasMoreThoughts] = useState(true);
   const [isLoadingThoughts, setIsLoadingThoughts] = useState(false);
+  const [guidelinesOpen, setGuidelinesOpen] = useState(false);
 
   const userIdRef = useRef<string | undefined>(undefined);
   const currentFeedPageRef = useRef(0);
@@ -569,70 +570,82 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                   </div>
                 </div>
 
-                {/* Guidelines Notice Section */}
-                <div className="mb-8 bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/80 dark:to-slate-800/80 rounded-3xl border border-slate-200/60 dark:border-slate-700/60 p-5 sm:p-6 shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
+                {/* Guidelines Notice Section — collapsible */}
+                <div className="mb-8">
+                  <button
+                    onClick={() => setGuidelinesOpen(prev => !prev)}
+                    className="w-full flex items-center justify-between gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/80 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                  >
                     <div className="flex items-center gap-2.5">
-                      <div className="p-2 bg-indigo-500/10 rounded-xl">
-                        <ShieldAlert className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      <div className="p-1.5 bg-indigo-500/10 rounded-xl">
+                        <ShieldAlert className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                       </div>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">Community Guidelines</h3>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">Community Guidelines</span>
                     </div>
-                  </div>
+                    {guidelinesOpen ? (
+                      <ChevronUp className="w-4 h-4 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                    )}
+                  </button>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Rules Column */}
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                        <Info className="w-3.5 h-3.5" /> Posting Rules
-                      </h4>
-                      <ul className="space-y-3">
-                        <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                          <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
-                          <span><strong>Academic Hall:</strong> Research, study hacks, and career help only. No venting.</span>
-                        </li>
-                        <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                          <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                          <span><strong>Thoughts:</strong> Emotional support and venting. Move here for personal struggles.</span>
-                        </li>
-                        <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                          <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                          <span><strong>Blocked:</strong> Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.</span>
-                        </li>
-                      </ul>
-                    </div>
+                  {guidelinesOpen && (
+                    <div className="mt-2 bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/80 dark:to-slate-800/80 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 p-5 sm:p-6 shadow-sm animate-in slide-in-from-top-2 duration-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Rules Column */}
+                        <div className="space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                            <Info className="w-3.5 h-3.5" /> Posting Rules
+                          </h4>
+                          <ul className="space-y-3">
+                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
+                              <span><strong>Academic Hall:</strong> Research, study hacks, and career help only. No venting.</span>
+                            </li>
+                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                              <span><strong>Thoughts:</strong> Emotional support and venting. Move here for personal struggles.</span>
+                            </li>
+                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                              <span><strong>Blocked:</strong> Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.</span>
+                            </li>
+                          </ul>
+                        </div>
 
-                    {/* Consequences Column */}
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                        <AlertCircle className="w-3.5 h-3.5" /> Consequences
-                      </h4>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
-                          <div className="p-1.5 bg-amber-500/10 rounded-lg">
-                            <Ban className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                          </div>
-                          <div className="text-xs leading-tight">
-                            <span className="font-bold block text-slate-900 dark:text-white">Report-Based Bans</span>
-                            <span className="text-slate-500 dark:text-slate-400">1+ reports trigger automatic bans (2D → 7D → Permanent).</span>
+                        {/* Consequences Column */}
+                        <div className="space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                            <AlertCircle className="w-3.5 h-3.5" /> Consequences
+                          </h4>
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
+                              <div className="p-1.5 bg-amber-500/10 rounded-lg">
+                                <Ban className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                              </div>
+                              <div className="text-xs leading-tight">
+                                <span className="font-bold block text-slate-900 dark:text-white">Report-Based Bans</span>
+                                <span className="text-slate-500 dark:text-slate-400">1+ reports trigger automatic bans (2D → 7D → Permanent).</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
+                              <div className="p-1.5 bg-rose-500/10 rounded-lg">
+                                <Ghost className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                              </div>
+                              <div className="text-xs leading-tight">
+                                <span className="font-bold block text-slate-900 dark:text-white">Shadow Banning</span>
+                                <span className="text-slate-500 dark:text-slate-400">Repeated spam results in silent silencing—others won't see you.</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
-                          <div className="p-1.5 bg-rose-500/10 rounded-lg">
-                            <Ghost className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                          </div>
-                          <div className="text-xs leading-tight">
-                            <span className="font-bold block text-slate-900 dark:text-white">Shadow Banning</span>
-                            <span className="text-slate-500 dark:text-slate-400">Repeated spam results in silent silencing—others won't see you.</span>
-                          </div>
-                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-slate-200/40 dark:border-slate-700/40 flex items-center gap-2 text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                        <Clock className="w-3 h-3" /> All posts are analyzed by AI for quality control
                       </div>
                     </div>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-slate-200/40 dark:border-slate-700/40 flex items-center gap-2 text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-                    <Clock className="w-3 h-3" /> All posts are analyzed by AI for quality control
-                  </div>
+                  )}
                 </div>
 
                 <Composer

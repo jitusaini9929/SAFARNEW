@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { authService } from "@/utils/authService";
 import FocusAnalytics from "@/pages/FocusAnalytics";
 import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
@@ -142,8 +142,13 @@ export default function StudyWithMe() {
         toggleMusicMuted,
         setMusicVolume,
         setLongBreakDuration,
-        longBreakDuration
+        longBreakDuration,
+        setAssociatedGoal,
+        associatedGoalId,
+        associatedGoalTitle,
     } = useFocus(); // Use Context
+
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // Destructure from Context State
     const { minutes, seconds, isRunning, mode, totalSeconds, remainingSeconds } = timerState;
@@ -185,11 +190,39 @@ export default function StudyWithMe() {
 
     // Deep link handling for analytics
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('view') === 'analytics') {
+        if (searchParams.get('view') === 'analytics') {
             setShowAnalytics(true);
         }
-    }, [window.location.search]);
+    }, [searchParams]);
+
+    // Goal linking via URL params (from Goals page "▶ Focus" button)
+    useEffect(() => {
+        const goalId = searchParams.get('goalId');
+        const goalTitle = searchParams.get('goalTitle');
+        if (goalId) {
+            setAssociatedGoal(goalId, goalTitle);
+            // Set the goal as the primary active task
+            if (goalTitle) {
+                setTasks(prev => {
+                    // Check if it's already the active task to avoid duplicate spam
+                    const currentActive = prev.find(t => !t.completed);
+                    if (currentActive?.text === goalTitle) {
+                        return prev;
+                    }
+
+                    const newTask: Task = { id: Date.now(), text: goalTitle, completed: false };
+                    // Put it at the front of the array so it's prioritized as the next active task
+                    const next = [newTask, ...prev];
+                    saveTasks(next, user?.id);
+                    return next;
+                });
+            }
+            // Clean the URL params without triggering a navigation
+            searchParams.delete('goalId');
+            searchParams.delete('goalTitle');
+            setSearchParams(searchParams, { replace: true });
+        }
+    }, []);  // Run once on mount
 
 
 
@@ -748,7 +781,8 @@ export default function StudyWithMe() {
                                     await fs.logSession({
                                         durationMinutes: elapsedMinutes,
                                         breakMinutes: 0,
-                                        completed: true // Counted as completed for the task's sake
+                                        completed: true, // Counted as completed for the task's sake
+                                        associatedGoalId: associatedGoalId || undefined,
                                     });
                                 } catch (e) {
                                     console.error("Failed to log partial session on early completion", e);
