@@ -93,17 +93,12 @@ const getGoalDurationMs = (goal: UIGoal) => {
     if (!goal.completedAt) return null;
     const end = new Date(goal.completedAt);
     if (!Number.isFinite(end.getTime())) return null;
+    // Only use createdAt as the start time. scheduledDate is a date-only value
+    // (midnight UTC) and is NOT a meaningful start time for duration calculation.
     const createdRaw = (goal as any).createdAt || (goal as any).created_at;
-    const scheduledRaw = (goal as any).scheduledDate || (goal as any).scheduled_date;
-    const createdAt = createdRaw ? new Date(createdRaw) : null;
-    const scheduledAt = scheduledRaw ? new Date(scheduledRaw) : null;
-    const candidates = [createdAt, scheduledAt].filter(
-        (d): d is Date => !!d && Number.isFinite(d.getTime())
-    );
-    if (candidates.length === 0) return null;
-    const start = candidates.reduce((latest, current) =>
-        current.getTime() > latest.getTime() ? current : latest
-    );
+    if (!createdRaw) return null;
+    const start = new Date(createdRaw);
+    if (!Number.isFinite(start.getTime())) return null;
     if (end.getTime() < start.getTime()) return null;
     return end.getTime() - start.getTime();
 };
