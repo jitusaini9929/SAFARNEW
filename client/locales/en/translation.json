@@ -1,0 +1,24 @@
+{
+    "nav": {
+        "home": "Home",
+        "about": "About",
+        "contact": "Contact"
+    },
+    "btn": {
+        "login": "Login",
+        "logout": "Logout",
+        "download": "Download",
+        "search": "Search",
+        "submit": "Submit"
+    },
+    "greeting": "Welcome back!",
+    "landing": {
+        "title_part1": "Where preparation meets care—",
+        "title_part2": "A kinder way to move Forward",
+        "subtitle": "A thoughtfully designed space to support your studies, consistency, and emotional well-being — all in one place. Safar helps students stay focused, emotionally steady, and connected — especially when preparation feels heavy. Because \"Your marks matter, but so does your mind\"",
+        "start_btn": "Start your Safar"
+    },
+    "auth": {
+        "signin": "Sign In"
+    }
+}

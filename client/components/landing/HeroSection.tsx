@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sun, Moon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import LanguageToggle from '../LanguageToggle';
 
@@ -11,6 +12,7 @@ interface HeroSectionProps {
 
 const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) => {
     const { theme, toggleTheme } = useTheme();
+    const { t } = useTranslation();
     const video1Ref = useRef<HTMLVideoElement>(null);
     const video2Ref = useRef<HTMLVideoElement>(null);
 
@@ -109,7 +111,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                                 onClick={() => setIsAuthModalOpen(true)}
                                 className="px-5 py-2.5 md:px-7 md:py-3 rounded-full bg-gradient-to-r from-cyan-400 to-cyan-600 text-white font-semibold text-sm md:text-base shadow-lg shadow-cyan-500/30 border-2 border-white/20 hover:shadow-xl hover:shadow-cyan-500/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 relative overflow-hidden group"
                             >
-                                <span className="relative z-10">Sign In</span>
+                                <span className="relative z-10">{t('auth.signin')}</span>
                                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
                             </button>
                         )}
@@ -138,12 +140,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                 </div>
                 <div className="relative z-20 w-full max-w-[1400px] px-6 md:px-8 mt-24 md:mt-12">
                     <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 drop-shadow-2xl">
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif">Where preparation meets care—</span>
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif mt-2">A kinder way to move Forward</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif">{t('landing.title_part1')}</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif mt-2">{t('landing.title_part2')}</span>
                     </h1>
                     <p className="text-base md:text-lg lg:text-xl text-slate-800 dark:text-slate-100 font-bold mb-10 md:mb-12 max-w-xl md:max-w-2xl leading-relaxed">
-                        A thoughtfully designed space to support your studies, consistency, and emotional well-being — all in one place.
-                        Safar helps students stay focused, emotionally steady, and connected — especially when preparation feels heavy. Because "Your marks matter, but so does your mind"
+                        {t('landing.subtitle')}
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-4 md:gap-5 w-full sm:w-auto">
@@ -151,7 +152,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                             to="/dashboard"
                             className="group relative flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-400 to-cyan-600 text-white px-8 py-4 md:px-10 md:py-5 rounded-full font-semibold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden shadow-lg shadow-cyan-500/40 hover:shadow-xl hover:shadow-cyan-500/50 border-2 border-white/20"
                         >
-                            <span className="relative z-10">Start your Safar</span>
+                            <span className="relative z-10">{t('landing.start_btn')}</span>
                             <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
                             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-600" />
                         </Link>
