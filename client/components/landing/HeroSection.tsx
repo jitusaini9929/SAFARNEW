@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import LanguageToggle from '../LanguageToggle';
 
 interface HeroSectionProps {
     user: any;
@@ -89,6 +90,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                         >
                             {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
                         </button>
+
+                        <div className="hidden sm:block">
+                            <LanguageToggle />
+                        </div>
 
                         {/* Conditional: Sign In Button vs Profile Avatar */}
                         {user ? (
