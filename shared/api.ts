@@ -37,6 +37,7 @@ export interface Goal {
   completed: boolean;
   createdAt: string;
   completedAt?: string | null;
+  startedAt?: string | null;
   expiresAt?: string | null;
   lifecycleStatus?: "active" | "missed" | "rolled_over" | "abandoned";
   rollover_prompt_pending?: boolean;

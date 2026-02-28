@@ -118,6 +118,7 @@ const getGoalExpiry = (goal: any) => {
 const normalizeGoalResponse = (goal: any) => {
     const createdAt = new Date(goal.created_at || goal.createdAt || Date.now());
     const completedAt = goal.completed_at ? new Date(goal.completed_at) : null;
+    const startedAt = goal.started_at ? new Date(goal.started_at) : null;
     const expiresAt = getGoalExpiry(goal);
     const title = normalizeGoalTitle(goal.title, goal.text) || '';
     const description = normalizeGoalDescription(goal.description);
@@ -134,6 +135,7 @@ const normalizeGoalResponse = (goal: any) => {
         subtasks,
         createdAt: createdAt.toISOString(),
         completedAt: completedAt ? completedAt.toISOString() : null,
+        startedAt: startedAt ? startedAt.toISOString() : null,
         expiresAt: expiresAt.toISOString(),
         scheduledDate: goal.scheduled_date ? new Date(goal.scheduled_date).toISOString() : null,
         lifecycleStatus: (goal.lifecycle_status || 'active') as GoalLifecycleStatus,
@@ -248,7 +250,7 @@ router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
 
 // Create goal
 router.post('/', requireAuth, async (req: Request, res) => {
-    const { text, title, description, scheduledDate, category, priority, subtasks } = req.body;
+    const { text, title, description, scheduledDate, category, priority, subtasks, startedAt } = req.body;
     const type: GoalType = 'daily';
     const normalizedTitle = normalizeGoalTitle(title, text);
     const normalizedDescription = normalizeGoalDescription(description);
@@ -288,6 +290,13 @@ router.post('/', requireAuth, async (req: Request, res) => {
         const createdAt = now;
         const expiresAt = calculateExpiryUTC(type, now, scheduledDateObj);
 
+        // Parse optional startedAt — must be a valid ISO timestamp
+        let startedAtDate: Date | null = null;
+        if (startedAt) {
+            const parsed = new Date(startedAt);
+            startedAtDate = Number.isFinite(parsed.getTime()) ? parsed : null;
+        }
+
         const doc = {
             id,
             user_id: userId,
@@ -301,6 +310,7 @@ router.post('/', requireAuth, async (req: Request, res) => {
             completed: false,
             created_at: createdAt,
             completed_at: null,
+            started_at: startedAtDate,
             expires_at: expiresAt,
             lifecycle_status: 'active' as GoalLifecycleStatus,
             rollover_prompt_pending: false,
@@ -426,6 +436,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
     const hasPriorityUpdate = req.body && 'priority' in req.body;
     const hasSubtasksUpdate = req.body && 'subtasks' in req.body;
     const hasTypeUpdate = req.body && 'type' in req.body;
+    const hasStartedAtUpdate = req.body && 'startedAt' in req.body;
     const normalizedTitle = hasTitleUpdate ? normalizeGoalTitle(req.body?.title, req.body?.text) : null;
     const normalizedDescription = hasDescriptionUpdate ? normalizeGoalDescription(req.body?.description) : undefined;
     const normalizedType = hasTypeUpdate ? normalizeGoalType(req.body?.type) : null;
@@ -438,7 +449,8 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         !hasCategoryUpdate &&
         !hasPriorityUpdate &&
         !hasSubtasksUpdate &&
-        !hasTypeUpdate
+        !hasTypeUpdate &&
+        !hasStartedAtUpdate
     ) {
         return res.status(400).json({ message: 'Nothing to update' });
     }
@@ -511,6 +523,16 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
                 return res.status(400).json({ message: 'Invalid subtasks' });
             }
             updates.subtasks = normalizedSubtasks;
+        }
+
+        if (hasStartedAtUpdate) {
+            const rawStartedAt = req.body.startedAt;
+            if (rawStartedAt === null) {
+                updates.started_at = null;
+            } else {
+                const parsed = new Date(rawStartedAt);
+                updates.started_at = Number.isFinite(parsed.getTime()) ? parsed : null;
+            }
         }
 
         const effectiveType = normalizedType || goalType;

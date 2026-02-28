@@ -91,14 +91,11 @@ const formatDuration = (ms?: number | null) => {
 };
 const getGoalDurationMs = (goal: UIGoal) => {
     if (!goal.completedAt) return null;
+    // Only calculate duration if user explicitly set a start time
+    if (!(goal as any).startedAt) return null;
     const end = new Date(goal.completedAt);
-    if (!Number.isFinite(end.getTime())) return null;
-    // Only use createdAt as the start time. scheduledDate is a date-only value
-    // (midnight UTC) and is NOT a meaningful start time for duration calculation.
-    const createdRaw = (goal as any).createdAt || (goal as any).created_at;
-    if (!createdRaw) return null;
-    const start = new Date(createdRaw);
-    if (!Number.isFinite(start.getTime())) return null;
+    const start = new Date((goal as any).startedAt);
+    if (!Number.isFinite(end.getTime()) || !Number.isFinite(start.getTime())) return null;
     if (end.getTime() < start.getTime()) return null;
     return end.getTime() - start.getTime();
 };
@@ -296,11 +293,14 @@ const GoalModal = ({ goal, mode, onSave, onClose, theme, isPhone, todayKey, maxD
     const [title, setTitle] = useState(goal?.title || "");
     const [desc, setDesc] = useState(goal?.description || "");
     const [date, setDate] = useState(initialDateKey);
+    // startTime stored as "HH:MM" in 24h format (IST); empty = not set
+    const [startTime, setStartTime] = useState("");
 
     useEffect(() => {
         setTitle(goal?.title || "");
         setDesc(goal?.description || "");
         setDate(initialDateKey);
+        setStartTime("");
     }, [goal?.title, goal?.description, initialDateKey]);
 
     const submit = () => {
@@ -315,7 +315,18 @@ const GoalModal = ({ goal, mode, onSave, onClose, theme, isPhone, todayKey, maxD
             setDate(maxDateKey);
             return;
         }
-        onSave({ title: title.trim(), description: desc.trim(), scheduledDate: date });
+        // Convert "HH:MM" (local IST) on the scheduled date to a UTC ISO string
+        let startedAt: string | null = null;
+        if (startTime) {
+            const [hh, mm] = startTime.split(":").map(Number);
+            // Build a UTC timestamp: treat the chosen date+time as IST (UTC+5:30)
+            const istOffsetMs = 5.5 * 60 * 60 * 1000;
+            const utcMs = new Date(`${date}T00:00:00.000Z`).getTime()
+                + hh * 3600000 + mm * 60000
+                - istOffsetMs;
+            startedAt = new Date(utcMs).toISOString();
+        }
+        onSave({ title: title.trim(), description: desc.trim(), scheduledDate: date, startedAt });
     };
 
     useEffect(() => {
@@ -356,6 +367,24 @@ const GoalModal = ({ goal, mode, onSave, onClose, theme, isPhone, todayKey, maxD
                     <div style={{ flexShrink: 0 }}>
                         <label style={lbl}>Date</label>
                         <input type="date" style={inp} value={date} onChange={e => setDate(e.target.value)} min={todayKey} max={maxDateKey} />
+                    </div>
+                    <div style={{ flexShrink: 0 }}>
+                        <label style={lbl}>When will you start? <span style={{ fontWeight: 400, textTransform: "none", opacity: 0.7 }}>(optional · IST)</span></label>
+                        <input
+                            type="time"
+                            style={inp}
+                            value={startTime}
+                            onChange={e => setStartTime(e.target.value)}
+                            placeholder="--:--"
+                        />
+                        {startTime && (
+                            <button
+                                onClick={() => setStartTime("")}
+                                style={{ marginTop: 6, background: "none", border: "none", color: isDark ? T.darkTextMuted : T.slate400, fontSize: 11, cursor: "pointer", padding: 0 }}
+                            >
+                                ✕ Clear start time
+                            </button>
+                        )}
                     </div>
 
                     <button

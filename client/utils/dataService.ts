@@ -81,6 +81,7 @@ export const dataService = {
         title: string;
         scheduledDate?: string;
         description?: string;
+        startedAt?: string | null;
     }): Promise<Goal> {
         const res = await apiFetch(`${API_URL}/goals`, {
             method: "POST",
@@ -91,11 +92,22 @@ export const dataService = {
                 description: payload.description,
                 type: "daily",
                 scheduledDate: payload.scheduledDate,
+                startedAt: payload.startedAt ?? null,
             }),
             credentials: 'include',
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to add goal"));
         return res.json();
+    },
+
+    async updateGoalStartTime(id: string, startedAt: string | null): Promise<void> {
+        const res = await apiFetch(`${API_URL}/goals/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ startedAt }),
+            credentials: 'include',
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update goal start time"));
     },
 
     async getGoalRolloverPrompts(): Promise<Goal[]> {
