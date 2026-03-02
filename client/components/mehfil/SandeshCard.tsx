@@ -834,10 +834,12 @@ const SandeshCard = () => {
                                                             {comment.userId === currentUserId && (
                                                                 <button
                                                                     onClick={() => handleDeleteComment(sandesh.id, comment.id)}
-                                                                    className="p-2 text-slate-300 hover:text-rose-500 transition-colors rounded"
                                                                     title="Delete comment"
+                                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '4px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
+                                                                    onMouseEnter={e => (e.currentTarget.style.color = '#f43f5e')}
+                                                                    onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}
                                                                 >
-                                                                    <Trash2 className="w-6 h-6" />
+                                                                    <Trash2 style={{ width: 18, height: 18 }} />
                                                                 </button>
                                                             )}
                                                         </div>

@@ -154,7 +154,6 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ thoughtId: thought.id, content: commentText }),
-        credentials: "include",
       });
       if (response.ok) {
         const data = await response.json();
@@ -224,7 +223,6 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ thoughtId: thought.id, reason: reportReason }),
-        credentials: "include",
       });
       if (response.ok) {
         toast.success(
@@ -502,7 +500,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                         {getInitials(comment.author_name)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-2xl rounded-tl-none p-3 group/comment">
+                    <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-2xl rounded-tl-none p-3">
                       <div className="mb-1 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-slate-900 dark:text-slate-200">
@@ -526,10 +524,12 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                           {comment.user_id === currentUserId && (
                             <button
                               onClick={() => handleDeleteComment(comment.id)}
-                              className="opacity-0 group-hover/comment:opacity-100 p-2 text-slate-400 hover:text-rose-500 transition-opacity rounded"
                               title="Delete comment"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '4px', color: '#94a3b8', display: 'flex', alignItems: 'center' }}
+                              onMouseEnter={e => (e.currentTarget.style.color = '#f43f5e')}
+                              onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}
                             >
-                              <Trash2 className="w-6 h-6" />
+                              <Trash2 style={{ width: 18, height: 18 }} />
                             </button>
                           )}
                         </div>
