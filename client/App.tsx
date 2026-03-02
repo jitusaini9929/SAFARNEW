@@ -218,7 +218,7 @@ const App = () => (
                 />
 
                 {/* Landing page - Public Home */}
-                <Route path="/landing" element={<Landing />} />
+                <Route path="/home" element={<Landing />} />
 
                 {/* Default route - Landing page is now home */}
                 <Route path="/" element={<Landing />} />
