@@ -112,7 +112,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       const userId = await getCurrentUserId();
       if (!userId) return;
 
-      const response = await fetch(`${API_URL}/mehfil/interactions/save/${thought.id}`);
+      const response = await fetch(`${API_URL}/mehfil/interactions/save/${thought.id}`, { credentials: "include" });
       if (response.ok) {
         const data = await response.json();
         setIsSaved(data.saved);
@@ -127,7 +127,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const fetchComments = async () => {
     setIsLoadingComments(true);
     try {
-      const response = await fetch(`${API_URL}/mehfil/interactions/comments/${thought.id}`);
+      const response = await fetch(`${API_URL}/mehfil/interactions/comments/${thought.id}`, { credentials: "include" });
       if (response.ok) {
         const data = await response.json();
         setComments(Array.isArray(data?.comments) ? data.comments.map(toComment) : []);
@@ -153,6 +153,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       const response = await fetch(`${API_URL}/mehfil/interactions/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ thoughtId: thought.id, content: commentText }),
       });
       if (response.ok) {
@@ -199,6 +200,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       const response = await fetch(`${API_URL}/mehfil/interactions/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ thoughtId: thought.id }),
       });
       if (response.ok) {
@@ -222,6 +224,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       const response = await fetch(`${API_URL}/mehfil/interactions/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ thoughtId: thought.id, reason: reportReason }),
       });
       if (response.ok) {
@@ -246,6 +249,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         fetch(`${API_URL}/mehfil/interactions/share`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({ thoughtId: thought.id, platform: "share" }),
         });
       }
