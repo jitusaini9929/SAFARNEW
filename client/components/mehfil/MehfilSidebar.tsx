@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bookmark, BarChart3, Shield, X, Loader2 } from 'lucide-react';
+import { Bookmark, BarChart3, Shield, X, Loader2, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -7,10 +7,12 @@ import { authService } from '@/utils/authService';
 import { toast } from 'sonner';
 import { Thought } from '@/store/mehfilStore';
 import ThoughtCard from './ThoughtCard';
+import { useDMStore } from '@/store/dmStore';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
-type SidebarView = 'saved' | 'analytics' | 'privacy' | null;
+export type MehfilSidebarView = 'connections' | 'saved' | 'analytics' | 'privacy';
+type SidebarView = MehfilSidebarView | null;
 
 interface UserAnalytics {
   totalThoughts: number;
@@ -24,20 +26,26 @@ interface UserAnalytics {
 interface MehfilSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  initialView?: MehfilSidebarView;
 }
 
-const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
+const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialView = 'connections' }) => {
   const [activeView, setActiveView] = useState<SidebarView>(null);
   const [savedPosts, setSavedPosts] = useState<Thought[]>([]);
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
   const [loading, setLoading] = useState(false);
   const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
+  const incomingRequests = useDMStore((state) => state.incomingRequests);
+  const activeChat = useDMStore((state) => state.activeChat);
+  const acceptRequest = useDMStore((state) => state.acceptRequest);
+  const declineRequest = useDMStore((state) => state.declineRequest);
+  const pendingRequestsCount = incomingRequests.length;
 
   useEffect(() => {
     if (isOpen && !activeView) {
-      setActiveView('saved');
+      setActiveView(initialView);
     }
-  }, [isOpen]);
+  }, [isOpen, activeView, initialView]);
 
   useEffect(() => {
     if (activeView === 'saved') {
@@ -127,6 +135,21 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
         {/* Navigation Tabs */}
         <div className="flex items-center gap-2 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 overflow-x-auto scrollbar-hide">
           <Button
+            variant={activeView === 'connections' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveView('connections')}
+            aria-label="Connection requests"
+            className="min-w-fit gap-2 action-btn-nowrap relative"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="action-label-mobile-hidden">Connections</span>
+            {pendingRequestsCount > 0 && (
+              <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white">
+                {pendingRequestsCount}
+              </span>
+            )}
+          </Button>
+          <Button
             variant={activeView === 'saved' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveView('saved')}
@@ -166,6 +189,68 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose }) => {
             </div>
           ) : (
             <>
+              {activeView === 'connections' && (
+                <div className="space-y-5">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    Connections
+                  </h3>
+
+                  {activeChat && (
+                    <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4 dark:border-teal-700/60 dark:bg-teal-900/20">
+                      <p className="text-sm font-semibold text-teal-700 dark:text-teal-300">Active Chat</p>
+                      <p className="mt-1 text-sm text-teal-800 dark:text-teal-200">
+                        Chatting with <span className="font-bold">{activeChat.otherUserName}</span>.
+                      </p>
+                      <p className="mt-1 text-xs text-teal-700/80 dark:text-teal-300/80">
+                        Use the chat window at the bottom-right to continue.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      Pending Requests ({pendingRequestsCount})
+                    </p>
+
+                    {pendingRequestsCount === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+                        No pending connection requests right now.
+                      </div>
+                    ) : (
+                      incomingRequests.map((request) => (
+                        <div
+                          key={request.requestId}
+                          className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/40"
+                        >
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            {request.fromUserName} wants to chat
+                          </p>
+                          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                            From {request.context.type}: {request.context.preview || 'No preview'}
+                          </p>
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => declineRequest(request.requestId)}
+                              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-600 dark:text-slate-200"
+                            >
+                              Decline
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => acceptRequest(request.requestId)}
+                              className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white"
+                            >
+                              Accept & Chat
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Saved Posts View */}
               {activeView === 'saved' && (
                 <div className="space-y-6">

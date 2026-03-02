@@ -1,18 +1,24 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { Socket } from 'socket.io-client';
 import { useMehfilStore, MehfilRoom } from '@/store/mehfilStore';
+import { useDMStore } from '@/store/dmStore';
 import { authService } from '@/utils/authService';
 import ThoughtCard from './ThoughtCard';
 import Composer from './Composer';
 import MehfilSidebar from './MehfilSidebar';
+import type { MehfilSidebarView } from './MehfilSidebar';
 import SandeshCard from './SandeshCard';
+import { DMLayer } from './dm/DMLayer';
 import { toast } from 'sonner';
 import ThemeToggle from '@/components/ui/theme-toggle';
 import GlobalSidebar from '@/components/GlobalSidebar';
+import { closeMehfilSocket, getMehfilSocket } from '@/lib/socket';
 
-import { Search, Settings, LogOut, Home, Menu, Info, ShieldAlert, AlertCircle, ChevronDown, ChevronUp, Clock, Ban, Ghost } from 'lucide-react';
+import { Search, Settings, LogOut, Menu, Info, ShieldAlert, AlertCircle, ChevronDown, ChevronUp, Clock, Ban, Ghost, Bell } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +74,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [user, setUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [mehfilSidebarInitialView, setMehfilSidebarInitialView] = useState<MehfilSidebarView>('connections');
   const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
   const [activeRoom, setActiveRoom] = useState<MehfilFeedRoom>('ALL');
   const [postingBan, setPostingBan] = useState<PostingBanPayload | null>(null);
@@ -90,6 +97,10 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     updateRelatableCount,
     setUserReaction,
   } = useMehfilStore();
+  const initializeDM = useDMStore((state) => state.initialize);
+  const loadSavedHandles = useDMStore((state) => state.loadSavedHandles);
+  const dmRequestError = useDMStore((state) => state.requestError);
+  const incomingRequestsCount = useDMStore((state) => state.incomingRequests.length);
 
   const handleLogout = async () => {
     try {
@@ -122,6 +133,12 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   useEffect(() => {
     userIdRef.current = user?.id;
   }, [user?.id]);
+
+  useEffect(() => {
+    if (dmRequestError) {
+      toast.error(dmRequestError);
+    }
+  }, [dmRequestError]);
 
   const isPaused = import.meta.env.MEHFIL_PAUSED === 'true';
 
@@ -186,15 +203,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   }, [postingBan?.isActive, postingBan?.isPermanent, postingBan?.bannedUntil]);
 
   useEffect(() => {
-    const socketUrl = backendUrl || window.location.origin;
-    const newSocket = io(`${socketUrl}/mehfil`, {
-      path: '/socket.io',
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-      transports: ['websocket', 'polling'],
-    });
+    const newSocket = getMehfilSocket(backendUrl);
 
     newSocket.on('connect', () => {
       console.log('Connected to Mehfil server');
@@ -308,7 +317,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     setSocket(newSocket);
 
     return () => {
-      newSocket.close();
+      closeMehfilSocket();
     };
   }, [backendUrl, addThought, updateThought, removeThought, updateRelatableCount, setUserReaction]);
 
@@ -328,6 +337,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
           name: user.name || 'User',
           avatar: user.avatar || '',
         });
+        initializeDM(socket, user.id, user.name || 'You');
+        loadSavedHandles();
         socket.emit('checkPostingBan');
       }
 
@@ -348,7 +359,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     return () => {
       socket.off('connect', syncSocketState);
     };
-  }, [socket, user?.id, user?.name, user?.avatar]);
+  }, [socket, user?.id, user?.name, user?.avatar, initializeDM, loadSavedHandles]);
 
   useEffect(() => {
     if (!socket) return;
@@ -461,7 +472,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       </div>
 
       <nav className="fixed top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 min-h-16 glass-2-0 rounded-2xl z-50 px-3 sm:px-6 py-2 sm:py-0 flex items-center justify-between border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 gap-2">
-        <Link to="/landing" className="flex items-center gap-3 group cursor-pointer text-inherit no-underline">
+        <Link to="/home" className="flex items-center gap-3 group cursor-pointer text-inherit no-underline">
           <div className={`px-3 sm:px-4 py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
             <span className="text-white font-bold text-base sm:text-lg tracking-tight whitespace-nowrap break-normal">Mehfil</span>
           </div>
@@ -481,8 +492,25 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
 
 
-        <div className="flex items-center gap-1.5 sm:gap-3">
+        <div className="flex items-center gap-5 pr-6">
           <ThemeToggle />
+
+          <button
+            onClick={() => {
+              setMehfilSidebarInitialView('connections');
+              setIsSidebarOpen(true);
+            }}
+            className="relative p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+            title="Connection requests"
+            aria-label="Open connections"
+          >
+            <Bell className="w-5 h-5" />
+            {incomingRequestsCount > 0 && (
+              <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white">
+                {incomingRequestsCount}
+              </span>
+            )}
+          </button>
 
           <button
             onClick={() => setIsGlobalSidebarOpen(true)}
@@ -490,19 +518,15 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             title="Menu"
           >
             <Menu className="w-5 h-5" />
-          </button>          <div className="flex items-center gap-2 sm:gap-3 pl-2 ml-1 sm:ml-2 border-l border-slate-200 dark:border-slate-800">
+          </button>
+
+          <div className="flex items-center gap-5 pr-6 border-l border-slate-200 dark:border-slate-800 ml-1 sm:ml-2 pl-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 group outline-none">
-                  <div className="text-right hidden lg:block">
-                    <p className="text-sm font-bold leading-none text-slate-900 dark:text-slate-100">
-                      {user?.name || 'Guest User'}
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5 tracking-wide uppercase">Member</p>
-                  </div>
-                  <Avatar className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-xl border-2 border-white dark:border-slate-700 shadow-sm cursor-pointer transition-transform group-hover:scale-105">
-                    <AvatarImage src={user?.avatar} className="rounded-xl" />
-                    <AvatarFallback className="rounded-xl bg-teal-100 text-teal-700 font-bold">
+                <button className="flex items-center justify-center w-[40px] h-[40px] p-0.5 rounded-full transition-all duration-200 hover:scale-105 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 outline-none">
+                  <Avatar className="w-full h-full rounded-full border border-slate-200 dark:border-white/10 transition-transform">
+                    <AvatarImage src={user?.avatar} className="object-cover" />
+                    <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs ring-1 ring-inset ring-slate-900/10 dark:ring-white/10">
                       {user?.name?.[0]?.toUpperCase() || 'G'}
                     </AvatarFallback>
                   </Avatar>
@@ -571,82 +595,80 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                 </div>
 
                 {/* Guidelines Notice Section — collapsible */}
-                <div className="mb-8">
-                  <button
-                    onClick={() => setGuidelinesOpen(prev => !prev)}
-                    className="w-full flex items-center justify-between gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/80 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 bg-indigo-500/10 rounded-xl">
-                        <ShieldAlert className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                      </div>
-                      <span className="text-sm font-bold text-slate-900 dark:text-white">Community Guidelines</span>
-                    </div>
-                    {guidelinesOpen ? (
-                      <ChevronUp className="w-4 h-4 text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
-                    )}
-                  </button>
-
-                  {guidelinesOpen && (
-                    <div className="mt-2 bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/80 dark:to-slate-800/80 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 p-5 sm:p-6 shadow-sm animate-in slide-in-from-top-2 duration-200">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Rules Column */}
-                        <div className="space-y-4">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                            <Info className="w-3.5 h-3.5" /> Posting Rules
-                          </h4>
-                          <ul className="space-y-3">
-                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                              <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
-                              <span><strong>Academic Hall:</strong> Research, study hacks, and career help only. No venting.</span>
-                            </li>
-                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                              <span><strong>Thoughts:</strong> Emotional support and venting. Move here for personal struggles.</span>
-                            </li>
-                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                              <span><strong>Blocked:</strong> Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.</span>
-                            </li>
-                          </ul>
-                        </div>
-
-                        {/* Consequences Column */}
-                        <div className="space-y-4">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                            <AlertCircle className="w-3.5 h-3.5" /> Consequences
-                          </h4>
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
-                              <div className="p-1.5 bg-amber-500/10 rounded-lg">
-                                <Ban className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                              </div>
-                              <div className="text-xs leading-tight">
-                                <span className="font-bold block text-slate-900 dark:text-white">Report-Based Bans</span>
-                                <span className="text-slate-500 dark:text-slate-400">1+ reports trigger automatic bans (2D → 7D → Permanent).</span>
-                              </div>
+                <Card className="mb-8 w-full bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/80 dark:to-slate-800/80 border-slate-200/60 dark:border-slate-700/60 shadow-sm rounded-2xl overflow-hidden">
+                  <CardContent className="p-0">
+                    <Collapsible
+                      open={guidelinesOpen}
+                      onOpenChange={setGuidelinesOpen}
+                      className="data-[state=open]:bg-slate-100/50 dark:data-[state=open]:bg-slate-800/50 transition-colors"
+                    >
+                      <CollapsibleTrigger asChild>
+                        <button className="group w-full flex items-center justify-between gap-2.5 px-4 py-3 cursor-pointer outline-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors">
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-1.5 bg-indigo-500/10 rounded-xl">
+                              <ShieldAlert className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                             </div>
-                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
-                              <div className="p-1.5 bg-rose-500/10 rounded-lg">
-                                <Ghost className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                            <span className="text-sm font-bold text-slate-900 dark:text-white">Community Guidelines</span>
+                          </div>
+                          <ChevronDown className="w-4 h-4 text-slate-400 ml-auto transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="px-5 sm:px-6 pb-5 pt-2 animate-in slide-in-from-top-2 duration-200 flex flex-col">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Rules Column */}
+                          <div className="space-y-4">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                              <Info className="w-3.5 h-3.5" /> Posting Rules
+                            </h4>
+                            <ul className="space-y-3">
+                              <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
+                                <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
+                                <span><strong>Academic Hall:</strong> Research, study hacks, and career help only. No venting.</span>
+                              </li>
+                              <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                                <span><strong>Thoughts:</strong> Emotional support and venting. Move here for personal struggles.</span>
+                              </li>
+                              <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
+                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                                <span><strong>Blocked:</strong> Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.</span>
+                              </li>
+                            </ul>
+                          </div>
+
+                          {/* Consequences Column */}
+                          <div className="space-y-4">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
+                              <AlertCircle className="w-3.5 h-3.5" /> Consequences
+                            </h4>
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
+                                <div className="p-1.5 bg-amber-500/10 rounded-lg">
+                                  <Ban className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <div className="text-xs leading-tight">
+                                  <span className="font-bold block text-slate-900 dark:text-white">Report-Based Bans</span>
+                                  <span className="text-slate-500 dark:text-slate-400">1+ reports trigger automatic bans (2D → 7D → Permanent).</span>
+                                </div>
                               </div>
-                              <div className="text-xs leading-tight">
-                                <span className="font-bold block text-slate-900 dark:text-white">Shadow Banning</span>
-                                <span className="text-slate-500 dark:text-slate-400">Repeated spam results in silent silencing—others won't see you.</span>
+                              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
+                                <div className="p-1.5 bg-rose-500/10 rounded-lg">
+                                  <Ghost className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                                </div>
+                                <div className="text-xs leading-tight">
+                                  <span className="font-bold block text-slate-900 dark:text-white">Shadow Banning</span>
+                                  <span className="text-slate-500 dark:text-slate-400">Repeated spam results in silent silencing—others won't see you.</span>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="mt-4 pt-4 border-t border-slate-200/40 dark:border-slate-700/40 flex items-center gap-2 text-[10px] text-slate-400 uppercase tracking-widest font-bold">
-                        <Clock className="w-3 h-3" /> All posts are analyzed by AI for quality control
-                      </div>
-                    </div>
-                  )}
-                </div>
+
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </CardContent>
+                </Card>
 
                 <Composer
                   onSendThought={handleSendThought}
@@ -678,6 +700,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                       onDelete={() => handleDelete(thought.id)}
                       hasReacted={userReactions.has(thought.id)}
                       isOwnThought={thought.userId === user?.id}
+                      currentUserId={user?.id}
                     />
                   ))
                 )}
@@ -706,12 +729,20 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         </main>
       </div>
 
-      <MehfilSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <MehfilSidebar
+        isOpen={isSidebarOpen}
+        initialView={mehfilSidebarInitialView}
+        onClose={() => setIsSidebarOpen(false)}
+      />
       <GlobalSidebar
         isOpen={isGlobalSidebarOpen}
         onClose={() => setIsGlobalSidebarOpen(false)}
-        onOpenMehfilSidebar={() => setIsSidebarOpen(true)}
+        onOpenMehfilSidebar={() => {
+          setMehfilSidebarInitialView('saved');
+          setIsSidebarOpen(true);
+        }}
       />
+      <DMLayer />
 
       {postingBan?.isActive && (
         <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
