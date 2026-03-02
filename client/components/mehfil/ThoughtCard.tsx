@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ConnectButton } from "./ConnectButton";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -42,6 +43,7 @@ interface ThoughtCardProps {
   onDelete?: () => void;
   hasReacted: boolean;
   isOwnThought?: boolean;
+  currentUserId?: string;
 }
 
 interface Comment {
@@ -60,6 +62,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   onDelete,
   hasReacted,
   isOwnThought = false,
+  currentUserId,
 }) => {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -165,6 +168,24 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     } catch (error) {
       console.error("Error posting comment:", error);
       toast.error("Failed to post comment");
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/mehfil/interactions/comments/${commentId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (response.ok) {
+        setComments((prev) => prev.filter((c) => c.id !== commentId));
+        toast.success("Comment deleted");
+      } else {
+        throw new Error("Failed to delete comment");
+      }
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      toast.error("Failed to delete comment");
     }
   };
 
@@ -303,6 +324,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     thought.category === "REFLECTIVE"
       ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
       : "bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300";
+  const canConnectToPost = Boolean(thought.userId) && thought.userId !== currentUserId;
 
   // ── render ──────────────────────────────────────────
 
@@ -445,6 +467,16 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               {Math.max(thought.commentsCount || 0, comments.length) > 0 && `(${Math.max(thought.commentsCount || 0, comments.length)})`}
             </button>
           </div>
+          {canConnectToPost && (
+            <ConnectButton
+              targetUserId={thought.userId}
+              context={{
+                type: "post",
+                id: thought.id,
+                preview: thought.content.slice(0, 60),
+              }}
+            />
+          )}
         </div>
 
         {/* Comment Section (Collapsible) */}
@@ -469,13 +501,36 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-2xl rounded-tl-none p-3">
-                      <div className="flex justify-between items-baseline mb-1">
-                        <span className="text-xs font-bold text-slate-900 dark:text-slate-200">
-                          {comment.author_name}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {formatTime(comment.created_at)}
-                        </span>
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-900 dark:text-slate-200">
+                            {comment.author_name}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {formatTime(comment.created_at)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {comment.user_id && comment.user_id !== currentUserId && (
+                            <ConnectButton
+                              targetUserId={comment.user_id}
+                              context={{
+                                type: "comment",
+                                id: comment.id,
+                                preview: comment.content.slice(0, 60),
+                              }}
+                            />
+                          )}
+                          {comment.user_id === currentUserId && (
+                            <button
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="p-1 text-slate-300 hover:text-rose-500 transition-colors rounded"
+                              title="Delete comment"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <p className="text-sm text-slate-600 dark:text-slate-300">
                         {comment.content}

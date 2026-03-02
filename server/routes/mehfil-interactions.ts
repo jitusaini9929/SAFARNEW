@@ -220,6 +220,39 @@ mehfilInteractionRoutes.post("/comments", async (req: any, res: Response) => {
     }
 });
 
+// Delete a comment (own comments only)
+mehfilInteractionRoutes.delete("/comments/:commentId", async (req: any, res: Response) => {
+    try {
+        const userId = req.session.userId;
+        if (!userId) {
+            return res.status(401).json({ error: "Not authenticated" });
+        }
+
+        const { commentId } = req.params;
+
+        const comment = await collections.mehfilComments().findOne({ id: commentId });
+        if (!comment) {
+            return res.status(404).json({ error: "Comment not found" });
+        }
+        if (comment.user_id !== userId) {
+            return res.status(403).json({ error: "Not authorised to delete this comment" });
+        }
+
+        await collections.mehfilComments().deleteOne({ id: commentId });
+
+        // Decrement comments_count on the thought
+        await collections.mehfilThoughts().updateOne(
+            { id: comment.thought_id },
+            { $inc: { comments_count: -1 } }
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error("Error deleting comment:", error);
+        res.status(500).json({ error: "Failed to delete comment" });
+    }
+});
+
 // ═══════════════════════════════════════════════════════════
 // SAVES / BOOKMARKS
 // ═══════════════════════════════════════════════════════════

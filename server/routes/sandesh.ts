@@ -362,4 +362,27 @@ router.post('/:id/comments', requireAuth, async (req: Request, res: Response) =>
     }
 });
 
+// Delete a comment on a sandesh (own comments only)
+router.delete('/:sandeshId/comments/:commentId', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const userId = (req as any).session.userId;
+        const { commentId } = req.params;
+
+        const comment = await collections.sandeshComments().findOne({ id: commentId });
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+        if (comment.user_id !== userId) {
+            return res.status(403).json({ message: 'Not authorised to delete this comment' });
+        }
+
+        await collections.sandeshComments().deleteOne({ id: commentId });
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting comment:', error);
+        res.status(500).json({ message: 'Failed to delete comment' });
+    }
+});
+
 export const sandeshRoutes = router;

@@ -71,6 +71,7 @@ const SandeshCard = () => {
     const [newCommentById, setNewCommentById] = useState<Record<string, string>>({});
     const [isPostingCommentById, setIsPostingCommentById] = useState<Record<string, boolean>>({});
     const [isLikingById, setIsLikingById] = useState<Record<string, boolean>>({});
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
 
 
@@ -201,6 +202,42 @@ const SandeshCard = () => {
         const intervalId = setInterval(fetchSandesh, 30000);
         return () => clearInterval(intervalId);
     }, []);
+
+    useEffect(() => {
+        const fetchCurrentUser = async () => {
+            try {
+                const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCurrentUserId(data?.user?.id || data?.id || null);
+                }
+            } catch (err) {
+                console.error('Failed to fetch current user', err);
+            }
+        };
+        fetchCurrentUser();
+    }, []);
+
+    const handleDeleteComment = async (sandeshId: string, commentId: string) => {
+        try {
+            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/comments/${commentId}`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            if (res.ok) {
+                setCommentsById(prev => ({
+                    ...prev,
+                    [sandeshId]: (prev[sandeshId] || []).filter(c => c.id !== commentId),
+                }));
+                setCommentCountById(prev => ({ ...prev, [sandeshId]: Math.max((prev[sandeshId] || 1) - 1, 0) }));
+                toast.success('Comment deleted');
+            } else {
+                toast.error('Failed to delete comment');
+            }
+        } catch (err) {
+            toast.error('Error deleting comment');
+        }
+    };
 
     const markAsRead = () => {
         if (sandeshes.length > 0 && hasUnread) {
@@ -787,11 +824,22 @@ const SandeshCard = () => {
                                                         )}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-baseline gap-2">
-                                                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{comment.authorName}</span>
-                                                            <span className="text-[9px] text-slate-400">
-                                                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                                                            </span>
+                                                        <div className="flex items-baseline justify-between gap-2">
+                                                            <div className="flex items-baseline gap-2">
+                                                                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{comment.authorName}</span>
+                                                                <span className="text-[9px] text-slate-400">
+                                                                    {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                                                </span>
+                                                            </div>
+                                                            {comment.userId === currentUserId && (
+                                                                <button
+                                                                    onClick={() => handleDeleteComment(sandesh.id, comment.id)}
+                                                                    className="opacity-0 group-hover/comment:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-rose-500"
+                                                                    title="Delete comment"
+                                                                >
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{comment.content}</p>
                                                     </div>
