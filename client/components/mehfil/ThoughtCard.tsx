@@ -524,10 +524,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                           {comment.user_id === currentUserId && (
                             <button
                               onClick={() => handleDeleteComment(comment.id)}
-                              className="p-1 text-slate-300 hover:text-rose-500 transition-colors rounded"
+                              className="p-2 text-slate-300 hover:text-rose-500 transition-colors rounded"
                               title="Delete comment"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-6 h-6" />
                             </button>
                           )}
                         </div>

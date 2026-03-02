@@ -834,10 +834,10 @@ const SandeshCard = () => {
                                                             {comment.userId === currentUserId && (
                                                                 <button
                                                                     onClick={() => handleDeleteComment(sandesh.id, comment.id)}
-                                                                    className="opacity-0 group-hover/comment:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-rose-500"
+                                                                    className="opacity-0 group-hover/comment:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500"
                                                                     title="Delete comment"
                                                                 >
-                                                                    <Trash2 className="w-3 h-3" />
+                                                                    <Trash2 className="w-6 h-6" />
                                                                 </button>
                                                             )}
                                                         </div>
