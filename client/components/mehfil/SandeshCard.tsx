@@ -815,7 +815,7 @@ const SandeshCard = () => {
                                     {(commentsById[sandesh.id] || []).length > 0 ? (
                                         <div className="space-y-3 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent mb-3">
                                             {(commentsById[sandesh.id] || []).map(comment => (
-                                                <div key={comment.id} className="flex gap-2.5 group/comment">
+                                                <div key={comment.id} className="flex gap-2.5">
                                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-white/10">
                                                         {comment.authorAvatar ? (
                                                             <img src={comment.authorAvatar} alt="" className="w-full h-full rounded-full object-cover" />
@@ -834,7 +834,7 @@ const SandeshCard = () => {
                                                             {comment.userId === currentUserId && (
                                                                 <button
                                                                     onClick={() => handleDeleteComment(sandesh.id, comment.id)}
-                                                                    className="opacity-0 group-hover/comment:opacity-100 transition-opacity p-1 text-slate-400 hover:text-rose-500"
+                                                                    className="p-2 text-slate-300 hover:text-rose-500 transition-colors rounded"
                                                                     title="Delete comment"
                                                                 >
                                                                     <Trash2 className="w-6 h-6" />
