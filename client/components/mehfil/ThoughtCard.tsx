@@ -154,6 +154,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ thoughtId: thought.id, content: commentText }),
+        credentials: "include",
       });
       if (response.ok) {
         const data = await response.json();
@@ -223,6 +224,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ thoughtId: thought.id, reason: reportReason }),
+        credentials: "include",
       });
       if (response.ok) {
         toast.success(
