@@ -102,6 +102,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const pipIntervalRef = useRef<number | undefined>(undefined);
     const pipRvfcHandleRef = useRef<number | undefined>(undefined);
+    const pipHeartbeatRef = useRef<number | undefined>(undefined);
     const suppressPiPVideoEventsRef = useRef(false);
     const isPiPActiveRef = useRef(false);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -682,6 +683,17 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                         }
                     };
                     startPiPDrawLoop();
+
+                    // Guaranteed 1-second heartbeat — keeps the canvas in sync even when
+                    // rVFC stops firing (e.g. video paused, browser throttling).
+                    pipHeartbeatRef.current = window.setInterval(() => {
+                        if (isPiPActiveRef.current) {
+                            drawToCanvas();
+                        } else {
+                            window.clearInterval(pipHeartbeatRef.current);
+                            pipHeartbeatRef.current = undefined;
+                        }
+                    }, 1000);
                 } // Closes `if (videoRef.current && !document.pictureInPictureElement)`
             } // Closes `else`
         } catch (err) {

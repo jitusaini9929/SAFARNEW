@@ -168,7 +168,14 @@ export default function StudyWithMe() {
 
 
     // New states for theme and sidebar
-    const [currentTheme, setCurrentTheme] = useState<FocusTheme>(focusThemes[0]);
+    const [currentTheme, setCurrentTheme] = useState<FocusTheme>(() => {
+        try {
+            const saved = localStorage.getItem('focus-theme-id');
+            return focusThemes.find(t => t.id === saved) || focusThemes[0];
+        } catch {
+            return focusThemes[0];
+        }
+    });
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -376,7 +383,13 @@ export default function StudyWithMe() {
     const nextTask = awaitingProceed ? activeTask : undefined;
 
     const handleProceedToNext = () => {
-        if (!nextTask) return;
+        if (!nextTask) {
+            // All tasks done — reset completion state and open task sidebar
+            setAwaitingProceed(false);
+            setCompletedTask(null);
+            setIsTasksOpen(true);
+            return;
+        }
         setNextDurationInput(String(sliderValue));
         setShowDurationPrompt(true);
     };
@@ -403,6 +416,7 @@ export default function StudyWithMe() {
     const handleThemeChange = (newTheme: FocusTheme) => {
         setCurrentTheme(newTheme);
         setShowThemeSelector(false);
+        try { localStorage.setItem('focus-theme-id', newTheme.id); } catch { }
     };
 
     const handleVolumeChange = (newVolume: number) => {

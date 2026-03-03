@@ -119,13 +119,13 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                                 </div>
                             )}
                         </div>
-                        {nextTask && onProceed && (
+                        {onProceed && (
                             <button
                                 onClick={onProceed}
                                 className="shrink-0 px-4 min-h-[44px] rounded-lg text-sm font-semibold text-white shadow-md transition-all flex items-center justify-center"
                                 style={{ backgroundColor: currentTheme.accent }}
                             >
-                                Proceed
+                                {nextTask ? 'Proceed →' : '＋ Add Task'}
                             </button>
                         )}
                     </div>
