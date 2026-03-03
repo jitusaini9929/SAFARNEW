@@ -564,7 +564,12 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         syncPiPVideoPlayback(true);
         // Pre-initialize PiP stream so auto-PiP works on app switch
         ensurePiPReady();
-    }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady]);
+        // On mobile, PiP must be triggered from a user gesture.
+        // Attempt to enter PiP immediately when the timer starts.
+        if (!isPiPActiveRef.current && document.pictureInPictureEnabled) {
+            togglePiP().catch(() => { /* may be blocked; fallback handlers can retry */ });
+        }
+    }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady, togglePiP]);
 
     const pauseTimer = useCallback(() => {
         isRunningRef.current = false;
@@ -924,7 +929,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             {/* Hidden Video Element for PiP */}
             <video
                 ref={videoRef}
-                className="hidden"
+                // Keep element in DOM for PiP eligibility without visible UI.
+                className="fixed -left-[9999px] top-0 w-[1px] h-[1px] opacity-0 pointer-events-none"
                 playsInline
                 disableRemotePlayback
                 controlsList="nodownload nofullscreen noremoteplayback"
