@@ -445,13 +445,13 @@ const SandeshCard = () => {
 
     return (
         <div
-            className="backdrop-blur-3xl bg-white/60 dark:bg-[#0a0a0a]/60 border border-white/40 dark:border-white/10 shadow-glass rounded-[2rem] p-4 sm:p-5 min-h-[500px] w-full lg:w-full lg:ml-0 xl:w-[108%] xl:-ml-[4%] transition-all duration-300 hover:shadow-glass-hover group relative z-10"
+            className="backdrop-blur-3xl bg-white/60 dark:bg-[#0a0a0a]/60 border border-white/40 dark:border-white/10 shadow-glass rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 md:p-5 min-h-[300px] sm:min-h-[400px] md:min-h-[500px] w-full transition-all duration-300 hover:shadow-glass-hover group relative z-10"
             onClick={markAsRead}
             onMouseEnter={markAsRead}
         >
-            <div className="flex items-center justify-between mb-8 px-2">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span className="p-2 bg-indigo-500/10 dark:bg-indigo-400/10 rounded-xl relative">
+            <div className="flex items-center justify-between mb-4 sm:mb-6 md:mb-8 px-1 sm:px-2">
+                <h2 className="text-base sm:text-lg md:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span className="p-1.5 sm:p-2 bg-indigo-500/10 dark:bg-indigo-400/10 rounded-lg sm:rounded-xl relative">
                         <Bell className={`w-5 h-5 text-indigo-600 dark:text-indigo-400 ${hasUnread ? 'animate-swing' : ''}`} />
                         {hasUnread && (
                             <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse"></span>
@@ -614,17 +614,17 @@ const SandeshCard = () => {
                 </div>
             )}
 
-            <div className="space-y-4 pr-1 h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div className="space-y-3 sm:space-y-4 pr-1 h-[280px] sm:h-[350px] md:h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                 {sandeshes.length > 0 ? (
                     sandeshes.map((sandesh) => (
-                    <div key={sandesh.id} className="backdrop-blur-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 rounded-2xl p-6 border border-white/20 group hover:-translate-y-1 shadow-lg">
+                    <div key={sandesh.id} className="backdrop-blur-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 transition-all duration-300 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-6 border border-white/20 group hover:-translate-y-0.5 sm:hover:-translate-y-1 shadow-lg relative">
 
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center text-white shadow-lg ring-2 ring-white/20">
-                                <ShieldCheck className="w-5 h-5" />
+                        <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center text-white shadow-lg ring-2 ring-white/20 shrink-0">
+                                <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                             </div>
-                            <div className="flex-grow">
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">Parmar Sir&apos;s Corner</p>
+                            <div className="flex-grow min-w-0">
+                                <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 truncate">Parmar Sir&apos;s Corner</p>
                                 <p className="text-[10px] text-slate-400 font-medium">
                                     {formatDistanceToNow(new Date(sandesh.created_at), { addSuffix: true })}
                                 </p>
@@ -637,7 +637,7 @@ const SandeshCard = () => {
                         </div>
 
                         {isAdmin && (
-                            <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -658,7 +658,7 @@ const SandeshCard = () => {
                         )}
 
                         {/* Rich Text Content */}
-                        <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
                             {sandesh.content.split('\n').map((line, i) => (
                                 <p key={i} className="mb-2" dangerouslySetInnerHTML={{
                                     __html: line
@@ -772,7 +772,7 @@ const SandeshCard = () => {
                         )}
 
                         {/* ═══════════════════════ Reactions & Comments Bar ═══════════════════════ */}
-                        <div className="mt-5 pt-4 border-t border-white/10">
+                        <div className="mt-3 sm:mt-5 pt-3 sm:pt-4 border-t border-white/10">
                             <div className="flex items-center gap-4">
                                 {/* Like Button */}
                                 <button
@@ -813,10 +813,10 @@ const SandeshCard = () => {
                                 <div className="mt-4 animate-in slide-in-from-top-2 duration-200">
                                     {/* Comment List */}
                                     {(commentsById[sandesh.id] || []).length > 0 ? (
-                                        <div className="space-y-3 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent mb-3">
+                                        <div className="space-y-2.5 sm:space-y-3 max-h-[150px] sm:max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent mb-2 sm:mb-3">
                                             {(commentsById[sandesh.id] || []).map(comment => (
-                                                <div key={comment.id} className="flex gap-2.5">
-                                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white text-[10px] font-bold shrink-0 ring-1 ring-white/10">
+                                                <div key={comment.id} className="flex gap-2 sm:gap-2.5">
+                                                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-white text-[9px] sm:text-[10px] font-bold shrink-0 ring-1 ring-white/10">
                                                         {comment.authorAvatar ? (
                                                             <img src={comment.authorAvatar} alt="" className="w-full h-full rounded-full object-cover" />
                                                         ) : (
@@ -853,7 +853,7 @@ const SandeshCard = () => {
                                     )}
 
                                     {/* Comment Input */}
-                                    <div className="flex gap-2 items-center">
+                                    <div className="flex gap-1.5 sm:gap-2 items-center">
                                         <input
                                             type="text"
                                             value={newCommentById[sandesh.id] || ''}
@@ -865,13 +865,13 @@ const SandeshCard = () => {
                                                 }
                                             }}
                                             placeholder="Write a comment..."
-                                            className="flex-1 text-xs p-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-white/10 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500/30 text-slate-800 dark:text-slate-200 placeholder-slate-400 transition-all"
+                                            className="flex-1 min-w-0 text-xs p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-black/5 dark:bg-white/5 border border-white/10 focus:ring-1 focus:ring-indigo-500/30 focus:border-indigo-500/30 text-slate-800 dark:text-slate-200 placeholder-slate-400 transition-all"
                                         />
                                         <Button
                                             size="sm"
                                             onClick={() => handlePostComment(sandesh.id)}
                                             disabled={!!isPostingCommentById[sandesh.id] || !(newCommentById[sandesh.id] || '').trim()}
-                                            className="h-9 w-9 p-0 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white shrink-0 transition-all disabled:opacity-30"
+                                            className="h-8 w-8 sm:h-9 sm:w-9 p-0 rounded-lg sm:rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white shrink-0 transition-all disabled:opacity-30"
                                         >
                                             {isPostingCommentById[sandesh.id] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                                         </Button>

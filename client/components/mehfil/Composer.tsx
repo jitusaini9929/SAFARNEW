@@ -49,9 +49,9 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRo
   };
 
   return (
-    <div className="glass-card rounded-3xl p-4 sm:p-6 mb-8 border border-white/50 dark:border-white/5 shadow-xl shadow-teal-900/5 dark:shadow-black/20">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 shrink-0 overflow-hidden shadow-inner">
+    <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-6 mb-4 sm:mb-6 md:mb-8 border border-white/50 dark:border-white/5 shadow-xl shadow-teal-900/5 dark:shadow-black/20">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 shrink-0 overflow-hidden shadow-inner hidden sm:block">
           {userAvatar ? (
             <img
               src={userAvatar}
@@ -75,10 +75,10 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRo
               }
             }}
             placeholder={placeholder}
-            className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 text-base focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-800 dark:text-slate-200 min-h-[140px] resize-none ${ringClass}`}
+            className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 text-sm sm:text-base focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-800 dark:text-slate-200 min-h-[100px] sm:min-h-[120px] md:min-h-[140px] resize-none ${ringClass}`}
           />
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-3 sm:mt-4 flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer break-normal">
                 <input

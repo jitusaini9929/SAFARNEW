@@ -5,6 +5,7 @@ import FocusAnalytics from "@/pages/FocusAnalytics";
 import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
 import TasksSidebar, { type Task } from "./TasksSidebar";
 import { TimerCard } from "@/components/focus/TimerCard";
+import { PiPNudgeToast } from "@/components/focus/PiPNudgeToast";
 import { useFocus } from "@/contexts/FocusContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ThemeToggle from "@/components/ui/theme-toggle";
@@ -146,6 +147,9 @@ export default function StudyWithMe() {
         setAssociatedGoal,
         associatedGoalId,
         associatedGoalTitle,
+        hasPendingResume,
+        resumeStoredSession,
+        discardStoredSession,
     } = useFocus(); // Use Context
 
     const [searchParams, setSearchParams] = useSearchParams();
@@ -1120,6 +1124,26 @@ export default function StudyWithMe() {
 
             {/* Tour Prompt */}
             <TourPrompt tour={focusTimerTour} featureName="Focus Timer" />
+            <PiPNudgeToast />
+
+            <Dialog open={hasPendingResume} onOpenChange={(open) => { if (!open) discardStoredSession(); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Resume your session?</DialogTitle>
+                        <DialogDescription>
+                            We found an unfinished focus timer from your last page load.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={discardStoredSession}>
+                            Start Fresh
+                        </Button>
+                        <Button onClick={resumeStoredSession}>
+                            Resume
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

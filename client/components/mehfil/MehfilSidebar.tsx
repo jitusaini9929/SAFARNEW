@@ -120,10 +120,10 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
       />
 
       {/* Sidebar */}
-      <aside className="fixed right-0 top-0 bottom-0 w-full sm:w-[520px] bg-white dark:bg-slate-900 shadow-2xl z-50 overflow-hidden flex flex-col border-l border-slate-200 dark:border-slate-800">
+      <aside className="fixed right-0 top-0 bottom-0 w-full sm:w-[420px] md:w-[520px] bg-white dark:bg-slate-900 shadow-2xl z-50 overflow-hidden flex flex-col border-l border-slate-200 dark:border-slate-800">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/30 dark:to-emerald-950/30">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Mehfil Hub</h2>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/30 dark:to-emerald-950/30">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Mehfil Hub</h2>
           <button
             onClick={onClose}
             className="p-2 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
@@ -133,7 +133,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-1.5 sm:gap-2 p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 overflow-x-auto scrollbar-hide">
           <Button
             variant={activeView === 'connections' ? 'default' : 'ghost'}
             size="sm"
@@ -182,7 +182,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto scrollbar-blend p-6">
+        <div className="flex-1 overflow-y-auto scrollbar-blend p-3 sm:p-4 md:p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
@@ -286,9 +286,9 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
                     Your Activity
                   </h3>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/30 dark:to-teal-900/30 border border-teal-200 dark:border-teal-800">
-                      <p className="text-3xl font-bold text-teal-700 dark:text-teal-400">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/30 dark:to-teal-900/30 border border-teal-200 dark:border-teal-800">
+                      <p className="text-2xl sm:text-3xl font-bold text-teal-700 dark:text-teal-400">
                         {analytics.totalThoughts}
                       </p>
                       <p className="text-xs text-teal-600 dark:text-teal-500 font-medium mt-1">
@@ -296,8 +296,8 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-950/30 dark:to-rose-900/30 border border-rose-200 dark:border-rose-800">
-                      <p className="text-3xl font-bold text-rose-700 dark:text-rose-400">
+                    <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-950/30 dark:to-rose-900/30 border border-rose-200 dark:border-rose-800">
+                      <p className="text-2xl sm:text-3xl font-bold text-rose-700 dark:text-rose-400">
                         {analytics.totalReactions}
                       </p>
                       <p className="text-xs text-rose-600 dark:text-rose-500 font-medium mt-1">
@@ -305,8 +305,8 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800">
-                      <p className="text-3xl font-bold text-blue-700 dark:text-blue-400">
+                    <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800">
+                      <p className="text-2xl sm:text-3xl font-bold text-blue-700 dark:text-blue-400">
                         {analytics.totalComments}
                       </p>
                       <p className="text-xs text-blue-600 dark:text-blue-500 font-medium mt-1">
@@ -314,8 +314,8 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/30 border border-amber-200 dark:border-amber-800">
-                      <p className="text-3xl font-bold text-amber-700 dark:text-amber-400">
+                    <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/30 border border-amber-200 dark:border-amber-800">
+                      <p className="text-2xl sm:text-3xl font-bold text-amber-700 dark:text-amber-400">
                         {analytics.totalSaves}
                       </p>
                       <p className="text-xs text-amber-600 dark:text-amber-500 font-medium mt-1">
@@ -323,8 +323,8 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
                       </p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/30 border border-purple-200 dark:border-purple-800">
-                      <p className="text-3xl font-bold text-purple-700 dark:text-purple-400">
+                    <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/30 border border-purple-200 dark:border-purple-800">
+                      <p className="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-400">
                         {analytics.totalShares}
                       </p>
                       <p className="text-xs text-purple-600 dark:text-purple-500 font-medium mt-1">

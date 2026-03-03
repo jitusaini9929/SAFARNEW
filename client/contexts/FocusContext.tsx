@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { authService } from "@/utils/authService";
-import { focusOverlayService, FocusOverlayStats } from "@/utils/focusOverlayService";
-import { useLocation, useNavigate } from "react-router-dom";
+import { FocusOverlayStats } from "@/utils/focusOverlayService";
+import { clearPiPNudgeSessionDismissal, dismissPiPNudgeSession, shouldShowPiPNudge } from "@/utils/pipNudge";
 
 // Types
 type FocusMode = "Timer" | "short" | "long";
@@ -27,6 +27,9 @@ interface FocusContextType {
     pauseTimer: () => void;
     toggleTimer: () => void;
     resetTimer: () => void;
+    hasPendingResume: boolean;
+    resumeStoredSession: () => void;
+    discardStoredSession: () => void;
 
     // Goal linking
     associatedGoalId: string | null;
@@ -40,6 +43,8 @@ interface FocusContextType {
     // UI State
     isPiPActive: boolean;
     togglePiP: () => void;
+    showPiPNudge: boolean;
+    dismissPiPNudge: () => void;
     videoRef: React.RefObject<HTMLVideoElement>;
 
     // Global Music State
@@ -55,11 +60,21 @@ interface FocusContextType {
 
 const FocusContext = createContext<FocusContextType | undefined>(undefined);
 const DEFAULT_MUSIC_URL = "https://del1.vultrobjects.com/qms-images/Safar/music_1.mp3";
+const PIP_CANVAS_WIDTH = 720;
+const PIP_CANVAS_HEIGHT = 405;
+const FOCUS_SESSION_SNAPSHOT_KEY = "focus_timer_session_snapshot_v1";
+
+type FocusSessionSnapshot = {
+    mode: FocusMode;
+    totalSeconds: number;
+    remainingSeconds: number;
+    isRunning: boolean;
+    savedAt: number;
+};
 
 export function FocusProvider({ children }: { children: React.ReactNode }) {
-    const navigate = useNavigate();
-    const location = useLocation();
     const [userId, setUserId] = useState<string | null>(null);
+    const userIdRef = useRef<string | null>(null);
 
     // Timer State
     const [mode, setMode] = useState<FocusMode>("Timer");
@@ -107,7 +122,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const isPiPActiveRef = useRef(false);
     const audioContextRef = useRef<AudioContext | null>(null);
     const togglePiPRef = useRef<() => Promise<void>>(() => Promise.resolve());
-    const studyRoute = "/study";
+    const pipReadyPromiseRef = useRef<Promise<void> | null>(null);
+    const [showPiPNudge, setShowPiPNudge] = useState(false);
+    const prevPiPActiveRef = useRef(false);
+    const [pendingResumeSnapshot, setPendingResumeSnapshot] = useState<FocusSessionSnapshot | null>(null);
 
     // Notification sound ref — plays when any timer mode completes
     const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -163,6 +181,71 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         });
     }, []);
 
+    useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem(FOCUS_SESSION_SNAPSHOT_KEY);
+            if (!raw) return;
+
+            const parsed = JSON.parse(raw) as FocusSessionSnapshot;
+            if (!parsed || typeof parsed !== "object") return;
+
+            const baseRemaining = Math.max(0, Number(parsed.remainingSeconds || 0));
+            const total = Math.max(1, Number(parsed.totalSeconds || 1500));
+            const wasRunning = Boolean(parsed.isRunning);
+            const savedAt = Number(parsed.savedAt || Date.now());
+            const elapsedSeconds = Math.max(0, Math.floor((Date.now() - savedAt) / 1000));
+            const recoveredRemaining = wasRunning ? Math.max(0, baseRemaining - elapsedSeconds) : baseRemaining;
+
+            if (recoveredRemaining <= 0) {
+                sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+                return;
+            }
+
+            setPendingResumeSnapshot({
+                mode: parsed.mode === "short" || parsed.mode === "long" ? parsed.mode : "Timer",
+                totalSeconds: total,
+                remainingSeconds: recoveredRemaining,
+                isRunning: wasRunning,
+                savedAt: Date.now(),
+            });
+        } catch {
+            // Ignore invalid snapshots
+        }
+    }, []);
+
+    useEffect(() => {
+        userIdRef.current = userId;
+    }, [userId]);
+
+    useEffect(() => {
+        if (pendingResumeSnapshot) return;
+
+        const hasProgress = remainingSeconds > 0 && remainingSeconds < totalSeconds;
+        const shouldPersist = isRunning || hasProgress;
+
+        const timer = window.setTimeout(() => {
+            try {
+                if (!shouldPersist) {
+                    sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+                    return;
+                }
+
+                const snapshot: FocusSessionSnapshot = {
+                    mode,
+                    totalSeconds,
+                    remainingSeconds,
+                    isRunning,
+                    savedAt: Date.now(),
+                };
+                sessionStorage.setItem(FOCUS_SESSION_SNAPSHOT_KEY, JSON.stringify(snapshot));
+            } catch {
+                // Ignore storage failures
+            }
+        }, 350);
+
+        return () => window.clearTimeout(timer);
+    }, [mode, totalSeconds, remainingSeconds, isRunning, pendingResumeSnapshot]);
+
     // Sync refs
     useEffect(() => {
         remainingSecondsRef.current = remainingSeconds;
@@ -174,6 +257,69 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         isPiPActiveRef.current = isPiPActive;
     }, [isPiPActive]);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        // Avoid React unknown-prop warning by setting the non-standard property imperatively.
+        (video as any).autoPictureInPicture = true;
+    }, []);
+
+    useEffect(() => {
+        const wasPiPActive = prevPiPActiveRef.current;
+        if (wasPiPActive && !isPiPActive && isRunning) {
+            clearPiPNudgeSessionDismissal();
+        }
+        prevPiPActiveRef.current = isPiPActive;
+    }, [isPiPActive, isRunning]);
+
+    useEffect(() => {
+        if (isRunning && !isPiPActive && shouldShowPiPNudge()) {
+            const timer = window.setTimeout(() => setShowPiPNudge(true), 1500);
+            return () => window.clearTimeout(timer);
+        }
+
+        setShowPiPNudge(false);
+    }, [isRunning, isPiPActive]);
+
+    const dismissPiPNudge = useCallback(() => {
+        setShowPiPNudge(false);
+        dismissPiPNudgeSession();
+    }, []);
+
+    const resumeStoredSession = useCallback(() => {
+        const snapshot = pendingResumeSnapshot;
+        if (!snapshot) return;
+
+        setMode(snapshot.mode);
+        setTotalSeconds(snapshot.totalSeconds);
+        setRemainingSeconds(snapshot.remainingSeconds);
+
+        const modeMinutes = Math.max(1, Math.floor(snapshot.totalSeconds / 60));
+        if (snapshot.mode === "Timer") setTimerDuration(modeMinutes);
+        if (snapshot.mode === "short") setBreakDuration(modeMinutes);
+        if (snapshot.mode === "long") setLongBreakDuration(modeMinutes);
+
+        if (snapshot.isRunning && snapshot.remainingSeconds > 0) {
+            isRunningRef.current = true;
+            setIsRunning(true);
+            setIsMusicPlaying(true);
+        } else {
+            isRunningRef.current = false;
+            setIsRunning(false);
+        }
+
+        setPendingResumeSnapshot(null);
+    }, [pendingResumeSnapshot]);
+
+    const discardStoredSession = useCallback(() => {
+        setPendingResumeSnapshot(null);
+        try {
+            sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+        } catch {
+            // Ignore storage failures
+        }
+    }, []);
 
     useEffect(() => {
         musicShouldPlayRef.current = isMusicPlaying;
@@ -235,10 +381,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setRemainingSeconds(prev => Math.max(0, prev - elapsedSeconds));
 
         // Update Tracking
-        if (userId) {
+        if (userIdRef.current) {
             setTotalActiveMs(prev => prev + deltaMs);
         }
-    }, [userId]);
+    }, []);
 
     // Timer Interval Worker
     useEffect(() => {
@@ -366,7 +512,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
         // Background
         ctx.fillStyle = "#1e293b";
-        ctx.fillRect(0, 0, 500, 500);
+        ctx.fillRect(0, 0, PIP_CANVAS_WIDTH, PIP_CANVAS_HEIGHT);
 
         // Time
         const mins = Math.floor(rSeconds / 60);
@@ -374,83 +520,100 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 100px sans-serif";
+        ctx.font = "bold 96px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(timeStr, 250, 250);
+        ctx.fillText(timeStr, PIP_CANVAS_WIDTH / 2, PIP_CANVAS_HEIGHT / 2 - 22);
 
         // Progress Bar
         const progress = tSeconds > 0 ? (tSeconds - rSeconds) / tSeconds : 0;
         ctx.fillStyle = "#10b981";
-        ctx.fillRect(0, 480, 500 * progress, 20);
+        ctx.fillRect(0, PIP_CANVAS_HEIGHT - 14, PIP_CANVAS_WIDTH * progress, 14);
 
         // Status
         const modeLabel = currentMode === "Timer" ? "Ekagra Mode" : "Break Mode";
         ctx.font = "24px sans-serif";
         ctx.fillStyle = "#e2e8f0";
-        ctx.fillText(modeLabel, 250, 340);
+        ctx.fillText(modeLabel, PIP_CANVAS_WIDTH / 2, PIP_CANVAS_HEIGHT / 2 + 50);
 
         ctx.font = "22px sans-serif";
         ctx.fillStyle = "#94a3b8";
-        ctx.fillText(running ? "Running" : "Paused", 250, 375);
+        ctx.fillText(running ? "Running" : "Paused", PIP_CANVAS_WIDTH / 2, PIP_CANVAS_HEIGHT / 2 + 82);
     }, []);
 
     // Ensure the video element has a canvas stream attached so auto-PiP works
-    const ensurePiPReady = useCallback(async () => {
+    const ensurePiPReady = useCallback((): Promise<void> => {
         const video = videoRef.current;
-        if (!video) return;
-        // Already has a stream — nothing to do
-        if (video.srcObject) return;
+        if (!video) return Promise.resolve();
 
-        // Create canvas
-        if (!canvasRef.current) {
-            canvasRef.current = document.createElement("canvas");
-            canvasRef.current.width = 500;
-            canvasRef.current.height = 500;
-        }
-        const ctx = canvasRef.current.getContext("2d");
-        if (ctx) {
-            ctx.fillStyle = "#1e293b";
-            ctx.fillRect(0, 0, 500, 500);
+        if (video.srcObject && video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+            return Promise.resolve();
         }
 
-        const stream = canvasRef.current.captureStream(30);
+        if (pipReadyPromiseRef.current) return pipReadyPromiseRef.current;
 
-        // Add silent audio track to enable media controls
-        try {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            if (AudioContextClass && !audioContextRef.current) {
-                const audioCtx = new AudioContextClass();
-                audioContextRef.current = audioCtx;
-                const dest = audioCtx.createMediaStreamDestination();
-                const oscillator = audioCtx.createOscillator();
-                oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(0, audioCtx.currentTime);
-                oscillator.connect(dest);
-                const audioTrack = dest.stream.getAudioTracks()[0];
-                stream.addTrack(audioTrack);
-                oscillator.start();
+        pipReadyPromiseRef.current = new Promise((resolve) => {
+            // Create canvas
+            if (!canvasRef.current) {
+                canvasRef.current = document.createElement("canvas");
+                canvasRef.current.width = PIP_CANVAS_WIDTH;
+                canvasRef.current.height = PIP_CANVAS_HEIGHT;
             }
-        } catch (e) {
-            console.error("Failed to add silent audio track:", e);
-        }
+            const ctx = canvasRef.current.getContext("2d");
+            if (ctx) {
+                ctx.fillStyle = "#1e293b";
+                ctx.fillRect(0, 0, PIP_CANVAS_WIDTH, PIP_CANVAS_HEIGHT);
+            }
 
-        video.srcObject = stream;
-        video.disableRemotePlayback = true;
-        video.controls = false;
-        video.defaultMuted = false;
-        video.muted = false;
-        // Safari auto-PiP attribute
-        (video as any).autoPictureInPicture = true;
+            const stream = canvasRef.current.captureStream(30);
 
-        suppressPiPVideoEventsRef.current = true;
-        await video.play().catch(() => { });
-        window.setTimeout(() => {
-            suppressPiPVideoEventsRef.current = false;
-        }, 0);
+            // Add silent audio track to enable media controls
+            try {
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                if (AudioContextClass && !audioContextRef.current) {
+                    const audioCtx = new AudioContextClass();
+                    audioContextRef.current = audioCtx;
+                    const dest = audioCtx.createMediaStreamDestination();
+                    const oscillator = audioCtx.createOscillator();
+                    oscillator.type = "sine";
+                    oscillator.frequency.setValueAtTime(0, audioCtx.currentTime);
+                    oscillator.connect(dest);
+                    const audioTrack = dest.stream.getAudioTracks()[0];
+                    stream.addTrack(audioTrack);
+                    oscillator.start();
+                }
+            } catch (e) {
+                console.error("Failed to add silent audio track:", e);
+            }
 
-        // Draw once so there's content
-        drawToCanvas();
+            video.srcObject = stream;
+            video.disableRemotePlayback = true;
+            video.controls = false;
+            video.defaultMuted = false;
+            video.muted = false;
+
+            const finalize = () => {
+                pipReadyPromiseRef.current = null;
+                resolve();
+            };
+
+            if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+                finalize();
+            } else {
+                video.addEventListener("loadedmetadata", finalize, { once: true });
+            }
+
+            suppressPiPVideoEventsRef.current = true;
+            video.play().catch(() => { });
+            window.setTimeout(() => {
+                suppressPiPVideoEventsRef.current = false;
+            }, 0);
+
+            // Draw once so there's content
+            drawToCanvas();
+        });
+
+        return pipReadyPromiseRef.current;
     }, [drawToCanvas]);
 
     const syncPiPVideoPlayback = useCallback((running: boolean) => {
@@ -563,12 +726,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setIsRunning(true);
         setMusicPlaying(true);
         syncPiPVideoPlayback(true);
-        // Pre-initialize PiP stream so auto-PiP works on app switch
+        // Pre-initialize stream and request PiP in the same gesture path.
         ensurePiPReady();
-        // On mobile, PiP must be triggered from a user gesture.
-        // Attempt to enter PiP immediately when the timer starts.
         if (!isPiPActiveRef.current && document.pictureInPictureEnabled) {
-            togglePiPRef.current().catch(() => { /* may be blocked; fallback handlers can retry */ });
+            togglePiPRef.current().catch(() => { /* fallback handlers can retry */ });
         }
     }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady]);
 
@@ -702,8 +863,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                     }, 1000);
                 } // Closes `if (videoRef.current && !document.pictureInPictureElement)`
             } // Closes `else`
-        } catch (err) {
-            console.error("PiP Error:", err);
+        } catch (err: any) {
+            if (err?.name !== "NotAllowedError") {
+                console.error("PiP Error:", err);
+            }
             if (audioContextRef.current) {
                 audioContextRef.current.close().catch(() => { });
                 audioContextRef.current = null;
@@ -749,10 +912,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     // the mediaSession handler above covers that case.
     useEffect(() => {
         const handleVisibilityChange = () => {
+            // Mobile browsers block PiP from this event; mediaSession/nudge handles mobile.
+            if (navigator.maxTouchPoints > 1) return;
             if (document.hidden && isRunning && !isPiPActiveRef.current && document.pictureInPictureEnabled) {
-                setTimeout(() => {
-                    togglePiP().catch(() => { /* blocked on mobile, expected */ });
-                }, 100);
+                togglePiP().catch(() => { /* best effort on desktop */ });
             }
         };
 
@@ -845,6 +1008,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             }
         }
 
+        isRunningRef.current = false;
         setIsRunning(false);
         setMusicPlaying(false);
         setRemainingSeconds(totalSeconds);
@@ -911,6 +1075,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         pauseTimer,
         toggleTimer,
         resetTimer,
+        hasPendingResume: Boolean(pendingResumeSnapshot),
+        resumeStoredSession,
+        discardStoredSession,
         associatedGoalId,
         associatedGoalTitle,
         setAssociatedGoal,
@@ -918,6 +1085,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         totalActiveMs,
         isPiPActive,
         togglePiP,
+        showPiPNudge,
+        dismissPiPNudge,
         videoRef,
         isMusicPlaying,
         isMusicMuted,
@@ -936,14 +1105,12 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             <video
                 ref={videoRef}
                 // Keep element in DOM for PiP eligibility without visible UI.
-                className="fixed -left-[9999px] top-0 w-[1px] h-[1px] opacity-0 pointer-events-none"
+                className="fixed -left-[9999px] -top-[9999px] w-[160px] h-[90px] opacity-0 pointer-events-none"
                 playsInline
                 disableRemotePlayback
                 controlsList="nodownload nofullscreen noremoteplayback"
                 translate="no"
-                // @ts-ignore — Safari auto-PiP attribute
-                autoPictureInPicture
-            // Removed explicit muted prop here; will be managed in code
+                // Removed explicit muted prop here; will be managed in code
             />
             <audio
                 ref={audioRef}
@@ -961,3 +1128,4 @@ export const useFocus = () => {
     if (!context) throw new Error("useFocus must be used within FocusProvider");
     return context;
 };
+
