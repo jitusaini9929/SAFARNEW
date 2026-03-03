@@ -106,6 +106,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const suppressPiPVideoEventsRef = useRef(false);
     const isPiPActiveRef = useRef(false);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const togglePiPRef = useRef<() => Promise<void>>(() => Promise.resolve());
     const studyRoute = "/study";
 
     // Notification sound ref — plays when any timer mode completes
@@ -567,9 +568,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         // On mobile, PiP must be triggered from a user gesture.
         // Attempt to enter PiP immediately when the timer starts.
         if (!isPiPActiveRef.current && document.pictureInPictureEnabled) {
-            togglePiP().catch(() => { /* may be blocked; fallback handlers can retry */ });
+            togglePiPRef.current().catch(() => { /* may be blocked; fallback handlers can retry */ });
         }
-    }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady, togglePiP]);
+    }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady]);
 
     const pauseTimer = useCallback(() => {
         isRunningRef.current = false;
@@ -709,6 +710,11 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             }
         }
     }, [drawToCanvas, startTimer, pauseTimer, ensurePiPReady]);
+
+    // Keep ref in sync so startTimer can call togglePiP without circular deps
+    useEffect(() => {
+        togglePiPRef.current = togglePiP;
+    }, [togglePiP]);
 
     // Register enterpictureinpicture media session handler whenever the timer
     // is running. This allows Chrome (120+) to automatically trigger PiP when
