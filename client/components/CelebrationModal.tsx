@@ -26,6 +26,7 @@ interface Particle {
     duration: number;
     color: string;
     size: number;
+    height: number;
     rotation: number;
     swingAmp: number;
 }
@@ -45,6 +46,7 @@ function generateParticles(count: number): Particle[] {
     const particles: Particle[] = [];
     // Confetti
     for (let i = 0; i < count; i++) {
+        const size = 4 + Math.random() * 8;
         particles.push({
             id: i,
             type: 'confetti',
@@ -52,13 +54,15 @@ function generateParticles(count: number): Particle[] {
             delay: Math.random() * 2,
             duration: 2.5 + Math.random() * 2,
             color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-            size: 4 + Math.random() * 8,
+            size,
+            height: size * 0.6,
             rotation: Math.random() * 360,
             swingAmp: 15 + Math.random() * 40,
         });
     }
     // Balloons
     for (let i = 0; i < 8; i++) {
+        const size = 30 + Math.random() * 20;
         particles.push({
             id: count + i,
             type: 'balloon',
@@ -66,7 +70,8 @@ function generateParticles(count: number): Particle[] {
             delay: Math.random() * 1.5,
             duration: 4 + Math.random() * 3,
             color: BALLOON_COLORS[Math.floor(Math.random() * BALLOON_COLORS.length)],
-            size: 30 + Math.random() * 20,
+            size,
+            height: size * 1.2,
             rotation: -15 + Math.random() * 30,
             swingAmp: 10 + Math.random() * 20,
         });
@@ -81,6 +86,7 @@ function generateParticles(count: number): Particle[] {
             duration: 3 + Math.random() * 2,
             color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
             size: 3 + Math.random() * 4,
+            height: 40 + Math.random() * 30,
             rotation: Math.random() * 360,
             swingAmp: 20 + Math.random() * 30,
         });
@@ -131,8 +137,24 @@ function playCelebrationSound() {
 }
 
 // ─── Main Component ─────────────────────────────────────────
+interface SparkleData {
+    width: number; height: number; left: string; top: string; animDuration: string; animDelay: string;
+}
+
+function generateSparkles(count: number): SparkleData[] {
+    return Array.from({ length: count }, () => ({
+        width: 2 + Math.random() * 4,
+        height: 2 + Math.random() * 4,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animDuration: `${1 + Math.random() * 2}s`,
+        animDelay: `${Math.random() * 2}s`,
+    }));
+}
+
 export default function CelebrationModal({ isOpen, onClose, achievement, achievementImage }: CelebrationModalProps) {
     const [particles, setParticles] = useState<Particle[]>([]);
+    const [sparkles] = useState<SparkleData[]>(() => generateSparkles(15));
     const [showContent, setShowContent] = useState(false);
     const soundPlayedRef = useRef(false);
 
@@ -180,7 +202,7 @@ export default function CelebrationModal({ isOpen, onClose, achievement, achieve
                                     left: `${p.x}%`,
                                     top: '-3%',
                                     width: p.size,
-                                    height: p.size * 0.6,
+                                    height: p.height,
                                     backgroundColor: p.color,
                                     borderRadius: p.size > 8 ? '2px' : '50%',
                                     animation: `confettiFall ${p.duration}s ease-in ${p.delay}s both`,
@@ -250,7 +272,7 @@ export default function CelebrationModal({ isOpen, onClose, achievement, achieve
                                 left: `${p.x}%`,
                                 top: '-5%',
                                 width: p.size,
-                                height: 40 + Math.random() * 30,
+                                height: p.height,
                                 background: `linear-gradient(180deg, ${p.color} 0%, transparent 100%)`,
                                 borderRadius: '2px',
                                 animation: `streamerFall ${p.duration}s ease-in ${p.delay}s both`,
@@ -272,16 +294,16 @@ export default function CelebrationModal({ isOpen, onClose, achievement, achieve
                 <div className="relative bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 p-8 pb-12 text-center overflow-hidden">
                     {/* Sparkle dots */}
                     <div className="absolute inset-0 pointer-events-none">
-                        {[...Array(15)].map((_, i) => (
+                        {sparkles.map((s, i) => (
                             <div
                                 key={i}
                                 className="absolute rounded-full bg-white"
                                 style={{
-                                    width: 2 + Math.random() * 4,
-                                    height: 2 + Math.random() * 4,
-                                    left: `${Math.random() * 100}%`,
-                                    top: `${Math.random() * 100}%`,
-                                    animation: `sparkle ${1 + Math.random() * 2}s ease-in-out ${Math.random() * 2}s infinite`,
+                                    width: s.width,
+                                    height: s.height,
+                                    left: s.left,
+                                    top: s.top,
+                                    animation: `sparkle ${s.animDuration} ease-in-out ${s.animDelay} infinite`,
                                     opacity: 0,
                                 }}
                             />

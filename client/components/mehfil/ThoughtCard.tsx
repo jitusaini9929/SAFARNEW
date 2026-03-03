@@ -21,7 +21,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { authService } from "@/utils/authService";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -77,12 +76,6 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const [reportReason, setReportReason] = useState("spam");
 
 
-  const getCurrentUserId = async () => {
-    const auth = await authService.getCurrentUser();
-    const currentUser = (auth as any)?.user ?? auth;
-    return currentUser?.id as string | undefined;
-  };
-
   // Check save + friendship status on mount
   useEffect(() => {
     checkSaveStatus();
@@ -109,8 +102,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
   const checkSaveStatus = async () => {
     try {
-      const userId = await getCurrentUserId();
-      if (!userId) return;
+      if (!currentUserId) return;
 
       const response = await fetch(`${API_URL}/mehfil/interactions/save/${thought.id}`, { credentials: "include" });
       if (response.ok) {
@@ -145,8 +137,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const handlePostComment = async () => {
     if (!commentText.trim()) return;
     try {
-      const userId = await getCurrentUserId();
-      if (!userId) {
+      if (!currentUserId) {
         toast.error("You must be logged in to comment");
         return;
       }
@@ -192,8 +183,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
   const handleSave = async () => {
     try {
-      const userId = await getCurrentUserId();
-      if (!userId) {
+      if (!currentUserId) {
         toast.error("You must be logged in to save posts");
         return;
       }
@@ -216,8 +206,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
   const handleReport = async () => {
     try {
-      const userId = await getCurrentUserId();
-      if (!userId) {
+      if (!currentUserId) {
         toast.error("You must be logged in to report");
         return;
       }
@@ -244,8 +233,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}/mehfil/${thought.id}`;
     try {
-      const userId = await getCurrentUserId();
-      if (userId) {
+      if (currentUserId) {
         fetch(`${API_URL}/mehfil/interactions/share`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
