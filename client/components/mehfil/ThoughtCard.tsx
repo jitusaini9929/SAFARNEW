@@ -503,16 +503,6 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
-                          {comment.user_id && comment.user_id !== currentUserId && (
-                            <ConnectButton
-                              targetUserId={comment.user_id}
-                              context={{
-                                type: "comment",
-                                id: comment.id,
-                                preview: comment.content.slice(0, 60),
-                              }}
-                            />
-                          )}
                           {comment.user_id === currentUserId && (
                             <button
                               onClick={() => handleDeleteComment(comment.id)}
