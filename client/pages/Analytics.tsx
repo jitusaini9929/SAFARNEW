@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { BarChart3, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 const intensityClass = (intensity: number) => {
     if (intensity >= 4) return "bg-emerald-600";
@@ -24,6 +25,7 @@ const intensityClass = (intensity: number) => {
 
 export default function Analytics() {
     const [user, setUser] = useState<any>(null);
+    const { t } = useTranslation();
     const [report, setReport] = useState<MonthlyReport | null>(null);
     const [month, setMonth] = useState("");
     const [loading, setLoading] = useState(true);
@@ -99,7 +101,7 @@ export default function Analytics() {
                         <div>
                             <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
                                 <BarChart3 className="w-7 h-7 text-primary" />
-                                Nishtha Scorecard
+                                {t('analytics.title')}
                             </h1>
                             <p className="text-sm text-muted-foreground mt-1">{monthLabel}</p>
                         </div>
@@ -115,7 +117,7 @@ export default function Analytics() {
                                 onClick={handleFetch}
                                 className="px-7 py-3 h-14 rounded-2xl border-2 border-teal-500/30 text-teal-600 dark:text-teal-400 text-lg font-bold hover:bg-teal-500/10 transition-colors flex items-center justify-center min-w-[100px]"
                             >
-                                Load
+                                {t('analytics.load')}
                             </button>
                             <button
                                 onClick={handleGenerate}
@@ -124,26 +126,26 @@ export default function Analytics() {
                                 className="px-8 py-3 h-14 rounded-2xl bg-teal-600 dark:bg-teal-500 text-white text-lg font-bold hover:opacity-90 disabled:opacity-60 inline-flex items-center gap-4 action-btn-nowrap shadow-lg shadow-teal-500/20 active:scale-95 transition-all"
                             >
                                 <RefreshCw className={`w-6 h-6 ${generating ? "animate-spin" : ""}`} />
-                                <span className="action-label-mobile-hidden">Generate</span>
+                                <span className="action-label-mobile-hidden">{t('analytics.generate')}</span>
                             </button>
                         </div>
                     </div>
 
                     {loading && (
                         <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-                            Loading report...
+                            {t('analytics.loading')}
                         </div>
                     )}
 
                     {!loading && notGenerated && (
                         <div className="rounded-2xl border bg-card p-8 text-center">
-                            <p className="text-muted-foreground mb-4">Monthly report not generated yet for this month.</p>
+                            <p className="text-muted-foreground mb-4">{t('analytics.not_generated')}</p>
                             <button
                                 onClick={handleGenerate}
                                 disabled={generating}
                                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-60"
                             >
-                                Generate Now
+                                {t('analytics.generate_now')}
                             </button>
                         </div>
                     )}
@@ -152,17 +154,17 @@ export default function Analytics() {
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="rounded-2xl border bg-card p-5">
-                                    <p className="text-xs uppercase text-muted-foreground">Consistency Score</p>
+                                    <p className="text-xs uppercase text-muted-foreground">{t('analytics.consistency_score')}</p>
                                     <p className="text-3xl font-bold mt-2">{report.executiveSummary.consistencyScore}%</p>
                                     <p className="text-xs text-muted-foreground mt-2">{report.executiveSummary.consistencyMessage}</p>
                                 </div>
                                 <div className="rounded-2xl border bg-card p-5">
-                                    <p className="text-xs uppercase text-muted-foreground">Completion Rate</p>
+                                    <p className="text-xs uppercase text-muted-foreground">{t('analytics.completion_rate')}</p>
                                     <p className="text-3xl font-bold mt-2">{report.executiveSummary.completionRate}%</p>
                                     <p className="text-xs text-muted-foreground mt-2">{report.executiveSummary.completionMessage}</p>
                                 </div>
                                 <div className="rounded-2xl border bg-card p-5">
-                                    <p className="text-xs uppercase text-muted-foreground">Focus Depth</p>
+                                    <p className="text-xs uppercase text-muted-foreground">{t('analytics.focus_depth')}</p>
                                     <p className="text-3xl font-bold mt-2">{report.executiveSummary.focusDepth}m/day</p>
                                     <p className="text-xs text-muted-foreground mt-2">{report.executiveSummary.focusMessage}</p>
                                 </div>
@@ -170,7 +172,7 @@ export default function Analytics() {
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 <div className="rounded-2xl border bg-card p-5">
-                                    <h3 className="text-lg font-semibold mb-4">Skill Radar</h3>
+                                    <h3 className="text-lg font-semibold mb-4">{t('analytics.skill_radar')}</h3>
                                     <div className="h-80">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <RadarChart data={report.radar}>
@@ -189,18 +191,18 @@ export default function Analytics() {
                                 </div>
 
                                 <div className="rounded-2xl border bg-card p-5">
-                                    <h3 className="text-lg font-semibold mb-4">Self-Discovery Insights</h3>
+                                    <h3 className="text-lg font-semibold mb-4">{t('analytics.insights')}</h3>
                                     <div className="space-y-4 text-sm">
                                         <div className="rounded-xl bg-muted/40 p-3">
-                                            <p className="font-semibold mb-1">Your Power Hour</p>
+                                            <p className="font-semibold mb-1">{t('analytics.power_hour')}</p>
                                             <p className="text-muted-foreground">{report.insights.powerHour.message}</p>
                                         </div>
                                         <div className="rounded-xl bg-muted/40 p-3">
-                                            <p className="font-semibold mb-1">The Mood Connection</p>
+                                            <p className="font-semibold mb-1">{t('analytics.mood_connection')}</p>
                                             <p className="text-muted-foreground">{report.insights.moodConnection.message}</p>
                                         </div>
                                         <div className="rounded-xl bg-muted/40 p-3">
-                                            <p className="font-semibold mb-1">The Sunday Scaries</p>
+                                            <p className="font-semibold mb-1">{t('analytics.sunday_scaries')}</p>
                                             <p className="text-muted-foreground">{report.insights.sundayScaries.message}</p>
                                         </div>
                                     </div>
@@ -208,7 +210,7 @@ export default function Analytics() {
                             </div>
 
                             <div className="rounded-2xl border bg-card p-5">
-                                <h3 className="text-lg font-semibold mb-4">Activity Heatmap</h3>
+                                <h3 className="text-lg font-semibold mb-4">{t('analytics.heatmap')}</h3>
                                 <div className="grid grid-cols-7 sm:grid-cols-14 md:grid-cols-16 lg:grid-cols-20 gap-2">
                                     {report.heatmap.map((cell) => (
                                         <div key={cell.date} className="flex flex-col items-center gap-1">
@@ -222,19 +224,19 @@ export default function Analytics() {
                             </div>
 
                             <div className="rounded-2xl border bg-card p-5">
-                                <h3 className="text-lg font-semibold mb-4">Badge Summary</h3>
+                                <h3 className="text-lg font-semibold mb-4">{t('analytics.badge_summary')}</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                                     <div className="rounded-xl bg-muted/40 p-3">
                                         <p className="font-semibold">The Finisher</p>
-                                        <p className="text-muted-foreground mt-1">{report.badgeSummary.theFinisher ? "Earned" : "Not earned yet"}</p>
+                                        <p className="text-muted-foreground mt-1">{report.badgeSummary.theFinisher ? t('analytics.earned') : t('analytics.not_earned')}</p>
                                     </div>
                                     <div className="rounded-xl bg-muted/40 p-3">
                                         <p className="font-semibold">Early Bird</p>
-                                        <p className="text-muted-foreground mt-1">{report.badgeSummary.earlyBird ? "Earned" : "Not earned yet"}</p>
+                                        <p className="text-muted-foreground mt-1">{report.badgeSummary.earlyBird ? t('analytics.earned') : t('analytics.not_earned')}</p>
                                     </div>
                                     <div className="rounded-xl bg-muted/40 p-3">
                                         <p className="font-semibold">Night Owl</p>
-                                        <p className="text-muted-foreground mt-1">{report.badgeSummary.nightOwl ? "Earned" : "Not earned yet"}</p>
+                                        <p className="text-muted-foreground mt-1">{report.badgeSummary.nightOwl ? t('analytics.earned') : t('analytics.not_earned')}</p>
                                     </div>
                                 </div>
                             </div>

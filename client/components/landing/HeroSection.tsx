@@ -84,25 +84,28 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
 
                     {/* Profile Section with Theme Toggle */}
                     <div className="flex items-center gap-3 md:gap-4">
-                        {/* Theme Toggle Button - Refined Icon Button */}
+                        {/* Theme Toggle Button - 30% larger */}
                         <button
                             aria-label="Toggle Theme"
-                            className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-md flex items-center justify-center border-2 border-amber-300/30 dark:border-slate-600 shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:border-amber-400 dark:hover:border-slate-500 transition-all duration-300 cursor-pointer"
+                            className="w-[52px] h-[52px] flex items-center justify-center rounded-full hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all duration-200 hover:scale-105 cursor-pointer"
                             onClick={toggleTheme}
                         >
-                            {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
+                            {theme === 'dark' ? <Sun className="w-[26px] h-[26px] text-white" /> : <Moon className="w-[26px] h-[26px] text-slate-900" />}
                         </button>
 
                         <div className="hidden sm:block">
                             <LanguageToggle />
                         </div>
 
-                        {/* Conditional: Sign In Button vs Profile Avatar */}
                         {user ? (
-                            <Link to="/profile" className="w-[52px] h-[52px] rounded-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-md flex items-center justify-center p-0.5 border-2 border-amber-300/30 dark:border-slate-600 shadow-md hover:shadow-lg hover:-translate-y-0.5 hover:border-amber-400 dark:hover:border-slate-500 transition-all duration-300 cursor-pointer overflow-hidden">
+                            /* Profile icon - Hover padding effect */
+                            <Link
+                                to="/profile"
+                                className="flex items-center justify-center w-[52px] h-[52px] p-2 rounded-full transition-all duration-200 hover:scale-105 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
+                            >
                                 <img loading="lazy"
                                     alt="User Avatar"
-                                    className="w-full h-full rounded-lg object-cover object-top"
+                                    className="w-full h-full rounded-full object-cover object-top"
                                     src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuDpC23e9Ij3Kzg310AyhS08hUZzUO5wS83FP5YrPuwjRF6AdxBcC0qMEWdFAJiBHiiKEpJHNEbk9vqBSUUAUjgF2APRS9xFACSDScYRjzU5e2Jdzerz_s7hmwhryXd5GYbqUBly6WOzSLclpR9PSy-7IzNLc4H3bsD04CkD_UDuiADxphkdk_S6XJUWlkbEJLC8p79msm7_L_2qzmoVs8sriSKSPq99rcz8ANuarcX1JwGcgGg6NcLBVgUPi59TaljhiM80PD-94ds"}
                                 />
                             </Link>

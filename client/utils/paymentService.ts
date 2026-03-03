@@ -1,5 +1,4 @@
 import { apiFetch } from "@/utils/apiFetch";
-import { useState } from "react";
 import type { Course, CreateOrderResponse, VerifyPaymentResponse } from "@shared/payments";
 
 // ═══════════════════════════════════════════════════════
@@ -125,6 +124,28 @@ export function openRazorpayCheckout({
     description: course.name,
     image: "/Banner.jpeg",
     order_id: orderData.order.id,
+    method: {
+      upi: true,
+      card: false,
+      netbanking: false,
+      wallet: false,
+      paylater: false,
+      emi: false,
+    },
+    config: {
+      display: {
+        blocks: {
+          upi: {
+            name: "Pay using UPI",
+            instruments: [{ method: "upi" }],
+          },
+        },
+        sequence: ["block.upi"],
+        preferences: {
+          show_default_blocks: false,
+        },
+      },
+    },
     handler: async function (response: any) {
       try {
         const verifyResult = await verifyPayment(
@@ -156,7 +177,6 @@ export function openRazorpayCheckout({
     },
     modal: {
       ondismiss: function () {
-        // User closed the payment popup without completing
         console.log("Payment popup dismissed");
       },
     },

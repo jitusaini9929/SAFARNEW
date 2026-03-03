@@ -10,6 +10,7 @@ import cookieParser from "cookie-parser";
 import { createServer as createHttpServer } from "http";
 import { createClient } from "redis";
 import { RedisStore } from "connect-redis";
+import { createAdapter } from "@socket.io/redis-adapter";
 import { handleDemo } from "./routes/demo";
 import { authRoutes } from "./routes/auth";
 import { moodRoutes } from "./routes/moods";
@@ -26,6 +27,7 @@ import { paymentRoutes } from "./routes/payments";
 import { uploadRoutes, imageServeRouter } from "./routes/uploads";
 import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
 import mehfilSocialRouter from "./routes/mehfil-social";
+import { dmRoutes } from "./routes/dm";
 
 type SessionStoreCallback = (err?: unknown, data?: unknown) => void;
 type SessionRedisClient = ReturnType<typeof createClient>;
@@ -296,22 +298,22 @@ export async function createServer() {
 
   const redisSession = await createRedisSessionStore();
 
-  app.use(
-    session({
-      store: redisSession?.store || undefined,
-      secret: process.env.SESSION_SECRET || "your-secret-key",
-      resave: false,
-      saveUninitialized: false,
-      cookie: {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      },
-      name: "nistha.sid",
-      rolling: true,
-    })
-  );
+  const sessionMiddleware = session({
+    store: redisSession?.store || undefined,
+    secret: process.env.SESSION_SECRET || "your-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    },
+    name: "nistha.sid",
+    rolling: true,
+  });
+
+  app.use(sessionMiddleware);
 
   if (!redisSession) {
     console.warn("[SESSION][MEMORY] using in-memory store (not recommended for production)");
@@ -373,6 +375,7 @@ export async function createServer() {
   app.use("/api/mehfil/interactions", mehfilInteractionRoutes);
   app.use("/api/mehfil/sandesh", (await import("./routes/sandesh")).sandeshRoutes);
   app.use("/api/mehfil", mehfilSocialRouter);
+  app.use("/api/dm", dmRoutes);
   app.use("/api/suggestions", (await import("./routes/suggestions")).suggestionsRoutes);
 
   app.get("/api/ping", (_req, res) => {
@@ -400,7 +403,17 @@ export async function createServer() {
   const io = setupMehfilSocket(httpServer, {
     paused: MEHFIL_PAUSED,
     pausedMessage: MEHFIL_PAUSED_MESSAGE,
+    redisClient: redisSession?.redisClient || null,
+    sessionMiddleware,
   });
+
+  if (redisSession?.redisClient) {
+    const pubClient = redisSession.redisClient.duplicate();
+    const subClient = redisSession.redisClient.duplicate();
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log("[SOCKET.IO] Redis adapter configured for multi-instance scaling");
+  }
 
   return { app, httpServer, io };
 }

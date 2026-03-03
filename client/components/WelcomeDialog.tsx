@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 interface WelcomeDialogProps {
     onClose: () => void;
@@ -9,6 +10,7 @@ interface WelcomeDialogProps {
 
 export default function WelcomeDialog({ onClose, userName }: WelcomeDialogProps) {
     const [isVisible, setIsVisible] = useState(false);
+    const { t } = useTranslation();
 
     useEffect(() => {
         // Animate in
@@ -32,29 +34,29 @@ export default function WelcomeDialog({ onClose, userName }: WelcomeDialogProps)
                 <CardContent className="p-8 text-center space-y-6 font-['Poppins']">
                     {/* Greeting */}
                     <div className="space-y-2">
-                        <h2 className="text-2xl font-bold text-primary">Hello{userName ? `, ${userName}` : ""}.</h2>
+                        <h2 className="text-2xl font-bold text-primary">{t('welcome.hello')}{userName ? `, ${userName}` : ""}.</h2>
                         <p className="text-lg text-foreground font-medium">
-                            Welcome to <span className="text-accent font-bold">NISHTHA</span>— your consistency and emotion tracking space.
+                            {t('welcome.subtitle_1')} <span className="text-accent font-bold">NISHTHA</span>{t('welcome.subtitle_2')}
                         </p>
                     </div>
 
                     {/* Message Body */}
                     <div className="space-y-4 text-muted-foreground leading-relaxed">
                         <p className="italic">
-                            where it's just you and me, and our little battle of staying consistent.
+                            {t('welcome.body1')}
                         </p>
 
                         <div className="space-y-2">
-                            <p>We'll celebrate small wins,</p>
-                            <p>and we'll sit through the bad days together.</p>
+                            <p>{t('welcome.body2')}</p>
+                            <p>{t('welcome.body3')}</p>
                         </div>
 
                         <p className="text-foreground font-medium pt-2">
-                            A virtual pat on your back.
+                            {t('welcome.body4')}
                         </p>
 
                         <p className="text-2xl">
-                            Smile :)
+                            {t('welcome.smile')}
                         </p>
                     </div>
 
@@ -63,7 +65,7 @@ export default function WelcomeDialog({ onClose, userName }: WelcomeDialogProps)
                         onClick={handleClose}
                         className="w-full bg-gradient-to-r from-primary to-accent text-white hover:shadow-lg transition-all duration-300 py-6 text-lg font-semibold"
                     >
-                        Okay, let's go! ✨
+                        {t('welcome.cta')}
                     </Button>
                 </CardContent>
             </Card>

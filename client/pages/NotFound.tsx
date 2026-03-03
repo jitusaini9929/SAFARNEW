@@ -2,9 +2,11 @@ import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function NotFound() {
   const location = useLocation();
+  const { t } = useTranslation();
 
   useEffect(() => {
     console.error(
@@ -22,28 +24,28 @@ export default function NotFound() {
               404
             </p>
             <h1 className="text-2xl font-bold text-foreground mb-2">
-              Page Not Found
+              {t('notfound.title')}
             </h1>
             <p className="text-muted-foreground">
-              Oops! It looks like this page doesn't exist. Let's get you back on track.
+              {t('notfound.desc')}
             </p>
           </div>
 
           <div className="space-y-3">
             <Link to="/login" className="block">
               <Button className="w-full bg-gradient-to-r from-primary to-secondary hover:shadow-lg transition-all duration-300">
-                Go to Login
+                {t('notfound.go_login')}
               </Button>
             </Link>
             <Link to="/dashboard" className="block">
               <Button variant="outline" className="w-full">
-                Back to Dashboard
+                {t('notfound.go_dashboard')}
               </Button>
             </Link>
           </div>
 
           <p className="text-xs text-muted-foreground">
-            💡 If you think this is a mistake, please try again or contact support.
+            {t('notfound.help')}
           </p>
         </CardContent>
       </Card>

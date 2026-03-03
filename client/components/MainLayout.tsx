@@ -19,7 +19,7 @@ export default function MainLayout({
   userAvatar = "",
   onLogout,
   hideSidebar = false,
-  homeRoute = "/landing",
+  homeRoute = "/home",
 }: MainLayoutProps) {
   return (
     <div className="flex flex-col min-h-[100dvh] bg-[#F8FAFC] dark:bg-[#0B0F19] transition-colors duration-300 overflow-x-hidden">

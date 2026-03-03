@@ -10,9 +10,9 @@ import { checkInTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   CheckCircle,
-  Moon,
   Edit3,
   ArrowRight,
   Sparkles,
@@ -48,6 +48,7 @@ const quickTags = ["Work", "Family", "Sleep", "Health", "Relationship", "Finance
 
 export default function CheckIn() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
   const [intensity, setIntensity] = useState<number>(3);
@@ -91,13 +92,13 @@ export default function CheckIn() {
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+      prev.includes(tag) ? prev.filter(x => x !== tag) : [...prev, tag]
     );
   };
 
   const handleSubmit = async () => {
     if (!selectedMood) {
-      toast.error("Please select a mood");
+      toast.error(t('checkin.select_mood_error'));
       return;
     }
 
@@ -105,7 +106,7 @@ export default function CheckIn() {
     try {
       const finalNote = note + (selectedTags.length > 0 ? `\n\nTags: ${selectedTags.join(", ")}` : "");
       const newMood = await dataService.addMood(selectedMood, intensity, finalNote);
-      toast.success("Check-in saved successfully!");
+      toast.success(t('checkin.save_success'));
 
       // Update local state immediately
       setMoodHistory(prev => [newMood, ...prev]);
@@ -118,7 +119,7 @@ export default function CheckIn() {
 
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save check-in");
+      toast.error(t('checkin.save_error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -140,10 +141,10 @@ export default function CheckIn() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-8 relative z-10">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground tracking-tight">Inner Reflection</h2>
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground tracking-tight">{t('checkin.title')}</h2>
               <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 animate-pulse" />
             </div>
-            <p className="text-muted-foreground font-light text-sm sm:text-base">Pause. Breathe. Connect with yourself.</p>
+            <p className="text-muted-foreground font-light text-sm sm:text-base">{t('checkin.subtitle')}</p>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -153,7 +154,7 @@ export default function CheckIn() {
               className="gap-2"
             >
               <HelpCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Start Tour</span>
+              <span className="hidden sm:inline">{t('checkin.start_tour')}</span>
             </Button>
           </div>
         </div>
@@ -168,7 +169,7 @@ export default function CheckIn() {
             <div className="mb-8 flex items-center justify-between relative z-10">
               <div>
                 <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  Current State <span className="text-sm px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Select One</span>
+                  {t('checkin.current_state')} <span className="text-sm px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">{t('checkin.select_one')}</span>
                 </h3>
               </div>
               <div className="h-1 w-20 bg-gradient-to-r from-primary to-transparent rounded-full"></div>
@@ -212,9 +213,9 @@ export default function CheckIn() {
 
             <div className="text-center z-10 w-full">
               <h3 className="text-lg font-bold text-foreground flex items-center justify-center gap-2">
-                <Zap className="w-4 h-4 text-yellow-400" /> Intensity
+                <Zap className="w-4 h-4 text-yellow-400" /> {t('checkin.intensity')}
               </h3>
-              <p className="text-xs text-muted-foreground mb-6 uppercase tracking-wider font-semibold">Scale of Feeling</p>
+              <p className="text-xs text-muted-foreground mb-6 uppercase tracking-wider font-semibold">{t('checkin.scale')}</p>
               <div className="flex items-end justify-center gap-1 mb-2">
                 <span className={`text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-b ${intensity > 3 ? 'from-red-400 to-red-600' : intensity > 2 ? 'from-yellow-400 to-yellow-600' : 'from-primary to-primary/60'}`}>
                   {intensity}
@@ -240,8 +241,8 @@ export default function CheckIn() {
             </div>
 
             <div className="w-full flex justify-between text-[10px] uppercase font-bold text-muted-foreground z-10 px-4 tracking-widest">
-              <span>Mild</span>
-              <span>Extreme</span>
+              <span>{t('checkin.mild')}</span>
+              <span>{t('checkin.extreme')}</span>
             </div>
           </div>
 
@@ -251,13 +252,13 @@ export default function CheckIn() {
 
             <div className="flex-1 z-10">
               <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
-                Why do you feel this way? <Edit3 className="text-primary w-4 h-4" />
+                {t('checkin.why_feel')} <Edit3 className="text-primary w-4 h-4" />
               </h3>
               <p className="text-sm text-muted-foreground mb-6 font-light">
                 {selectedMood
                   ? `What's making you feel ${selectedMood}? Share your thoughts below.`
                   : 'Select a mood above, then share what led to this feeling.'}
-              </p >
+              </p>
               <div className="relative">
                 <textarea
                   className="w-full h-40 bg-muted/50 border border-border rounded-2xl p-6 text-foreground placeholder-muted-foreground focus:bg-muted focus:border-primary/30 focus:ring-1 focus:ring-primary/30 resize-none transition-all outline-none leading-relaxed"
@@ -271,13 +272,13 @@ export default function CheckIn() {
                   {note.length} chars
                 </div>
               </div>
-            </div >
+            </div>
 
             <div className="flex flex-col justify-between md:w-80 border-l border-border md:pl-8 pt-8 md:pt-0 z-10">
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <Heart className="w-4 h-4 text-secondary" />
-                  <h4 className="font-bold text-foreground text-sm uppercase tracking-wider">Context Tags</h4>
+                  <h4 className="font-bold text-foreground text-sm uppercase tracking-wider">{t('checkin.context_tags')}</h4>
                 </div>
                 <div data-tour="quick-tags" className="flex flex-wrap gap-2">
                   {quickTags.map(tag => (
@@ -302,30 +303,30 @@ export default function CheckIn() {
                 aria-label={isSubmitting ? "Saving entry" : "Complete check-in"}
                 className="mt-8 md:mt-0 w-full py-4 bg-gradient-to-r from-secondary to-secondary/80 hover:from-secondary/90 hover:to-secondary/70 disabled:opacity-50 disabled:cursor-not-allowed text-secondary-foreground rounded-xl font-bold tracking-wide shadow-lg hover:shadow-secondary/20 transform hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 group/btn action-btn-nowrap"
               >
-                <span className="action-label-mobile-hidden">{isSubmitting ? "Saving Entry..." : "Complete Check-In"}</span>
+                <span className="action-label-mobile-hidden">{isSubmitting ? t('checkin.saving') : t('checkin.complete')}</span>
                 <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
               </button>
             </div>
-          </div >
+          </div>
 
-        </div >
+        </div>
 
         {/* Mood History Section */}
-        < div className="glass-high rounded-[2rem] p-8 mt-8 shadow-2xl" >
+        <div className="glass-high rounded-[2rem] p-8 mt-8 shadow-2xl">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <History className="w-6 h-6 text-primary" />
-              <h3 className="text-xl font-bold text-foreground">Mood History</h3>
+              <h3 className="text-xl font-bold text-foreground">{t('checkin.mood_history')}</h3>
             </div>
-            <span className="text-sm text-muted-foreground">{moodHistory.length} check-ins</span>
+            <span className="text-sm text-muted-foreground">{moodHistory.length} {t('checkin.check_ins_label')}</span>
           </div>
 
           {
             moodHistory.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <p className="text-lg">No mood check-ins yet</p>
-                <p className="text-sm">Your check-in history will appear here</p>
+                <p className="text-lg">{t('checkin.no_history')}</p>
+                <p className="text-sm">{t('checkin.history_hint')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto pr-2">
@@ -356,12 +357,12 @@ export default function CheckIn() {
               </div>
             )
           }
-        </div >
+        </div>
 
-      </div >
+      </div>
 
       {/* Tour Prompt */}
       <TourPrompt tour={checkInTour} featureName="Check-In" />
-    </NishthaLayout >
+    </NishthaLayout>
   );
 }

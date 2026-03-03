@@ -7,9 +7,11 @@ import { authService } from "@/utils/authService";
 import nishthaLogo from "@/assets/nishtha-logo.jpg";
 import { toast } from "sonner";
 import { ArrowLeft, KeyRound, Mail, Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function ForgotPassword() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const [step, setStep] = useState<"email" | "reset">("email");
     const [token, setToken] = useState("");
@@ -37,12 +39,12 @@ export default function ForgotPassword() {
         setError("");
 
         if (!email.trim()) {
-            setError("Please enter your email");
+            setError(t('forgotpwd.error_enter_email'));
             return;
         }
 
         if (!email.includes("@")) {
-            setError("Please enter a valid email");
+            setError(t('forgotpwd.error_valid_email'));
             return;
         }
 
@@ -53,7 +55,7 @@ export default function ForgotPassword() {
             toast.success(message);
         } catch (err: any) {
             setEmailSent(false);
-            setError(err.message || "Failed to send reset link");
+            setError(err.message || t('forgotpwd.error_send_link'));
         } finally {
             setIsLoading(false);
         }
@@ -64,32 +66,32 @@ export default function ForgotPassword() {
         setError("");
 
         if (!newPassword.trim() || !confirmPassword.trim()) {
-            setError("Please fill in all fields");
+            setError(t('forgotpwd.error_fill_fields'));
             return;
         }
 
         if (newPassword.length < 8) {
-            setError("Password must be at least 8 characters");
+            setError(t('forgotpwd.error_min_chars'));
             return;
         }
 
         if (newPassword !== confirmPassword) {
-            setError("Passwords do not match");
+            setError(t('forgotpwd.error_no_match'));
             return;
         }
 
         if (!token) {
-            setError("Invalid or missing reset token. Please request a new reset link.");
+            setError(t('forgotpwd.error_no_token'));
             return;
         }
 
         setIsLoading(true);
         try {
             await authService.confirmPasswordReset(token, newPassword);
-            toast.success("Password reset successfully!");
+            toast.success(t('forgotpwd.success_reset'));
             navigate("/login");
         } catch (err: any) {
-            setError(err.message || "Failed to reset password");
+            setError(err.message || t('forgotpwd.error_reset'));
         } finally {
             setIsLoading(false);
         }
@@ -110,12 +112,12 @@ export default function ForgotPassword() {
 
                         <CardTitle className="text-2xl font-bold text-foreground flex items-center justify-center gap-2">
                             <KeyRound className="w-6 h-6 text-primary" />
-                            Reset Password
+                            {t('forgotpwd.title')}
                         </CardTitle>
                         <CardDescription className="text-base mt-2">
                             {step === "email"
-                                ? "Enter your email and we'll send a secure reset link"
-                                : "Create a new password for your account"}
+                                ? t('forgotpwd.step_email_desc')
+                                : t('forgotpwd.step_reset_desc')}
                         </CardDescription>
                     </div>
                 </CardHeader>
@@ -125,7 +127,7 @@ export default function ForgotPassword() {
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-foreground flex items-center gap-2">
                                     <Mail className="w-4 h-4" />
-                                    Email Address
+                                    {t('forgotpwd.email_label')}
                                 </label>
                                 <Input
                                     type="email"
@@ -142,7 +144,7 @@ export default function ForgotPassword() {
 
                             {emailSent && !error && (
                                 <div className="p-3 rounded-lg bg-primary/10 text-primary text-sm">
-                                    Check your inbox for the reset link.
+                                    {t('forgotpwd.check_inbox')}
                                 </div>
                             )}
 
@@ -157,7 +159,7 @@ export default function ForgotPassword() {
                                 disabled={isLoading}
                                 className="w-full bg-gradient-to-r from-primary to-secondary hover:shadow-lg transition-all duration-300"
                             >
-                                {isLoading ? "Sending link..." : "Send Reset Link"}
+                                {isLoading ? t('forgotpwd.send_loading') : t('forgotpwd.send_btn')}
                             </Button>
 
                             <Link
@@ -165,17 +167,17 @@ export default function ForgotPassword() {
                                 className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
                             >
                                 <ArrowLeft className="w-4 h-4" />
-                                Back to Login
+                                {t('forgotpwd.back_login')}
                             </Link>
                         </form>
                     ) : (
                         <form onSubmit={handleResetPassword} className="space-y-4">
                             <div className="p-3 rounded-lg bg-primary/10 text-primary text-sm mb-4">
-                                Enter your new password. This link is one-time use.
+                                {t('forgotpwd.one_time')}
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-foreground">New Password</label>
+                                <label className="text-sm font-medium text-foreground">{t('forgotpwd.new_password')}</label>
                                 <div className="relative">
                                     <Input
                                         type={showPassword ? "text" : "password"}
@@ -196,7 +198,7 @@ export default function ForgotPassword() {
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-foreground">Confirm Password</label>
+                                <label className="text-sm font-medium text-foreground">{t('forgotpwd.confirm_password')}</label>
                                 <Input
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Confirm new password"
@@ -218,7 +220,7 @@ export default function ForgotPassword() {
                                 disabled={isLoading}
                                 className="w-full bg-gradient-to-r from-primary to-secondary hover:shadow-lg transition-all duration-300"
                             >
-                                {isLoading ? "Resetting..." : "Reset Password"}
+                                {isLoading ? t('forgotpwd.resetting') : t('forgotpwd.reset_btn')}
                             </Button>
 
                             <Link
@@ -226,7 +228,7 @@ export default function ForgotPassword() {
                                 className="flex items-center justify-center gap-2 w-full text-sm text-muted-foreground hover:text-primary transition-colors"
                             >
                                 <ArrowLeft className="w-4 h-4" />
-                                Request a new link
+                                {t('forgotpwd.request_new')}
                             </Link>
                         </form>
                     )}

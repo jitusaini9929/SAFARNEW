@@ -466,7 +466,7 @@ export default function StudyWithMe() {
                         <div className="flex items-center gap-2 mb-8">
                             {!isSidebarCollapsed && (
                                 <button
-                                    onClick={() => navigate("/landing")}
+                                    onClick={() => navigate("/home")}
                                     className="flex items-center gap-2 group hover:opacity-80 transition-opacity"
                                     title="Back to Home"
                                 >

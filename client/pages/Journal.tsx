@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { User } from "@shared/api";
 import { TourPrompt } from "@/components/guided-tour";
 import { journalTour } from "@/components/guided-tour/tourSteps";
+import { useTranslation } from "react-i18next";
 
 import {
   Smile,
@@ -27,6 +28,7 @@ import {
 
 export default function Journal() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -150,31 +152,28 @@ export default function Journal() {
     const content = editorRef.current?.innerHTML || "";
     const bodyText = editorRef.current?.textContent?.trim() || "";
 
-    // Validate both title and body
     if (!title.trim()) {
-      toast.error("Please add a title for your entry");
+      toast.error(t('journal.title_error'));
       return;
     }
 
     if (!bodyText || bodyText === '') {
-      toast.error("Please write your thoughts in the body section");
+      toast.error(t('journal.body_error'));
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Include mood in the entry
       const fullContent = `<h2>${title}</h2><p class="mood-tag">Feeling: ${selectedMood}</p>${content}`;
       await dataService.addJournalEntry(fullContent);
       setTitle("");
       if (editorRef.current) editorRef.current.innerHTML = "";
-      toast.success("Journal entry saved!");
+      toast.success(t('journal.save_success'));
 
-      // Refresh entries
       const entries = await dataService.getJournalEntries();
       setJournalEntries(entries || []);
     } catch (error) {
-      toast.error("Failed to save entry");
+      toast.error(t('journal.save_error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -195,20 +194,17 @@ export default function Journal() {
     return text.length > 80 ? text.substring(0, 80) + '...' : text;
   };
 
-  // Extract title from content - look for h2 tag first, then first line
   // Extract title from content - look for h2/h3 tag first, then first line
   const getTitle = (html: string) => {
     const div = document.createElement('div');
     div.innerHTML = html;
 
-    // First try to get h2 or h3 title (h3 is used for prompt answers)
     const titleFromHeader = div.querySelector('h2') || div.querySelector('h3');
     if (titleFromHeader && titleFromHeader.textContent) {
       const title = titleFromHeader.textContent.trim();
       return title.length > 50 ? title.substring(0, 50) + '...' : title;
     }
 
-    // Fallback to first line
     const text = div.textContent || div.innerText || '';
     const firstLine = text.split('\n')[0].trim();
     if (firstLine.length > 50) return firstLine.substring(0, 50) + '...';
@@ -220,7 +216,6 @@ export default function Journal() {
     const div = document.createElement('div');
     div.innerHTML = html;
 
-    // Remove title tag to get just the body
     const titleTag = div.querySelector('h2') || div.querySelector('h3');
     if (titleTag) titleTag.remove();
 
@@ -243,9 +238,6 @@ export default function Journal() {
     }).length;
   };
 
-  // Calculate progress percentage
-
-
   if (!user) return null;
 
   return (
@@ -261,7 +253,6 @@ export default function Journal() {
 
           {/* Editor Section - Main Area */}
           <section className="flex-[2] min-w-0 p-4 md:p-6 lg:p-10 relative">
-            {/* Writing glow effect */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(16,185,129,0.06),transparent_60%)] dark:bg-[radial-gradient(circle_at_50%_10%,rgba(16,185,129,0.08),transparent_60%)] pointer-events-none" />
 
             <div className="max-w-3xl mx-auto relative">
@@ -273,7 +264,7 @@ export default function Journal() {
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide uppercase text-sm flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  Reflection Mode
+                  {t('journal.reflection_mode')}
                 </p>
               </header>
 
@@ -291,7 +282,7 @@ export default function Journal() {
                         className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-medium hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors action-btn-nowrap"
                       >
                         <span>{moodOptions.find(m => m.label === selectedMood)?.emoji || "😌"}</span>
-                        <span className="action-label-mobile-hidden">Feeling {selectedMood}</span>
+                        <span className="action-label-mobile-hidden">{t('journal.feeling')} {selectedMood}</span>
                         <ChevronDown className={`w-4 h-4 transition-transform ${showMoodDropdown ? 'rotate-180' : ''}`} />
                       </button>
 
@@ -334,10 +325,10 @@ export default function Journal() {
                 <div className="p-8 lg:p-12 min-h-[500px]">
                   {/* Title Input with Label */}
                   <div className="mb-8">
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-500 mb-2 uppercase tracking-wider">Title (required)</label>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-500 mb-2 uppercase tracking-wider">{t('journal.title_label')}</label>
                     <input
                       className="w-full text-2xl md:text-3xl font-serif bg-transparent border-b-2 border-slate-200 dark:border-white/10 focus:border-emerald-500 dark:focus:border-emerald-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 pb-3 outline-none transition-colors"
-                      placeholder="Give your entry a short title..."
+                      placeholder={t('journal.title_placeholder')}
                       type="text"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
@@ -346,12 +337,12 @@ export default function Journal() {
 
                   {/* Body Editor with Label */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-500 mb-4 uppercase tracking-wider">Your Thoughts (required)</label>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-500 mb-4 uppercase tracking-wider">{t('journal.body_label')}</label>
                     <div
                       ref={editorRef}
                       contentEditable
                       className="w-full min-h-[300px] bg-transparent border-none focus:ring-0 text-lg leading-relaxed text-slate-900 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-700 resize-none outline-none"
-                      data-placeholder="Start writing here..."
+                      data-placeholder={t('journal.body_placeholder')}
                       onSelect={checkFormattingState}
                       onKeyUp={checkFormattingState}
                     ></div>
@@ -370,7 +361,7 @@ export default function Journal() {
                     className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-3 px-6 md:px-8 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center action-btn-nowrap"
                   >
                     <CheckCircle className="w-5 h-5" />
-                    <span className="action-label-mobile-hidden">{isSubmitting ? "Saving..." : "Save Entry"}</span>
+                    <span className="action-label-mobile-hidden">{isSubmitting ? t('journal.saving') : t('journal.save_entry')}</span>
                   </button>
                 </div>
               </div>
@@ -378,18 +369,16 @@ export default function Journal() {
           </section>
 
           {/* Right Sidebar - Daily Inspiration & History */}
-          {/* Right Sidebar - Daily Inspiration & History */}
           <aside className="w-full lg:w-[400px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-white/5 bg-slate-100/50 dark:bg-[#151515]/90 backdrop-blur-sm p-4 md:p-6 space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-6 lg:flex lg:flex-col lg:gap-6 lg:space-y-0">
 
             {/* Daily Inspiration Card */}
             <div data-tour="daily-inspiration" className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-6 border border-slate-200/50 dark:border-white/5 relative overflow-hidden group shadow-lg shadow-slate-200/50 dark:shadow-black/20 hover:shadow-xl hover:shadow-violet-500/5 dark:hover:shadow-violet-500/10 transition-all duration-300">
-              {/* Decorative glow */}
               <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/20 dark:bg-violet-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-violet-500/30 transition-colors duration-500" />
 
               <div className="flex justify-between items-start mb-6 relative z-10">
                 <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 font-medium text-xs tracking-wider uppercase">
                   <Sun className="w-4 h-4" />
-                  Daily Inspiration
+                  {t('journal.daily_inspiration')}
                 </div>
                 <span className="text-xs text-slate-500 font-mono bg-slate-100 dark:bg-white/5 px-2 py-1 rounded">
                   {currentPromptIndex + 1} / {dailyQuestions.length}
@@ -434,7 +423,7 @@ export default function Journal() {
                   onClick={() => setShowPromptAnswer(true)}
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-medium shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
                 >
-                  <span>Answer this prompt</span>
+                  <span>{t('journal.answer_prompt')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               ) : (
@@ -464,7 +453,7 @@ export default function Journal() {
                       }}
                       className="flex-1 bg-violet-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-violet-600 transition-colors"
                     >
-                      Save Answer
+                      {t('journal.save_answer')}
                     </button>
                     <button
                       onClick={() => {
@@ -473,7 +462,7 @@ export default function Journal() {
                       }}
                       className="px-4 py-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-white/10 rounded-lg transition-colors"
                     >
-                      Cancel
+                      {t('journal.cancel')}
                     </button>
                   </div>
                 </div>
@@ -483,13 +472,11 @@ export default function Journal() {
             {/* This Week Progress Card */}
             <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-6 border border-slate-200/50 dark:border-white/5 shadow-lg shadow-slate-200/50 dark:shadow-black/20">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">This Week</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('journal.this_week')}</h3>
                 <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-500/20">
                   {getWeeklyCount()}/7 entries
                 </span>
               </div>
-
-
 
               {/* Day indicators */}
               <div className="grid grid-cols-7 gap-1 mt-4 max-w-xs mx-auto">
@@ -566,19 +553,19 @@ export default function Journal() {
               <div className="flex justify-between items-center px-1">
                 <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
                   <History className="w-5 h-5 text-slate-400" />
-                  History
+                  {t('journal.history')}
                 </h3>
                 <button
                   onClick={() => setShowHistoryModal(true)}
                   className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors uppercase tracking-wider"
                 >
-                  View all
+                  {t('journal.view_all')}
                 </button>
               </div>
               <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
                 {journalEntries.length === 0 ? (
                   <div className="p-6 rounded-xl bg-white dark:bg-[#1A1A1A] border border-slate-200/50 dark:border-white/5 text-center text-slate-400">
-                    No entries yet
+                    {t('journal.no_entries')}
                   </div>
                 ) : (
                   journalEntries.slice(0, 5).map((entry: any, idx: number) => (
@@ -615,7 +602,7 @@ export default function Journal() {
             <div className="px-8 py-6 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-slate-50 dark:bg-white/[0.02]">
               <div className="flex items-center gap-3">
                 <History className="w-6 h-6 text-emerald-500" />
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white font-serif">All Journal Entries</h2>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white font-serif">{t('journal.all_entries')}</h2>
                 <span className="text-sm text-slate-500">({journalEntries.length} entries)</span>
               </div>
               <button
@@ -631,8 +618,8 @@ export default function Journal() {
               {journalEntries.length === 0 ? (
                 <div className="text-center text-slate-400 py-12">
                   <History className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg">No journal entries yet</p>
-                  <p className="text-sm">Start writing to see your entries here</p>
+                  <p className="text-lg">{t('journal.no_journal_yet')}</p>
+                  <p className="text-sm">{t('journal.start_writing')}</p>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
@@ -676,7 +663,7 @@ export default function Journal() {
                         const isLong = body.length > 100;
 
                         if (!body) {
-                          return <span className="text-sm text-slate-400 italic">No content</span>;
+                          return <span className="text-sm text-slate-400 italic">{t('journal.no_content')}</span>;
                         }
 
                         return (
@@ -693,7 +680,7 @@ export default function Journal() {
                                     }}
                                     className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mt-2 hover:underline"
                                   >
-                                    Show less
+                                    {t('journal.show_less')}
                                   </button>
                                 )}
                               </>
@@ -727,7 +714,7 @@ export default function Journal() {
                 onClick={() => setShowHistoryModal(false)}
                 className="px-6 py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
               >
-                Close
+                {t('journal.close')}
               </button>
             </div>
           </div>

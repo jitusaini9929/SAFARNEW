@@ -28,7 +28,7 @@ interface LeftSidebarProps {
   homeRoute?: string;
 }
 
-export default function LeftSidebar({ homeRoute = "/landing" }: LeftSidebarProps) {
+export default function LeftSidebar({ homeRoute = "/home" }: LeftSidebarProps) {
   const location = useLocation();
 
   const navItems = [

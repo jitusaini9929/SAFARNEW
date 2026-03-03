@@ -6,6 +6,7 @@ import { dataService } from "@/utils/dataService";
 import { focusService } from "@/utils/focusService";
 import { Goal } from "@shared/api";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 // ─── TYPES ────────────────────────────────────────────────────
 interface UIGoal extends Goal {
@@ -507,6 +508,7 @@ const Analytics = ({ goals, theme, isPhone, isTablet }: { goals: UIGoal[], theme
 export default function Goals() {
     const { theme } = useTheme();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const isDark = theme === 'dark';
     const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
     const maxDateKey = useMemo(() => {
@@ -743,18 +745,18 @@ export default function Goals() {
                             <h1 style={{ fontSize: isPhone ? 22 : 26, fontWeight: 800, color: isDark ? T.darkText : T.slate900, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
                                 Command Center
                             </h1>
-                            <p style={{ fontSize: isPhone ? 12 : 13, color: isDark ? T.darkTextMuted : T.slate500, margin: "4px 0 0" }}>Manage your goals and track progress efficiently.</p>
+                            <p style={{ fontSize: isPhone ? 12 : 13, color: isDark ? T.darkTextMuted : T.slate500, margin: "4px 0 0" }}>{t('goals.subtitle')}</p>
                         </div>
                         <button
                             onClick={() => setModal({ mode: "add", goal: null })}
                             style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, border: "none", borderRadius: 12, color: T.white, padding: isPhone ? "14px 20px" : "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 14px rgba(155,28,28,0.28)", width: isPhone ? "100%" : "auto" }}
                         >
-                            ＋ New Goal
+                            ＋ {t('goals.add_goal')}
                         </button>
                     </header>
 
                     <div style={{ display: "flex", gap: 4, marginBottom: isPhone ? 16 : 24, background: isDark ? T.darkCard : T.white, borderRadius: 12, padding: 4, width: isPhone ? "100%" : "fit-content", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                        {[["goals", "Goals"], ["history", "History"], ["analytics", "Analytics"]].map(([k, l]) => (
+                        {([["goals", t('goals.tab_goals')], ["history", t('goals.tab_history')], ["analytics", t('goals.tab_analytics')]] as [string, string][]).map(([k, l]) => (
                             <button key={k} onClick={() => setTab(k)} style={{
                                 background: tab === k ? `linear-gradient(135deg,${T.teal800},${T.teal900})` : "transparent",
                                 border: "none", borderRadius: 10, color: tab === k ? T.white : (isDark ? T.darkTextMuted : T.slate500),
@@ -772,7 +774,7 @@ export default function Goals() {
                                         <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
                                             <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                    <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Pending</h3>
+                                                    <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>{t('goals.pending_section')}</h3>
                                                     <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{pendingGoals.length}</span>
                                                 </div>
                                             </div>
@@ -795,7 +797,7 @@ export default function Goals() {
                                         <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
                                             <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                    <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Recent Completed</h3>
+                                                    <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>{t('goals.completed_section')}</h3>
                                                     <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{completedGoalsDisplay.length}</span>
                                                 </div>
                                             </div>

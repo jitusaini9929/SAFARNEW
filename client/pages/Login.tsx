@@ -3,9 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
 import nishthaLogo from "@/assets/nishtha-logo.jpg";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -17,26 +19,25 @@ export default function Login() {
     setError("");
 
     if (!email.trim() || !password.trim()) {
-      setError("Please fill in email and password");
+      setError(t('auth.error_fill_email_password'));
       return;
     }
 
     if (!email.includes("@")) {
-      setError("Please enter a valid email");
+      setError(t('auth.error_valid_email'));
       return;
     }
 
     setIsLoading(true);
     try {
       const user = await authService.login(email, password, rememberMe);
-      toast.success("Welcome back!");
+      toast.success(t('auth.welcome_back_toast'));
       sessionStorage.setItem("showWelcomeNishtha", "true");
-      // Redirect after a brief delay to ensure state is saved
       setTimeout(() => {
-        window.location.href = "/landing";
+        window.location.href = "/home";
       }, 100);
     } catch (err: any) {
-      setError(err.message || "Invalid credentials");
+      setError(err.message || t('auth.error_invalid_creds'));
       setIsLoading(false);
     }
   };
@@ -123,7 +124,7 @@ export default function Login() {
                 SAFAR
               </h1>
               <p className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 tracking-wide mt-2">
-                Your emotional well-being & productivity portal
+                {t('auth.login_subtitle')}
               </p>
             </div>
 
@@ -131,13 +132,13 @@ export default function Login() {
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="group">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1" htmlFor="email">
-                  Email
+                  {t('auth.email')}
                 </label>
                 <input
                   className="block w-full px-4 py-3 rounded-xl border-transparent bg-white/50 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:bg-white/80 dark:focus:bg-black/50 transition-all duration-200 shadow-sm"
                   id="email"
                   name="email"
-                  placeholder="Enter your email"
+                  placeholder={t('auth.email_placeholder')}
                   required
                   type="email"
                   value={email}
@@ -151,13 +152,13 @@ export default function Login() {
 
               <div className="group">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1" htmlFor="password">
-                  Password
+                  {t('auth.password')}
                 </label>
                 <input
                   className="block w-full px-4 py-3 rounded-xl border-transparent bg-white/50 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:bg-white/80 dark:focus:bg-black/50 transition-all duration-200 shadow-sm"
                   id="password"
                   name="password"
-                  placeholder="Enter your password"
+                  placeholder={t('auth.password_placeholder')}
                   required
                   type="password"
                   value={password}
@@ -175,7 +176,7 @@ export default function Login() {
                       className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded cursor-pointer transition-colors"
                     />
                     <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300 font-medium cursor-pointer select-none">
-                      Remember me
+                      {t('auth.remember_me')}
                     </label>
                   </div>
                   <Link
@@ -198,19 +199,19 @@ export default function Login() {
                 disabled={isLoading}
                 className="btn-gradient w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white tracking-wider focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 dark:focus:ring-offset-gray-800 relative overflow-hidden group disabled:opacity-50"
               >
-                <span className="relative z-10">{isLoading ? "Signing in..." : "Sign In"}</span>
+                <span className="relative z-10">{isLoading ? t('auth.signin_loading') : t('auth.signin')}</span>
                 <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
               </button>
             </form>
 
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Don't have an account?{" "}
+                {t('auth.no_account')}{" "}
                 <Link
                   to="/signup"
                   className="font-bold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 hover:underline transition-colors"
                 >
-                  Sign up here
+                  {t('auth.signup_here')}
                 </Link>
               </p>
             </div>
@@ -218,7 +219,7 @@ export default function Login() {
 
           <div className="mt-8 text-center">
             <p className="text-xs text-teal-800/60 dark:text-teal-200/40 font-medium">
-              © 2026 SAFAR. All rights reserved.
+              {t('auth.copyright')}
             </p>
           </div>
         </main>

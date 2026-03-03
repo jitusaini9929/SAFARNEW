@@ -17,12 +17,10 @@ import {
 import {
   Flame,
   Heart,
-  Target,
-  Calendar,
   ArrowRight,
-  Dumbbell,
   TrendingUp,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const IST_TIME_ZONE = "Asia/Kolkata";
 
@@ -56,6 +54,7 @@ const getISTWeekday = (dateStr: string): string =>
 
 export default function Streaks() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
   const [streakData, setStreakData] = useState<any>(null);
   const [consistencyData, setConsistencyData] = useState<any[]>([]);
@@ -237,10 +236,6 @@ export default function Streaks() {
     return days;
   };
 
-  const calendarDays = generateCalendar();
-  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const currentMonthName = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-
   return (
     <NishthaLayout userName={user.name} userAvatar={user.avatar}>
       <div className="flex-1 bg-background font-['Inter'] text-foreground p-6 md:p-8 transition-colors duration-300">
@@ -249,10 +244,10 @@ export default function Streaks() {
           {/* Header */}
           <div className="flex flex-col gap-1">
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-['Outfit'] font-bold text-foreground flex items-center gap-2">
-              <span className="text-xl sm:text-2xl lg:text-3xl">🔥</span> Keep the fire burning!
+              <span className="text-xl sm:text-2xl lg:text-3xl">🔥</span> {t('streaks.title')}
             </h2>
             <p className="text-muted-foreground text-xs sm:text-sm md:text-base">
-              Consistency is key to building sustainable habits. Monitor your progress below.
+              {t('streaks.subtitle')}
             </p>
           </div>
 
@@ -269,16 +264,16 @@ export default function Streaks() {
                   <span className="p-1.5 bg-primary/30 rounded-lg backdrop-blur-sm">
                     <Heart className="w-4 h-4 text-primary" />
                   </span>
-                  <h3 className="text-primary font-medium text-sm">Check-In Streak</h3>
+                  <h3 className="text-primary font-medium text-sm">{t('streaks.checkin_streak')}</h3>
                 </div>
                 <div className="mt-4">
                   <span className="font-['Outfit'] font-bold text-5xl text-foreground">{streakData?.checkInStreak || 0}</span>
-                  <span className="text-primary text-lg ml-1">days</span>
+                  <span className="text-primary text-lg ml-1">{t('streaks.days')}</span>
                 </div>
               </div>
               <div className="relative z-10 mt-auto">
                 <div className="flex items-center gap-2 text-primary text-sm font-medium cursor-pointer" onClick={() => navigate('/nishtha/check-in')}>
-                  Start your streak today!
+                  {t('streaks.start_today')}
                   <ArrowRight className="w-4 h-4 animate-bounce-x" />
                 </div>
                 <div className="w-full bg-muted h-1.5 rounded-full mt-3 overflow-hidden">
@@ -297,16 +292,16 @@ export default function Streaks() {
                   <span className="p-1.5 bg-secondary/30 rounded-lg backdrop-blur-sm">
                     <Flame className="w-4 h-4 text-secondary" />
                   </span>
-                  <h3 className="text-secondary font-medium text-sm">Login Streak</h3>
+                  <h3 className="text-secondary font-medium text-sm">{t('streaks.login_streak')}</h3>
                 </div>
                 <div className="mt-4">
                   <span className="font-['Outfit'] font-bold text-5xl text-foreground">{streakData?.loginStreak || 0}</span>
-                  <span className="text-secondary text-lg ml-1">days</span>
+                  <span className="text-secondary text-lg ml-1">{t('streaks.days')}</span>
                 </div>
               </div>
               <div className="relative z-10 mt-auto">
                 <div className="flex items-center gap-2 text-secondary text-xs py-1 px-2 bg-secondary/10 rounded-lg w-fit backdrop-blur-md">
-                  <span className="text-lg">✨</span> Amazing! Keep it up!
+                  <span className="text-lg">✨</span> {t('streaks.amazing')}
                 </div>
               </div>
             </div>
@@ -322,7 +317,7 @@ export default function Streaks() {
                   className="flex items-center gap-1 text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white transition-colors text-xs font-medium px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-gray-800 action-btn-nowrap"
                 >
                   <ArrowRight className="w-3 h-3 rotate-180" />
-                  <span className="action-label-mobile-hidden">Today</span>
+                  <span className="action-label-mobile-hidden">{t('streaks.today')}</span>
                 </button>
 
                 <div className="flex items-center gap-2">
@@ -391,8 +386,6 @@ export default function Streaks() {
                 })}
               </div>
 
-
-
             </div>
 
             {/* Goal Consistency Graph - Full Width */}
@@ -401,9 +394,9 @@ export default function Streaks() {
                 <div>
                   <h3 className="font-['Outfit'] font-semibold text-lg text-foreground flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-primary" />
-                    Goal Consistency Trend
+                    {t('streaks.consistency_title')}
                   </h3>
-                  <p className="text-sm text-muted-foreground mt-1">Your goal completion over the last 7 days</p>
+                  <p className="text-sm text-muted-foreground mt-1">{t('streaks.consistency_subtitle')}</p>
                 </div>
               </div>
               <div className="h-64 w-full">
@@ -443,7 +436,7 @@ export default function Streaks() {
                             <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
                               <p className="font-bold text-foreground">{data.day}</p>
                               <p className="text-sm text-muted-foreground">
-                                {data.completed}/{data.created} goals completed
+                                {data.completed}/{data.created} {t('streaks.goals_completed')}
                               </p>
                               <p className="text-lg font-bold text-primary">{data.score}%</p>
                             </div>

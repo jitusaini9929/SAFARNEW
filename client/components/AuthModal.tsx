@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
 import { toast } from "sonner";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const ALLOWED_SIGNUP_DOMAINS = new Set(["gmail.com", "outlook.com"]);
 const SIGNUP_EMAIL_EXCEPTION = "steve123@example.com";
@@ -21,13 +22,11 @@ interface AuthModalProps {
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [mode, setMode] = useState<"login" | "signup">("login");
 
-    // Login fields
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-
-    // Signup fields
     const [name, setName] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [examType, setExamType] = useState("");
@@ -66,29 +65,28 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         setError("");
 
         if (!email.trim() || !password.trim()) {
-            setError("Please fill in email and password");
+            setError(t('auth.error_fill_email_password'));
             return;
         }
 
         if (!email.includes("@")) {
-            setError("Please enter a valid email");
+            setError(t('auth.error_valid_email'));
             return;
         }
 
         setIsLoading(true);
         try {
             await authService.login(email, password);
-            toast.success("Welcome back!");
+            toast.success(t('auth.welcome_back_toast'));
             sessionStorage.setItem("showWelcomeNishtha", "true");
             resetForm();
             onAuthSuccess();
             onClose();
-            // Refresh the page to update user state
             setTimeout(() => {
                 window.location.reload();
             }, 100);
         } catch (err: any) {
-            setError(err.message || "Invalid credentials");
+            setError(err.message || t('auth.error_invalid_creds'));
         } finally {
             setIsLoading(false);
         }
@@ -99,28 +97,28 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         setError("");
 
         if (!name.trim() || !email.trim() || !password.trim() || !gender) {
-            setError("Please fill in all required fields including gender");
+            setError(t('auth.error_fill_all'));
             return;
         }
 
         if (!email.includes("@")) {
-            setError("Please enter a valid email");
+            setError(t('auth.error_valid_email'));
             return;
         }
 
         const normalizedEmail = email.trim().toLowerCase();
         if (!isAllowedSignupEmail(normalizedEmail)) {
-            setError("Registration is currently allowed only with Gmail or Outlook email addresses.");
+            setError(t('auth.error_gmail_only'));
             return;
         }
 
         if (password.length < 6) {
-            setError("Password must be at least 6 characters");
+            setError(t('auth.error_password_min'));
             return;
         }
 
         if (password !== confirmPassword) {
-            setError("Passwords do not match");
+            setError(t('auth.error_password_match'));
             return;
         }
 
@@ -135,17 +133,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                 gender,
                 profilePreview || undefined
             );
-            toast.success("Account created successfully!");
+            toast.success(t('auth.signup_success'));
             sessionStorage.setItem("showWelcomeNishtha", "true");
             resetForm();
             onAuthSuccess();
             onClose();
-            // Refresh the page to update user state
             setTimeout(() => {
                 window.location.reload();
             }, 100);
         } catch (err: any) {
-            setError(err.message || "Signup failed");
+            setError(err.message || t('auth.error_invalid_creds'));
         } finally {
             setIsLoading(false);
         }
@@ -182,14 +179,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
           background: rgba(17, 24, 39, 0.95);
         }
         @keyframes modal-slide-up {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .btn-gradient {
           background: linear-gradient(135deg, #047857 0%, #881337 100%);
@@ -204,7 +195,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
 
             <div className="auth-modal-backdrop" onClick={onClose}>
                 <div className="auth-modal-container" onClick={(e) => e.stopPropagation()}>
-                    {/* Close Button */}
                     <button
                         onClick={onClose}
                         className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-10"
@@ -214,15 +204,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                     </button>
 
                     <div className="p-8">
-                        {/* Header */}
                         <div className="text-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                                {mode === "login" ? "Welcome Back" : "Create Account"}
+                                {mode === "login" ? t('auth.modal_welcome_back') : t('auth.modal_create_account')}
                             </h2>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                {mode === "login"
-                                    ? "Sign in to continue your journey"
-                                    : "Join Safar to start your journey"}
+                                {mode === "login" ? t('auth.modal_signin_desc') : t('auth.modal_signup_desc')}
                             </p>
                         </div>
 
@@ -236,7 +223,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                     : "text-gray-500 dark:text-gray-400"
                                     }`}
                             >
-                                Sign In
+                                {t('auth.signin')}
                             </button>
                             <button
                                 type="button"
@@ -246,7 +233,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                     : "text-gray-500 dark:text-gray-400"
                                     }`}
                             >
-                                Sign Up
+                                {t('auth.signup')}
                             </button>
                         </div>
 
@@ -255,13 +242,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                             <form onSubmit={handleLogin} className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Email
+                                        {t('auth.email')}
                                     </label>
                                     <input
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value.toLowerCase())}
-                                        placeholder="Enter your email"
+                                        placeholder={t('auth.email_placeholder')}
                                         autoCapitalize="none"
                                         autoCorrect="off"
                                         spellCheck={false}
@@ -271,13 +258,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Password
+                                        {t('auth.password')}
                                     </label>
                                     <input
                                         type="password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="Enter your password"
+                                        placeholder={t('auth.password_placeholder')}
                                         disabled={isLoading}
                                         className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all"
                                     />
@@ -292,10 +279,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                 <div className="flex justify-end">
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            onClose();
-                                            navigate("/forgot-password");
-                                        }}
+                                        onClick={() => { onClose(); navigate("/forgot-password"); }}
                                         className="text-sm font-medium text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300 transition-colors"
                                     >
                                         Forgot Password?
@@ -307,7 +291,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                     disabled={isLoading}
                                     className="btn-gradient w-full py-3 rounded-xl text-white font-bold tracking-wide disabled:opacity-50"
                                 >
-                                    {isLoading ? "Signing in..." : "Sign In"}
+                                    {isLoading ? t('auth.signin_loading') : t('auth.signin')}
                                 </button>
                             </form>
                         )}
@@ -322,7 +306,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                             {profilePreview ? (
                                                 <img src={profilePreview} alt="Profile" className="w-full h-full object-cover" />
                                             ) : (
-                                                <span className="text-xs text-gray-400 text-center px-1">Add Photo</span>
+                                                <span className="text-xs text-gray-400 text-center px-1">{t('auth.add_photo')}</span>
                                             )}
                                         </div>
                                     </label>
@@ -336,25 +320,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                     />
                                 </div>
 
-                                {/* Name */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Full Name *
+                                        {t('auth.full_name')}
                                     </label>
                                     <input
                                         type="text"
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
-                                        placeholder="Enter your full name"
+                                        placeholder={t('auth.full_name_placeholder')}
                                         disabled={isLoading}
                                         className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-sm"
                                     />
                                 </div>
 
-                                {/* Email */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Email *
+                                        {t('auth.email')}
                                     </label>
                                     <input
                                         type="email"
@@ -369,41 +351,39 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                     />
                                 </div>
 
-                                {/* Password Row */}
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                            Password *
+                                            {t('auth.password')}
                                         </label>
                                         <input
                                             type="password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="Min 6 chars"
+                                            placeholder={t('auth.password_min')}
                                             disabled={isLoading}
                                             className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-sm"
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                            Confirm *
+                                            {t('auth.confirm_short')}
                                         </label>
                                         <input
                                             type="password"
                                             value={confirmPassword}
                                             onChange={(e) => setConfirmPassword(e.target.value)}
-                                            placeholder="Confirm"
+                                            placeholder={t('auth.confirm_password_placeholder')}
                                             disabled={isLoading}
                                             className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-sm"
                                         />
                                     </div>
                                 </div>
 
-                                {/* Exam Type & Prep Stage */}
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                            Exam Type
+                                            {t('auth.exam_type')}
                                         </label>
                                         <select
                                             value={examType}
@@ -411,7 +391,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                             disabled={isLoading}
                                             className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-sm"
                                         >
-                                            <option value="">Select</option>
+                                            <option value="">{t('auth.select')}</option>
                                             <option value="CGL">CGL</option>
                                             <option value="CHSL">CHSL</option>
                                             <option value="GD">GD</option>
@@ -419,12 +399,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                             <option value="12th Boards">12th Boards</option>
                                             <option value="NTPC">NTPC</option>
                                             <option value="JEE">JEE</option>
-                                            <option value="Other">Other</option>
+                                            <option value="Other">{t('auth.other')}</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                            Prep Stage
+                                            {t('auth.prep_stage_short')}
                                         </label>
                                         <select
                                             value={preparationStage}
@@ -432,18 +412,17 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                             disabled={isLoading}
                                             className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-sm"
                                         >
-                                            <option value="">Select</option>
-                                            <option value="Beginner">Beginner</option>
-                                            <option value="Intermediate">Intermediate</option>
-                                            <option value="Advanced">Advanced</option>
+                                            <option value="">{t('auth.select')}</option>
+                                            <option value="Beginner">{t('auth.beginner')}</option>
+                                            <option value="Intermediate">{t('auth.intermediate')}</option>
+                                            <option value="Advanced">{t('auth.advanced')}</option>
                                         </select>
                                     </div>
                                 </div>
 
-                                {/* Gender */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Gender *
+                                        {t('auth.gender')}
                                     </label>
                                     <select
                                         value={gender}
@@ -451,10 +430,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                         disabled={isLoading}
                                         className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-sm"
                                     >
-                                        <option value="">Select gender</option>
-                                        <option value="male">Male</option>
-                                        <option value="female">Female</option>
-                                        <option value="other">Other</option>
+                                        <option value="">{t('auth.select_gender')}</option>
+                                        <option value="male">{t('auth.male')}</option>
+                                        <option value="female">{t('auth.female')}</option>
+                                        <option value="other">{t('auth.other')}</option>
                                     </select>
                                 </div>
 
@@ -469,7 +448,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
                                     disabled={isLoading}
                                     className="btn-gradient w-full py-3 rounded-xl text-white font-bold tracking-wide disabled:opacity-50"
                                 >
-                                    {isLoading ? "Creating account..." : "Create Account"}
+                                    {isLoading ? t('auth.signup_loading') : t('auth.signup')}
                                 </button>
                             </form>
                         )}

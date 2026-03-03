@@ -1,6 +1,6 @@
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage, AvatarBadge, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,9 @@ import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import safarLogo from "@/assets/safar-logo.png.jpeg";
 import { useState } from "react";
 import ThemeToggle from "@/components/ui/theme-toggle";
+import LanguageToggle from "./LanguageToggle";
 import GlobalSidebar from "./GlobalSidebar";
+import { useTranslation } from "react-i18next";
 
 interface TopNavbarProps {
   userName?: string;
@@ -25,10 +27,11 @@ interface TopNavbarProps {
   homeRoute?: string;
 }
 
-export default function TopNavbar({ userName = "Student", userAvatar = "", onLogout, showMobileMenu = true, homeRoute = "/landing" }: TopNavbarProps) {
+export default function TopNavbar({ userName = "Student", userAvatar = "", onLogout, showMobileMenu = true, homeRoute = "/home" }: TopNavbarProps) {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { resetTourHistory } = useGuidedTour();
+  const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -86,18 +89,22 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
             </Link>
           </div>
 
-          {/* Right side - Theme Toggle and User Avatar */}
-          <div className="flex items-center gap-3">
+          {/* Right side - Theme Toggle, Language Toggle and User Avatar */}
+          <div className="flex items-center gap-5 pr-6">
             {/* Theme Toggle Button */}
             <ThemeToggle />
-
+            <LanguageToggle />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="rounded-xl h-9 w-9 p-0 hover:bg-slate-100 dark:hover:bg-white/10">
-                  <Avatar className="h-9 w-9 rounded-xl border border-[#6EE7B7]/30">
-                    <AvatarImage src={userAvatar} alt={userName} className="rounded-xl" />
-                    <AvatarFallback className="rounded-xl bg-gradient-to-br from-[#6EE7B7] to-teal-600 text-black font-bold">
+                <button className="flex items-center justify-center w-[40px] h-[40px] p-0.5 rounded-full transition-all duration-200 hover:scale-105 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 outline-none">
+                  <Avatar className="h-full w-full border border-slate-200 dark:border-white/10 transition-transform">
+                    <AvatarImage
+                      src={userAvatar}
+                      alt={userName}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs ring-1 ring-inset ring-slate-900/10 dark:ring-white/10">
                       {userName
                         .split(" ")
                         .map((n) => n[0])
@@ -105,9 +112,9 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
                         .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                </Button>
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-[#0B0F19] border-slate-200 dark:border-white/10 rounded-xl shadow-xl">
+              <DropdownMenuContent align="end" className="w-56 mt-2 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur-xl border-slate-200 dark:border-white/10 rounded-2xl shadow-xl p-2">
                 <div className="px-3 py-2">
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{userName}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Student</p>
@@ -123,12 +130,12 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
                   className="cursor-pointer gap-2 text-slate-700 dark:text-slate-300 hover:text-[#6EE7B7] dark:hover:text-[#6EE7B7]"
                 >
                   <HelpCircle className="w-4 h-4" />
-                  <span>Restart Tours</span>
+                  <span>{t('nav.restart_tours')}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-slate-200 dark:bg-white/10" />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300">
                   <LogOut className="w-4 h-4" />
-                  <span>Sign Out</span>
+                  <span>{t('nav.sign_out')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

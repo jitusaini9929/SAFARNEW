@@ -29,6 +29,7 @@ import {
 import youtubeImg from "@/assets/youtube-thumbnail.png";
 import courseImg from "@/assets/course-thumbnail.png";
 import GlobalSidebar from "@/components/GlobalSidebar";
+import { useTranslation } from "react-i18next";
 
 
 const getMoodEmoji = (mood: string): string => {
@@ -87,6 +88,7 @@ const achievementImages: Record<string, string> = {
 
 export default function Dashboard() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [user, setUser] = useState<any>(null);
     const [streaks, setStreaks] = useState({ checkInStreak: 0, loginStreak: 0, goalCompletionStreak: 0 });
     const [todayMood, setTodayMood] = useState<{ mood: string; intensity: number } | null>(null);
@@ -280,10 +282,10 @@ export default function Dashboard() {
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                         </span>
-                                        <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500 dark:text-slate-400">Online</span>
+                                        <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500 dark:text-slate-400">{t('dashboard.online')}</span>
                                     </div>
                                     <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-800 dark:text-white tracking-tight">
-                                        Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">{user.name.split(' ')[0]}</span>
+                                        {t('greeting').replace('!', ',')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">{user.name.split(' ')[0]}</span>
                                     </h1>
                                 </div>
                                 <div className="max-w-xl mx-auto md:mx-0">
@@ -300,7 +302,7 @@ export default function Dashboard() {
                                         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 transition-all text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-sm hover:shadow-md action-btn-nowrap"
                                     >
                                         <Menu className="w-4 h-4" />
-                                        <span className="action-label-mobile-hidden">Menu</span>
+                                        <span className="action-label-mobile-hidden">{t('dashboard.menu')}</span>
                                     </button>
                                 </div>
                             </div>
@@ -319,7 +321,7 @@ export default function Dashboard() {
                                         }}
                                         className="relative flex flex-col items-center p-6 rounded-2xl bg-black dark:bg-black/40 border border-slate-800 dark:border-white/5 backdrop-blur-md shadow-xl transition-transform hover:scale-[1.02] duration-300 cursor-pointer w-full md:w-auto"
                                     >
-                                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-200 dark:text-slate-500 mb-2">Current Title</div>
+                                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-200 dark:text-slate-500 mb-2">{t('dashboard.current_title')}</div>
 
                                         {activeTitleId && achievementImages[activeTitleId] ? (
                                             <div className="relative w-32 h-32 md:w-36 md:h-36 mb-2 filter drop-shadow-lg">
@@ -352,7 +354,7 @@ export default function Dashboard() {
                         <div className="relative z-10">
                             <div className="flex items-center gap-2 mb-4 text-purple-500 justify-center">
                                 <Quote className="w-5 h-5" />
-                                <h3 className="font-semibold text-lg">Daily Inspiration</h3>
+                                <h3 className="font-semibold text-lg">{t('dashboard.daily_inspiration')}</h3>
                             </div>
                             <blockquote className="text-2xl font-serif text-foreground/90 leading-relaxed italic text-center px-4">
                                 "{getDailyQuote()}"
@@ -368,33 +370,33 @@ export default function Dashboard() {
                             <div className="relative z-10 h-full flex flex-col">
                                 <div className="flex items-center gap-2 mb-2">
                                     <Heart className="text-orange-500 w-5 h-5" />
-                                    <h3 className="font-semibold text-lg text-foreground">Today's Mood</h3>
+                                    <h3 className="font-semibold text-lg text-foreground">{t('dashboard.todays_mood')}</h3>
                                 </div>
-                                <p className="text-muted-foreground text-sm mb-8">How are you feeling right now?</p>
+                                <p className="text-muted-foreground text-sm mb-8">{t('dashboard.how_feeling')}</p>
                                 <div className="flex-1 flex flex-col items-center justify-center text-center">
                                     {todayMood ? (
                                         <>
                                             <p className="text-4xl mb-2">{getMoodEmoji(todayMood.mood)}</p>
                                             <p className="text-foreground font-semibold text-lg capitalize mb-1">{todayMood.mood}</p>
-                                            <p className="text-muted-foreground text-sm">Intensity: {todayMood.intensity}/5</p>
+                                            <p className="text-muted-foreground text-sm">{t('dashboard.mood_intensity')}: {todayMood.intensity}/5</p>
                                             <button
                                                 onClick={() => navigate('/nishtha/check-in')}
                                                 aria-label="Update check-in"
                                                 className="mt-4 text-primary text-sm hover:underline flex items-center gap-1 action-btn-nowrap"
                                             >
-                                                <span className="action-label-mobile-hidden">Update Check-In</span>
+                                                <span className="action-label-mobile-hidden">{t('dashboard.update_checkin')}</span>
                                                 <ArrowRight className="w-3 h-3" />
                                             </button>
                                         </>
                                     ) : (
                                         <>
-                                            <p className="text-muted-foreground italic mb-6 text-lg font-light">No check-in yet today</p>
+                                            <p className="text-muted-foreground italic mb-6 text-lg font-light">{t('dashboard.no_checkin')}</p>
                                             <button
                                                 onClick={() => navigate('/nishtha/check-in')}
                                                 aria-label="Check in now"
                                                 className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white px-8 py-3 rounded-full font-medium transition-all shadow-lg hover:shadow-orange-500/25 flex items-center gap-2 action-btn-nowrap"
                                             >
-                                                <span className="action-label-mobile-hidden">Check In Now</span>
+                                                <span className="action-label-mobile-hidden">{t('dashboard.checkin_now')}</span>
                                                 <ArrowRight className="w-4 h-4" />
                                             </button>
                                         </>
@@ -409,14 +411,14 @@ export default function Dashboard() {
                             <div className="flex items-center gap-2 mb-6 relative z-10">
                                 <RotateCw className="text-primary w-5 h-5" />
                                 <h3 className="font-semibold text-lg text-foreground">
-                                    Current Streaks <span className="text-orange-500 text-sm align-top">🔥</span>
+                                    {t('dashboard.current_streaks')} <span className="text-orange-500 text-sm align-top">🔥</span>
                                 </h3>
                             </div>
                             <div className="space-y-4 relative z-10">
                                 {[
-                                    { label: "Check-In Streak", value: String(streaks.checkInStreak) },
-                                    { label: "Login Streak", value: String(streaks.loginStreak) },
-                                    { label: "Goal Completion", value: String(streaks.goalCompletionStreak) }
+                                    { label: t('dashboard.checkin_streak'), value: String(streaks.checkInStreak) },
+                                    { label: t('dashboard.login_streak'), value: String(streaks.loginStreak) },
+                                    { label: t('dashboard.goal_completion'), value: String(streaks.goalCompletionStreak) }
                                 ].map((streak, i) => (
                                     <div key={i} className="bg-muted/50 border border-border rounded-xl p-4 flex justify-between items-center hover:bg-muted transition-colors">
                                         <span className="text-foreground font-medium text-sm">{streak.label}</span>
@@ -438,18 +440,18 @@ export default function Dashboard() {
                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400/30 to-amber-500/30 dark:from-yellow-500/25 dark:to-amber-600/25 flex items-center justify-center shadow-lg shadow-yellow-500/20">
                                         <Award className="text-yellow-600 dark:text-yellow-400 w-5 h-5" />
                                     </div>
-                                    <h3 className="font-semibold text-xl text-foreground">Achievements</h3>
+                                    <h3 className="font-semibold text-xl text-foreground">{t('dashboard.achievements')}</h3>
                                 </div>
                                 <button
                                     onClick={() => navigate('/achievements')}
                                     className="text-xs font-bold uppercase tracking-widest text-primary/80 hover:text-primary transition-colors"
                                 >
-                                    View All
+                                    {t('dashboard.view_all')}
                                 </button>
                             </div>
 
                             <div className="relative z-10 text-center">
-                                <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted-foreground mb-6">Current Badge</p>
+                                <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted-foreground mb-6">{t('dashboard.current_badge')}</p>
                                 {activeBadge ? (
                                     <div
                                         onClick={() => {
@@ -489,8 +491,8 @@ export default function Dashboard() {
                                             <div className="absolute inset-0 bg-teal-400/20 dark:bg-teal-500/10 rounded-full blur-xl"></div>
                                             <Award className="relative w-10 h-10 text-teal-500/60 dark:text-teal-400/40 mx-auto" />
                                         </div>
-                                        <p className="text-muted-foreground text-sm font-medium">No badge yet</p>
-                                        <p className="text-muted-foreground text-xs mt-1.5">Complete goals to earn!</p>
+                                        <p className="text-muted-foreground text-sm font-medium">{t('dashboard.no_badge')}</p>
+                                        <p className="text-muted-foreground text-xs mt-1.5">{t('dashboard.no_badge_hint')}</p>
                                     </div>
                                 )}
                             </div>
@@ -502,8 +504,8 @@ export default function Dashboard() {
                                 <div className="flex items-center gap-2">
                                     <Zap className="text-blue-500 w-5 h-5" />
                                     <div>
-                                        <h3 className="font-semibold text-lg text-foreground">Today's Goals</h3>
-                                        <p className="text-xs text-blue-500">{goals.total > 0 ? `${goals.total} goals today` : 'No goals set for today'}</p>
+                                        <h3 className="font-semibold text-lg text-foreground">{t('dashboard.todays_goals')}</h3>
+                                        <p className="text-xs text-blue-500">{goals.total > 0 ? `${goals.total} ${t('dashboard.goals_today')}` : t('dashboard.no_goals_today')}</p>
                                     </div>
                                 </div>
                                 {goals.total > 0 && (
@@ -518,7 +520,7 @@ export default function Dashboard() {
                                     <div className="text-4xl font-bold text-foreground mb-2">
                                         {goals.completed}<span className="text-muted-foreground text-2xl">/{goals.total}</span>
                                     </div>
-                                    <p className="text-xs tracking-widest text-muted-foreground uppercase">Goals Completed</p>
+                                    <p className="text-xs tracking-widest text-muted-foreground uppercase">{t('dashboard.goals_completed')}</p>
                                     <div className="w-full h-1 bg-muted rounded-full mt-6 overflow-hidden">
                                         <div
                                             className="h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-500"
@@ -529,8 +531,8 @@ export default function Dashboard() {
                             ) : (
                                 <div className="flex-1 flex flex-col items-center justify-center my-6 text-center">
                                     <div className="text-4xl mb-4">🎯</div>
-                                    <p className="text-muted-foreground text-sm mb-2">Start your day with intention</p>
-                                    <p className="text-xs text-muted-foreground/70">Set goals to track your progress</p>
+                                    <p className="text-muted-foreground text-sm mb-2">{t('dashboard.start_intention')}</p>
+                                    <p className="text-xs text-muted-foreground/70">{t('dashboard.set_goals_hint')}</p>
                                 </div>
                             )}
 
@@ -539,7 +541,7 @@ export default function Dashboard() {
                                 aria-label={goals.total > 0 ? "View goals" : "Set goals"}
                                 className="w-full mt-auto bg-muted hover:bg-muted/80 text-blue-600 border border-blue-500/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group action-btn-nowrap"
                             >
-                                <span className="action-label-mobile-hidden">{goals.total > 0 ? 'View Goals' : 'Set Goals'}</span>
+                                <span className="action-label-mobile-hidden">{goals.total > 0 ? t('dashboard.view_goals') : t('dashboard.set_goals')}</span>
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
@@ -549,9 +551,9 @@ export default function Dashboard() {
                             <div className="flex items-center gap-2 mb-4">
                                 <BarChart3 className="text-primary w-5 h-5" />
                                 <div>
-                                    <h3 className="font-semibold text-lg text-foreground">Monthly Analytics</h3>
+                                    <h3 className="font-semibold text-lg text-foreground">{t('dashboard.monthly_analytics')}</h3>
                                     <p className="text-xs text-muted-foreground">
-                                        {monthlySummary ? `Report ${monthlySummary.month}` : "No generated report yet"}
+                                        {monthlySummary ? `Report ${monthlySummary.month}` : t('dashboard.no_report')}
                                     </p>
                                 </div>
                             </div>
@@ -559,21 +561,21 @@ export default function Dashboard() {
                             {monthlySummary ? (
                                 <div className="space-y-3 my-4">
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="text-muted-foreground">Consistency</span>
+                                        <span className="text-muted-foreground">{t('dashboard.consistency')}</span>
                                         <span className="font-bold text-foreground">{monthlySummary.consistencyScore}%</span>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="text-muted-foreground">Completion</span>
+                                        <span className="text-muted-foreground">{t('dashboard.completion')}</span>
                                         <span className="font-bold text-foreground">{monthlySummary.completionRate}%</span>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="text-muted-foreground">Focus Depth</span>
+                                        <span className="text-muted-foreground">{t('dashboard.focus_depth')}</span>
                                         <span className="font-bold text-foreground">{monthlySummary.focusDepth}m/day</span>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="flex-1 flex flex-col justify-center my-4">
-                                    <p className="text-sm text-muted-foreground">Generate your Nishtha Scorecard to unlock monthly insights.</p>
+                                    <p className="text-sm text-muted-foreground">{t('dashboard.scorecard_hint')}</p>
                                 </div>
                             )}
 
@@ -582,7 +584,7 @@ export default function Dashboard() {
                                 aria-label="Open analytics"
                                 className="w-full mt-auto bg-muted hover:bg-muted/80 text-primary border border-primary/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group action-btn-nowrap"
                             >
-                                <span className="action-label-mobile-hidden">Open Analytics</span>
+                                <span className="action-label-mobile-hidden">{t('dashboard.open_analytics')}</span>
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </div>
@@ -591,9 +593,9 @@ export default function Dashboard() {
                         <div className="lg:col-span-12 glass-high rounded-2xl p-6 relative">
                             <div className="flex items-center gap-2 mb-2">
                                 <Activity className="text-primary w-5 h-5" />
-                                <h3 className="font-semibold text-lg text-foreground">Weekly Mood Trend</h3>
+                                <h3 className="font-semibold text-lg text-foreground">{t('dashboard.weekly_mood')}</h3>
                             </div>
-                            <p className="text-muted-foreground text-sm mb-6">Your emotional well-being over the week</p>
+                            <p className="text-muted-foreground text-sm mb-6">{t('dashboard.mood_desc')}</p>
                             <div className="w-full">
                                 {(() => {
                                     // Calculate SVG points based on weeklyMoods data
@@ -720,7 +722,7 @@ export default function Dashboard() {
                                                     textAnchor="middle"
                                                     x="500"
                                                     y="160"
-                                                >No mood check-ins this week. Start tracking your emotions!</text>
+                                                >{t('dashboard.no_moods')}</text>
                                             )}
                                         </svg>
                                     );
@@ -733,23 +735,23 @@ export default function Dashboard() {
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
                                     <History className="text-primary w-5 h-5" />
-                                    <h3 className="font-semibold text-lg text-foreground">Goal History</h3>
+                                    <h3 className="font-semibold text-lg text-foreground">{t('dashboard.goal_history')}</h3>
                                 </div>
                                 <button
                                     onClick={() => navigate('/nishtha/goals')}
                                     aria-label="View all goals"
                                     className="text-xs font-bold text-primary uppercase tracking-wider hover:underline flex items-center gap-1 action-btn-nowrap"
                                 >
-                                    <span className="action-label-mobile-hidden">View All</span>
+                                    <span className="action-label-mobile-hidden">{t('dashboard.view_all')}</span>
                                     <ArrowRight className="w-3 h-3" />
                                 </button>
                             </div>
-                            <p className="text-muted-foreground text-sm mb-6">Your recent goals and their completion status</p>
+                            <p className="text-muted-foreground text-sm mb-6">{t('dashboard.goal_history_desc')}</p>
 
                             {allGoals.length === 0 ? (
                                 <div className="text-center py-8 text-muted-foreground">
                                     <Target className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                    <p className="text-sm">No goals set yet. Start by creating your first goal!</p>
+                                    <p className="text-sm">{t('dashboard.no_goals_yet')}</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[300px] overflow-y-auto pr-2">

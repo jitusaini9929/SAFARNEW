@@ -2,6 +2,8 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { collections } from '../db';
+import type { RequestHandler } from 'express';
+import { markDmUserOffline, markDmUserOnline } from './dm-presence';
 
 type MehfilCategory = 'ACADEMIC' | 'REFLECTIVE' | 'BULLSHIT';
 type MehfilRoom = 'ACADEMIC' | 'REFLECTIVE';
@@ -18,6 +20,17 @@ interface MehfilUser {
 interface MehfilSocketOptions {
   paused?: boolean;
   pausedMessage?: string;
+  redisClient?: RedisLikeClient | null;
+  sessionMiddleware?: RequestHandler;
+}
+
+interface RedisLikeClient {
+  isReady?: boolean;
+  set: (key: string, value: string, options?: { EX?: number }) => Promise<unknown>;
+  get: (key: string) => Promise<string | null>;
+  del: (key: string) => Promise<unknown>;
+  incr: (key: string) => Promise<number>;
+  expire: (key: string, seconds: number) => Promise<unknown>;
 }
 
 interface ModerationResult {
@@ -30,6 +43,20 @@ interface ModerationResult {
 
 const connectedUsers = new Map<string, MehfilUser>();
 const socketToUser = new Map<string, string>();
+const dmRequestTimeouts = new Map<string, NodeJS.Timeout>();
+const dmRoomTimeouts = new Map<string, NodeJS.Timeout>();
+const dmRequests = new Map<string, { fromUserId: string; toUserId: string; context: any; status: 'pending' }>();
+const dmRooms = new Map<string, { user1: string; user2: string; createdAt: number; messageCount: number }>();
+
+const DM_REQUEST_TTL_SECONDS = 60;
+const DM_ROOM_TTL_SECONDS = 2 * 60 * 60;
+const DM_SOCKET_TTL_SECONDS = 60 * 60;
+const DM_REQUEST_RATE_LIMIT = 5;
+const DM_REQUEST_RATE_WINDOW_SECONDS = 60;
+const DM_MAX_MESSAGE_LENGTH = 1000;
+const DM_MAX_HANDLE_LENGTH = 64;
+const DM_MAX_CONTEXT_PREVIEW_LENGTH = 120;
+const DM_ALLOWED_PLATFORMS = new Set(['linkedin', 'instagram', 'discord']);
 
 const DEFAULT_ROOM: MehfilRoom = 'ACADEMIC';
 const ROOM_ORDER: MehfilRoom[] = ['ACADEMIC', 'REFLECTIVE'];
@@ -359,6 +386,103 @@ function toBanPayload(ban: { isActive: boolean; isPermanent: boolean; bannedUnti
   };
 }
 
+function stripHtml(input: string): string {
+  return input.replace(/<[^>]*>/g, '');
+}
+
+function sanitizeText(input: unknown, maxLength: number): string {
+  return stripHtml(String(input ?? '')).replace(/\s+/g, ' ').trim().slice(0, maxLength);
+}
+
+function normalizeDmPlatform(platform: unknown): 'linkedin' | 'instagram' | 'discord' | null {
+  const normalized = String(platform ?? '').trim().toLowerCase();
+  if (!DM_ALLOWED_PLATFORMS.has(normalized)) return null;
+  return normalized as 'linkedin' | 'instagram' | 'discord';
+}
+
+function clearDmRequestTimer(requestId: string) {
+  const existing = dmRequestTimeouts.get(requestId);
+  if (existing) {
+    clearTimeout(existing);
+    dmRequestTimeouts.delete(requestId);
+  }
+}
+
+function clearDmRoomTimer(roomId: string) {
+  const existing = dmRoomTimeouts.get(roomId);
+  if (existing) {
+    clearTimeout(existing);
+    dmRoomTimeouts.delete(roomId);
+  }
+}
+
+function scheduleDmRequestExpiry(requestId: string) {
+  clearDmRequestTimer(requestId);
+  const timer = setTimeout(() => {
+    dmRequests.delete(requestId);
+    dmRequestTimeouts.delete(requestId);
+  }, DM_REQUEST_TTL_SECONDS * 1000);
+  dmRequestTimeouts.set(requestId, timer);
+}
+
+function scheduleDmRoomExpiry(roomId: string) {
+  clearDmRoomTimer(roomId);
+  const timer = setTimeout(() => {
+    dmRooms.delete(roomId);
+    dmRoomTimeouts.delete(roomId);
+  }, DM_ROOM_TTL_SECONDS * 1000);
+  dmRoomTimeouts.set(roomId, timer);
+}
+
+async function emitPendingDmRequestsToUser(
+  mehfil: ReturnType<Server['of']>,
+  socketId: string,
+  userId: string,
+) {
+  if (!socketId || !userId) return;
+
+  for (const [requestId, request] of dmRequests.entries()) {
+    if (request.toUserId !== userId || request.status !== 'pending') continue;
+
+    mehfil.to(socketId).emit('dm:incoming_request', {
+      requestId,
+      fromUserId: request.fromUserId,
+      fromUserName: connectedUsers.get(request.fromUserId)?.name || 'User',
+      context: request.context,
+    });
+  }
+}
+
+async function redisSetJSON(
+  redisClient: RedisLikeClient | null | undefined,
+  key: string,
+  value: unknown,
+  ttlSeconds: number,
+) {
+  if (!redisClient || !redisClient.isReady) return false;
+  await redisClient.set(key, JSON.stringify(value), { EX: ttlSeconds });
+  return true;
+}
+
+async function redisGetJSON<T>(
+  redisClient: RedisLikeClient | null | undefined,
+  key: string,
+): Promise<T | null> {
+  if (!redisClient || !redisClient.isReady) return null;
+  const raw = await redisClient.get(key);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+async function redisDelKey(redisClient: RedisLikeClient | null | undefined, key: string) {
+  if (!redisClient || !redisClient.isReady) return;
+  await redisClient.del(key);
+}
+
 export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocketOptions) {
   const mehfilPaused = Boolean(options?.paused);
   const mehfilPausedMessage =
@@ -375,6 +499,13 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
   });
 
   const mehfil = io.of('/mehfil');
+  const redisClient = options?.redisClient ?? null;
+
+  if (options?.sessionMiddleware) {
+    mehfil.use((socket, next) => {
+      options.sessionMiddleware?.(socket.request as any, {} as any, next as any);
+    });
+  }
 
   mehfil.on('connection', (socket: Socket) => {
     if (mehfilPaused) {
@@ -384,26 +515,62 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
     }
 
     console.log('[MEHFIL] Client connected:', socket.id);
+    const sessionUserId = String((socket.request as any)?.session?.userId || '').trim();
+    const effectiveUserId = sessionUserId || socketToUser.get(socket.id) || '';
+
+    if (effectiveUserId) {
+      socketToUser.set(socket.id, effectiveUserId);
+      markDmUserOnline(effectiveUserId);
+      redisSetJSON(redisClient, `dm:socket:${effectiveUserId}`, { socketId: socket.id }, DM_SOCKET_TTL_SECONDS).catch(() => {
+        // best effort
+      });
+    }
+
+    const getSocketUserId = () => {
+      const bySession = String((socket.request as any)?.session?.userId || '').trim();
+      if (bySession) return bySession;
+      return socketToUser.get(socket.id) || '';
+    };
+
+    const getDisplayName = (userId: string) => {
+      const connected = connectedUsers.get(userId);
+      return connected?.name || 'User';
+    };
+
+    const getActiveSocketIdForUser = async (userId: string): Promise<string | null> => {
+      const connected = connectedUsers.get(userId);
+      if (connected?.socketId) return connected.socketId;
+
+      const redisSocket = await redisGetJSON<{ socketId?: string }>(redisClient, `dm:socket:${userId}`);
+      return redisSocket?.socketId || null;
+    };
 
     socket.on('register', async (user: { id: string; name: string; avatar: string }) => {
-      if (!user?.id) return;
+      const userId = getSocketUserId() || String(user?.id || '').trim();
+      if (!userId) return;
 
-      connectedUsers.set(user.id, {
-        id: user.id,
+      connectedUsers.set(userId, {
+        id: userId,
         name: user.name || 'User',
         avatar: user.avatar || '',
         socketId: socket.id,
         activeRoom: DEFAULT_ROOM,
       });
-      socketToUser.set(socket.id, user.id);
+      socketToUser.set(socket.id, userId);
+      markDmUserOnline(userId);
+      redisSetJSON(redisClient, `dm:socket:${userId}`, { socketId: socket.id }, DM_SOCKET_TTL_SECONDS).catch(() => {
+        // best effort
+      });
       socket.join(toRoomName(DEFAULT_ROOM));
+      socket.join(`user:${userId}`);
+      await emitPendingDmRequestsToUser(mehfil, socket.id, userId);
 
-      console.log(`[MEHFIL] User registered: ${user.name} (${user.id})`);
+      console.log(`[MEHFIL] User registered: ${user.name} (${userId})`);
       mehfil.emit('onlineCount', connectedUsers.size);
 
       try {
         const userProfile = await collections.users().findOne(
-          { id: user.id },
+          { id: userId },
           {
             projection: {
               mehfil_banned_until: 1,
@@ -440,6 +607,261 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         socket.emit('postingBanStatus', toBanPayload(activeBan));
       } catch (error) {
         console.error('[MEHFIL] Failed to check posting ban:', error);
+      }
+    });
+
+    socket.on('dm:request', async (payload: { toUserId?: string; context?: { type?: string; id?: string; preview?: string } }) => {
+      try {
+        const fromUserId = getSocketUserId();
+        const toUserId = String(payload?.toUserId || '').trim();
+        if (!fromUserId || !toUserId || fromUserId === toUserId) {
+          socket.emit('dm:error', { message: 'Invalid user for request' });
+          return;
+        }
+
+        const rateKey = `dm:ratelimit:${fromUserId}`;
+        let currentCount = 0;
+        if (redisClient?.isReady) {
+          currentCount = await redisClient.incr(rateKey);
+          if (currentCount === 1) await redisClient.expire(rateKey, DM_REQUEST_RATE_WINDOW_SECONDS);
+        } else {
+          currentCount = Number((socket.data.dmRequestCount || 0)) + 1;
+          socket.data.dmRequestCount = currentCount;
+          if (!socket.data.dmRequestResetTimer) {
+            socket.data.dmRequestResetTimer = setTimeout(() => {
+              socket.data.dmRequestCount = 0;
+              socket.data.dmRequestResetTimer = null;
+            }, DM_REQUEST_RATE_WINDOW_SECONDS * 1000);
+          }
+        }
+
+        if (currentCount > DM_REQUEST_RATE_LIMIT) {
+          socket.emit('dm:error', { message: 'Too many connect requests. Please wait a moment.' });
+          return;
+        }
+
+        const context = {
+          type: payload?.context?.type === 'comment' ? 'comment' : 'post',
+          id: sanitizeText(payload?.context?.id, 128),
+          preview: sanitizeText(payload?.context?.preview, DM_MAX_CONTEXT_PREVIEW_LENGTH),
+        };
+
+        const requestId = uuidv4();
+        const requestPayload = { fromUserId, toUserId, context, status: 'pending' as const };
+
+        await redisSetJSON(redisClient, `dm:request:${requestId}`, requestPayload, DM_REQUEST_TTL_SECONDS);
+        dmRequests.set(requestId, requestPayload);
+        scheduleDmRequestExpiry(requestId);
+
+        const recipientSocketId = await getActiveSocketIdForUser(toUserId);
+
+        if (!recipientSocketId) {
+          socket.emit('dm:request_sent', { requestId, toUserId, queued: true });
+          return;
+        }
+
+        mehfil.to(`user:${toUserId}`).emit('dm:incoming_request', {
+          requestId,
+          fromUserId,
+          fromUserName: getDisplayName(fromUserId),
+          context,
+        });
+
+        socket.emit('dm:request_sent', { requestId, toUserId });
+      } catch (error) {
+        console.error('[MEHFIL][DM] request failed:', error);
+        socket.emit('dm:error', { message: 'Unable to send request' });
+      }
+    });
+
+    socket.on('dm:sync_pending', async () => {
+      try {
+        const userId = getSocketUserId();
+        if (!userId) return;
+        await emitPendingDmRequestsToUser(mehfil, socket.id, userId);
+      } catch (error) {
+        console.error('[MEHFIL][DM] sync pending failed:', error);
+      }
+    });
+
+    socket.on('dm:accept', async ({ requestId }: { requestId?: string }) => {
+      try {
+        const acceptedByUserId = getSocketUserId();
+        const normalizedRequestId = String(requestId || '').trim();
+        if (!acceptedByUserId || !normalizedRequestId) return;
+
+        const redisRequest = await redisGetJSON<{ fromUserId: string; toUserId: string; context: any; status: 'pending' }>(
+          redisClient,
+          `dm:request:${normalizedRequestId}`,
+        );
+        const request = redisRequest || dmRequests.get(normalizedRequestId);
+        if (!request) {
+          socket.emit('dm:error', { message: 'Request expired' });
+          return;
+        }
+        if (request.toUserId !== acceptedByUserId) {
+          socket.emit('dm:error', { message: 'Unauthorized request action' });
+          return;
+        }
+
+        const roomId = uuidv4();
+        const roomPayload = {
+          user1: request.fromUserId,
+          user2: acceptedByUserId,
+          createdAt: Date.now(),
+          messageCount: 0,
+        };
+
+        await redisSetJSON(redisClient, `dm:room:${roomId}`, roomPayload, DM_ROOM_TTL_SECONDS);
+        dmRooms.set(roomId, roomPayload);
+        scheduleDmRoomExpiry(roomId);
+
+        socket.join(roomId);
+        const senderSocketId = await getActiveSocketIdForUser(request.fromUserId);
+        if (senderSocketId) {
+          mehfil.in(senderSocketId).socketsJoin(roomId);
+          mehfil.to(senderSocketId).emit('dm:accepted', {
+            roomId,
+            otherUserId: acceptedByUserId,
+            otherUserName: getDisplayName(acceptedByUserId),
+          });
+        }
+
+        socket.emit('dm:opened', {
+          roomId,
+          otherUserId: request.fromUserId,
+          otherUserName: getDisplayName(request.fromUserId),
+        });
+
+        await redisDelKey(redisClient, `dm:request:${normalizedRequestId}`);
+        dmRequests.delete(normalizedRequestId);
+        clearDmRequestTimer(normalizedRequestId);
+      } catch (error) {
+        console.error('[MEHFIL][DM] accept failed:', error);
+        socket.emit('dm:error', { message: 'Unable to accept request' });
+      }
+    });
+
+    socket.on('dm:decline', async ({ requestId }: { requestId?: string }) => {
+      try {
+        const declinedByUserId = getSocketUserId();
+        const normalizedRequestId = String(requestId || '').trim();
+        if (!declinedByUserId || !normalizedRequestId) return;
+
+        const request =
+          (await redisGetJSON<{ fromUserId: string; toUserId: string }>(redisClient, `dm:request:${normalizedRequestId}`)) ||
+          dmRequests.get(normalizedRequestId);
+        if (!request) return;
+        if (request.toUserId !== declinedByUserId) return;
+
+        const senderSocketId = await getActiveSocketIdForUser(request.fromUserId);
+        if (senderSocketId) {
+          mehfil.to(senderSocketId).emit('dm:declined', { requestId: normalizedRequestId });
+        }
+
+        await redisDelKey(redisClient, `dm:request:${normalizedRequestId}`);
+        dmRequests.delete(normalizedRequestId);
+        clearDmRequestTimer(normalizedRequestId);
+      } catch (error) {
+        console.error('[MEHFIL][DM] decline failed:', error);
+      }
+    });
+
+    socket.on('dm:message', async ({ roomId, text }: { roomId?: string; text?: string }) => {
+      try {
+        const senderUserId = getSocketUserId();
+        const normalizedRoomId = String(roomId || '').trim();
+        const message = sanitizeText(text, DM_MAX_MESSAGE_LENGTH);
+        if (!senderUserId || !normalizedRoomId || !message) return;
+
+        const room =
+          (await redisGetJSON<{ user1: string; user2: string; createdAt: number; messageCount: number }>(
+            redisClient,
+            `dm:room:${normalizedRoomId}`,
+          )) || dmRooms.get(normalizedRoomId);
+        if (!room) {
+          socket.emit('dm:error', { message: 'Room is no longer active' });
+          return;
+        }
+        if (room.user1 !== senderUserId && room.user2 !== senderUserId) {
+          socket.emit('dm:error', { message: 'Unauthorized room access' });
+          return;
+        }
+
+        const nextRoom = { ...room, messageCount: Number(room.messageCount || 0) + 1 };
+        dmRooms.set(normalizedRoomId, nextRoom);
+        await redisSetJSON(redisClient, `dm:room:${normalizedRoomId}`, nextRoom, DM_ROOM_TTL_SECONDS);
+        scheduleDmRoomExpiry(normalizedRoomId);
+
+        mehfil.to(normalizedRoomId).emit('dm:message', {
+          roomId: normalizedRoomId,
+          fromUserId: senderUserId,
+          fromUserName: getDisplayName(senderUserId),
+          text: message,
+          timestamp: Date.now(),
+        });
+      } catch (error) {
+        console.error('[MEHFIL][DM] message failed:', error);
+      }
+    });
+
+    socket.on('dm:share_handle', async ({ roomId, platform, handle }: { roomId?: string; platform?: string; handle?: string }) => {
+      try {
+        const senderUserId = getSocketUserId();
+        const normalizedRoomId = String(roomId || '').trim();
+        const normalizedPlatform = normalizeDmPlatform(platform);
+        const normalizedHandle = sanitizeText(handle, DM_MAX_HANDLE_LENGTH).replace(/^@+/, '');
+        if (!senderUserId || !normalizedRoomId || !normalizedPlatform || !normalizedHandle) return;
+
+        const room =
+          (await redisGetJSON<{ user1: string; user2: string; createdAt: number; messageCount: number }>(
+            redisClient,
+            `dm:room:${normalizedRoomId}`,
+          )) || dmRooms.get(normalizedRoomId);
+        if (!room) return;
+        if (room.user1 !== senderUserId && room.user2 !== senderUserId) return;
+
+        mehfil.to(normalizedRoomId).emit('dm:handle_received', {
+          roomId: normalizedRoomId,
+          fromUserId: senderUserId,
+          fromUserName: getDisplayName(senderUserId),
+          platform: normalizedPlatform,
+          handle: normalizedHandle,
+          timestamp: Date.now(),
+        });
+      } catch (error) {
+        console.error('[MEHFIL][DM] share handle failed:', error);
+      }
+    });
+
+    socket.on('dm:leave_room', async ({ roomId }: { roomId?: string }) => {
+      try {
+        const userId = getSocketUserId();
+        const normalizedRoomId = String(roomId || '').trim();
+        if (!userId || !normalizedRoomId) return;
+
+        const room =
+          (await redisGetJSON<{ user1: string; user2: string; createdAt: number; messageCount: number }>(
+            redisClient,
+            `dm:room:${normalizedRoomId}`,
+          )) || dmRooms.get(normalizedRoomId);
+        if (!room) return;
+        if (room.user1 !== userId && room.user2 !== userId) return;
+
+        const otherUserId = room.user1 === userId ? room.user2 : room.user1;
+        const otherSocketId = await getActiveSocketIdForUser(otherUserId);
+        if (otherSocketId) {
+          mehfil.to(otherSocketId).emit('dm:user_left', { roomId: normalizedRoomId, userId });
+          const otherSocket = mehfil.sockets.get(otherSocketId);
+          otherSocket?.leave(normalizedRoomId);
+        }
+
+        socket.leave(normalizedRoomId);
+        await redisDelKey(redisClient, `dm:room:${normalizedRoomId}`);
+        dmRooms.delete(normalizedRoomId);
+        clearDmRoomTimer(normalizedRoomId);
+      } catch (error) {
+        console.error('[MEHFIL][DM] leave room failed:', error);
       }
     });
 
@@ -913,7 +1335,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       const userId = socketToUser.get(socket.id);
       if (userId) {
         const user = connectedUsers.get(userId);
@@ -922,6 +1344,22 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           console.log(`[MEHFIL] User disconnected: ${user.name}`);
         }
         socketToUser.delete(socket.id);
+        markDmUserOffline(userId);
+        await redisDelKey(redisClient, `dm:socket:${userId}`);
+
+        for (const [roomId, room] of dmRooms.entries()) {
+          if (room.user1 !== userId && room.user2 !== userId) continue;
+          const otherUserId = room.user1 === userId ? room.user2 : room.user1;
+          const otherSocketId = await getActiveSocketIdForUser(otherUserId);
+          if (otherSocketId) {
+            mehfil.to(otherSocketId).emit('dm:user_left', { roomId, userId });
+            const otherSocket = mehfil.sockets.get(otherSocketId);
+            otherSocket?.leave(roomId);
+          }
+          await redisDelKey(redisClient, `dm:room:${roomId}`);
+          dmRooms.delete(roomId);
+          clearDmRoomTimer(roomId);
+        }
       }
       mehfil.emit('onlineCount', connectedUsers.size);
     });

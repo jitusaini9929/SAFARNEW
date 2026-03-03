@@ -85,3 +85,8 @@ export const DHYAN_COURSES: Course[] = [
     imageUrl: "/Banner.jpeg",
   },
 ];
+
+// Lookup map used by server payment routes.
+export const DHYAN_COURSES_BY_ID: Record<string, Course> = Object.fromEntries(
+  DHYAN_COURSES.map((course) => [course.id, course]),
+);

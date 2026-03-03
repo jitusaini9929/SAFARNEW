@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/MainLayout';
 import { authService } from '@/utils/authService';
-import { Award, Target, Clock, Heart, Users, CheckCircle2, Lock, Check, Sparkles, RefreshCw, Medal } from 'lucide-react';
+import { Award, Clock, Heart, Target, Users, CheckCircle2, Lock, Check, Sparkles, RefreshCw, Medal } from 'lucide-react';
 import { toast } from 'sonner';
 import CelebrationModal from '@/components/CelebrationModal';
+import { useTranslation } from 'react-i18next';
 
 interface Achievement {
     id: string;
@@ -49,57 +50,46 @@ const categoryIcons: Record<string, any> = {
     streak: RefreshCw,
 };
 
-// ... (skipping images map for brevity in replace block if possible, but simplest to target specific areas)
-
-
-
 // Achievement badge images - mythological theme mapping
 const achievementImages: Record<string, string> = {
-    // Goals - Completion themed
-    'G001': '/Achievments/Badges/Badge (1).png', // First Steps
-    'G002': '/Achievments/Badges/Badge (2).png', // Goal Crusher
-    'G003': '/Achievments/Badges/Badge (3).png', // Unstoppable
-    'G004': '/Achievments/Badges/Badge (4).png', // The Centurion
+    'G001': '/Achievments/Badges/Badge (1).png',
+    'G002': '/Achievments/Badges/Badge (2).png',
+    'G003': '/Achievments/Badges/Badge (3).png',
+    'G004': '/Achievments/Badges/Badge (4).png',
 
-    // Focus - Power and mastery themed
-    'F001': '/Achievments/Badges/Special_Badge (2).png', // Deep Diver
-    'F002': '/Achievments/Badges/Special_Badge (5).png', // Focus Master
-    'F003': '/Achievments/Badges/Special_Badge (4).png', // Zone Warrior
-    'F004': '/Achievments/Badges/Badge (6).png', // Monk Mode
-    'F005': '/Achievments/Badges/Badge (7).png', // Legendary Focus
+    'F001': '/Achievments/Badges/Special_Badge (2).png',
+    'F002': '/Achievments/Badges/Special_Badge (5).png',
+    'F003': '/Achievments/Badges/Special_Badge (4).png',
+    'F004': '/Achievments/Badges/Badge (6).png',
+    'F005': '/Achievments/Badges/Badge (7).png',
 
-    // Streak - Consistency themed
-    'S001': '/Achievments/Badges/Badge (8).png', // Streak Starter
-    'S002': '/Achievments/Badges/Special_Badge (1).png', // Iron Will
+    'S001': '/Achievments/Badges/Badge (8).png',
+    'S002': '/Achievments/Badges/Special_Badge (1).png',
 
-    // Emotional / Flow
-    'ET006': '/Achievments/Badges/Special_Badge (3).png', // Flow State
+    'ET006': '/Achievments/Badges/Special_Badge (3).png',
 
-    // Titles - Goal Completion (image text matches code name)
-    'T005': '/Achievments/Titles/Title (5).png', // Heavy Heart High Effort
-    'T006': '/Achievments/Titles/Title (3).png', // Mindset of a Warrior
-    'T007': '/Achievments/Titles/Title (7).png', // Exhaustion to Excellence
-    'T008': '/Achievments/Titles/Title (6).png', // High Energy Ace
+    'T005': '/Achievments/Titles/Title (5).png',
+    'T006': '/Achievments/Titles/Title (3).png',
+    'T007': '/Achievments/Titles/Title (7).png',
+    'T008': '/Achievments/Titles/Title (6).png',
 
-    // Titles - Login Streaks (image text matches code name)
-    'T001': '/Achievments/Titles/Title (8).png', // Top Tier Energy
-    'T002': '/Achievments/Titles/Title (2).png', // Restless Yet Relentless
-    'T003': '/Achievments/Titles/Title (1).png', // Strong Comeback
-    'T004': '/Achievments/Titles/Title (4).png', // Tired But Triumphant
+    'T001': '/Achievments/Titles/Title (8).png',
+    'T002': '/Achievments/Titles/Title (2).png',
+    'T003': '/Achievments/Titles/Title (1).png',
+    'T004': '/Achievments/Titles/Title (4).png',
 
-    // Weekly Emotional Titles (image text matches PNG content)
-    'ET001': '/Achievments/Titles/Special_Title (2).png', // Did It Anyway
-    'ET002': '/Achievments/Titles/Special_Title (1).png', // Quiet Consistency
-    'ET003': '/Achievments/Titles/Special_Title (5).png', // Pushed Through Overwhelm
-    'ET004': '/Achievments/Titles/Special_Title (3).png', // Showed Up Tired
-    'ET005': '/Achievments/Titles/Special_Title (4).png', // Survived Bad Week
+    'ET001': '/Achievments/Titles/Special_Title (2).png',
+    'ET002': '/Achievments/Titles/Special_Title (1).png',
+    'ET003': '/Achievments/Titles/Special_Title (5).png',
+    'ET004': '/Achievments/Titles/Special_Title (3).png',
+    'ET005': '/Achievments/Titles/Special_Title (4).png',
 
-    // Zen Master - User Provided SVG
     'T009': '/Achievments/svgviewer-output.svg',
 };
 
 export default function Achievements() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const [user, setUser] = useState<any>(null);
     const [achievements, setAchievements] = useState<Achievement[]>([]);
     const [loading, setLoading] = useState(true);
@@ -112,7 +102,6 @@ export default function Achievements() {
     const [celebrationAchievement, setCelebrationAchievement] = useState<Achievement | null>(null);
     const [celebrationQueue, setCelebrationQueue] = useState<Achievement[]>([]);
     const celebrationShownRef = useRef(false);
-    // Detail modal state (clicking any earned achievement)
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [detailAchievement, setDetailAchievement] = useState<Achievement | null>(null);
 
@@ -133,20 +122,16 @@ export default function Achievements() {
                 setAchievements(allData.achievements || []);
                 setSelectedId(titleData.selectedId || null);
 
-                // Check for earned achievements to celebrate
                 if (!celebrationShownRef.current) {
                     const earned = (allData.achievements || []).filter((a: Achievement) => a.earned);
-                    // Check localStorage for previously seen achievements
                     const seenKey = 'achievements_seen';
                     const seenRaw = localStorage.getItem(seenKey);
                     const seenIds: string[] = seenRaw ? JSON.parse(seenRaw) : [];
                     const newlyEarned = earned.filter((a: Achievement) => !seenIds.includes(a.id));
 
                     if (newlyEarned.length > 0) {
-                        // Mark all as seen now
                         const allSeenIds = [...seenIds, ...newlyEarned.map((a: Achievement) => a.id)];
                         localStorage.setItem(seenKey, JSON.stringify(allSeenIds));
-                        // Queue celebration for each new achievement
                         setCelebrationQueue(newlyEarned);
                         setCelebrationAchievement(newlyEarned[0]);
                         setShowCelebration(true);
@@ -234,7 +219,6 @@ export default function Achievements() {
         if (remaining.length > 0) {
             setCelebrationQueue(remaining);
             setCelebrationAchievement(remaining[0]);
-            // Keep showCelebration true for next
         } else {
             setShowCelebration(false);
             setCelebrationAchievement(null);
@@ -271,10 +255,10 @@ export default function Achievements() {
                     <header className="mb-8">
                         <div className="flex items-center gap-3 mb-2">
                             <Award className="text-primary w-8 h-8" />
-                            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Achievements & Titles</h1>
+                            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">{t('achievements.title')}</h1>
                         </div>
                         <p className="text-muted-foreground text-sm">
-                            Earn badges by completing goals and focusing. Get emotional titles based on your weekly journey!
+                            {t('achievements.subtitle')}
                         </p>
                     </header>
 
@@ -286,18 +270,16 @@ export default function Achievements() {
                                 <span className="text-2xl font-bold text-foreground">{badges.filter(a => a.earned).length}</span>
                                 <span className="text-muted-foreground text-sm">/ {badges.length}</span>
                             </div>
-                            <p className="text-xs text-teal-600 dark:text-teal-400 uppercase font-semibold">Badges Earned</p>
+                            <p className="text-xs text-teal-600 dark:text-teal-400 uppercase font-semibold">{t('achievements.badges_earned')}</p>
                         </div>
                         <div className="glass-high rounded-xl p-4 text-center border border-red-500/20 bg-black/5 dark:bg-black/20">
                             <div className="flex items-center justify-center gap-2 mb-2">
                                 <Sparkles className="w-5 h-5 text-red-500" />
                                 <span className="text-2xl font-bold text-foreground">{titles.filter(a => a.earned).length}</span>
                             </div>
-                            <p className="text-xs text-red-600 dark:text-red-400 uppercase font-semibold">Titles Earned</p>
+                            <p className="text-xs text-red-600 dark:text-red-400 uppercase font-semibold">{t('achievements.titles_earned')}</p>
                         </div>
                     </div>
-
-
 
                     {/* Filter Tabs */}
                     <div className="flex gap-2 mb-6">
@@ -317,29 +299,25 @@ export default function Achievements() {
                                     }`}
                             >
                                 {tab === 'all'
-                                    ? 'All'
+                                    ? t('achievements.filter_all')
                                     : tab === 'mood'
-                                        ? 'Mood'
+                                        ? t('achievements.filter_mood')
                                         : tab === 'consistency'
-                                            ? 'Consistency'
-                                            : 'Productivity'}
+                                            ? t('achievements.filter_consistency')
+                                            : t('achievements.filter_productivity')}
                             </button>
                         ))}
                     </div>
 
                     {/* Achievements Grid */}
                     {loading ? (
-                        <div className="text-center py-12 text-muted-foreground">Loading achievements...</div>
+                        <div className="text-center py-12 text-muted-foreground">{t('achievements.loading')}</div>
                     ) : (
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                             {filteredAchievements.map(achievement => {
                                 const style = typeStyles[achievement.type] || typeStyles.badge;
-                                const TypeIcon = style.icon;
-                                const CategoryIcon = categoryIcons[achievement.category] || Award;
                                 const isSelected = selectedId === achievement.id;
 
-                                // For titles, we might want a slightly different card style or just use the same
-                                // The user wants them displayed in the list
                                 return (
                                     <div
                                         key={achievement.id}
@@ -352,7 +330,6 @@ export default function Achievements() {
                                         {/* Badge Image - The main "Card" */}
                                         {achievementImages[achievement.id] ? (
                                             <div className="relative w-32 h-32 md:w-40 md:h-40 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
-                                                {/* Glow effect for earned badges */}
                                                 {achievement.earned && (
                                                     <div className="absolute inset-0 bg-teal-500/20 dark:bg-teal-500/10 blur-[50px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                                 )}
@@ -367,14 +344,12 @@ export default function Achievements() {
                                                         ${!['F003', 'S002', 'ET006', 'ET003'].includes(achievement.id) ? 'scale-100' : ''}`}
                                                 />
 
-                                                {/* Lock overlay for locked badges */}
                                                 {!achievement.earned && (
                                                     <div className="absolute inset-0 flex items-center justify-center bg-black/10 rounded-full backdrop-blur-[2px]">
                                                         <Lock className="w-8 h-8 text-white/70 drop-shadow-md" />
                                                     </div>
                                                 )}
 
-                                                {/* Active Indicator */}
                                                 {isSelected && achievement.earned && (
                                                     <div className="absolute -top-2 -right-2 bg-teal-500 text-white p-1.5 rounded-full shadow-lg border-2 border-white dark:border-[#0B0F19] animate-bounce">
                                                         <Check className="w-4 h-4" />
@@ -382,11 +357,9 @@ export default function Achievements() {
                                                 )}
                                             </div>
                                         ) : (
-                                            /* Neo Brutalist Fallback for items without images */
                                             <div className="relative w-32 h-32 md:w-40 md:h-40 flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110">
                                                 <div className={`w-28 h-28 md:w-32 md:h-32 rotate-3 bg-yellow-400 border-[6px] border-black shadow-[8px_8px_0px_#000000] flex items-center justify-center relative overflow-hidden
                                                     ${achievement.type === 'title' ? 'bg-cyan-400' : 'bg-yellow-400'}`}>
-                                                    {/* Cartoonish decorative stripes */}
                                                     <div className="absolute top-0 left-0 w-full h-2 bg-black/10 -rotate-45 translate-y-4"></div>
                                                     <div className="absolute bottom-0 right-0 w-full h-2 bg-black/10 -rotate-45 -translate-y-4"></div>
 
@@ -397,7 +370,7 @@ export default function Achievements() {
                                             </div>
                                         )}
 
-                                        {/* Text Content - Always evident but subtle */}
+                                        {/* Text Content */}
                                         <div className="text-center z-10">
                                             <h3 className={`font-bold text-lg mb-1 ${achievement.earned ? 'text-foreground' : 'text-muted-foreground'}`}>
                                                 {achievement.name}
@@ -431,7 +404,7 @@ export default function Achievements() {
                                                     opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300
                                                     hover:bg-teal-500 hover:text-white"
                                             >
-                                                {achievement.type === 'title' ? 'Equip Title' : 'Equip Badge'}
+                                                {achievement.type === 'title' ? t('achievements.equip_title') : t('achievements.equip_badge')}
                                             </button>
                                         )}
                                     </div>
@@ -443,13 +416,13 @@ export default function Achievements() {
                     {filteredAchievements.length === 0 && !loading && (
                         <div className="text-center py-12">
                             <Award className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                            <p className="text-muted-foreground">No achievements in this category yet.</p>
+                            <p className="text-muted-foreground">{t('achievements.no_achievements')}</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Celebration Modal - pops up for newly earned achievements */}
+            {/* Celebration Modal */}
             <CelebrationModal
                 isOpen={showCelebration}
                 onClose={handleCelebrationClose}
@@ -457,7 +430,7 @@ export default function Achievements() {
                 achievementImage={celebrationAchievement ? achievementImages[celebrationAchievement.id] : undefined}
             />
 
-            {/* Detail Modal - when clicking any earned achievement */}
+            {/* Detail Modal */}
             {showDetailModal && detailAchievement && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-md rounded-3xl shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-white/10">
@@ -501,7 +474,7 @@ export default function Achievements() {
 
                             <div className="bg-slate-50 dark:bg-black/20 rounded-xl p-4 mt-4 text-left">
                                 <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                                    Why You Earned This
+                                    {t('achievements.why_earned')}
                                 </h3>
                                 <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
                                     {detailAchievement.requirement || detailAchievement.description || 'Awarded for exceptional achievement'}
@@ -519,7 +492,7 @@ export default function Achievements() {
                             onClick={() => setShowDetailModal(false)}
                             className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-semibold shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 hover:scale-[1.02] transition-all"
                         >
-                            Close
+                            {t('achievements.close')}
                         </button>
                     </div>
                 </div>

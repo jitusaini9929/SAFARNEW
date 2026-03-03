@@ -10,7 +10,7 @@ const Avatar = React.forwardRef<
   <AvatarPrimitive.Root
     ref={ref}
     className={cn(
-      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
+      "relative flex h-10 w-10 shrink-0 rounded-full",
       className,
     )}
     {...props}
@@ -24,7 +24,7 @@ const AvatarImage = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
-    className={cn("aspect-square h-full w-full", className)}
+    className={cn("aspect-square h-full w-full rounded-full object-cover", className)}
     {...props}
   />
 ));
@@ -45,4 +45,46 @@ const AvatarFallback = React.forwardRef<
 ));
 AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName;
 
-export { Avatar, AvatarImage, AvatarFallback };
+const AvatarBadge = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-green-500",
+      className
+    )}
+    {...props}
+  />
+))
+AvatarBadge.displayName = "AvatarBadge"
+
+const AvatarGroup = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex flex-row-reverse justify-end items-center -space-x-reverse -space-x-3", className)}
+    {...props}
+  />
+))
+AvatarGroup.displayName = "AvatarGroup"
+
+const AvatarGroupCount = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-background bg-muted text-sm font-medium z-10 text-slate-900 dark:text-white dark:border-slate-900",
+      className
+    )}
+    {...props}
+  />
+))
+AvatarGroupCount.displayName = "AvatarGroupCount"
+
+export { Avatar, AvatarImage, AvatarFallback, AvatarBadge, AvatarGroup, AvatarGroupCount };

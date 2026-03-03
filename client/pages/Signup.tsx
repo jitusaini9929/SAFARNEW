@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { authService } from "@/utils/authService";
 import nishthaLogo from "@/assets/nishtha-logo.jpg";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 const ALLOWED_SIGNUP_DOMAINS = new Set(["gmail.com", "outlook.com"]);
 const SIGNUP_EMAIL_EXCEPTION = "steve123@example.com";
@@ -25,6 +26,7 @@ function isAllowedSignupEmail(email: string): boolean {
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,40 +56,39 @@ export default function Signup() {
     setError("");
 
     if (!name.trim() || !email.trim() || !password.trim() || !gender) {
-      setError("Please fill in all required fields including gender");
+      setError(t('auth.error_fill_all'));
       return;
     }
 
     if (!email.includes("@")) {
-      setError("Please enter a valid email");
+      setError(t('auth.error_valid_email'));
       return;
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!isAllowedSignupEmail(normalizedEmail)) {
-      setError("Registration is currently allowed only with Gmail or Outlook email addresses.");
+      setError(t('auth.error_gmail_only'));
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError(t('auth.error_password_min'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t('auth.error_password_match'));
       return;
     }
 
     setIsLoading(true);
     try {
       await authService.signup(name, email, password, examType || undefined, preparationStage || undefined, gender, profilePreview || undefined);
-      toast.success("Account created successfully!");
-      // Set flag to show welcome dialog on dashboard
+      toast.success(t('auth.signup_success'));
       sessionStorage.setItem("showWelcomeNishtha", "true");
       navigate("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Signup failed");
+      setError(err.message || t('auth.error_invalid_creds'));
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +110,7 @@ export default function Signup() {
               Nishtha
             </CardTitle>
             <CardDescription className="text-base mt-2">
-              Create your account to get started
+              {t('auth.signup_desc')}
             </CardDescription>
           </div>
         </CardHeader>
@@ -122,7 +123,7 @@ export default function Signup() {
                   {profilePreview ? (
                     <img loading="lazy" src={profilePreview} alt="Profile Preview" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-xs text-muted-foreground text-center px-2">Click to upload photo</span>
+                    <span className="text-xs text-muted-foreground text-center px-2">{t('auth.upload_photo')}</span>
                   )}
                 </div>
               </label>
@@ -134,14 +135,14 @@ export default function Signup() {
                 className="hidden"
                 disabled={isLoading}
               />
-              <span className="text-xs text-muted-foreground mt-2">Profile Picture (Optional)</span>
+              <span className="text-xs text-muted-foreground mt-2">{t('auth.profile_pic_optional')}</span>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Full Name *</label>
+              <label className="text-sm font-medium text-foreground">{t('auth.full_name')}</label>
               <Input
                 type="text"
-                placeholder="Enter your full name"
+                placeholder={t('auth.full_name_placeholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isLoading}
@@ -150,7 +151,7 @@ export default function Signup() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Email *</label>
+              <label className="text-sm font-medium text-foreground">{t('auth.email')}</label>
               <Input
                 type="email"
                 placeholder="your.email@example.com"
@@ -165,10 +166,10 @@ export default function Signup() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Password *</label>
+              <label className="text-sm font-medium text-foreground">{t('auth.password')}</label>
               <Input
                 type="password"
-                placeholder="At least 6 characters"
+                placeholder={t('auth.password_min')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
@@ -177,10 +178,10 @@ export default function Signup() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Confirm Password *</label>
+              <label className="text-sm font-medium text-foreground">{t('auth.confirm_password')}</label>
               <Input
                 type="password"
-                placeholder="Confirm your password"
+                placeholder={t('auth.confirm_password_placeholder')}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={isLoading}
@@ -189,10 +190,10 @@ export default function Signup() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Exam Type</label>
+              <label className="text-sm font-medium text-foreground">{t('auth.exam_type')}</label>
               <Select value={examType} onValueChange={setExamType} disabled={isLoading}>
                 <SelectTrigger className="border-input">
-                  <SelectValue placeholder="Select exam type" />
+                  <SelectValue placeholder={t('auth.exam_type_placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="CGL">CGL</SelectItem>
@@ -202,39 +203,35 @@ export default function Signup() {
                   <SelectItem value="12th Boards">12th Boards</SelectItem>
                   <SelectItem value="NTPC">NTPC</SelectItem>
                   <SelectItem value="JEE">JEE</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="Other">{t('auth.other')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Preparation Stage</label>
-              <Select
-                value={preparationStage}
-                onValueChange={setPreparationStage}
-                disabled={isLoading}
-              >
+              <label className="text-sm font-medium text-foreground">{t('auth.prep_stage')}</label>
+              <Select value={preparationStage} onValueChange={setPreparationStage} disabled={isLoading}>
                 <SelectTrigger className="border-input">
-                  <SelectValue placeholder="Select your stage" />
+                  <SelectValue placeholder={t('auth.prep_stage_placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Beginner">Beginner</SelectItem>
-                  <SelectItem value="Intermediate">Intermediate</SelectItem>
-                  <SelectItem value="Advanced">Advanced</SelectItem>
+                  <SelectItem value="Beginner">{t('auth.beginner')}</SelectItem>
+                  <SelectItem value="Intermediate">{t('auth.intermediate')}</SelectItem>
+                  <SelectItem value="Advanced">{t('auth.advanced')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Gender *</label>
+              <label className="text-sm font-medium text-foreground">{t('auth.gender')}</label>
               <Select value={gender} onValueChange={setGender} disabled={isLoading}>
                 <SelectTrigger className="border-input">
-                  <SelectValue placeholder="Select your gender" />
+                  <SelectValue placeholder={t('auth.gender_placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="male">{t('auth.male')}</SelectItem>
+                  <SelectItem value="female">{t('auth.female')}</SelectItem>
+                  <SelectItem value="other">{t('auth.other')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -250,16 +247,16 @@ export default function Signup() {
               disabled={isLoading}
               className="w-full bg-gradient-to-r from-primary to-secondary hover:shadow-lg transition-all duration-300"
             >
-              {isLoading ? "Creating account..." : "Create Account"}
+              {isLoading ? t('auth.signup_loading') : t('auth.signup')}
             </Button>
 
             <div className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              {t('auth.have_account')}{" "}
               <Link
                 to="/login"
                 className="font-medium text-primary hover:text-primary/80 transition-colors"
               >
-                Sign in here
+                {t('auth.signin_here')}
               </Link>
             </div>
           </form>
@@ -268,4 +265,3 @@ export default function Signup() {
     </div>
   );
 }
-

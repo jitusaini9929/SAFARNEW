@@ -1,10 +1,19 @@
-import { useState, useEffect } from "react";
-import { Sparkles, ShieldCheck, Loader2, CheckCircle2, XCircle, CreditCard } from "lucide-react";
-import { DHYAN_COURSES, type Course } from "@shared/payments";
+import { useEffect, useMemo, useState } from "react";
 import {
-  loadRazorpayScript,
-  createOrder,
+  AlertCircle,
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  Lock,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+} from "lucide-react";
+import { DHYAN_COURSES } from "@shared/payments";
+import {
   checkPurchaseStatus,
+  createOrder,
+  loadRazorpayScript,
   openRazorpayCheckout,
 } from "@/utils/paymentService";
 
@@ -13,190 +22,175 @@ interface CourseBannerProps {
   courseId?: string;
 }
 
-type PaymentState = "idle" | "loading" | "success" | "error" | "already-purchased";
+type UnlockState = "checking" | "locked" | "unlocked";
+type CheckoutState = "idle" | "loading" | "error";
 
-export default function CourseBanner({ user, courseId = "safar-30" }: CourseBannerProps) {
-  const [paymentState, setPaymentState] = useState<PaymentState>("idle");
+export default function CourseBanner({
+  user,
+  courseId = "safar-30",
+}: CourseBannerProps) {
+  const course = useMemo(
+    () => DHYAN_COURSES.find((entry) => entry.id === courseId) || DHYAN_COURSES[0],
+    [courseId],
+  );
+
+  const [unlockState, setUnlockState] = useState<UnlockState>("checking");
+  const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
-  const [isPurchased, setIsPurchased] = useState(false);
-  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
-  const course = DHYAN_COURSES.find((c) => c.id === courseId) || DHYAN_COURSES[0];
-
-  // Check if user already purchased this course
   useEffect(() => {
-    async function checkStatus() {
+    async function loadStatus() {
       if (!user) {
-        setIsCheckingStatus(false);
+        setUnlockState("locked");
         return;
       }
+
+      setUnlockState("checking");
       try {
         const status = await checkPurchaseStatus(courseId);
-        if (status.purchased) {
-          setIsPurchased(true);
-          setPaymentState("already-purchased");
-        }
-      } catch (err) {
-        // Silently fail - we'll let them try to purchase
-      } finally {
-        setIsCheckingStatus(false);
+        setUnlockState(status.purchased ? "unlocked" : "locked");
+      } catch {
+        setUnlockState("locked");
       }
     }
-    checkStatus();
-  }, [user, courseId]);
 
-  // Handle purchase flow
-  const handlePurchase = async () => {
-    // Redirect to external course page
-    window.open("https://www.parmaracademy.in/courses/75-safar-30", "_blank");
-    return;
+    loadStatus();
+  }, [courseId, user]);
 
-    /* Razorpay implementation commented out
+  const handleUnlock = async () => {
     if (!user) {
-      setErrorMessage("Please sign in to purchase this course.");
-      setPaymentState("error");
+      setErrorMessage("Please sign in to unlock this section.");
+      setCheckoutState("error");
       return;
     }
- 
-    setPaymentState("loading");
+
+    setCheckoutState("loading");
     setErrorMessage("");
- 
+
     try {
-      // Step 1: Load Razorpay script
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) {
-        throw new Error("Failed to load payment gateway. Please check your internet connection.");
+        throw new Error("Could not load Razorpay checkout.");
       }
- 
-      // Step 2: Create order on server
+
       const orderData = await createOrder(courseId);
- 
       if (!orderData.success) {
-        throw new Error("Failed to create order. Please try again.");
+        throw new Error("Failed to create order.");
       }
- 
-      // Step 3: Open Razorpay checkout
-      setPaymentState("idle"); // Reset so button shows normal state while checkout is open
+
+      setCheckoutState("idle");
       openRazorpayCheckout({
         course,
         orderData,
         user,
-        onSuccess: (_paymentId) => {
-          setPaymentState("success");
-          setIsPurchased(true);
+        onSuccess: () => {
+          setUnlockState("unlocked");
+          setCheckoutState("idle");
+          setErrorMessage("");
         },
         onFailure: (error) => {
-          setErrorMessage(error);
-          setPaymentState("error");
+          setCheckoutState("error");
+          setErrorMessage(error || "Payment failed. Please try again.");
         },
       });
     } catch (error: any) {
-      setErrorMessage(error.message || "Something went wrong. Please try again.");
-      setPaymentState("error");
+      setCheckoutState("error");
+      setErrorMessage(error?.message || "Unable to start payment.");
     }
-    */
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Course Banner Image */}
-      <div
-        onClick={!isPurchased ? handlePurchase : undefined}
-        className={`block rounded-2xl overflow-hidden shadow-lg transition-all duration-300 ring-2 
-          ${isPurchased
-            ? "ring-emerald-400/60 cursor-default"
-            : "ring-cyan-400/60 hover:shadow-xl cursor-pointer hover:scale-[1.01]"
-          }`}
-        style={{
-          boxShadow: isPurchased
-            ? "0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(16, 185, 129, 0.2)"
-            : "0 0 15px rgba(34, 211, 238, 0.4), 0 0 30px rgba(34, 211, 238, 0.2)",
-        }}
-      >
-        <div className="relative">
-          <img loading="lazy"
-            src={course.imageUrl || "/Banner.jpeg"}
-            alt={course.name}
-            className="w-full h-auto object-cover"
-          />
-
-          {/* Overlay for purchased state */}
-          {isPurchased && (
-            <div className="absolute inset-0 bg-emerald-900/40 flex items-center justify-center">
-              <div className="bg-white/90 dark:bg-slate-900/90 rounded-xl px-4 py-2 flex items-center gap-2 shadow-lg">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
-                  Course Purchased
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Loading overlay */}
-          {paymentState === "loading" && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <div className="bg-white/90 dark:bg-slate-900/90 rounded-xl px-4 py-3 flex items-center gap-2 shadow-lg">
-                <Loader2 className="w-5 h-5 text-cyan-500 animate-spin" />
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Preparing checkout...
-                </span>
-              </div>
-            </div>
-          )}
+    <section className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#11131C]/80 backdrop-blur-md p-4 shadow-xl shadow-cyan-500/5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-cyan-600 dark:text-cyan-400 font-semibold">
+            Dhyan Premium Access
+          </p>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-1">
+            {course.name}
+          </h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+            {course.description}
+          </p>
+        </div>
+        <div className="rounded-xl bg-cyan-500/10 dark:bg-cyan-500/15 p-2 text-cyan-600 dark:text-cyan-300">
+          <Smartphone className="w-5 h-5" />
         </div>
       </div>
 
-      {/* Status / CTA Text */}
-      <div className="text-center mt-1">
-        {isCheckingStatus ? (
-          <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1">
-            <Loader2 className="w-3 h-3 animate-spin" />
-            Checking purchase status...
+      <div className="mt-4 rounded-xl border border-cyan-200/60 dark:border-cyan-500/20 bg-cyan-50/70 dark:bg-cyan-500/10 p-3 flex items-center justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            One-time unlock
           </p>
-        ) : isPurchased ? (
-          <div className="flex items-center justify-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-              You have access to this course
-            </p>
+          <p className="text-xl font-bold text-slate-900 dark:text-white">Rs {course.price}</p>
+        </div>
+        <div className="text-right text-[11px] text-slate-500 dark:text-slate-400">
+          <p className="font-medium">UPI-first checkout</p>
+          <p>GPay, PhonePe, Paytm, BHIM</p>
+        </div>
+      </div>
+
+      <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+          Secure Razorpay payment
+        </div>
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          Unlock recorded on your account
+        </div>
+      </div>
+
+      <div className="mt-4">
+        {unlockState === "checking" ? (
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Checking access...
           </div>
-        ) : paymentState === "success" ? (
-          <div className="flex items-center justify-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-              Payment successful! Course unlocked.
+        ) : unlockState === "unlocked" ? (
+          <div className="rounded-xl border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-3 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              Access unlocked for this account.
             </p>
-          </div>
-        ) : paymentState === "error" ? (
-          <div className="flex flex-col items-center gap-1">
-            <div className="flex items-center gap-1.5">
-              <XCircle className="w-4 h-4 text-red-500" />
-              <p className="text-xs text-red-500 font-medium">{errorMessage}</p>
-            </div>
-            <button
-              onClick={handlePurchase}
-              className="text-xs text-cyan-500 hover:text-cyan-400 underline font-medium"
-            >
-              Try again
-            </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-1.5">
-            <button
-              onClick={handlePurchase}
-              disabled={paymentState === "loading"}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-emerald-500 text-white text-xs font-bold shadow-md hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              Enroll Now — ₹{course.price}
-            </button>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              Secure payment via Razorpay
-            </p>
-          </div>
+          <button
+            onClick={handleUnlock}
+            disabled={checkoutState === "loading"}
+            className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold text-sm px-4 py-2.5 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:scale-[1.01] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <span className="inline-flex items-center justify-center gap-2">
+              {checkoutState === "loading" ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Preparing UPI checkout...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="w-4 h-4" />
+                  Unlock with Razorpay UPI
+                </>
+              )}
+            </span>
+          </button>
         )}
       </div>
-    </div>
+
+      {unlockState === "locked" && (
+        <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+          <Lock className="w-3.5 h-3.5" />
+          Access is locked until payment is completed.
+        </div>
+      )}
+
+      {checkoutState === "error" && errorMessage && (
+        <div className="mt-3 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-3 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-red-500 mt-0.5" />
+          <p className="text-xs text-red-600 dark:text-red-300">{errorMessage}</p>
+        </div>
+      )}
+    </section>
   );
 }

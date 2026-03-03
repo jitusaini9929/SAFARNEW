@@ -64,6 +64,7 @@ export const collections = {
     sandeshMessages: () => getDb().collection('sandesh_messages'),
     sandeshReactions: () => getDb().collection('sandesh_reactions'),
     sandeshComments: () => getDb().collection('sandesh_comments'),
+    userSocialHandles: () => getDb().collection('user_social_handles'),
 };
 
 export async function connectMongo(): Promise<void> {
@@ -159,6 +160,7 @@ export async function initDatabase(): Promise<void> {
         await db.collection('app_settings').createIndex({ key: 1 }, { unique: true });
         await db.collection('sandesh_reactions').createIndex({ sandesh_id: 1, user_id: 1 }, { unique: true });
         await db.collection('sandesh_comments').createIndex({ sandesh_id: 1, created_at: 1 });
+        await db.collection('user_social_handles').createIndex({ user_id: 1 }, { unique: true });
 
         await db.collection('mehfil_reactions').createIndex({ thought_id: 1, user_id: 1 }, { unique: true });
         await db.collection('mehfil_comments').createIndex({ thought_id: 1 });
