@@ -15,8 +15,8 @@ import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import safarLogo from "@/assets/safar-logo.png.jpeg";
 import { useState } from "react";
 import ThemeToggle from "@/components/ui/theme-toggle";
-import LanguageToggle from "./LanguageToggle";
 import GlobalSidebar from "./GlobalSidebar";
+// import LanguageToggle from "./LanguageToggle"; // Hidden for soft launch
 import { useTranslation } from "react-i18next";
 
 interface TopNavbarProps {
@@ -89,11 +89,11 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
             </Link>
           </div>
 
-          {/* Right side - Theme Toggle, Language Toggle and User Avatar */}
+          {/* Right side - Theme Toggle and User Avatar */}
           <div className="flex items-center gap-5 pr-6">
             {/* Theme Toggle Button */}
             <ThemeToggle />
-            <LanguageToggle />
+            {/* <LanguageToggle /> */}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

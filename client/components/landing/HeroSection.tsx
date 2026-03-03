@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Sun, Moon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-import LanguageToggle from '../LanguageToggle';
+// import LanguageToggle from '../LanguageToggle'; // Hidden for soft launch
 
 interface HeroSectionProps {
     user: any;
@@ -93,9 +93,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                             {theme === 'dark' ? <Sun className="w-[26px] h-[26px] text-white" /> : <Moon className="w-[26px] h-[26px] text-slate-900" />}
                         </button>
 
-                        <div className="hidden sm:block">
-                            <LanguageToggle />
-                        </div>
+                        {/* <LanguageToggle /> */}
 
                         {user ? (
                             /* Profile icon - Hover padding effect */
