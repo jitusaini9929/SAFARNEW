@@ -322,11 +322,11 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
   return (
     <>
-      <article className="rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow duration-300">
+      <article className="rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow duration-300">
         {/* Header */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-3">
-            <Avatar className="w-11 h-11 ring-2 ring-transparent hover:ring-teal-500/30 transition-all">
+        <div className="flex justify-between items-start mb-3 sm:mb-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <Avatar className="w-9 h-9 sm:w-11 sm:h-11 ring-2 ring-transparent hover:ring-teal-500/30 transition-all shrink-0">
               <AvatarImage
                 src={thought.authorAvatar || undefined}
                 alt={thought.authorName}
@@ -335,8 +335,8 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 {getInitials(thought.authorName)}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-0.5">
+            <div className="min-w-0">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mb-0.5 truncate">
                 {thought.authorName}
                 {isOwnThought && (
                   <span className="ml-2 text-[10px] bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded-full font-semibold">
@@ -413,27 +413,27 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         </div>
 
         {/* Thought Content */}
-        <p className="text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed mb-5 font-normal whitespace-pre-wrap">
+        <p className="text-sm sm:text-[15px] text-slate-700 dark:text-slate-300 leading-relaxed mb-3 sm:mb-5 font-normal whitespace-pre-wrap break-words">
           {thought.content}
         </p>
 
         {/* Image (if present) */}
         {thought.imageUrl && (
-          <div className="rounded-2xl overflow-hidden mb-6 shadow-sm border border-slate-100 dark:border-slate-800">
+          <div className="rounded-xl sm:rounded-2xl overflow-hidden mb-4 sm:mb-6 shadow-sm border border-slate-100 dark:border-slate-800">
             <img
               src={thought.imageUrl}
               alt="Thought attachment"
-              className="w-full max-h-[400px] object-cover hover:scale-105 transition-transform duration-700"
+              className="w-full max-h-[250px] sm:max-h-[350px] md:max-h-[400px] object-cover hover:scale-105 transition-transform duration-700"
             />
           </div>
         )}
 
         {/* Action Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 md:gap-3 w-full sm:w-auto">
             <button
               onClick={onReact}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${hasReacted
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${hasReacted
                 ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-2 ring-rose-200 dark:ring-rose-500/20"
                 : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-rose-500"
                 }`}
@@ -449,7 +449,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
             <button
               onClick={() => setIsCommentsOpen(!isCommentsOpen)}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${isCommentsOpen
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${isCommentsOpen
                 ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-200 dark:ring-teal-500/20"
                 : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-500"
                 }`}
@@ -473,8 +473,8 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
         {/* Comment Section (Collapsible) */}
         {isCommentsOpen && (
-          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2 duration-200">
-            <div className="space-y-4 mb-4">
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2 duration-200">
+            <div className="space-y-3 sm:space-y-4 mb-3 sm:mb-4">
               {isLoadingComments ? (
                 <p className="text-center text-xs text-slate-400 py-2">
                   Loading comments...
@@ -485,14 +485,14 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 </p>
               ) : (
                 comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-3">
-                    <Avatar className="w-8 h-8">
+                  <div key={comment.id} className="flex gap-2 sm:gap-3">
+                    <Avatar className="w-7 h-7 sm:w-8 sm:h-8 shrink-0">
                       <AvatarImage src={comment.author_avatar} />
-                      <AvatarFallback className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500">
+                      <AvatarFallback className="text-[10px] sm:text-xs bg-slate-100 dark:bg-slate-800 text-slate-500">
                         {getInitials(comment.author_name)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 rounded-2xl rounded-tl-none p-3">
+                    <div className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-800/50 rounded-xl sm:rounded-2xl rounded-tl-none p-2.5 sm:p-3">
                       <div className="mb-1 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-slate-900 dark:text-slate-200">
@@ -516,7 +516,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                           )}
                         </div>
                       </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-300">
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 break-words">
                         {comment.content}
                       </p>
                     </div>
@@ -526,9 +526,9 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
             </div>
 
             {/* Add Comment Input */}
-            <div className="flex gap-2">
-              <Avatar className="w-8 h-8">
-                <AvatarFallback className="text-xs bg-teal-100 text-teal-700">
+            <div className="flex gap-1.5 sm:gap-2">
+              <Avatar className="w-7 h-7 sm:w-8 sm:h-8 shrink-0">
+                <AvatarFallback className="text-[10px] sm:text-xs bg-teal-100 text-teal-700">
                   Me
                 </AvatarFallback>
               </Avatar>

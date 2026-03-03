@@ -471,42 +471,39 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         <div className="gradient-blob bg-sky-300/30 dark:bg-sky-500/20 w-[500px] h-[500px] bottom-0 left-1/3 opacity-40" />
       </div>
 
-      <nav className="fixed top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 min-h-16 glass-2-0 rounded-2xl z-50 px-3 sm:px-6 py-2 sm:py-0 flex items-center justify-between border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 gap-2">
-        <Link to="/home" className="flex items-center gap-3 group cursor-pointer text-inherit no-underline">
-          <div className={`px-3 sm:px-4 py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
-            <span className="text-white font-bold text-base sm:text-lg tracking-tight whitespace-nowrap break-normal">Mehfil</span>
+      <nav className="fixed top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 min-h-14 sm:min-h-16 glass-2-0 rounded-2xl z-50 px-2 sm:px-4 md:px-6 py-2 sm:py-0 flex items-center justify-between border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 gap-1.5 sm:gap-2">
+        <Link to="/home" className="flex items-center gap-2 sm:gap-3 group cursor-pointer text-inherit no-underline shrink-0">
+          <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
+            <span className="text-white font-bold text-sm sm:text-lg tracking-tight whitespace-nowrap break-normal">Mehfil</span>
           </div>
         </Link>
 
         <div className="relative flex-1 min-w-0 md:flex-none">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <Search className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-2 md:py-2.5 pl-10 pr-4 text-sm w-full md:w-72 lg:w-96 focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-900 dark:text-slate-100 ${roomPalette.ring}`}
-            placeholder={`Search...`}
+            className={`bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-1.5 sm:py-2 md:py-2.5 pl-9 sm:pl-10 pr-3 sm:pr-4 text-sm w-full md:w-72 lg:w-96 focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-900 dark:text-slate-100 ${roomPalette.ring}`}
+            placeholder="Search..."
             type="text"
           />
         </div>
 
-
-
-
-        <div className="flex items-center gap-5 pr-6">
-          <ThemeToggle />
+        <div className="flex items-center gap-1.5 sm:gap-3 md:gap-5 shrink-0">
+          <span className="hidden sm:inline-flex"><ThemeToggle /></span>
 
           <button
             onClick={() => {
               setMehfilSidebarInitialView('connections');
               setIsSidebarOpen(true);
             }}
-            className="relative p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+            className="relative p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
             title="Connection requests"
             aria-label="Open connections"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
             {incomingRequestsCount > 0 && (
-              <span className="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white">
+              <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 sm:h-5 sm:min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 sm:px-1.5 text-[9px] sm:text-[10px] font-bold text-white">
                 {incomingRequestsCount}
               </span>
             )}
@@ -514,16 +511,16 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
           <button
             onClick={() => setIsGlobalSidebarOpen(true)}
-            className="p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+            className="p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
             title="Menu"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          <div className="flex items-center gap-5 pr-6 border-l border-slate-200 dark:border-slate-800 ml-1 sm:ml-2 pl-2">
+          <div className="hidden sm:flex items-center gap-2 md:gap-5 md:pr-6 border-l border-slate-200 dark:border-slate-800 ml-1 sm:ml-2 pl-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center justify-center w-[40px] h-[40px] p-0.5 rounded-full transition-all duration-200 hover:scale-105 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 outline-none">
+                <button className="flex items-center justify-center w-8 h-8 sm:w-[40px] sm:h-[40px] p-0.5 rounded-full transition-all duration-200 hover:scale-105 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 outline-none">
                   <Avatar className="w-full h-full rounded-full border border-slate-200 dark:border-white/10 transition-transform">
                     <AvatarImage src={user?.avatar} className="object-cover" />
                     <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs ring-1 ring-inset ring-slate-900/10 dark:ring-white/10">
@@ -548,15 +545,15 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         </div>
       </nav>
 
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 pt-24 sm:pt-28 pb-8 sm:pb-12">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pt-20 sm:pt-24 md:pt-28 pb-6 sm:pb-8 md:pb-12">
         <main className="scrollbar-blend">
-          <section className="mb-6 rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 p-4 backdrop-blur-xl flex flex-col items-center text-center">
-            <div className="flex flex-wrap items-center justify-center gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/70 rounded-2xl w-full sm:w-fit">
+          <section className="mb-4 sm:mb-6 rounded-2xl sm:rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 p-3 sm:p-4 backdrop-blur-xl flex flex-col items-center text-center">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/70 rounded-xl sm:rounded-2xl w-full sm:w-fit">
               {(['ALL', 'ACADEMIC', 'REFLECTIVE'] as MehfilFeedRoom[]).map((room) => (
                 <button
                   key={room}
                   onClick={() => setActiveRoom(room)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap break-normal ${room === activeRoom ? roomPalette.tabActive : roomPalette.tabIdle
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap break-normal ${room === activeRoom ? roomPalette.tabActive : roomPalette.tabIdle
                     }`}
                 >
                   {ROOM_CONFIG[room].title}
@@ -579,15 +576,15 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
 
           {/* Main Layout Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-8 max-w-7xl mx-auto relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 md:gap-6 lg:gap-8 max-w-7xl mx-auto relative z-10">
 
             {/* Center Feed - Spans 8 columns */}
-            <main className="lg:col-span-8 flex flex-col gap-4 sm:gap-6">
+            <main className="md:col-span-7 lg:col-span-8 flex flex-col gap-3 sm:gap-4 md:gap-6">
 
-              <div className="backdrop-blur-2xl bg-white/40 dark:bg-black/40 border border-white/40 dark:border-white/10 shadow-glass rounded-[2rem] p-4 sm:p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
-                <div className="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div className="backdrop-blur-2xl bg-white/40 dark:bg-black/40 border border-white/40 dark:border-white/10 shadow-glass rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
+                <div className="mb-4 sm:mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-3 sm:gap-4">
                   <div>
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">Community Space</h1>
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-1 sm:mb-2">Community Space</h1>
                     <p className="text-slate-500 dark:text-slate-400 leading-relaxed max-w-xl">
                       The student lounge for unfiltered thoughts and academic life-hacks.
                     </p>
@@ -595,7 +592,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                 </div>
 
                 {/* Guidelines Notice Section — collapsible */}
-                <Card className="mb-8 w-full bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/80 dark:to-slate-800/80 border-slate-200/60 dark:border-slate-700/60 shadow-sm rounded-2xl overflow-hidden">
+                <Card className="mb-4 sm:mb-6 md:mb-8 w-full bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/80 dark:to-slate-800/80 border-slate-200/60 dark:border-slate-700/60 shadow-sm rounded-xl sm:rounded-2xl overflow-hidden">
                   <CardContent className="p-0">
                     <Collapsible
                       open={guidelinesOpen}
@@ -614,7 +611,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                         </button>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="px-5 sm:px-6 pb-5 pt-2 animate-in slide-in-from-top-2 duration-200 flex flex-col">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                           {/* Rules Column */}
                           <div className="space-y-4">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
@@ -679,7 +676,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
               </div>
 
               {/* Mobile Sandesh (only visible on small screens) */}
-              <div className="lg:hidden">
+              <div className="md:hidden">
                 <SandeshCard />
               </div>
 
@@ -719,8 +716,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
               </div>
             </main>
 
-            {/* Right Sidebar - Sandesh (visible on large screens, sticky) - Spans 4 columns */}
-            <aside className="hidden lg:block lg:col-span-4 lg:sticky lg:top-28 h-fit">
+            {/* Right Sidebar - Sandesh (visible on md+ screens, sticky) - Spans 5/4 columns */}
+            <aside className="hidden md:block md:col-span-5 lg:col-span-4 md:sticky md:top-24 lg:top-28 h-fit">
               <SandeshCard />
             </aside>
 
