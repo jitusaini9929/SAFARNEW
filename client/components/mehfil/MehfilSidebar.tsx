@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bookmark, BarChart3, Shield, X, Loader2, Bell } from 'lucide-react';
+import { Bookmark, BarChart3, Shield, X, Loader2, Bell, MessageSquare, Heart, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -11,7 +11,7 @@ import { useDMStore } from '@/store/dmStore';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
-export type MehfilSidebarView = 'connections' | 'saved' | 'analytics' | 'privacy';
+export type MehfilSidebarView = 'connections' | 'saved' | 'activity' | 'analytics' | 'privacy';
 type SidebarView = MehfilSidebarView | null;
 
 interface UserAnalytics {
@@ -21,6 +21,20 @@ interface UserAnalytics {
   totalSaves: number;
   totalShares: number;
   joinedDate: string;
+}
+
+type ActivityType = 'post' | 'comment' | 'like';
+interface ActivityItem {
+  type: ActivityType;
+  createdAt: string;
+  thoughtId?: string;
+  comment?: string;
+  thought?: {
+    id: string;
+    authorName: string;
+    category: string;
+    content: string;
+  } | null;
 }
 
 interface MehfilSidebarProps {
@@ -33,6 +47,8 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
   const [activeView, setActiveView] = useState<SidebarView>(null);
   const [savedPosts, setSavedPosts] = useState<Thought[]>([]);
   const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
+  const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
+  const [activityFilter, setActivityFilter] = useState<'all' | ActivityType>('all');
   const [loading, setLoading] = useState(false);
   const [userReactions, setUserReactions] = useState<Set<string>>(new Set());
   const incomingRequests = useDMStore((state) => state.incomingRequests);
@@ -50,6 +66,8 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
   useEffect(() => {
     if (activeView === 'saved') {
       fetchSavedPosts();
+    } else if (activeView === 'activity') {
+      fetchActivity();
     } else if (activeView === 'analytics') {
       fetchAnalytics();
     }
@@ -94,6 +112,23 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
     }
   };
 
+  const fetchActivity = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/mehfil/activity`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setActivityItems(Array.isArray(data?.items) ? data.items : []);
+      }
+    } catch (error) {
+      console.error('Error fetching activity:', error);
+      toast.error('Failed to load activity');
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const handleReact = async (thoughtId: string) => {
@@ -160,14 +195,24 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
             <span className="action-label-mobile-hidden">Saved</span>
           </Button>
           <Button
+            variant={activeView === 'activity' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveView('activity')}
+            aria-label="Your activity"
+            className="min-w-fit gap-2 action-btn-nowrap"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span className="action-label-mobile-hidden">Activity</span>
+          </Button>
+          <Button
             variant={activeView === 'analytics' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setActiveView('analytics')}
-            aria-label="Activity analytics"
+            aria-label="Analytics"
             className="min-w-fit gap-2 action-btn-nowrap"
           >
             <BarChart3 className="w-4 h-4" />
-            <span className="action-label-mobile-hidden">Activity</span>
+            <span className="action-label-mobile-hidden">Analytics</span>
           </Button>
           <Button
             variant={activeView === 'privacy' ? 'default' : 'ghost'}
@@ -275,6 +320,91 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
                         isOwnThought={false}
                       />
                     ))
+                  )}
+                </div>
+              )}
+
+              {/* Analytics View */}
+              {activeView === 'activity' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                      Your Activity
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      {(['all', 'post', 'comment', 'like'] as const).map((filter) => (
+                        <button
+                          key={filter}
+                          onClick={() => setActivityFilter(filter)}
+                          className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${activityFilter === filter
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                            }`}
+                        >
+                          {filter === 'all'
+                            ? 'All'
+                            : filter === 'post'
+                              ? 'Posts'
+                              : filter === 'comment'
+                                ? 'Comments'
+                                : 'Likes'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {activityItems.length === 0 ? (
+                    <div className="text-center py-12">
+                      <MessageSquare className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-700 mb-4" />
+                      <p className="text-slate-500 dark:text-slate-400 text-sm">
+                        No activity yet. Your posts, comments, and likes will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {activityItems
+                        .filter((item) => activityFilter === 'all' || item.type === activityFilter)
+                        .map((item, index) => {
+                          const label = item.type === 'post' ? 'Post' : item.type === 'comment' ? 'Commented' : 'Liked';
+                          const Icon = item.type === 'post' ? FileText : item.type === 'comment' ? MessageSquare : Heart;
+                          const dateLabel = new Date(item.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          });
+
+                          return (
+                            <div
+                              key={`${item.type}-${item.thoughtId}-${index}`}
+                              className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/40"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                  <Icon className="w-4 h-4" />
+                                  <span>{label}</span>
+                                </div>
+                                <span className="text-[10px] text-slate-400">{dateLabel}</span>
+                              </div>
+
+                              {item.comment && (
+                                <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">
+                                  “{item.comment}”
+                                </p>
+                              )}
+
+                              {item.thought && (
+                                <div className="mt-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 p-3">
+                                  <div className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                                    {item.thought.category} • {item.thought.authorName}
+                                  </div>
+                                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">
+                                    {item.thought.content}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
                   )}
                 </div>
               )}

@@ -40,6 +40,13 @@ interface PostingBanPayload {
   isPermanent: boolean;
   bannedUntil: string | null;
   message: string;
+  reason?: string | null;
+}
+
+interface ShadowBanNotice {
+  message: string;
+  reason?: string | null;
+  strikeCount?: number | null;
 }
 
 const ROOM_CONFIG: Record<MehfilFeedRoom, {
@@ -78,6 +85,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
   const [activeRoom, setActiveRoom] = useState<MehfilFeedRoom>('ALL');
   const [postingBan, setPostingBan] = useState<PostingBanPayload | null>(null);
+  const [shadowBanNotice, setShadowBanNotice] = useState<ShadowBanNotice | null>(null);
   const [banRemainingMs, setBanRemainingMs] = useState(0);
   const [hasMoreThoughts, setHasMoreThoughts] = useState(true);
   const [isLoadingThoughts, setIsLoadingThoughts] = useState(false);
@@ -299,6 +307,13 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       toast.warning(message || "Thought doesn't meet community guidelines.");
     });
 
+    newSocket.on('shadowBanNotice', (payload: ShadowBanNotice) => {
+      setShadowBanNotice(payload);
+      if (payload?.message) {
+        toast.warning(payload.message);
+      }
+    });
+
     newSocket.on('thoughtRerouted', ({ room }) => {
       const destination = room === 'REFLECTIVE' ? 'Thoughts' : 'Academic Hall';
       toast.info(`Your thought was routed to ${destination}.`);
@@ -435,7 +450,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const isReflective = activeRoom === 'REFLECTIVE';
   const roomPalette = isAll
     ? {
-      page: 'bg-[#fff7fa] dark:bg-slate-950',
+      page: 'bg-[#e6eaf2] dark:bg-slate-950',
       selection: 'selection:bg-rose-200/50',
       blobA: 'bg-rose-400/30 dark:bg-rose-500/20',
       blobB: 'bg-pink-300/30 dark:bg-pink-500/20',
@@ -445,7 +460,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     }
     : isReflective
       ? {
-        page: 'bg-[#f5f3ff] dark:bg-slate-950',
+        page: 'bg-[#e8e6f0] dark:bg-slate-950',
         selection: 'selection:bg-indigo-200/50',
         blobA: 'bg-indigo-400/30 dark:bg-indigo-500/20',
         blobB: 'bg-violet-300/30 dark:bg-violet-500/20',
@@ -454,7 +469,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         tabIdle: 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20',
       }
       : {
-        page: 'bg-[#f8fafc] dark:bg-slate-950',
+        page: 'bg-[#e4eaf0] dark:bg-slate-950',
         selection: 'selection:bg-teal-200/50',
         blobA: 'bg-teal-400/30 dark:bg-teal-500/20',
         blobB: 'bg-cyan-300/30 dark:bg-cyan-500/20',
@@ -581,7 +596,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             {/* Center Feed - Spans 8 columns */}
             <main className="md:col-span-7 lg:col-span-8 flex flex-col gap-3 sm:gap-4 md:gap-6">
 
-              <div className="backdrop-blur-2xl bg-white/40 dark:bg-black/40 border border-white/40 dark:border-white/10 shadow-glass rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
+              <div className="backdrop-blur-2xl bg-white/60 dark:bg-black/40 border border-slate-200/60 dark:border-white/10 shadow-glass rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
                 <div className="mb-4 sm:mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-3 sm:gap-4">
                   <div>
                     <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-1 sm:mb-2">Community Space</h1>
@@ -592,80 +607,77 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                 </div>
 
                 {/* Guidelines Notice Section — collapsible */}
-                <Card className="mb-4 sm:mb-6 md:mb-8 w-full bg-gradient-to-br from-slate-50/80 to-slate-100/80 dark:from-slate-900/80 dark:to-slate-800/80 border-slate-200/60 dark:border-slate-700/60 shadow-sm rounded-xl sm:rounded-2xl overflow-hidden">
-                  <CardContent className="p-0">
-                    <Collapsible
-                      open={guidelinesOpen}
-                      onOpenChange={setGuidelinesOpen}
-                      className="data-[state=open]:bg-slate-100/50 dark:data-[state=open]:bg-slate-800/50 transition-colors"
-                    >
-                      <CollapsibleTrigger asChild>
-                        <button className="group w-full flex items-center justify-between gap-2.5 px-4 py-3 cursor-pointer outline-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors">
-                          <div className="flex items-center gap-2.5">
-                            <div className="p-1.5 bg-indigo-500/10 rounded-xl">
-                              <ShieldAlert className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                            </div>
-                            <span className="text-sm font-bold text-slate-900 dark:text-white">Community Guidelines</span>
+                <div className="composer-glow-card mb-4 sm:mb-6 md:mb-8 w-full" style={{ padding: 0 }}>
+                  <Collapsible
+                    open={guidelinesOpen}
+                    onOpenChange={setGuidelinesOpen}
+                  >
+                    <CollapsibleTrigger asChild>
+                      <button className="guideline-btn group w-full flex items-center justify-between gap-2.5 px-5 py-3.5 cursor-pointer outline-none rounded-2xl transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 bg-indigo-500/10 rounded-xl">
+                            <ShieldAlert className="w-4 h-4 text-indigo-400" />
                           </div>
-                          <ChevronDown className="w-4 h-4 text-slate-400 ml-auto transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                        </button>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent className="px-5 sm:px-6 pb-5 pt-2 animate-in slide-in-from-top-2 duration-200 flex flex-col">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                          {/* Rules Column */}
-                          <div className="space-y-4">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                              <Info className="w-3.5 h-3.5" /> Posting Rules
-                            </h4>
-                            <ul className="space-y-3">
-                              <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                                <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
-                                <span><strong>Academic Hall:</strong> Research, study hacks, and career help only. No venting.</span>
-                              </li>
-                              <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                                <span><strong>Thoughts:</strong> Emotional support and venting. Move here for personal struggles.</span>
-                              </li>
-                              <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                                <span><strong>Blocked:</strong> Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.</span>
-                              </li>
-                            </ul>
-                          </div>
+                          <span className="text-sm font-bold text-white">Community Guidelines</span>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-slate-400 ml-auto transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-5 sm:px-6 pb-5 pt-2 animate-in slide-in-from-top-2 duration-200 flex flex-col">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                        {/* Rules Column */}
+                        <div className="space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                            <Info className="w-3.5 h-3.5" /> Posting Rules
+                          </h4>
+                          <ul className="space-y-3">
+                            <li className="flex gap-3 text-sm text-slate-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
+                              <span><strong>Academic Hall:</strong> Research, study hacks, and career help only. No venting.</span>
+                            </li>
+                            <li className="flex gap-3 text-sm text-slate-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                              <span><strong>Thoughts:</strong> Emotional support and venting. Move here for personal struggles.</span>
+                            </li>
+                            <li className="flex gap-3 text-sm text-slate-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                              <span><strong>Blocked:</strong> Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.</span>
+                            </li>
+                          </ul>
+                        </div>
 
-                          {/* Consequences Column */}
-                          <div className="space-y-4">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-2">
-                              <AlertCircle className="w-3.5 h-3.5" /> Consequences
-                            </h4>
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
-                                <div className="p-1.5 bg-amber-500/10 rounded-lg">
-                                  <Ban className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                                </div>
-                                <div className="text-xs leading-tight">
-                                  <span className="font-bold block text-slate-900 dark:text-white">Report-Based Bans</span>
-                                  <span className="text-slate-500 dark:text-slate-400">1+ reports trigger automatic bans (2D → 7D → Permanent).</span>
-                                </div>
+                        {/* Consequences Column */}
+                        <div className="space-y-4">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                            <AlertCircle className="w-3.5 h-3.5" /> Consequences
+                          </h4>
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-black/20 border border-white/5">
+                              <div className="p-1.5 bg-amber-500/10 rounded-lg">
+                                <Ban className="w-4 h-4 text-amber-400" />
                               </div>
-                              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/5">
-                                <div className="p-1.5 bg-rose-500/10 rounded-lg">
-                                  <Ghost className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                                </div>
-                                <div className="text-xs leading-tight">
-                                  <span className="font-bold block text-slate-900 dark:text-white">Shadow Banning</span>
-                                  <span className="text-slate-500 dark:text-slate-400">Repeated spam results in silent silencing—others won't see you.</span>
-                                </div>
+                              <div className="text-xs leading-tight">
+                                <span className="font-bold block text-white">Report-Based Bans</span>
+                                <span className="text-slate-400">1+ reports trigger automatic bans (2D → 7D → Permanent).</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-black/20 border border-white/5">
+                              <div className="p-1.5 bg-rose-500/10 rounded-lg">
+                                <Ghost className="w-4 h-4 text-rose-400" />
+                              </div>
+                              <div className="text-xs leading-tight">
+                                <span className="font-bold block text-white">Shadow Banning</span>
+                                <span className="text-slate-400">Repeated spam results in silent silencing—others won't see you.</span>
                               </div>
                             </div>
                           </div>
                         </div>
+                      </div>
 
 
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </CardContent>
-                </Card>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
 
                 <Composer
                   onSendThought={handleSendThought}
@@ -734,8 +746,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       <GlobalSidebar
         isOpen={isGlobalSidebarOpen}
         onClose={() => setIsGlobalSidebarOpen(false)}
-        onOpenMehfilSidebar={() => {
-          setMehfilSidebarInitialView('saved');
+        onOpenMehfilSidebar={(view) => {
+          setMehfilSidebarInitialView(view ?? 'saved');
           setIsSidebarOpen(true);
         }}
       />
@@ -746,6 +758,11 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
           <div className="w-full max-w-md rounded-3xl border border-white/20 bg-slate-950/90 text-white p-6 shadow-2xl">
             <h3 className="text-xl font-bold">Posting Restricted</h3>
             <p className="mt-2 text-slate-200">you have been banned from posting messages</p>
+            {postingBan.reason && (
+              <div className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-100">
+                <span className="font-semibold">Reason:</span> {postingBan.reason}
+              </div>
+            )}
             {postingBan.isPermanent ? (
               <p className="mt-4 text-sm text-rose-300 font-semibold">Ban duration: Permanent</p>
             ) : (
@@ -759,6 +776,33 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             <p className="mt-4 text-xs text-slate-400">
               You can still read thoughts, but posting is blocked until unban.
             </p>
+          </div>
+        </div>
+      )}
+
+      {shadowBanNotice && (
+        <div className="fixed inset-0 z-[79] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl border border-white/20 bg-slate-950/90 text-white p-6 shadow-2xl">
+            <h3 className="text-xl font-bold">Shadow Ban Notice</h3>
+            <p className="mt-2 text-slate-200">{shadowBanNotice.message}</p>
+            {shadowBanNotice.reason && (
+              <div className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
+                <span className="font-semibold">Reason:</span> {shadowBanNotice.reason}
+              </div>
+            )}
+            {Number.isFinite(shadowBanNotice.strikeCount ?? NaN) && (
+              <p className="mt-3 text-xs text-slate-400">
+                Strikes recorded: {shadowBanNotice.strikeCount}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={() => setShadowBanNotice(null)}
+                className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
+              >
+                I Understand
+              </button>
+            </div>
           </div>
         </div>
       )}

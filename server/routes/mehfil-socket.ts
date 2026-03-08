@@ -62,7 +62,7 @@ const DEFAULT_ROOM: MehfilRoom = 'ACADEMIC';
 const ROOM_ORDER: MehfilRoom[] = ['ACADEMIC', 'REFLECTIVE'];
 const DEFAULT_THOUGHTS_PAGE_SIZE = 50;
 const MAX_THOUGHTS_PAGE_SIZE = 100;
-const MIN_THOUGHT_LENGTH = 15;
+const MIN_THOUGHT_LENGTH = 1;
 const MAX_THOUGHT_LENGTH = 5000;
 const BULLSHIT_TTL_HOURS = Number(process.env.MEHFIL_BULLSHIT_TTL_HOURS || 24);
 const MAX_SPAM_STRIKES = Math.max(1, Number(process.env.MEHFIL_SPAM_STRIKE_LIMIT || 2));
@@ -80,8 +80,8 @@ const MODERATION_EXEMPT_EMAILS = new Set(
 
 const GROQ_SYSTEM_PROMPT = `You are the Content Architect for "Mehfil," a support community for students.
 
-Goal: Classify the user's input into one of three silos.
-Context: Users are students dealing with study pressure, family issues, financial struggles, and career anxiety. They speak English, Hindi, and Hinglish.
+Goal: Classify the user's input into one of three silos with a very lenient bias.
+Context: Users are students dealing with study pressure, family issues, financial struggles, and career anxiety. They speak English, Hindi, and Hinglish (including slang and casual phrasing).
 
 Categories:
 1. ACADEMIC: Study strategies, specific subjects, exam prep, results, or career guidance.
@@ -90,14 +90,16 @@ Categories:
    - HIGH-SIGNAL KEYWORDS: "suicide", "want to die", "parents pressure", "parents don't allow", "no support", "beat me", "breakup", "giving up".
    - ALLOW: Long rants, sad stories, mentions of suicidal thoughts (seeking support), family fights, financial helplessness.
    - THESE ARE NOT TOXIC. They are cries for help or support.
-3. BULLSHIT: Low-effort noise, spam, abuse, or irrelevant gibberish.
-   - STRICTLY BLOCK: Hate speech, sexual harassment, "creepy" DMs/seduction, NSFW content, threats, or severe toxicity.
+3. BULLSHIT: Only use for explicit spam, harassment, hate speech, threats, or sexual/NSFW content.
+   - STRICTLY BLOCK: Explicit hate speech, sexual harassment/NSFW, threats of violence, coercion, or targeted abuse.
+   - DO NOT MARK BULLSHIT for Hinglish slang, casual Hindi/English mix, criticism, strong language, sarcasm, or low-effort but harmless posts.
+   - If unsure between BULLSHIT vs ACADEMIC/REFLECTIVE, choose ACADEMIC or REFLECTIVE.
 
 Output Requirement: Respond ONLY with a JSON object:
 {
   "category": "ACADEMIC" | "REFLECTIVE" | "BULLSHIT",
   "reasoning": "1-sentence explanation",
-  "is_toxic": boolean, // TRUE only for hate speech, abuse, sexual content, or threats. FALSE for depression/struggle.
+  "is_toxic": boolean, // TRUE only for explicit hate speech, sexual content, or threats. FALSE for emotional venting.
   "suggested_tags": ["tag1", "tag2"]
 }`;
 
@@ -164,7 +166,8 @@ function heuristicModeration(content: string, reason: string): ModerationResult 
   const normalized = content.toLowerCase();
   const words = normalized.split(/\s+/).filter(Boolean);
 
-  const toxicRegex = /\b(hate|kill|stupid|idiot|abuse|harass|fuck|f\*+k)\b/i;
+  const toxicRegex =
+    /\b(kill yourself|kys|rape|raped|rapist|sexual assault|nudes?|porn|i will kill|i['’]m going to kill|die you|threaten|terrorist|lynch)\b/i;
   if (toxicRegex.test(content)) {
     return {
       category: 'BULLSHIT',
@@ -175,18 +178,25 @@ function heuristicModeration(content: string, reason: string): ModerationResult 
     };
   }
 
-  if (content.length < MIN_THOUGHT_LENGTH || words.length < 3) {
+  if (content.length < MIN_THOUGHT_LENGTH) {
     return {
-      category: 'BULLSHIT',
-      reasoning: reason || 'Too short or low-context to be useful for the community.',
+      category: 'REFLECTIVE',
+      reasoning: reason || 'Short post; allowed under lenient moderation.',
       isToxic: false,
-      suggestedTags: ['#loweffort'],
-      aiScore: 0.15,
+      suggestedTags: [],
+      aiScore: 0.5,
     };
   }
 
-  const academicHints = ['study', 'exam', 'revision', 'assignment', 'career', 'subject', 'syllabus', 'interview', 'notes'];
-  const reflectiveHints = ['stress', 'anxiety', 'overwhelmed', 'feeling', 'lonely', 'burnout', 'mental', 'support', 'afraid'];
+  const academicHints = [
+    'study', 'exam', 'revision', 'assignment', 'career', 'subject', 'syllabus', 'interview', 'notes',
+    'padhai', 'padhna', 'padh', 'padhaii', 'exam ki', 'mock', 'test', 'result', 'score', 'rank',
+  ];
+  const reflectiveHints = [
+    'stress', 'anxiety', 'overwhelmed', 'feeling', 'lonely', 'burnout', 'mental', 'support', 'afraid',
+    'tension', 'pressure', 'sad', 'low', 'dukhi', 'pareshan', 'gussa', 'thak', 'thaka', 'anxious',
+    'mood', 'depressed', 'depression', 'breakup', 'family', 'ghar', 'parents', 'paise', 'financial',
+  ];
 
   if (academicHints.some((hint) => normalized.includes(hint))) {
     return {
@@ -350,12 +360,14 @@ async function storeFlaggedThought(input: {
 }
 
 function getActivePostingBan(user: any) {
+  const reason = user?.mehfil_banned_reason ? String(user.mehfil_banned_reason) : null;
   if (user?.mehfil_banned_forever) {
     return {
       isActive: true,
       isPermanent: true,
       bannedUntil: null as Date | null,
       message: POSTING_BAN_MESSAGE,
+      reason,
     };
   }
 
@@ -366,6 +378,7 @@ function getActivePostingBan(user: any) {
       isPermanent: false,
       bannedUntil,
       message: POSTING_BAN_MESSAGE,
+      reason,
     };
   }
 
@@ -374,15 +387,17 @@ function getActivePostingBan(user: any) {
     isPermanent: false,
     bannedUntil: null as Date | null,
     message: POSTING_BAN_MESSAGE,
+    reason: null,
   };
 }
 
-function toBanPayload(ban: { isActive: boolean; isPermanent: boolean; bannedUntil: Date | null; message: string }) {
+function toBanPayload(ban: { isActive: boolean; isPermanent: boolean; bannedUntil: Date | null; message: string; reason?: string | null }) {
   return {
     isActive: ban.isActive,
     isPermanent: ban.isPermanent,
     bannedUntil: ban.bannedUntil ? ban.bannedUntil.toISOString() : null,
     message: ban.message,
+    reason: ban.reason ?? null,
   };
 }
 
@@ -575,6 +590,9 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
             projection: {
               mehfil_banned_until: 1,
               mehfil_banned_forever: 1,
+              mehfil_banned_reason: 1,
+              is_shadow_banned: 1,
+              spam_strike_count: 1,
             },
           },
         );
@@ -582,6 +600,13 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const activeBan = getActivePostingBan(userProfile);
         if (activeBan.isActive) {
           socket.emit('postingBanStatus', toBanPayload(activeBan));
+        }
+        if (userProfile?.is_shadow_banned) {
+          socket.emit('shadowBanNotice', {
+            message: 'Your posts are currently hidden from other users.',
+            reason: userProfile?.mehfil_banned_reason || 'Repeated policy violations or spam reports.',
+            strikeCount: Number(userProfile?.spam_strike_count || 0),
+          });
         }
       } catch (error) {
         console.error('[MEHFIL] Failed to fetch posting ban status on register:', error);
@@ -599,12 +624,22 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
             projection: {
               mehfil_banned_until: 1,
               mehfil_banned_forever: 1,
+              mehfil_banned_reason: 1,
+              is_shadow_banned: 1,
+              spam_strike_count: 1,
             },
           },
         );
 
         const activeBan = getActivePostingBan(userProfile);
         socket.emit('postingBanStatus', toBanPayload(activeBan));
+        if (userProfile?.is_shadow_banned) {
+          socket.emit('shadowBanNotice', {
+            message: 'Your posts are currently hidden from other users.',
+            reason: userProfile?.mehfil_banned_reason || 'Repeated policy violations or spam reports.',
+            strikeCount: Number(userProfile?.spam_strike_count || 0),
+          });
+        }
       } catch (error) {
         console.error('[MEHFIL] Failed to check posting ban:', error);
       }
@@ -974,6 +1009,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
               mehfil_post_ttl_minutes: 1,
               mehfil_banned_until: 1,
               mehfil_banned_forever: 1,
+              mehfil_banned_reason: 1,
             },
           },
         );
@@ -1041,6 +1077,11 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         };
 
         if (userProfile?.is_shadow_banned && !isModerationExempt) {
+          socket.emit('shadowBanNotice', {
+            message: 'Your posts are currently hidden from other users.',
+            reason: userProfile?.mehfil_banned_reason || 'Repeated policy violations or spam reports.',
+            strikeCount: Number(userProfile?.spam_strike_count || 0),
+          });
           emitShadowThought();
           return;
         }
@@ -1071,6 +1112,11 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           } else {
             const strike = await applySpamStrike(userId);
             if (strike.isShadowBanned) {
+              socket.emit('shadowBanNotice', {
+                message: 'Your posts are currently hidden from other users.',
+                reason: 'Repeated policy violations or spam reports.',
+                strikeCount: strike.strikeCount,
+              });
               emitShadowThought();
             } else {
               socket.emit('thoughtRejected', {
@@ -1088,7 +1134,16 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         }
 
         const moderation = await classifyThought(content);
-        const isBullshit = moderation.category === 'BULLSHIT' || moderation.isToxic;
+        const isBullshit = moderation.isToxic;
+        const shouldRerouteNonToxicBullshit = moderation.category === 'BULLSHIT' && !moderation.isToxic;
+        const effectiveModeration = shouldRerouteNonToxicBullshit
+          ? {
+            ...moderation,
+            category: 'REFLECTIVE',
+            reasoning: moderation.reasoning || 'Allowed as non-toxic; routed to reflective.',
+            aiScore: clampScore(moderation.aiScore),
+          }
+          : moderation;
 
         if (isBullshit) {
           await storeFlaggedThought({
@@ -1115,6 +1170,11 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           } else {
             const strike = await applySpamStrike(userId);
             if (strike.isShadowBanned) {
+              socket.emit('shadowBanNotice', {
+                message: 'Your posts are currently hidden from other users.',
+                reason: 'Repeated policy violations or spam reports.',
+                strikeCount: strike.strikeCount,
+              });
               emitShadowThought();
             } else {
               socket.emit('thoughtRejected', {
@@ -1126,7 +1186,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           return;
         }
 
-        const routeRoom: MehfilRoom = moderation.category === 'REFLECTIVE' ? 'REFLECTIVE' : 'ACADEMIC';
+        const routeRoom: MehfilRoom = effectiveModeration.category === 'REFLECTIVE' ? 'REFLECTIVE' : 'ACADEMIC';
         const id = uuidv4();
         const now = new Date();
 
@@ -1141,10 +1201,10 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           relatable_count: 0,
           created_at: now,
           category: routeRoom,
-          ai_tags: moderation.suggestedTags,
-          ai_score: clampScore(moderation.aiScore),
+          ai_tags: effectiveModeration.suggestedTags,
+          ai_score: clampScore(effectiveModeration.aiScore),
           status: 'approved',
-          moderation_reason: moderation.reasoning,
+          moderation_reason: effectiveModeration.reasoning,
           is_toxic: false,
           expires_at: customExpiryForUser,
         });
@@ -1162,14 +1222,14 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           createdAt: now,
           hasReacted: false,
           category: routeRoom,
-          aiTags: moderation.suggestedTags,
-          aiScore: clampScore(moderation.aiScore),
+          aiTags: effectiveModeration.suggestedTags,
+          aiScore: clampScore(effectiveModeration.aiScore),
         };
 
         if (requestedRoom !== routeRoom) {
           socket.emit('thoughtRerouted', {
             room: routeRoom,
-            reason: moderation.reasoning,
+            reason: effectiveModeration.reasoning,
           });
         }
 

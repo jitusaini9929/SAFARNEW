@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Send, Smile } from "lucide-react";
+import { EmojiPicker } from "@/components/ui/EmojiPicker";
 
 interface MessageInputProps {
   onSend: (text: string) => void;
@@ -7,12 +8,18 @@ interface MessageInputProps {
 
 export function MessageInput({ onSend }: MessageInputProps) {
   const [text, setText] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const submit = () => {
     const normalized = text.trim();
     if (!normalized) return;
     onSend(normalized);
     setText("");
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setText((prev) => prev + emoji);
+    setShowEmojiPicker(false);
   };
 
   return (
@@ -29,12 +36,22 @@ export function MessageInput({ onSend }: MessageInputProps) {
             className="w-full bg-slate-100 dark:bg-[#162032] border border-transparent dark:border-slate-700 rounded-xl py-3 pl-4 pr-10 text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent dark:text-white placeholder-slate-400 transition-all shadow-inner outline-none"
             type="text"
           />
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
-          >
-            <Smile className="h-5 w-5" />
-          </button>
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker((prev) => !prev)}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 transition-colors"
+              aria-label="Insert emoji"
+            >
+              <Smile className="h-5 w-5" />
+            </button>
+            <EmojiPicker
+              open={showEmojiPicker}
+              onClose={() => setShowEmojiPicker(false)}
+              onSelect={handleEmojiSelect}
+              position="top"
+            />
+          </div>
         </div>
         <button
           type="button"

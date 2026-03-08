@@ -7,6 +7,11 @@ export const mehfilSocialRouter = Router();
 
 mehfilSocialRouter.use(requireAuth);
 
+const sanitizeSnippet = (input: unknown, maxLength = 180) => {
+  const text = String(input ?? "").replace(/<[^>]*>/g, " ");
+  return text.replace(/\s+/g, " ").trim().slice(0, maxLength);
+};
+
 const MEDITATION_VIDEO_SETTING_KEY = "meditation_latest_video";
 const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/FRvwIgCs6T8?si=jQYpQXaKS9TkOIxf";
 const FALLBACK_ADMIN_EMAILS = ["steve123@gmail.com"];
@@ -358,6 +363,81 @@ mehfilSocialRouter.get("/analytics", async (req: any, res: Response) => {
   } catch (error) {
     console.error("Error fetching analytics:", error);
     res.status(500).json({ error: "Failed to fetch analytics" });
+  }
+});
+
+// USER ACTIVITY
+mehfilSocialRouter.get("/activity", async (req: any, res: Response) => {
+  try {
+    const userId = req.session.userId;
+    const [thoughts, comments, reactions] = await Promise.all([
+      collections.mehfilThoughts().find({ user_id: userId }).sort({ created_at: -1 }).limit(30).toArray(),
+      collections.mehfilComments().find({ user_id: userId }).sort({ created_at: -1 }).limit(30).toArray(),
+      collections.mehfilReactions().find({ user_id: userId }).sort({ created_at: -1 }).limit(30).toArray(),
+    ]);
+
+    const relatedThoughtIds = Array.from(new Set([
+      ...comments.map((c) => c.thought_id),
+      ...reactions.map((r) => r.thought_id),
+    ])).filter(Boolean);
+
+    const relatedThoughts = relatedThoughtIds.length
+      ? await collections.mehfilThoughts().find({ id: { $in: relatedThoughtIds } }).toArray()
+      : [];
+
+    const thoughtMap = new Map(relatedThoughts.map((t) => [t.id, t]));
+
+    const items = [
+      ...thoughts.map((t) => ({
+        type: "post",
+        createdAt: t.created_at,
+        thoughtId: t.id,
+        thought: {
+          id: t.id,
+          authorName: t.is_anonymous ? "Anonymous User" : t.author_name,
+          category: t.category || "ACADEMIC",
+          content: sanitizeSnippet(t.content),
+        },
+      })),
+      ...comments.map((c) => {
+        const t = thoughtMap.get(c.thought_id);
+        return {
+          type: "comment",
+          createdAt: c.created_at,
+          thoughtId: c.thought_id,
+          comment: sanitizeSnippet(c.content, 140),
+          thought: t
+            ? {
+              id: t.id,
+              authorName: t.is_anonymous ? "Anonymous User" : t.author_name,
+              category: t.category || "ACADEMIC",
+              content: sanitizeSnippet(t.content),
+            }
+            : null,
+        };
+      }),
+      ...reactions.map((r) => {
+        const t = thoughtMap.get(r.thought_id);
+        return {
+          type: "like",
+          createdAt: r.created_at,
+          thoughtId: r.thought_id,
+          thought: t
+            ? {
+              id: t.id,
+              authorName: t.is_anonymous ? "Anonymous User" : t.author_name,
+              category: t.category || "ACADEMIC",
+              content: sanitizeSnippet(t.content),
+            }
+            : null,
+        };
+      }),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.json({ items: items.slice(0, 60) });
+  } catch (error) {
+    console.error("Error fetching activity:", error);
+    res.status(500).json({ error: "Failed to fetch activity" });
   }
 });
 

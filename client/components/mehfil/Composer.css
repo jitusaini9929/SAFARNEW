@@ -1,0 +1,413 @@
+/* ============================================================
+   COMPOSER COMPONENT — Glow Card Design System
+   ============================================================ */
+
+/* ── Scrollbar ── */
+.composer-card textarea::-webkit-scrollbar {
+    width: 4px;
+}
+
+.composer-card textarea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.composer-card textarea::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 2px;
+}
+
+.composer-card textarea::placeholder {
+    color: #475569;
+}
+
+
+/* ============================================================
+   GLOW CARD — Glass panel with lit gradient border
+   ============================================================ */
+.composer-glow-card {
+    position: relative;
+    border-radius: 1rem;
+    background: linear-gradient(145deg,
+            rgba(255, 255, 255, 0.055),
+            rgba(255, 255, 255, 0.018));
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    padding: 20px;
+    box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(24px);
+}
+
+/* Gradient border — brighter top-left, fades bottom-right */
+.composer-glow-card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.22) 0%,
+            rgba(255, 255, 255, 0.07) 30%,
+            rgba(255, 255, 255, 0.02) 60%,
+            rgba(255, 255, 255, 0.08) 100%);
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+/* Top shimmer streak */
+.composer-glow-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: linear-gradient(to right,
+            transparent,
+            rgba(255, 255, 255, 0.35),
+            transparent);
+    border-radius: 9999px;
+    pointer-events: none;
+}
+
+
+/* ============================================================
+   INNER CARD — Textarea container (nested glass)
+   ============================================================ */
+.composer-inner-card {
+    position: relative;
+    border-radius: 0.75rem;
+    background: rgba(0, 0, 0, 0.30);
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    margin-bottom: 16px;
+}
+
+/* Default softer border */
+.composer-inner-card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.15) 0%,
+            rgba(255, 255, 255, 0.04) 40%,
+            rgba(255, 255, 255, 0.01) 70%,
+            rgba(255, 255, 255, 0.06) 100%);
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+/* Teal border glow on focus */
+.composer-inner-card:focus-within::before {
+    background: linear-gradient(135deg,
+            rgba(45, 212, 191, 0.30) 0%,
+            rgba(45, 212, 191, 0.08) 40%,
+            rgba(255, 255, 255, 0.02) 70%,
+            rgba(45, 212, 191, 0.10) 100%);
+}
+
+/* Textarea itself */
+.composer-textarea {
+    width: 100%;
+    height: 145px;
+    background: transparent;
+    color: #CBD5E1;
+    font-size: 14px;
+    padding: 16px 16px 48px 16px;
+    resize: none;
+    outline: none;
+    line-height: 1.65;
+    font-family: inherit;
+    border: none;
+    display: block;
+    border-radius: 0.75rem;
+}
+
+/* Emoji button inside textarea */
+.composer-emoji-btn {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    color: #475569;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.composer-emoji-btn:hover {
+    color: #94A3B8;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+
+/* ============================================================
+   FOOTER ROW
+   ============================================================ */
+.composer-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+
+/* ── Anonymous Toggle Group ── */
+.composer-anon-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.composer-anon-checkbox {
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid #475569;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s, background 0.2s;
+    flex-shrink: 0;
+}
+
+.composer-anon-checkbox.active {
+    border-color: #2DD4BF;
+    background: rgba(45, 212, 191, 0.08);
+}
+
+.composer-anon-checkbox-dot {
+    width: 8px;
+    height: 8px;
+    background: #2DD4BF;
+    border-radius: 1px;
+}
+
+.composer-anon-label {
+    font-size: 13.5px;
+    color: #94A3B8;
+}
+
+
+/* ── Right side: count + submit ── */
+.composer-footer-right {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.composer-char-count {
+    font-size: 12px;
+    color: #475569;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+
+.composer-char-count.over-limit {
+    color: #f43f5e;
+}
+
+.composer-char-count.under-min {
+    color: #f43f5e;
+}
+
+
+/* ============================================================
+   SHARE BUTTON — Teal gradient with inner shimmer
+   ============================================================ */
+.composer-btn-share {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #2DD4BF 0%, #0fb8a5 100%);
+    color: #022C22;
+    font-weight: 700;
+    font-size: 13.5px;
+    padding: 10px 22px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    box-shadow:
+        0 0 20px rgba(45, 212, 191, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.20);
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+/* Inner top highlight shimmer */
+.composer-btn-share::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.18), transparent);
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.composer-btn-share:hover {
+    transform: scale(1.02);
+    box-shadow:
+        0 0 28px rgba(45, 212, 191, 0.40),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.composer-btn-share:active {
+    transform: scale(0.96);
+}
+
+.composer-btn-share:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow:
+        0 0 10px rgba(45, 212, 191, 0.10),
+        inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+.composer-btn-share:disabled:hover {
+    transform: none;
+}
+
+
+/* ============================================================
+   REFLECTIVE MODE OVERRIDES
+   ============================================================ */
+.composer-glow-card.reflective .composer-inner-card:focus-within::before {
+    background: linear-gradient(135deg,
+            rgba(129, 140, 248, 0.30) 0%,
+            rgba(129, 140, 248, 0.08) 40%,
+            rgba(255, 255, 255, 0.02) 70%,
+            rgba(129, 140, 248, 0.10) 100%);
+}
+
+.composer-glow-card.reflective .composer-anon-checkbox.active {
+    border-color: #818CF8;
+    background: rgba(129, 140, 248, 0.08);
+}
+
+.composer-glow-card.reflective .composer-anon-checkbox-dot {
+    background: #818CF8;
+}
+
+.composer-glow-card.reflective .composer-btn-share {
+    background: linear-gradient(135deg, #818CF8 0%, #6366F1 100%);
+    color: #1e1b4b;
+    box-shadow:
+        0 0 20px rgba(129, 140, 248, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+
+.composer-glow-card.reflective .composer-btn-share:hover {
+    box-shadow:
+        0 0 28px rgba(129, 140, 248, 0.40),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+
+/* ============================================================
+   LIGHT MODE OVERRIDES
+   ============================================================ */
+
+:root:not(.dark) .composer-glow-card {
+    background: linear-gradient(145deg,
+            rgba(255, 255, 255, 0.90),
+            rgba(248, 250, 252, 0.85));
+    box-shadow:
+        0 4px 24px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+}
+
+:root:not(.dark) .composer-glow-card::before {
+    background: linear-gradient(135deg,
+            rgba(148, 163, 184, 0.35) 0%,
+            rgba(148, 163, 184, 0.10) 40%,
+            rgba(148, 163, 184, 0.05) 70%,
+            rgba(148, 163, 184, 0.20) 100%);
+}
+
+:root:not(.dark) .composer-glow-card::after {
+    background: linear-gradient(to right,
+            transparent,
+            rgba(255, 255, 255, 0.80),
+            transparent);
+}
+
+:root:not(.dark) .composer-inner-card {
+    background: rgba(241, 245, 249, 0.80);
+}
+
+:root:not(.dark) .composer-inner-card::before {
+    background: linear-gradient(135deg,
+            rgba(100, 116, 139, 0.20) 0%,
+            rgba(100, 116, 139, 0.06) 40%,
+            rgba(100, 116, 139, 0.02) 70%,
+            rgba(100, 116, 139, 0.10) 100%);
+}
+
+:root:not(.dark) .composer-inner-card:focus-within::before {
+    background: linear-gradient(135deg,
+            rgba(13, 148, 136, 0.35) 0%,
+            rgba(13, 148, 136, 0.10) 40%,
+            rgba(13, 148, 136, 0.02) 70%,
+            rgba(13, 148, 136, 0.15) 100%);
+}
+
+:root:not(.dark) .composer-textarea {
+    color: #1e293b;
+}
+
+:root:not(.dark) .composer-textarea::placeholder {
+    color: #94a3b8;
+}
+
+:root:not(.dark) .composer-emoji-btn {
+    color: #94a3b8;
+}
+
+:root:not(.dark) .composer-emoji-btn:hover {
+    color: #475569;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+:root:not(.dark) .composer-anon-label {
+    color: #475569;
+}
+
+:root:not(.dark) .composer-anon-checkbox {
+    border-color: #94a3b8;
+}
+
+:root:not(.dark) .composer-char-count {
+    color: #94a3b8;
+}
+
+:root:not(.dark) .pill-toggle {
+    background: #cbd5e1;
+    border-color: rgba(0, 0, 0, 0.06);
+}

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Send, Loader2, Smile } from 'lucide-react';
 import { MehfilRoom } from '@/store/mehfilStore';
+import { EmojiPicker } from '@/components/ui/EmojiPicker';
+import './Composer.css';
 
 type MehfilFeedRoom = MehfilRoom | 'ALL';
 
@@ -14,10 +16,12 @@ interface ComposerProps {
 const MAX_CHARS = 5000;
 const MIN_CHARS = 15;
 
-const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRoom, placeholder }) => {
+const Composer: React.FC<ComposerProps> = ({ onSendThought, activeRoom, placeholder }) => {
   const [content, setContent] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const charCount = content.length;
   const isOverLimit = charCount > MAX_CHARS;
@@ -25,12 +29,6 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRo
   const canSubmit = charCount >= MIN_CHARS && !isOverLimit && !isSubmitting;
 
   const isReflective = activeRoom === 'REFLECTIVE';
-  const ringClass = isReflective ? 'focus:ring-indigo-500/20 focus:border-indigo-500/50' : 'focus:ring-teal-500/20 focus:border-teal-500/50';
-  const checkboxClass = isReflective ? 'text-indigo-600 focus:ring-indigo-500' : 'text-teal-600 focus:ring-teal-500';
-  const buttonClass = isReflective
-    ? 'bg-gradient-to-tr from-indigo-600 to-violet-500 hover:from-indigo-500 hover:to-violet-400 shadow-indigo-500/30'
-    : 'bg-gradient-to-tr from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 shadow-teal-500/30';
-  const counterClass = isOverLimit || isUnderMin ? 'text-rose-500' : 'text-slate-400';
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,84 +46,119 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, userAvatar, activeRo
     }
   };
 
+  const handleEmojiSelect = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newContent = content.slice(0, start) + emoji + content.slice(end);
+      setContent(newContent.slice(0, MAX_CHARS));
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const newPos = start + emoji.length;
+        textarea.setSelectionRange(newPos, newPos);
+      });
+    } else {
+      setContent((prev) => (prev + emoji).slice(0, MAX_CHARS));
+    }
+    setShowEmojiPicker(false);
+  };
+
+  const shareLabel = activeRoom === 'REFLECTIVE'
+    ? 'Share to Thoughts'
+    : activeRoom === 'ALL'
+      ? 'Share to Mehfil'
+      : 'Share to Academic Hall';
+
+  const charCountClass = `composer-char-count${isOverLimit ? ' over-limit' : isUnderMin ? ' under-min' : ''}`;
+
   return (
-    <div className="glass-card rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-6 mb-4 sm:mb-6 md:mb-8 border border-white/50 dark:border-white/5 shadow-xl shadow-teal-900/5 dark:shadow-black/20">
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-        <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 shrink-0 overflow-hidden shadow-inner hidden sm:block">
-          {userAvatar ? (
-            <img
-              src={userAvatar}
-              alt="Your avatar"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400 text-xl font-bold">
-              ?
-            </div>
-          )}
-        </div>
-        <div className="flex-grow">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value.slice(0, MAX_CHARS))}
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSubmit) {
-                e.preventDefault();
-                handleSend(e as any);
-              }
-            }}
-            placeholder={placeholder}
-            className={`w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 text-sm sm:text-base focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-800 dark:text-slate-200 min-h-[100px] sm:min-h-[120px] md:min-h-[140px] resize-none ${ringClass}`}
+    <div className={`composer-glow-card composer-card${isReflective ? ' reflective' : ''}`}>
+      {/* Inner card with textarea — full width, no avatar */}
+      <div className="composer-inner-card">
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => setContent(e.target.value.slice(0, MAX_CHARS))}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSubmit) {
+              e.preventDefault();
+              handleSend(e as any);
+            }
+          }}
+          placeholder={placeholder}
+          className="composer-textarea"
+        />
+
+        {/* Emoji button — absolute bottom-left inside inner card */}
+        <button
+          type="button"
+          onClick={() => setShowEmojiPicker((prev) => !prev)}
+          className="composer-emoji-btn"
+          aria-label="Insert emoji"
+        >
+          <Smile className="h-[18px] w-[18px]" />
+        </button>
+
+        {/* Emoji picker — floats above the emoji button */}
+        <div style={{ position: 'absolute', bottom: 44, left: 14, zIndex: 50 }}>
+          <EmojiPicker
+            open={showEmojiPicker}
+            onClose={() => setShowEmojiPicker(false)}
+            onSelect={handleEmojiSelect}
+            position="top"
+            align="left"
           />
+        </div>
+      </div>
 
-          <div className="mt-3 sm:mt-4 flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer break-normal">
-                <input
-                  type="checkbox"
-                  checked={isAnonymous}
-                  onChange={(e) => setIsAnonymous(e.target.checked)}
-                  className={`h-4 w-4 rounded border-slate-300 ${checkboxClass}`}
-                />
-                Post anonymously
-              </label>
-              {isUnderMin && (
-                <span className="text-[10px] font-semibold text-rose-500 break-normal">
-                  Minimum {MIN_CHARS} characters
-                </span>
-              )}
+      {/* Footer row */}
+      <div className="composer-footer">
+        {/* Left — anonymous checkbox + pill toggle */}
+        <div className="flex items-center gap-3">
+          <div
+            className="composer-anon-group"
+            onClick={() => setIsAnonymous((prev) => !prev)}
+          >
+            <div className={`composer-anon-checkbox${isAnonymous ? ' active' : ''}`}>
+              {isAnonymous && <div className="composer-anon-checkbox-dot" />}
             </div>
-
-            <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto">
-              <span className={`text-[10px] font-bold ${counterClass} shrink-0`}>
-                {charCount} /{MAX_CHARS}
-              </span>
-              <button
-                onClick={handleSend as any}
-                disabled={!canSubmit}
-                aria-label={isSubmitting ? "Posting" : "Publish"}
-                className={`text-white px-3 sm:px-8 py-3 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0 whitespace-nowrap break-normal shrink-0 min-w-[44px] sm:min-w-0 ${buttonClass}`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                    <span className="hidden sm:inline">Posting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline">
-                      {activeRoom === 'REFLECTIVE'
-                        ? 'Share to Thoughts'
-                        : activeRoom === 'ALL'
-                          ? 'Share to Mehfil'
-                          : 'Share to Academic Hall'}
-                    </span>
-                  </>
-                )}
-              </button>
+            <span className="composer-anon-label">Post anonymously</span>
+            <div className={`pill-toggle${isAnonymous ? ' active' : ''}`}>
+              <div className="pill-toggle-thumb" />
             </div>
           </div>
+          {isUnderMin && (
+            <span className="composer-min-hint">
+              Min {MIN_CHARS} chars
+            </span>
+          )}
+        </div>
+
+        {/* Right — char count + submit */}
+        <div className="composer-footer-right">
+          <span className={charCountClass}>
+            {charCount} / {MAX_CHARS}
+          </span>
+          <button
+            type="button"
+            onClick={handleSend as any}
+            disabled={!canSubmit}
+            className="composer-btn-share"
+            aria-label={isSubmitting ? 'Posting' : 'Publish'}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                <span className="hidden sm:inline">Posting...</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4 shrink-0" />
+                <span className="hidden sm:inline">{shareLabel}</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

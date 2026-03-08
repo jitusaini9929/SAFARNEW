@@ -6,7 +6,7 @@ interface GlobalSidebarProps {
     isOpen: boolean;
     onClose: () => void;
     homeRoute?: string;
-    onOpenMehfilSidebar?: () => void;
+    onOpenMehfilSidebar?: (view?: 'connections' | 'saved' | 'activity' | 'analytics' | 'privacy') => void;
 }
 
 export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", onOpenMehfilSidebar }: GlobalSidebarProps) {
@@ -94,12 +94,22 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
                             <button
                                 onClick={() => {
                                     onClose();
-                                    onOpenMehfilSidebar();
+                                    onOpenMehfilSidebar('saved');
                                 }}
                                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-100 dark:hover:bg-indigo-900/40 transition-colors text-left text-indigo-700 dark:text-indigo-300"
                             >
                                 <MessageSquare className="w-5 h-5 text-indigo-500" />
-                                <span className="font-medium">{t('nav.open_mehfil_sidebar')}</span>
+                                <span className="font-medium">Saved Posts</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onClose();
+                                    onOpenMehfilSidebar('activity');
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-left text-slate-700 dark:text-slate-300"
+                            >
+                                <BarChart3 className="w-5 h-5 text-cyan-500" />
+                                <span className="font-medium">Activity</span>
                             </button>
                         </div>
                     )}

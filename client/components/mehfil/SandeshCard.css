@@ -1,0 +1,484 @@
+/* ============================================================
+   SANDESH CARD — Glow Design System
+   ============================================================ */
+
+/* ── Scrollbar ── */
+.sandesh-feed::-webkit-scrollbar {
+    width: 3px;
+}
+
+.sandesh-feed::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sandesh-feed::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+}
+
+/* ── GLOW CARD — outer wrapper ── */
+.sandesh-glow-card {
+    position: relative;
+    border-radius: 1.25rem;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    padding: 20px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(24px);
+}
+
+.sandesh-glow-card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.22) 0%,
+            rgba(255, 255, 255, 0.07) 30%,
+            rgba(255, 255, 255, 0.02) 60%,
+            rgba(255, 255, 255, 0.08) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+.sandesh-glow-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.30), transparent);
+    border-radius: 9999px;
+    pointer-events: none;
+}
+
+/* ── ANNOUNCEMENT CARD — each item ── */
+.sandesh-announcement-card {
+    position: relative;
+    border-radius: 0.875rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    padding: 14px 16px;
+    transition: background 0.2s;
+}
+
+.sandesh-announcement-card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.12) 0%,
+            rgba(255, 255, 255, 0.03) 40%,
+            rgba(255, 255, 255, 0.01) 70%,
+            rgba(255, 255, 255, 0.05) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: background 0.2s;
+}
+
+.sandesh-announcement-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 8%;
+    right: 8%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.15), transparent);
+    border-radius: 9999px;
+    pointer-events: none;
+}
+
+.sandesh-announcement-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sandesh-announcement-card:hover::before {
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.18) 0%,
+            rgba(255, 255, 255, 0.05) 40%,
+            rgba(255, 255, 255, 0.01) 70%,
+            rgba(255, 255, 255, 0.07) 100%);
+}
+
+/* ── INPUT CARD — compose / comment input ── */
+.sandesh-input-card {
+    position: relative;
+    border-radius: 0.875rem;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+.sandesh-input-card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.14) 0%,
+            rgba(255, 255, 255, 0.04) 40%,
+            rgba(255, 255, 255, 0.01) 70%,
+            rgba(255, 255, 255, 0.06) 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+.sandesh-input-card:focus-within::before {
+    background: linear-gradient(135deg,
+            rgba(99, 102, 241, 0.35) 0%,
+            rgba(99, 102, 241, 0.08) 40%,
+            rgba(255, 255, 255, 0.02) 70%,
+            rgba(99, 102, 241, 0.12) 100%);
+}
+
+/* Shared input / textarea style inside input-card */
+.sandesh-input-card input,
+.sandesh-input-card textarea {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #cbd5e1;
+    font-family: inherit;
+    font-size: 13.5px;
+    line-height: 1.6;
+    resize: none;
+    width: 100%;
+}
+
+.sandesh-input-card input::placeholder,
+.sandesh-input-card textarea::placeholder {
+    color: #334155;
+}
+
+/* ── AVATAR GRADIENTS ── */
+.sandesh-avatar-indigo {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.35);
+}
+
+.sandesh-avatar-teal {
+    background: linear-gradient(135deg, #2DD4BF, #0d9488);
+    box-shadow: 0 0 12px rgba(45, 212, 191, 0.35);
+}
+
+/* ── BELL ICON BOX ── */
+.sandesh-bell-box {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.sandesh-bell-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent);
+    pointer-events: none;
+}
+
+/* ── BADGE ── */
+.sandesh-badge {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: 9999px;
+}
+
+.sandesh-badge-indigo {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.sandesh-badge-teal {
+    background: rgba(45, 212, 191, 0.12);
+    color: #5eead4;
+    border: 1px solid rgba(45, 212, 191, 0.22);
+}
+
+/* ── PIN DOT ── */
+.sandesh-pin-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: #f59e0b;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+    flex-shrink: 0;
+}
+
+/* ── ACTION BUTTONS (like, comment) ── */
+.sandesh-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sandesh-action-btn:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #94a3b8;
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.sandesh-action-btn.liked {
+    background: rgba(244, 63, 94, 0.1);
+    color: #fb7185;
+    border-color: rgba(244, 63, 94, 0.25);
+}
+
+.sandesh-action-btn.commented {
+    background: rgba(99, 102, 241, 0.12);
+    color: #a5b4fc;
+    border-color: rgba(99, 102, 241, 0.25);
+}
+
+/* ── ADD BUTTON (+ new announcement) ── */
+.sandesh-add-btn {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.2));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.15);
+}
+
+.sandesh-add-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.12), transparent);
+    pointer-events: none;
+}
+
+.sandesh-add-btn:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(139, 92, 246, 0.3));
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.3);
+}
+
+/* ── POST BUTTON ── */
+.sandesh-post-btn {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+    border: none;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 0 18px rgba(99, 102, 241, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.sandesh-post-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), transparent);
+    pointer-events: none;
+}
+
+.sandesh-post-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 26px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.sandesh-post-btn:active {
+    transform: scale(0.97);
+}
+
+.sandesh-post-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ── CANCEL BUTTON ── */
+.sandesh-cancel-btn {
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #64748b;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.sandesh-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+}
+
+/* ── LINK PREVIEW ── */
+.sandesh-link-preview {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    text-decoration: none;
+    transition: background 0.2s;
+    margin-bottom: 10px;
+}
+
+.sandesh-link-preview:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── COMMENT AREA ── */
+.sandesh-comment-area {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    animation: sandeshSlideDown 0.2s ease;
+}
+
+@keyframes sandeshSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── DIVIDER ── */
+.sandesh-divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.07), transparent);
+    margin-bottom: 14px;
+}
+
+/* ── IMPORTANT BADGE ── */
+.sandesh-important-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fca5a5;
+    background: rgba(244, 63, 94, 0.12);
+    border: 1px solid rgba(244, 63, 94, 0.25);
+    border-radius: 9999px;
+    padding: 2px 8px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* ── Show admin controls on card hover ── */
+.sandesh-announcement-card:hover .admin-controls {
+    opacity: 1 !important;
+}
+
+/* ============================================================
+   LIGHT MODE OVERRIDES
+   ============================================================ */
+:root:not(.dark) .sandesh-glow-card {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.4));
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+:root:not(.dark) .sandesh-glow-card::before {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.2) 100%);
+}
+
+:root:not(.dark) .sandesh-announcement-card {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+:root:not(.dark) .sandesh-announcement-card:hover {
+    background: rgba(255, 255, 255, 0.7);
+}
+
+:root:not(.dark) .sandesh-input-card {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:root:not(.dark) .sandesh-action-btn {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+:root:not(.dark) .sandesh-action-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+:root:not(.dark) .sandesh-link-preview {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+:root:not(.dark) .sandesh-link-preview:hover {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+:root:not(.dark) .sandesh-cancel-btn {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+:root:not(.dark) .sandesh-cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+:root:not(.dark) .sandesh-divider {
+    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.08), transparent);
+}
