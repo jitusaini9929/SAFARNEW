@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { collections } from "../db";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middleware/auth";
+import { getMehfilNamespace } from "./mehfil-socket";
 
 export const mehfilSocialRouter = Router();
 
@@ -192,6 +193,7 @@ mehfilSocialRouter.get("/friends", async (req: any, res: Response) => {
 
       return {
         id: f.id,
+        friendUserId: friendId,
         name: friendUser?.name || 'Unknown',
         avatar: friendUser?.avatar || null,
         status: f.status === 'accepted' ? 'accepted' : requestType,
@@ -242,6 +244,21 @@ mehfilSocialRouter.post("/friends/request", async (req: any, res: Response) => {
       created_at: new Date(),
       accepted_at: null,
     });
+
+    const mehfil = getMehfilNamespace();
+    if (mehfil) {
+      const senderInfo = await collections.users().findOne(
+        { id: userId },
+        { projection: { name: 1, avatar: 1 } }
+      );
+      mehfil.to(`user:${friendId}`).emit('friend_request_received', {
+        friendshipId,
+        fromUserId: userId,
+        fromUserName: senderInfo?.name || 'Someone',
+        fromUserAvatar: senderInfo?.avatar || null,
+        status: 'pending'
+      });
+    }
 
     res.status(201).json({ message: "Friend request sent", friendshipId });
   } catch (error) {
@@ -315,6 +332,7 @@ mehfilSocialRouter.get("/friends/status/:targetUserId", async (req: any, res: Re
       status: friendship.status,
       direction: friendship.user_id === userId ? 'sent' : 'received',
       friendshipId: friendship.id,
+      friendUserId: targetUserId,
     });
   } catch (error) {
     console.error("Error checking friendship status:", error);

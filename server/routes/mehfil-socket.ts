@@ -65,7 +65,8 @@ const MAX_THOUGHTS_PAGE_SIZE = 100;
 const MIN_THOUGHT_LENGTH = 1;
 const MAX_THOUGHT_LENGTH = 5000;
 const BULLSHIT_TTL_HOURS = Number(process.env.MEHFIL_BULLSHIT_TTL_HOURS || 24);
-const MAX_SPAM_STRIKES = Math.max(1, Number(process.env.MEHFIL_SPAM_STRIKE_LIMIT || 2));
+const MAX_SPAM_STRIKES = Math.max(1, Number(process.env.MEHFIL_SPAM_STRIKE_LIMIT || 5));
+const STRIKE_DECAY_DAYS = Math.max(1, Number(process.env.MEHFIL_STRIKE_DECAY_DAYS || 30));
 const DEFAULT_USER_POST_TTL_MINUTES = Math.max(0, Number(process.env.MEHFIL_DEFAULT_POST_TTL_MINUTES || 0));
 const POSTING_BAN_MESSAGE = 'you have been banned from posting messages';
 const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '').trim();
@@ -307,7 +308,29 @@ function buildThoughtQuery(room: MehfilFeedRoom) {
 }
 
 async function applySpamStrike(userId: string): Promise<{ strikeCount: number; isShadowBanned: boolean }> {
-  await collections.users().updateOne({ id: userId }, { $inc: { spam_strike_count: 1 } });
+  // Strike decay: if last strike was older than STRIKE_DECAY_DAYS, reset count before incrementing
+  const decayCutoff = new Date(Date.now() - STRIKE_DECAY_DAYS * 24 * 60 * 60 * 1000);
+  const existing = await collections.users().findOne(
+    { id: userId },
+    { projection: { spam_strike_count: 1, is_shadow_banned: 1, last_spam_strike_at: 1 } },
+  );
+
+  const lastStrikeAt = existing?.last_spam_strike_at ? new Date(existing.last_spam_strike_at) : null;
+  const shouldReset = lastStrikeAt && lastStrikeAt.getTime() < decayCutoff.getTime();
+
+  if (shouldReset) {
+    // Strikes have decayed — reset to 1 (this new strike)
+    await collections.users().updateOne(
+      { id: userId },
+      { $set: { spam_strike_count: 1, last_spam_strike_at: new Date() } },
+    );
+  } else {
+    await collections.users().updateOne(
+      { id: userId },
+      { $inc: { spam_strike_count: 1 }, $set: { last_spam_strike_at: new Date() } },
+    );
+  }
+
   const user = await collections.users().findOne(
     { id: userId },
     { projection: { spam_strike_count: 1, is_shadow_banned: 1 } },
@@ -498,6 +521,12 @@ async function redisDelKey(redisClient: RedisLikeClient | null | undefined, key:
   await redisClient.del(key);
 }
 
+let mehfilNamespace: ReturnType<Server['of']> | null = null;
+
+export function getMehfilNamespace() {
+  return mehfilNamespace;
+}
+
 export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocketOptions) {
   const mehfilPaused = Boolean(options?.paused);
   const mehfilPausedMessage =
@@ -514,6 +543,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
   });
 
   const mehfil = io.of('/mehfil');
+  mehfilNamespace = mehfil;
   const redisClient = options?.redisClient ?? null;
 
   if (options?.sessionMiddleware) {
@@ -995,7 +1025,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           return;
         }
 
-        const userProfile = await collections.users().findOne(
+        let userProfile = await collections.users().findOne(
           { id: userId },
           {
             projection: {
@@ -1028,8 +1058,20 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           await collections.users().updateOne(
             { id: userId },
             {
-              $set: { mehfil_banned_until: null },
-              $unset: { mehfil_banned_reason: "", mehfil_banned_at: "" },
+              $set: { mehfil_banned_until: null, is_shadow_banned: false, spam_strike_count: 0 },
+              $unset: { mehfil_banned_reason: "", mehfil_banned_at: "", last_spam_strike_at: "" },
+            },
+          );
+          // Refresh userProfile after clearing bans so shadow check below uses latest state
+          userProfile = await collections.users().findOne(
+            { id: userId },
+            {
+              projection: {
+                id: 1, email: 1, name: 1, avatar: 1,
+                is_shadow_banned: 1, spam_strike_count: 1,
+                mehfil_moderation_exempt: 1, mehfil_post_ttl_minutes: 1,
+                mehfil_banned_until: 1, mehfil_banned_forever: 1, mehfil_banned_reason: 1,
+              },
             },
           );
         }

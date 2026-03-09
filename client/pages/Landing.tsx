@@ -14,7 +14,7 @@ import Footer from '../components/landing/Footer';
 
 const LANDING_UPDATE_NOTIFICATION = {
   title: 'New Video Is Live.',
-  youtubeUrl: 'https://youtube.com/shorts/QhVgv8jaoBM?si=pREB-9C60gwNY9XA',
+  youtubeUrl: 'https://youtu.be/6NAMLvSDP3A?si=sdMY4PPG9ZJaLakM',
 };
 
 const getYoutubeVideoId = (url: string) => {
@@ -220,4 +220,3 @@ const Landing = () => {
 };
 
 export default Landing;
-

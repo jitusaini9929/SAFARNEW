@@ -2,12 +2,13 @@ import { Router, Request, Response } from "express";
 import { collections } from "../db";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middleware/auth";
+import { getMehfilNamespace } from "./mehfil-socket";
 
 export const mehfilInteractionRoutes = Router();
 
 mehfilInteractionRoutes.use(requireAuth);
 
-const REPORTS_TO_BAN = Math.max(1, Number(process.env.MEHFIL_REPORTS_TO_BAN || 1));
+const REPORTS_TO_BAN = Math.max(1, Number(process.env.MEHFIL_REPORTS_TO_BAN || 3));
 const BAN_MESSAGE = "you have been banned from posting messages";
 const BAN_2_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 const BAN_7_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -94,13 +95,23 @@ async function getOrApplyReportBan(userId: string): Promise<MehfilBanState> {
             },
         );
 
-        return {
+        const banState = {
             isActive: true,
             isPermanent: true,
             banLevel: 3,
             bannedUntil: null,
             message: BAN_MESSAGE,
         };
+
+        const mehfil = getMehfilNamespace();
+        if (mehfil) {
+            mehfil.to(`user:${userId}`).emit('postingBanStatus', {
+                ...banState,
+                bannedUntil: null,
+            });
+        }
+
+        return banState;
     }
 
     const durationMs = nextLevel === 1 ? BAN_2_DAYS_MS : BAN_7_DAYS_MS;
@@ -119,13 +130,23 @@ async function getOrApplyReportBan(userId: string): Promise<MehfilBanState> {
         },
     );
 
-    return {
+    const banState = {
         isActive: true,
         isPermanent: false,
         banLevel: nextLevel,
         bannedUntil: nextBannedUntil,
         message: BAN_MESSAGE,
     };
+
+    const mehfil = getMehfilNamespace();
+    if (mehfil) {
+        mehfil.to(`user:${userId}`).emit('postingBanStatus', {
+            ...banState,
+            bannedUntil: nextBannedUntil.toISOString(),
+        });
+    }
+
+    return banState;
 }
 
 // ═══════════════════════════════════════════════════════════
