@@ -80,7 +80,7 @@
     "welcome": {
         "hello": "Hello",
         "subtitle_1": "Welcome to",
-        "subtitle_2": "— your consistency and emotion tracking space.",
+        "subtitle_2": ", your consistency and emotion tracking space.",
         "body1": "where it's just you and me, and our little battle of staying consistent.",
         "body2": "We'll celebrate small wins,",
         "body3": "and we'll sit through the bad days together.",
@@ -121,7 +121,7 @@
     "landing": {
         "title_part1": "Where preparation meets care.",
         "title_part2": "A kinder way to move Forward",
-        "subtitle": "A thoughtfully designed space to support your studies, consistency, and emotional well-being — all in one place. Safar helps students stay focused, emotionally steady, and connected — especially when preparation feels heavy. Because \"Your marks matter, but so does your mind\"",
+        "subtitle": "A thoughtfully designed space to support your studies, consistency, and emotional well-being, all in one place. Safar helps students stay focused, emotionally steady, and connected, especially when preparation feels heavy. Because \"Your marks matter, but so does your mind\"",
         "start_btn": "Start your Safar"
     },
     "apps": {
@@ -130,7 +130,7 @@
         "ekagra_name": "Ekagra Mode",
         "ekagra_desc": "Your focus timer for productive study",
         "mehfil_name": "Mehfil",
-        "mehfil_desc": "Judgement free and safe emotional space",
+        "mehfil_desc": "Mehfil, Feel free to speak your heart, without any judgment.",
         "dhyan_name": "Dhyan",
         "dhyan_desc": "Meditation sessions with Parmar sir",
         "dashboard_btn": "Go to Dashboard"
@@ -138,12 +138,12 @@
     "community": {
         "heading_join": "Join the",
         "heading_mehfil": "Mehfil",
-        "desc": "A safe space to speak about your silent struggles and quiet wins — because here, you're not alone.",
+        "desc": "A safe space to speak about your silent struggles and quiet wins, because here, you're not alone.",
         "explore_btn": "Explore Mehfil",
         "card1": "Share without judgment",
         "card2": "React with empathy",
         "card3": "Find your tribe",
-        "card4": "Celebrate together"
+        "card4": "Support each other"
     },
     "resources": {
         "label": "Resources",
