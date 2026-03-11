@@ -13,11 +13,12 @@ import { HelpCircle, LogOut, Settings, Sun, Moon, Home, Menu, X } from "lucide-r
 import { useTheme } from "@/contexts/ThemeContext";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import safarLogo from "@/assets/safar-logo.png.jpeg";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ui/theme-toggle";
 import GlobalSidebar from "./GlobalSidebar";
-// import LanguageToggle from "./LanguageToggle"; // Hidden for soft launch
+import LanguageToggle from "./LanguageToggle";
 import { useTranslation } from "react-i18next";
+import { canAccessLanguageToggle } from "@/utils/languageToggleAccess";
 
 interface TopNavbarProps {
   userName?: string;
@@ -33,6 +34,29 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
   const { resetTourHistory } = useGuidedTour();
   const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [canShowLanguageToggle, setCanShowLanguageToggle] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadCurrentUser = async () => {
+      try {
+        const userData = await authService.getCurrentUser();
+        if (!isCancelled) {
+          setCanShowLanguageToggle(canAccessLanguageToggle(userData?.user?.email));
+        }
+      } catch {
+        if (!isCancelled) {
+          setCanShowLanguageToggle(false);
+        }
+      }
+    };
+
+    loadCurrentUser();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -93,7 +117,7 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
           <div className="flex items-center gap-5 pr-6">
             {/* Theme Toggle Button */}
             <ThemeToggle />
-            {/* <LanguageToggle /> */}
+            {canShowLanguageToggle && <LanguageToggle />}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

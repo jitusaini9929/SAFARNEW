@@ -613,12 +613,14 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                     onOpenChange={setGuidelinesOpen}
                   >
                     <CollapsibleTrigger asChild>
-                      <button className="guideline-btn group w-full flex items-center justify-between gap-2.5 px-5 py-3.5 cursor-pointer outline-none rounded-2xl transition-colors">
+                      <button className="guideline-btn group w-full flex items-center justify-between gap-2.5 px-5 py-3.5 cursor-pointer outline-none rounded-2xl transition-colors hover:bg-slate-50 dark:hover:bg-white/5">
                         <div className="flex items-center gap-2.5">
                           <div className="p-1.5 bg-indigo-500/10 rounded-xl">
-                            <ShieldAlert className="w-4 h-4 text-indigo-400" />
+                            <ShieldAlert className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                           </div>
-                          <span className="text-sm font-bold text-white">Community Guidelines</span>
+                          <span className="text-sm font-bold bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-300 dark:to-violet-300 bg-clip-text text-transparent">
+                            Community Guidelines
+                          </span>
                         </div>
                         <ChevronDown className="w-4 h-4 text-slate-400 ml-auto transition-transform duration-200 group-data-[state=open]:rotate-180" />
                       </button>
@@ -631,17 +633,17 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                             <Info className="w-3.5 h-3.5" /> Posting Rules
                           </h4>
                           <ul className="space-y-3">
-                            <li className="flex gap-3 text-sm text-slate-300">
+                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
                               <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
-                              <span><strong>Academic Hall:</strong> Research, study hacks, and career help only. No venting.</span>
+                              <span><strong className="text-slate-900 dark:text-teal-400">Academic Hall:</strong> Research, study hacks, and career help only. No venting.</span>
                             </li>
-                            <li className="flex gap-3 text-sm text-slate-300">
+                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                              <span><strong>Thoughts:</strong> Emotional support and venting. Move here for personal struggles.</span>
+                              <span><strong className="text-slate-900 dark:text-indigo-400">Thoughts:</strong> Emotional support and venting. Move here for personal struggles.</span>
                             </li>
-                            <li className="flex gap-3 text-sm text-slate-300">
+                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
                               <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                              <span><strong>Blocked:</strong> Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.</span>
+                              <span><strong className="text-slate-900 dark:text-rose-400">Blocked:</strong> Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.</span>
                             </li>
                           </ul>
                         </div>
@@ -652,22 +654,22 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                             <AlertCircle className="w-3.5 h-3.5" /> Consequences
                           </h4>
                           <div className="space-y-3">
-                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-black/20 border border-white/5">
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-100/50 dark:bg-black/20 border border-slate-200 dark:border-white/5">
                               <div className="p-1.5 bg-amber-500/10 rounded-lg">
-                                <Ban className="w-4 h-4 text-amber-400" />
+                                <Ban className="w-4 h-4 text-amber-500" />
                               </div>
                               <div className="text-xs leading-tight">
-                                <span className="font-bold block text-white">Report-Based Bans</span>
-                                <span className="text-slate-400">1+ reports trigger automatic bans (2D → 7D → Permanent).</span>
+                                <span className="font-bold block text-slate-900 dark:text-white">Report-Based Bans</span>
+                                <span className="text-slate-600 dark:text-slate-400">1+ reports trigger automatic bans (2D → 7D → Permanent).</span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-black/20 border border-white/5">
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-100/50 dark:bg-black/20 border border-slate-200 dark:border-white/5">
                               <div className="p-1.5 bg-rose-500/10 rounded-lg">
-                                <Ghost className="w-4 h-4 text-rose-400" />
+                                <Ghost className="w-4 h-4 text-rose-500" />
                               </div>
                               <div className="text-xs leading-tight">
-                                <span className="font-bold block text-white">Shadow Banning</span>
-                                <span className="text-slate-400">Repeated spam results in silent silencing—others won't see you.</span>
+                                <span className="font-bold block text-slate-900 dark:text-white">Shadow Banning</span>
+                                <span className="text-slate-600 dark:text-slate-400">Repeated spam results in silent silencing—others won't see you.</span>
                               </div>
                             </div>
                           </div>

@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Sun, Moon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
-// import LanguageToggle from '../LanguageToggle'; // Hidden for soft launch
+import LanguageToggle from '../LanguageToggle';
+import { canAccessLanguageToggle } from '@/utils/languageToggleAccess';
 
 interface HeroSectionProps {
     user: any;
@@ -15,6 +16,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
     const { t } = useTranslation();
     const video1Ref = useRef<HTMLVideoElement>(null);
     const video2Ref = useRef<HTMLVideoElement>(null);
+    const canShowLanguageToggle = canAccessLanguageToggle(user?.email);
 
     useEffect(() => {
         // Smooth Cross-fade Loop Logic
@@ -93,7 +95,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                             {theme === 'dark' ? <Sun className="w-[26px] h-[26px] text-white" /> : <Moon className="w-[26px] h-[26px] text-slate-900" />}
                         </button>
 
-                        {/* <LanguageToggle /> */}
+                        {canShowLanguageToggle && <LanguageToggle />}
 
                         {user ? (
                             /* Profile icon - Hover padding effect */
