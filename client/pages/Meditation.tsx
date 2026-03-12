@@ -9,6 +9,7 @@ import {
     Play,
     Pause,
     RotateCcw,
+    HelpCircle,
     Clock,
     Wind,
     Heart,
@@ -18,7 +19,6 @@ import {
     Volume2,
     VolumeX,
     Home,
-    HelpCircle,
     Music,
     Image,
     List,
@@ -27,9 +27,9 @@ import {
     Menu,
     X,
 } from "lucide-react";
-import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { meditationTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
+import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { Button } from "@/components/ui/button";
 import BottomSheet from '@/components/ui/bottom-sheet';
 import FloatingActionButton from '@/components/ui/floating-action-button';
@@ -163,6 +163,7 @@ export default function Meditation() {
     const [isMuted, setIsMuted] = useState(false);
     const [showInstructions, setShowInstructions] = useState(false);
     const [showSessionList, setShowSessionList] = useState(false);
+    const [showResources, setShowResources] = useState(false);
     const [showExercises, setShowExercises] = useState(false);
     const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
     const [meditationVideoUrl, setMeditationVideoUrl] = useState(DEFAULT_MEDITATION_VIDEO_URL);
@@ -238,7 +239,6 @@ export default function Meditation() {
         setVideoThumbnailSrc(primaryVideoThumbnail);
     }, [primaryVideoThumbnail]);
 
-    // Guided tour integration
     const { startTour } = useGuidedTour();
 
     useEffect(() => {
@@ -350,9 +350,22 @@ export default function Meditation() {
         return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
     };
 
+    const switchToCustomSession = () => {
+        setSelectedSession({
+            id: "dhyan-custom",
+            title: "Dhyan Custom",
+            duration: sliderValue,
+            description: "Custom timer meditation",
+            longDescription: "A custom duration session.",
+            type: "silent",
+            steps: [],
+            cycle: undefined
+        });
+    };
+
     const handleReset = () => {
         setIsActive(false);
-        setTimeLeft(selectedSession.duration * 60);
+        setTimeLeft((selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60);
         setBreathPhase("inhale");
     };
 
@@ -464,17 +477,30 @@ export default function Meditation() {
         </section>
     );
 
+    const renderResourcesButton = () => (
+        <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowResources(true)}
+            className="gap-2"
+        >
+            <ExternalLink className="w-4 h-4" />
+            <span className="hidden sm:inline">Resources</span>
+        </Button>
+    );
+
     const progress = selectedSession.id === "dhyan-custom"
         ? ((sliderValue * 60 - timeLeft) / (sliderValue * 60)) * 100
         : ((selectedSession.duration * 60 - timeLeft) / (selectedSession.duration * 60)) * 100;
 
     // Handle Slider Change
     const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = parseInt(e.target.value);
-        setSliderValue(val);
-        if (selectedSession.id === "dhyan-custom") {
-            setTimeLeft(val * 60);
+        const val = Number(e.target.value);
+        if (selectedSession.id !== "dhyan-custom") {
+            switchToCustomSession();
         }
+        setSliderValue(val);
+        setTimeLeft(val * 60);
     };
 
     // Initialize Dhyan Custom Session
@@ -490,7 +516,7 @@ export default function Meditation() {
     // We will inject the slider into that center piece.
 
     return (
-        <div className="h-[100dvh] flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-[#0a0a0f] dark:to-[#0f0f17] transition-colors duration-500 font-sans overflow-hidden">
+        <div className="min-h-[100dvh] lg:h-[100dvh] flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-[#0a0a0f] dark:to-[#0f0f17] transition-colors duration-500 font-sans overflow-x-hidden lg:overflow-hidden">
             <audio ref={audioRef} src="/Dhyan_processed.mp3" loop />
             {/* Theme Toggle - Fixed Top Right */}
 
@@ -508,11 +534,14 @@ export default function Meditation() {
                 </div>
                 <div className="flex items-center gap-3">
                     <ThemeToggle />
+                    <div className="lg:hidden">
+                        {renderResourcesButton()}
+                    </div>
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => startTour(meditationTour)}
-                        className="gap-2"
+                        className="hidden lg:inline-flex gap-2"
                     >
                         <HelpCircle className="w-4 h-4" />
                     </Button>
@@ -522,7 +551,7 @@ export default function Meditation() {
             {/* ═══════════════════════════════════════════════════════ */}
             {/* 3-COLUMN LAYOUT                                       */}
             {/* ═══════════════════════════════════════════════════════ */}
-            <main className="flex-1 flex overflow-y-auto overflow-x-hidden">
+            <main className="flex-1 flex overflow-x-hidden overflow-y-visible lg:overflow-y-auto">
 
                 {/* Active Session Modal Overlay - Full Screen Adaptive */}
                 {isModalOpen && (
@@ -634,7 +663,7 @@ export default function Meditation() {
                 </div>
 
                 {/* ═══ CENTER CONTENT ═══════ */}
-                <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden px-6">
+                <div className="flex-1 flex flex-col items-center justify-start lg:justify-center relative overflow-visible lg:overflow-hidden px-4 md:px-6 py-4 lg:py-0">
                     {/* Background Image — very subtle */}
                     <div className="absolute inset-0 opacity-[0.06] dark:opacity-[0.03] pointer-events-none select-none">
                         <img loading="lazy" src={meditationBg} alt="" className="w-full h-full object-cover" />
@@ -646,40 +675,40 @@ export default function Meditation() {
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-sky-300/5 dark:bg-sky-500/3 rounded-full blur-3xl pointer-events-none" />
 
                     {/* Center Content */}
-                    <div className="relative z-10 flex flex-col items-center gap-5 max-w-md">
-                        <div className="lg:hidden w-full">
+                    <div className="relative z-10 flex flex-col items-center gap-5 md:gap-7 max-w-md md:max-w-2xl w-full pb-24 lg:pb-0">
+                        <div className="hidden lg:hidden w-full">
                             {renderMeditationVideoCard("meditation-video-url-mobile", "mb-1")}
                         </div>
 
                         {/* Meditation Image */}
-                        <div className="relative">
+                        <div className="relative md:mt-2">
                             <div className="absolute inset-0 bg-gradient-to-b from-sky-300/30 to-transparent rounded-3xl blur-2xl scale-125" />
                             <img loading="lazy"
                                 src={meditationBg}
                                 alt="Meditation"
-                                className="relative w-56 h-32 md:w-72 md:h-40 object-cover object-top rounded-2xl shadow-lg shadow-sky-200/30 dark:shadow-sky-900/20"
+                                className="relative w-56 h-32 md:w-[28rem] md:h-56 object-cover object-top rounded-2xl md:rounded-3xl shadow-lg shadow-sky-200/30 dark:shadow-sky-900/20"
                                 style={{ filter: 'contrast(1.05) brightness(1.02)' }}
                             />
                         </div>
 
                         {/* Session Section Description */}
-                        <div className="text-center mt-2">
-                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white mb-2">Dhyan</h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">A mindful space to breathe, relax, and restore inner calm through guided breathing techniques.</p>
+                        <div className="text-center mt-2 md:mt-3">
+                            <h2 className="text-2xl md:text-4xl font-bold text-slate-800 dark:text-white mb-2">Dhyan</h2>
+                            <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 max-w-sm md:max-w-xl leading-relaxed">A mindful space to breathe, relax, and restore inner calm through guided breathing techniques.</p>
                         </div>
 
                         {/* Timer Display */}
-                        <div data-tour="timer-display" className="text-center">
-                            <div className="text-6xl md:text-7xl font-light text-slate-800 dark:text-white font-mono tracking-wider tabular-nums">
+                        <div data-tour="timer-display" className="text-center w-full">
+                            <div className="text-6xl md:text-8xl font-light text-slate-800 dark:text-white font-mono tracking-wider tabular-nums">
                                 {formatTime(timeLeft)}
                             </div>
-                            <p className="text-slate-400 dark:text-slate-500 text-sm font-medium mt-2 tracking-wide">
+                            <p className="text-slate-400 dark:text-slate-500 text-sm md:text-base font-medium mt-2 tracking-wide">
                                 Select duration & press play
                             </p>
 
                             {/* Slider Section - Only show for Dhyan Custom */}
                             {selectedSession.id === "dhyan-custom" && (
-                                <div className="mt-6 w-full max-w-xs mx-auto">
+                                <div className="mt-6 w-full max-w-xs md:max-w-md mx-auto">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</span>
                                         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100/50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
@@ -693,19 +722,9 @@ export default function Meditation() {
                                         step="1"
                                         value={sliderValue}
                                         onChange={handleSliderChange}
-                                        onMouseDown={() => {
-                                            // Force switch to custom session logic if not already
+                                        onPointerDown={() => {
                                             if (selectedSession.id !== "dhyan-custom") {
-                                                setSelectedSession({
-                                                    id: "dhyan-custom",
-                                                    title: "Dhyan Custom",
-                                                    duration: sliderValue,
-                                                    description: "Custom timer meditation",
-                                                    longDescription: "A custom duration session.",
-                                                    type: "silent",
-                                                    steps: [],
-                                                    cycle: undefined
-                                                });
+                                                switchToCustomSession();
                                             }
                                         }}
                                         className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
@@ -719,7 +738,7 @@ export default function Meditation() {
                         </div>
 
                         {/* Progress Bar */}
-                        <div className="w-64 h-1.5 bg-slate-200/80 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                        <div className="w-64 md:w-96 h-1.5 md:h-2 bg-slate-200/80 dark:bg-slate-700/50 rounded-full overflow-hidden">
                             <div
                                 className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-1000"
                                 style={{ width: `${progress}%` }}
@@ -727,33 +746,33 @@ export default function Meditation() {
                         </div>
 
                         {/* Playback Controls */}
-                        <div className="flex items-center justify-center gap-8 mt-1">
+                        <div className="flex items-center justify-center gap-8 md:gap-12 mt-1 md:mt-3">
                             <button
                                 data-tour="reset-button"
                                 onClick={handleReset}
-                                className="p-4 rounded-full bg-white dark:bg-slate-800 shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-105 ring-1 ring-slate-200/50 dark:ring-white/5"
+                                className="p-4 md:p-5 rounded-full bg-white dark:bg-slate-800 shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-105 ring-1 ring-slate-200/50 dark:ring-white/5"
                             >
-                                <RotateCcw className="w-5 h-5" />
+                                <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                             <button
                                 data-tour="play-button"
                                 onClick={() => setIsActive(!isActive)}
-                                className={`p-7 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 
+                                className={`p-7 md:p-9 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 
                                     ${isActive
                                         ? "bg-amber-500 text-white shadow-amber-500/40 hover:shadow-amber-500/60"
                                         : "bg-emerald-500 text-white shadow-emerald-500/40 hover:shadow-emerald-500/60"
                                     }`}
                             >
                                 {isActive
-                                    ? <Pause className="w-9 h-9 fill-current" />
-                                    : <Play className="w-9 h-9 fill-current ml-0.5" />
+                                    ? <Pause className="w-9 h-9 md:w-11 md:h-11 fill-current" />
+                                    : <Play className="w-9 h-9 md:w-11 md:h-11 fill-current ml-0.5" />
                                 }
                             </button>
                             <button
                                 onClick={() => setIsMuted(!isMuted)}
-                                className="p-4 rounded-full bg-white dark:bg-slate-800 shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-105 ring-1 ring-slate-200/50 dark:ring-white/5"
+                                className="p-4 md:p-5 rounded-full bg-white dark:bg-slate-800 shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-105 ring-1 ring-slate-200/50 dark:ring-white/5"
                             >
-                                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                                {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                             </button>
                         </div>
                     </div>
@@ -847,6 +866,35 @@ export default function Meditation() {
                         >
                             Start Session
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {showResources && (
+                <div className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-2xl md:max-w-3xl rounded-3xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#11131C] p-4 md:p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <button
+                            onClick={() => setShowResources(false)}
+                            className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors"
+                        >
+                            <span className="sr-only">Close</span>
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        <div className="mb-5 pr-10">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dhyan Resources</h2>
+                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                                Access the latest guided video and course details in one place.
+                            </p>
+                        </div>
+
+                        <div className="max-h-[75vh] space-y-4 overflow-y-auto pr-1">
+                            <CourseBanner
+                                user={user ? { name: user.name, email: user.email } : null}
+                                courseId="safar-30"
+                            />
+                            {renderMeditationVideoCard("meditation-video-url-modal")}
+                        </div>
                     </div>
                 </div>
             )}
