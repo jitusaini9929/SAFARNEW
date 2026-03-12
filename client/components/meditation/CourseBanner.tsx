@@ -1,26 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
-  AlertCircle,
-  CheckCircle2,
   CreditCard,
-  Loader2,
   Lock,
-  ShieldCheck,
   Smartphone,
-  Sparkles,
 } from "lucide-react";
 import { DHYAN_COURSES } from "@shared/payments";
-import {
-  checkPurchaseStatus,
-} from "@/utils/paymentService";
 
 interface CourseBannerProps {
   user: { name: string; email: string } | null;
   courseId?: string;
 }
-
-type UnlockState = "checking" | "locked" | "unlocked";
-type CheckoutState = "idle" | "redirecting" | "error";
 
 const MEDITATION_PAYMENT_REDIRECT_URL = "https://www.parmaracademy.in/courses/75-safar-30";
 
@@ -32,41 +21,6 @@ export default function CourseBanner({
     () => DHYAN_COURSES.find((entry) => entry.id === courseId) || DHYAN_COURSES[0],
     [courseId],
   );
-
-  const [unlockState, setUnlockState] = useState<UnlockState>("checking");
-  const [checkoutState, setCheckoutState] = useState<CheckoutState>("idle");
-  const [errorMessage, setErrorMessage] = useState("");
-
-  useEffect(() => {
-    async function loadStatus() {
-      if (!user) {
-        setUnlockState("locked");
-        return;
-      }
-
-      setUnlockState("checking");
-      try {
-        const status = await checkPurchaseStatus(courseId);
-        setUnlockState(status.purchased ? "unlocked" : "locked");
-      } catch {
-        setUnlockState("locked");
-      }
-    }
-
-    loadStatus();
-  }, [courseId, user]);
-
-  const handleUnlock = async () => {
-    setCheckoutState("redirecting");
-    setErrorMessage("");
-
-    try {
-      window.location.href = MEDITATION_PAYMENT_REDIRECT_URL;
-    } catch (error: any) {
-      setCheckoutState("error");
-      setErrorMessage(error?.message || "Unable to redirect to payment.");
-    }
-  };
 
   return (
     <section className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-[#11131C]/80 backdrop-blur-md p-4 shadow-xl shadow-cyan-500/5">
@@ -102,64 +56,27 @@ export default function CourseBanner({
 
       <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-          Secure Razorpay payment
-        </div>
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          Unlock recorded on your account
+          <CreditCard className="w-3.5 h-3.5 text-emerald-500" />
+          Pay on Parmar Academy
         </div>
       </div>
 
       <div className="mt-4">
-        {unlockState === "checking" ? (
-          <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Checking access...
-          </div>
-        ) : unlockState === "unlocked" ? (
-          <div className="rounded-xl border border-emerald-300/60 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-3 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              Access unlocked for this account.
-            </p>
-          </div>
-        ) : (
-          <button
-            onClick={handleUnlock}
-            disabled={checkoutState === "redirecting"}
-            className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold text-sm px-4 py-2.5 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:scale-[1.01] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <span className="inline-flex items-center justify-center gap-2">
-              {checkoutState === "redirecting" ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Redirecting to payment...
-                </>
-              ) : (
-                <>
-                  <CreditCard className="w-4 h-4" />
-                  Continue to payment
-                </>
-              )}
-            </span>
-          </button>
-        )}
+        <a
+          href={MEDITATION_PAYMENT_REDIRECT_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold text-sm px-4 py-2.5 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:scale-[1.01] transition-all inline-flex items-center justify-center gap-2"
+        >
+          <CreditCard className="w-4 h-4" />
+          Continue to payment
+        </a>
       </div>
 
-      {unlockState === "locked" && (
-        <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-          <Lock className="w-3.5 h-3.5" />
-          Access is locked until payment is completed.
-        </div>
-      )}
-
-      {checkoutState === "error" && errorMessage && (
-        <div className="mt-3 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-3 flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-red-500 mt-0.5" />
-          <p className="text-xs text-red-600 dark:text-red-300">{errorMessage}</p>
-        </div>
-      )}
+      <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+        <Lock className="w-3.5 h-3.5" />
+        Click the button to open the payment page.
+      </div>
     </section>
   );
 }
