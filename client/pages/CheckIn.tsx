@@ -44,7 +44,7 @@ const moodOptions: MoodOption[] = [
   { type: "numb", emoji: "😶", label: "Numb", subLabel: "Disconnected", gradient: "from-gray-500/20 to-slate-600/20" },
 ];
 
-const quickTags = ["Work", "Family", "Sleep", "Health", "Relationship", "Finance", "Study"];
+const quickTags = ["work", "family", "sleep", "health", "relationship", "finance", "study"];
 
 export default function CheckIn() {
   const navigate = useNavigate();
@@ -191,7 +191,7 @@ export default function CheckIn() {
                     </div>
                   )}
                   <span className="text-4xl mb-3 filter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] transition-transform group-hover:scale-110 duration-300">{option.emoji}</span>
-                  <span className={`font-semibold text-sm transition-colors ${selectedMood === option.type ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{option.label}</span>
+                  <span className={`font-semibold text-sm transition-colors ${selectedMood === option.type ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{t(`moods.${option.type}`)}</span>
                   <span className={`text-[10px] text-center mt-1 uppercase tracking-wider font-medium transition-colors hidden xl:block ${selectedMood === option.type ? "text-foreground/60" : "text-muted-foreground group-hover:text-muted-foreground/80"}`}>{option.subLabel}</span>
 
                   {/* Glow effect on hover */}
@@ -256,15 +256,15 @@ export default function CheckIn() {
               </h3>
               <p className="text-sm text-muted-foreground mb-6 font-light">
                 {selectedMood
-                  ? `What's making you feel ${selectedMood}? Share your thoughts below.`
-                  : 'Select a mood above, then share what led to this feeling.'}
+                  ? t('checkin.why_feel_selected', { mood: t(`moods.${selectedMood}`).toLowerCase() })
+                  : t('checkin.why_feel_hint')}
               </p>
               <div className="relative">
                 <textarea
                   className="w-full h-40 bg-muted/50 border border-border rounded-2xl p-6 text-foreground placeholder-muted-foreground focus:bg-muted focus:border-primary/30 focus:ring-1 focus:ring-primary/30 resize-none transition-all outline-none leading-relaxed"
                   placeholder={selectedMood
-                    ? `What happened that made you feel ${selectedMood}? What triggered this emotion?`
-                    : "Start by selecting a mood above..."}
+                    ? t('checkin.why_feel_placeholder_selected', { mood: t(`moods.${selectedMood}`).toLowerCase() })
+                    : t('checkin.why_feel_placeholder_hint')}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                 ></textarea>
@@ -290,7 +290,7 @@ export default function CheckIn() {
                         : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground"
                         }`}
                     >
-                      {tag}
+                      {t(`tags.${tag}`)}
                     </span>
                   ))}
                 </div>

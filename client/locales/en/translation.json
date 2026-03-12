@@ -11,7 +11,15 @@
         "open_mehfil_sidebar": "Open Mehfil Sidebar",
         "mehfil_actions": "Mehfil Actions",
         "restart_tours": "Restart Tours",
-        "sign_out": "Sign Out"
+        "sign_out": "Sign Out",
+        "checkin": "Emotional Check-In",
+        "journal": "Journal",
+        "goals": "Goals",
+        "streaks": "Streaks",
+        "analytics": "Analytics",
+        "suggestions": "Suggestions",
+        "saved_posts": "Saved Posts",
+        "activity": "Activity"
     },
     "btn": {
         "login": "Login",
@@ -219,6 +227,10 @@
         "mild": "Mild",
         "extreme": "Extreme",
         "why_feel": "Why do you feel this way?",
+        "why_feel_selected": "What's making you feel {{mood}}? Share your thoughts below.",
+        "why_feel_hint": "Select a mood above, then share what led to this feeling.",
+        "why_feel_selected_placeholder": "What happened that made you feel {{mood}}? What triggered this emotion?",
+        "why_feel_hint_placeholder": "Start by selecting a mood above...",
         "context_tags": "Context Tags",
         "saving": "Saving Entry...",
         "complete": "Complete Check-In",
@@ -229,6 +241,26 @@
         "check_ins_label": "check-ins",
         "no_history": "No mood check-ins yet",
         "history_hint": "Your check-in history will appear here"
+    },
+    "moods": {
+        "peaceful": "Peaceful",
+        "happy": "Happy",
+        "okay": "Okay",
+        "motivated": "Motivated",
+        "anxious": "Anxious",
+        "low": "Low",
+        "frustrated": "Frustrated",
+        "overwhelmed": "Overwhelmed",
+        "numb": "Numb"
+    },
+    "tags": {
+        "work": "Work",
+        "family": "Family",
+        "sleep": "Sleep",
+        "health": "Health",
+        "relationship": "Relationship",
+        "finance": "Finance",
+        "study": "Study"
     },
     "analytics": {
         "title": "Nishtha Scorecard",
@@ -343,5 +375,259 @@
         "no_goals": "No goals yet! Add a goal to get started.",
         "pending_section": "Pending",
         "completed_section": "Completed"
+    },
+    "mehfil": {
+        "title": "Mehfil",
+        "under_construction": "Mehfil under construction",
+        "check_back": "Check back soon",
+        "search_placeholder": "Search...",
+        "profile_settings": "Profile Settings",
+        "logout": "Log out",
+        "community_space": "Community Space",
+        "community_desc": "The student lounge for unfiltered thoughts and academic life-hacks.",
+        "guidelines": "Community Guidelines",
+        "posting_rules": "Posting Rules",
+        "academic_rule": "Academic Hall: Research, study hacks, and career help only. No venting.",
+        "thoughts_rule": "Thoughts: Emotional support and venting. Move here for personal struggles.",
+        "blocked_rule": "Blocked: Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.",
+        "consequences": "Consequences",
+        "report_bans": "Report-Based Bans",
+        "shadow_banning": "Shadow Banning",
+        "report_desc": "1+ reports trigger automatic bans (2D → 7D → Permanent).",
+        "spam_desc": "Repeated spam results in silent silencing—others won't see you.",
+        "no_thoughts": "No thoughts in {{room}} yet. Start the conversation.",
+        "loading_more": "Loading more posts...",
+        "end_of_feed": "You have reached the end of the feed.",
+        "connection_requests": "Connection requests",
+        "menu": "Menu",
+        "rooms": {
+            "all": "All",
+            "academic": "Academic Hall",
+            "reflective": "Thoughts"
+        },
+        "subtitles": {
+            "all": "See all approved posts from both Academic Hall and Thoughts in one feed.",
+            "academic": "Ask questions, share exam strategy, and help each other improve.",
+            "reflective": "Share what you are feeling and support each other with empathy."
+        },
+        "placeholders": {
+            "all": "Share what is on your mind. AI will route it to the right section...",
+            "academic": "Ask a question or share a study insight...",
+            "reflective": "How are you feeling? Share what's on your mind..."
+        },
+        "composer": {
+            "post_anon": "Post anonymously",
+            "min_chars": "Min {{min}} chars",
+            "posting": "Posting...",
+            "post": "Post",
+            "publish": "Publish",
+            "share_to": "Share to {{room}}"
+        },
+        "card": {
+            "you": "You",
+            "just_now": "just now",
+            "mins_ago": "{{count}}m ago",
+            "hours_ago": "{{count}}h ago",
+            "days_ago": "{{count}}d ago",
+            "share_copied": "Link copied to clipboard!",
+            "share_error": "Failed to share",
+            "relatable": "Relatable",
+            "relatable_ask": "Relatable?",
+            "comment": "Comment",
+            "save": "Save Post",
+            "unsave": "Unsave Post",
+            "share": "Share",
+            "edit": "Edit Post",
+            "delete": "Delete Post",
+            "report": "Report",
+            "loading_comments": "Loading comments...",
+            "no_comments": "No comments yet. Be the first!",
+            "me": "Me",
+            "write_comment": "Write a comment...",
+            "report_post": "Report Post",
+            "report_spam": "Spam or misleading",
+            "report_harassment": "Harassment or hate speech",
+            "report_inappropriate": "Inappropriate content",
+            "report_other": "Other",
+            "cancel": "Cancel",
+            "submit_report": "Submit Report",
+            "delete_confirm_title": "Delete Post?",
+            "delete_confirm_desc": "Are you sure you want to delete this post? This action cannot be undone.",
+            "edit_post": "Edit Post",
+            "edit_placeholder": "Update your post...",
+            "save_changes": "Save Changes"
+        },
+        "sidebar": {
+            "hub": "Mehfil Hub",
+            "connections": "Connections",
+            "saved": "Saved",
+            "activity": "Activity",
+            "analytics": "Analytics",
+            "privacy": "Privacy",
+            "active_chat": "Active Chat",
+            "chatting_with": "Chatting with {{name}}.",
+            "chat_hint": "Use the chat window at the bottom-right to continue.",
+            "pending_requests": "Pending Requests ({{count}})",
+            "no_requests": "No pending connection requests right now.",
+            "wants_to_chat": "{{name}} wants to chat",
+            "from_context": "From {{type}}: {{preview}}",
+            "decline": "Decline",
+            "accept": "Accept & Chat",
+            "no_saved": "No saved posts yet. Save posts by clicking the bookmark icon!",
+            "your_activity": "Your Activity",
+            "filter_all": "All",
+            "filter_posts": "Posts",
+            "filter_comments": "Comments",
+            "filter_likes": "Likes",
+            "no_activity": "No activity yet. Your posts, comments, and likes will appear here.",
+            "total_thoughts": "Total Thoughts",
+            "reactions_given": "Reactions Given",
+            "comments_posted": "Comments Posted",
+            "posts_saved": "Posts Saved",
+            "total_shares": "Shares",
+            "member_since": "Member since:",
+            "privacy_policy": "Mehfil Privacy Policy"
+        },
+        "toasts": {
+            "posted": "Thought shared successfully.",
+            "post_error": "Unable to post right now. Please refresh and retry.",
+            "post_min_chars": "Post must be at least {{min}} characters",
+            "post_max_chars": "Post must be under {{max}} characters",
+            "comment_login": "You must be logged in to comment",
+            "comment_success": "Comment posted!",
+            "comment_error": "Failed to post comment",
+            "comment_deleted": "Comment deleted",
+            "save_login": "You must be logged in to save posts",
+            "save_success": "Post saved!",
+            "unsave_success": "Post unsaved",
+            "report_login": "You must be logged in to report",
+            "report_success": "Report submitted. Thank you for keeping the community safe.",
+            "report_error": "Failed to submit report",
+            "share_copied": "Link copied to clipboard!",
+            "share_error": "Failed to share",
+            "pban_title": "Posting Restricted",
+            "pban_desc": "you have been banned from posting messages",
+            "pban_reason": "Reason: {{reason}}",
+            "pban_perm": "Ban duration: Permanent",
+            "pban_time": "Time Remaining",
+            "pban_hint": "You can still read thoughts, but posting is blocked until unban."
+        }
+    },
+    "sandesh": {
+        "title": "Sandesh",
+        "announcements_plural": "{{count}} announcements",
+        "announcements_singular": "1 announcement",
+        "no_announcements": "No active announcements.",
+        "new_announcement": "New announcement",
+        "cancel_edit": "Cancel Edit",
+        "toolbar": {
+            "bold": "Bold",
+            "italic": "Italic",
+            "image": "Image",
+            "audio": "Audio"
+        },
+        "image_placeholder": "Paste image URL or YouTube link...",
+        "content_placeholder": "Write an announcement… (**bold**, *italic* supported)",
+        "loading_preview": "Loading preview...",
+        "uploading_audio": "Uploading audio...",
+        "audio_attached": "Audio attached",
+        "cancel": "Cancel",
+        "update": "Update",
+        "post": "Post",
+        "pinned": "PINNED",
+        "important": "Important",
+        "faculty": "Faculty",
+        "voice_announcement": "Voice Announcement",
+        "broadcasting": "Broadcasting Now",
+        "comment_placeholder": "Add a comment…",
+        "no_comments": "No comments yet. Be the first!",
+        "delete_confirm": "Are you sure you want to delete this update?",
+        "toast": {
+            "update_success": "Update edited successfully",
+            "post_success": "Update posted successfully",
+            "post_error": "Failed to post update",
+            "audio_error": "Please upload an audio file",
+            "audio_success": "Audio uploaded successfully",
+            "playback_error": "Playback failed",
+            "delete_success": "Update deleted successfully",
+            "delete_error": "Failed to delete update",
+            "comment_error": "Failed to post comment"
+        }
+    },
+    "sidebar": {
+        "hub_title": "Mehfil Hub",
+        "tabs": {
+            "connections": "Connections",
+            "saved": "Saved",
+            "activity": "Activity",
+            "analytics": "Analytics",
+            "privacy": "Privacy"
+        },
+        "connections": {
+            "title": "Connections",
+            "active_chat": "Active Chat",
+            "chatting_with": "Chatting with {{name}}",
+            "chat_hint": "Use the chat window at the bottom-right to continue.",
+            "pending_requests": "Pending Requests ({{count}})",
+            "no_requests": "No pending connection requests right now.",
+            "wants_to_chat": "{{name}} wants to chat",
+            "from_context": "From {{type}}: {{preview}}",
+            "decline": "Decline",
+            "accept": "Accept & Chat"
+        },
+        "saved": {
+            "title": "Saved Posts ({{count}})",
+            "empty": "No saved posts yet. Save posts by clicking the bookmark icon!"
+        },
+        "activity": {
+            "title": "Your Activity",
+            "empty": "No activity yet. Your posts, comments, and likes will appear here.",
+            "filter": {
+                "all": "All",
+                "post": "Posts",
+                "comment": "Comments",
+                "like": "Likes"
+            },
+            "labels": {
+                "post": "Post",
+                "comment": "Commented",
+                "like": "Liked"
+            }
+        },
+        "analytics": {
+            "title": "Your Activity",
+            "total_thoughts": "Total Thoughts",
+            "reactions_given": "Reactions Given",
+            "comments_posted": "Comments Posted",
+            "posts_saved": "Posts Saved",
+            "shares": "Shares",
+            "member_since": "Member since:"
+        },
+        "privacy": {
+            "title": "Mehfil Privacy Policy",
+            "sections": [
+                {
+                    "title": "1. Community Guidelines",
+                    "content": "Mehfil is a judgment-free space for sharing thoughts and experiences. We encourage authentic expression while maintaining respect for all community members."
+                },
+                {
+                    "title": "2. Content Privacy",
+                    "content": "• All posts are visible to other Mehfil users\n• You can delete your posts at any time\n• Saved posts are private to you\n• We never sell or share your data with third parties"
+                },
+                {
+                    "title": "3. Data Collection",
+                    "content": "We collect only essential data: your posts, comments, and reactions. This data helps improve your experience and is stored securely."
+                },
+                {
+                    "title": "4. Moderation",
+                    "content": "Users can report content that violates guidelines. Our team reviews reports to maintain a safe and supportive community environment."
+                },
+                {
+                    "title": "5. Your Rights",
+                    "content": "• Request data deletion\n• Export your data\n• Report inappropriate content"
+                }
+            ],
+            "footer": "Last updated: February 2026\nFor questions, contact: support@safar-app.com"
+        }
     }
 }

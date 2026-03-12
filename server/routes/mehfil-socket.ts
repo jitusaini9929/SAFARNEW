@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { collections } from '../db';
 import type { RequestHandler } from 'express';
 import { markDmUserOffline, markDmUserOnline } from './dm-presence';
+import { validateBlockedWords } from '../utils/contentFilter';
 
 type MehfilCategory = 'ACADEMIC' | 'REFLECTIVE' | 'BULLSHIT';
 type MehfilRoom = 'ACADEMIC' | 'REFLECTIVE';
@@ -614,30 +615,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
       mehfil.emit('onlineCount', connectedUsers.size);
 
       try {
-        const userProfile = await collections.users().findOne(
-          { id: userId },
-          {
-            projection: {
-              mehfil_banned_until: 1,
-              mehfil_banned_forever: 1,
-              mehfil_banned_reason: 1,
-              is_shadow_banned: 1,
-              spam_strike_count: 1,
-            },
-          },
-        );
-
-        const activeBan = getActivePostingBan(userProfile);
-        if (activeBan.isActive) {
-          socket.emit('postingBanStatus', toBanPayload(activeBan));
-        }
-        if (userProfile?.is_shadow_banned) {
-          socket.emit('shadowBanNotice', {
-            message: 'Your posts are currently hidden from other users.',
-            reason: userProfile?.mehfil_banned_reason || 'Repeated policy violations or spam reports.',
-            strikeCount: Number(userProfile?.spam_strike_count || 0),
-          });
-        }
+        socket.emit('postingBanStatus', toBanPayload(getActivePostingBan(null)));
       } catch (error) {
         console.error('[MEHFIL] Failed to fetch posting ban status on register:', error);
       }
@@ -648,28 +626,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const userId = socketToUser.get(socket.id);
         if (!userId) return;
 
-        const userProfile = await collections.users().findOne(
-          { id: userId },
-          {
-            projection: {
-              mehfil_banned_until: 1,
-              mehfil_banned_forever: 1,
-              mehfil_banned_reason: 1,
-              is_shadow_banned: 1,
-              spam_strike_count: 1,
-            },
-          },
-        );
-
-        const activeBan = getActivePostingBan(userProfile);
-        socket.emit('postingBanStatus', toBanPayload(activeBan));
-        if (userProfile?.is_shadow_banned) {
-          socket.emit('shadowBanNotice', {
-            message: 'Your posts are currently hidden from other users.',
-            reason: userProfile?.mehfil_banned_reason || 'Repeated policy violations or spam reports.',
-            strikeCount: Number(userProfile?.spam_strike_count || 0),
-          });
-        }
+        socket.emit('postingBanStatus', toBanPayload(getActivePostingBan(null)));
       } catch (error) {
         console.error('[MEHFIL] Failed to check posting ban:', error);
       }
@@ -1025,61 +982,18 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           return;
         }
 
-        let userProfile = await collections.users().findOne(
+        const userProfile = await collections.users().findOne(
           { id: userId },
           {
             projection: {
               id: 1,
-              email: 1,
               name: 1,
               avatar: 1,
-              is_shadow_banned: 1,
-              spam_strike_count: 1,
-              mehfil_moderation_exempt: 1,
               mehfil_post_ttl_minutes: 1,
-              mehfil_banned_until: 1,
-              mehfil_banned_forever: 1,
-              mehfil_banned_reason: 1,
             },
           },
         );
 
-        const activeBan = getActivePostingBan(userProfile);
-        if (activeBan.isActive) {
-          socket.emit('postingBanStatus', toBanPayload(activeBan));
-          socket.emit('thoughtRejected', {
-            message: POSTING_BAN_MESSAGE,
-            ban: toBanPayload(activeBan),
-          });
-          return;
-        }
-
-        if (userProfile?.mehfil_banned_until && new Date(userProfile.mehfil_banned_until).getTime() <= Date.now()) {
-          await collections.users().updateOne(
-            { id: userId },
-            {
-              $set: { mehfil_banned_until: null, is_shadow_banned: false, spam_strike_count: 0 },
-              $unset: { mehfil_banned_reason: "", mehfil_banned_at: "", last_spam_strike_at: "" },
-            },
-          );
-          // Refresh userProfile after clearing bans so shadow check below uses latest state
-          userProfile = await collections.users().findOne(
-            { id: userId },
-            {
-              projection: {
-                id: 1, email: 1, name: 1, avatar: 1,
-                is_shadow_banned: 1, spam_strike_count: 1,
-                mehfil_moderation_exempt: 1, mehfil_post_ttl_minutes: 1,
-                mehfil_banned_until: 1, mehfil_banned_forever: 1, mehfil_banned_reason: 1,
-              },
-            },
-          );
-        }
-
-        const userEmail = String(userProfile?.email || '').toLowerCase();
-        const isModerationExempt =
-          Boolean(userProfile?.mehfil_moderation_exempt) ||
-          MODERATION_EXEMPT_EMAILS.has(userEmail);
         const userPostTtlMinutes =
           normalizePostTtlMinutes(userProfile?.mehfil_post_ttl_minutes) || DEFAULT_USER_POST_TTL_MINUTES;
         const customExpiryForUser =
@@ -1091,82 +1005,8 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const authorAvatar = String(userProfile?.avatar || userData.avatar || '');
         const requestedRoom = normalizeRoom(data?.room);
 
-        // Helper to emit a fake thought to the shadow-banned user only
-        const emitShadowThought = () => {
-          const now = new Date();
-          const shadowThought = {
-            isAnonymous,
-            id: uuidv4(),
-            userId: isAnonymous ? '' : userId,
-            authorName: isAnonymous ? 'Anonymous User' : authorName,
-            authorAvatar: isAnonymous ? null : authorAvatar,
-            content,
-            imageUrl: data?.imageUrl || null,
-            relatableCount: 0,
-            commentsCount: 0,
-            createdAt: now,
-            hasReacted: false,
-            category: requestedRoom, // Show it in the room they asked for
-            aiTags: [],
-            aiScore: 0.5,
-          };
-
-          socket.emit('thoughtAccepted', {
-            message: 'Thought shared successfully.',
-            category: requestedRoom,
-          });
-          socket.emit('thoughtCreated', shadowThought);
-        };
-
-        if (userProfile?.is_shadow_banned && !isModerationExempt) {
-          socket.emit('shadowBanNotice', {
-            message: 'Your posts are currently hidden from other users.',
-            reason: userProfile?.mehfil_banned_reason || 'Repeated policy violations or spam reports.',
-            strikeCount: Number(userProfile?.spam_strike_count || 0),
-          });
-          emitShadowThought();
-          return;
-        }
-
         if (content.length < MIN_THOUGHT_LENGTH) {
-          const moderation = heuristicModeration(
-            content,
-            `Thought must be at least ${MIN_THOUGHT_LENGTH} characters to maintain quality.`,
-          );
-
-          await storeFlaggedThought({
-            userId,
-            authorName,
-            authorAvatar,
-            content,
-            imageUrl: data?.imageUrl || null,
-            isAnonymous,
-            moderation,
-            customExpiresAt: customExpiryForUser,
-          });
-
-          if (isModerationExempt) {
-            socket.emit('thoughtRejected', {
-              message: "Thought doesn't meet community guidelines.",
-              strikesRemaining: null,
-              moderationExempt: true,
-            });
-          } else {
-            const strike = await applySpamStrike(userId);
-            if (strike.isShadowBanned) {
-              socket.emit('shadowBanNotice', {
-                message: 'Your posts are currently hidden from other users.',
-                reason: 'Repeated policy violations or spam reports.',
-                strikeCount: strike.strikeCount,
-              });
-              emitShadowThought();
-            } else {
-              socket.emit('thoughtRejected', {
-                message: "Thought doesn't meet community guidelines.",
-                strikesRemaining: Math.max(0, MAX_SPAM_STRIKES - strike.strikeCount),
-              });
-            }
-          }
+          socket.emit('error', { message: `Thought must be at least ${MIN_THOUGHT_LENGTH} characters.` });
           return;
         }
 
@@ -1175,58 +1015,23 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           return;
         }
 
+        const blockedWordCheck = validateBlockedWords(content);
+        if (blockedWordCheck.isBlocked) {
+          socket.emit('thoughtRejected', {
+            message: 'Thought contains blocked language. Please remove abusive words and try again.',
+          });
+          return;
+        }
+
         const moderation = await classifyThought(content);
-        const isBullshit = moderation.isToxic;
-        const shouldRerouteNonToxicBullshit = moderation.category === 'BULLSHIT' && !moderation.isToxic;
-        const effectiveModeration = shouldRerouteNonToxicBullshit
+        const effectiveModeration = moderation.category === 'BULLSHIT'
           ? {
             ...moderation,
             category: 'REFLECTIVE',
-            reasoning: moderation.reasoning || 'Allowed as non-toxic; routed to reflective.',
+            reasoning: moderation.reasoning || 'Routed to reflective.',
             aiScore: clampScore(moderation.aiScore),
           }
           : moderation;
-
-        if (isBullshit) {
-          await storeFlaggedThought({
-            userId,
-            authorName,
-            authorAvatar,
-            content,
-            imageUrl: data?.imageUrl || null,
-            isAnonymous,
-            moderation: {
-              ...moderation,
-              category: 'BULLSHIT',
-              aiScore: clampScore(moderation.aiScore),
-            },
-            customExpiresAt: customExpiryForUser,
-          });
-
-          if (isModerationExempt) {
-            socket.emit('thoughtRejected', {
-              message: "Thought doesn't meet community guidelines.",
-              strikesRemaining: null,
-              moderationExempt: true,
-            });
-          } else {
-            const strike = await applySpamStrike(userId);
-            if (strike.isShadowBanned) {
-              socket.emit('shadowBanNotice', {
-                message: 'Your posts are currently hidden from other users.',
-                reason: 'Repeated policy violations or spam reports.',
-                strikeCount: strike.strikeCount,
-              });
-              emitShadowThought();
-            } else {
-              socket.emit('thoughtRejected', {
-                message: "Thought doesn't meet community guidelines.",
-                strikesRemaining: Math.max(0, MAX_SPAM_STRIKES - strike.strikeCount),
-              });
-            }
-          }
-          return;
-        }
 
         const routeRoom: MehfilRoom = effectiveModeration.category === 'REFLECTIVE' ? 'REFLECTIVE' : 'ACADEMIC';
         const id = uuidv4();
@@ -1385,6 +1190,11 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         }
         if (content.length > MAX_THOUGHT_LENGTH) {
           socket.emit('error', { message: `Thought must be under ${MAX_THOUGHT_LENGTH} characters.` });
+          return;
+        }
+
+        if (validateBlockedWords(content).isBlocked) {
+          socket.emit('error', { message: 'Thought contains blocked language. Please remove abusive words and try again.' });
           return;
         }
 

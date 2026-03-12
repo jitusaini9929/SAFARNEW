@@ -14,7 +14,7 @@ const sanitizeSnippet = (input: unknown, maxLength = 180) => {
 };
 
 const MEDITATION_VIDEO_SETTING_KEY = "meditation_latest_video";
-const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/FRvwIgCs6T8?si=jQYpQXaKS9TkOIxf";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/6NAMLvSDP3A?si=sdMY4PPG9ZJaLakM";
 const FALLBACK_ADMIN_EMAILS = ["steve123@gmail.com"];
 
 const getAdminEmailSet = () => {

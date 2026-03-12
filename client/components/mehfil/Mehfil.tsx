@@ -3,6 +3,7 @@ import { Socket } from 'socket.io-client';
 import { useMehfilStore, MehfilRoom } from '@/store/mehfilStore';
 import { useDMStore } from '@/store/dmStore';
 import { authService } from '@/utils/authService';
+import LanguageToggle from '../LanguageToggle';
 import ThoughtCard from './ThoughtCard';
 import Composer from './Composer';
 import MehfilSidebar from './MehfilSidebar';
@@ -13,6 +14,7 @@ import { toast } from 'sonner';
 import ThemeToggle from '@/components/ui/theme-toggle';
 import GlobalSidebar from '@/components/GlobalSidebar';
 import { closeMehfilSocket, getMehfilSocket } from '@/lib/socket';
+import { useTranslation } from 'react-i18next';
 
 import { Search, Settings, LogOut, Menu, Info, ShieldAlert, AlertCircle, ChevronDown, ChevronUp, Clock, Ban, Ghost, Bell } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -76,6 +78,7 @@ const ROOM_CONFIG: Record<MehfilFeedRoom, {
 };
 
 const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -148,16 +151,16 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     }
   }, [dmRequestError]);
 
-  const isPaused = import.meta.env.MEHFIL_PAUSED === 'true';
+  const isPaused = import.meta.env.VITE_MEHFIL_PAUSED === 'true';
 
   if (isPaused) {
     return (
       <div className="min-h-[100dvh] bg-black flex items-center justify-center p-4">
         <div className="text-center space-y-4">
           <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-indigo-500 animate-pulse">
-            Mehfil under construction
+            {t('mehfil.under_construction')}
           </h1>
-          <p className="text-slate-400 text-lg">Check back soon</p>
+          <p className="text-slate-400 text-lg">{t('mehfil.check_back')}</p>
         </div>
       </div>
     );
@@ -294,13 +297,13 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     });
 
     newSocket.on('thoughtAccepted', ({ message }) => {
-      toast.success(message || 'Thought shared successfully.');
+      toast.success(message || t('mehfil.toasts.posted'));
     });
 
     newSocket.on('thoughtRejected', ({ message, ban }) => {
       if (ban?.isActive) {
         applyPostingBanState(ban);
-        toast.error(message || ban.message || "you have been banned from posting messages");
+        toast.error(message || ban.message || t('mehfil.toasts.pban_desc'));
         return;
       }
 
@@ -315,12 +318,12 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     });
 
     newSocket.on('thoughtRerouted', ({ room }) => {
-      const destination = room === 'REFLECTIVE' ? 'Thoughts' : 'Academic Hall';
-      toast.info(`Your thought was routed to ${destination}.`);
+      const destination = room === 'REFLECTIVE' ? t('mehfil.rooms.reflective') : t('mehfil.rooms.academic');
+      toast.info(t('mehfil.toasts.share_to', { room: destination }));
     });
 
     newSocket.on('error', (error) => {
-      const message = error?.message || 'Mehfil is unavailable right now.';
+      const message = error?.message || t('mehfil.toasts.post_error');
       console.error('Mehfil socket error:', error);
       toast.error(message);
     });
@@ -334,7 +337,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     return () => {
       closeMehfilSocket();
     };
-  }, [backendUrl, addThought, updateThought, removeThought, updateRelatableCount, setUserReaction]);
+  }, [backendUrl, addThought, updateThought, removeThought, updateRelatableCount, setUserReaction, t]);
 
   useEffect(() => {
     if (!socket) return;
@@ -400,7 +403,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
   const handleSendThought = async (content: string, isAnonymous: boolean, room: MehfilFeedRoom) => {
     if (!socket || !user) {
-      toast.error('Unable to post right now. Please refresh and retry.');
+      toast.error(t('mehfil.toasts.post_error'));
       return;
     }
 
@@ -489,7 +492,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       <nav className="fixed top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 min-h-14 sm:min-h-16 glass-2-0 rounded-2xl z-50 px-2 sm:px-4 md:px-6 py-2 sm:py-0 flex items-center justify-between border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 gap-1.5 sm:gap-2">
         <Link to="/home" className="flex items-center gap-2 sm:gap-3 group cursor-pointer text-inherit no-underline shrink-0">
           <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
-            <span className="text-white font-bold text-sm sm:text-lg tracking-tight whitespace-nowrap break-normal">Mehfil</span>
+            <span className="text-white font-bold text-sm sm:text-lg tracking-tight whitespace-nowrap break-normal">{t('mehfil.title')}</span>
           </div>
         </Link>
 
@@ -499,13 +502,17 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={`bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-1.5 sm:py-2 md:py-2.5 pl-9 sm:pl-10 pr-3 sm:pr-4 text-sm w-full md:w-72 lg:w-96 focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-900 dark:text-slate-100 ${roomPalette.ring}`}
-            placeholder="Search..."
+            placeholder={t('mehfil.search_placeholder')}
             type="text"
           />
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3 md:gap-5 shrink-0">
-          <span className="hidden sm:inline-flex"><ThemeToggle /></span>
+          {/* Desktop Navigation Icons */}
+          <div className="hidden sm:flex items-center gap-1">
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
 
           <button
             onClick={() => {
@@ -513,7 +520,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
               setIsSidebarOpen(true);
             }}
             className="relative p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-            title="Connection requests"
+            title={t('mehfil.connection_requests')}
             aria-label="Open connections"
           >
             <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -527,7 +534,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
           <button
             onClick={() => setIsGlobalSidebarOpen(true)}
             className="p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-            title="Menu"
+            title={t('mehfil.menu')}
           >
             <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
@@ -535,7 +542,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
           <div className="hidden sm:flex items-center gap-2 md:gap-5 md:pr-6 border-l border-slate-200 dark:border-slate-800 ml-1 sm:ml-2 pl-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center justify-center w-8 h-8 sm:w-[40px] sm:h-[40px] p-0.5 rounded-full transition-all duration-200 hover:scale-105 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 outline-none">
+                <button className="flex items-center justify-center w-8 h-8 sm:w-[40px] sm:h-[40px] p-0.5 rounded-full transition-all duration-200 hover:scale-105 cursor:pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 outline-none">
                   <Avatar className="w-full h-full rounded-full border border-slate-200 dark:border-white/10 transition-transform">
                     <AvatarImage src={user?.avatar} className="object-cover" />
                     <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs ring-1 ring-inset ring-slate-900/10 dark:ring-white/10">
@@ -547,12 +554,12 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
               <DropdownMenuContent align="end" className="w-56 mt-2 rounded-2xl border-slate-200 dark:border-slate-800 p-2 shadow-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
                 <DropdownMenuItem onClick={handleProfile} className="rounded-xl cursor-pointer py-2.5 focus:bg-slate-100 dark:focus:bg-slate-800 text-slate-700 dark:text-slate-200">
                   <Settings className="mr-2 h-4 w-4" />
-                  <span>Profile Settings</span>
+                  <span>{t('mehfil.profile_settings')}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-slate-200 dark:bg-slate-800 my-1" />
                 <DropdownMenuItem onClick={handleLogout} className="rounded-xl cursor-pointer py-2.5 focus:bg-rose-50 dark:focus:bg-rose-950/30 text-rose-600 dark:text-rose-400">
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                  <span>{t('mehfil.logout')}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -571,12 +578,12 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                   className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap break-normal ${room === activeRoom ? roomPalette.tabActive : roomPalette.tabIdle
                     }`}
                 >
-                  {ROOM_CONFIG[room].title}
+                  {t(`mehfil.rooms.${room.toLowerCase()}`)}
                 </button>
               ))}
             </div>
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 max-w-3xl">
-              {ROOM_CONFIG[activeRoom].subtitle}
+              {t(`mehfil.subtitles.${activeRoom.toLowerCase()}`)}
             </p>
           </section>
 
@@ -599,9 +606,9 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
               <div className="backdrop-blur-2xl bg-white/60 dark:bg-black/40 border border-slate-200/60 dark:border-white/10 shadow-glass rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
                 <div className="mb-4 sm:mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-3 sm:gap-4">
                   <div>
-                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-1 sm:mb-2">Community Space</h1>
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-1 sm:mb-2">{t('mehfil.community_space')}</h1>
                     <p className="text-slate-500 dark:text-slate-400 leading-relaxed max-w-xl">
-                      The student lounge for unfiltered thoughts and academic life-hacks.
+                      {t('mehfil.community_desc')}
                     </p>
                   </div>
                 </div>
@@ -619,7 +626,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                             <ShieldAlert className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                           </div>
                           <span className="text-sm font-bold bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-300 dark:to-violet-300 bg-clip-text text-transparent">
-                            Community Guidelines
+                            {t('mehfil.guidelines')}
                           </span>
                         </div>
                         <ChevronDown className="w-4 h-4 text-slate-400 ml-auto transition-transform duration-200 group-data-[state=open]:rotate-180" />
@@ -630,20 +637,20 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                         {/* Rules Column */}
                         <div className="space-y-4">
                           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                            <Info className="w-3.5 h-3.5" /> Posting Rules
+                            <Info className="w-3.5 h-3.5" /> {t('mehfil.posting_rules')}
                           </h4>
                           <ul className="space-y-3">
                             <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
                               <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
-                              <span><strong className="text-slate-900 dark:text-teal-400">Academic Hall:</strong> Research, study hacks, and career help only. No venting.</span>
+                              <span>{t('mehfil.academic_rule')}</span>
                             </li>
                             <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                              <span><strong className="text-slate-900 dark:text-indigo-400">Thoughts:</strong> Emotional support and venting. Move here for personal struggles.</span>
+                              <span>{t('mehfil.thoughts_rule')}</span>
                             </li>
                             <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
                               <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                              <span><strong className="text-slate-900 dark:text-rose-400">Blocked:</strong> Hate speech, harassment, NSFW content, or severe toxicity is strictly banned.</span>
+                              <span>{t('mehfil.blocked_rule')}</span>
                             </li>
                           </ul>
                         </div>
@@ -651,7 +658,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                         {/* Consequences Column */}
                         <div className="space-y-4">
                           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                            <AlertCircle className="w-3.5 h-3.5" /> Consequences
+                            <AlertCircle className="w-3.5 h-3.5" /> {t('mehfil.consequences')}
                           </h4>
                           <div className="space-y-3">
                             <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-100/50 dark:bg-black/20 border border-slate-200 dark:border-white/5">
@@ -659,8 +666,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                                 <Ban className="w-4 h-4 text-amber-500" />
                               </div>
                               <div className="text-xs leading-tight">
-                                <span className="font-bold block text-slate-900 dark:text-white">Report-Based Bans</span>
-                                <span className="text-slate-600 dark:text-slate-400">1+ reports trigger automatic bans (2D → 7D → Permanent).</span>
+                                <span className="font-bold block text-slate-900 dark:text-white">{t('mehfil.report_bans')}</span>
+                                <span className="text-slate-600 dark:text-slate-400">{t('mehfil.report_desc')}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-100/50 dark:bg-black/20 border border-slate-200 dark:border-white/5">
@@ -668,8 +675,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                                 <Ghost className="w-4 h-4 text-rose-500" />
                               </div>
                               <div className="text-xs leading-tight">
-                                <span className="font-bold block text-slate-900 dark:text-white">Shadow Banning</span>
-                                <span className="text-slate-600 dark:text-slate-400">Repeated spam results in silent silencing—others won't see you.</span>
+                                <span className="font-bold block text-slate-900 dark:text-white">{t('mehfil.shadow_banning')}</span>
+                                <span className="text-slate-600 dark:text-slate-400">{t('mehfil.spam_desc')}</span>
                               </div>
                             </div>
                           </div>
@@ -685,7 +692,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                   onSendThought={handleSendThought}
                   userAvatar={user?.avatar}
                   activeRoom={activeRoom}
-                  placeholder={ROOM_CONFIG[activeRoom].placeholder}
+                  placeholder={t(`mehfil.placeholders.${activeRoom.toLowerCase()}`)}
                 />
               </div>
 
@@ -698,7 +705,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                 {filteredThoughts.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-slate-400 text-lg">
-                      No thoughts in {ROOM_CONFIG[activeRoom].title} yet. Start the conversation.
+                      {t('mehfil.no_thoughts', { room: t(`mehfil.rooms.${activeRoom.toLowerCase()}`) })}
                     </p>
                   </div>
                 ) : (
@@ -718,13 +725,13 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
                 {isLoadingThoughts && (
                   <div className="text-center py-4 text-sm text-slate-500 dark:text-slate-400">
-                    Loading more posts...
+                    {t('mehfil.loading_more')}
                   </div>
                 )}
 
                 {!hasMoreThoughts && thoughts.length > 0 && (
                   <div className="text-center py-3 text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    You have reached the end of the feed.
+                    {t('mehfil.end_of_feed')}
                   </div>
                 )}
               </div>
@@ -758,25 +765,25 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       {postingBan?.isActive && (
         <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-3xl border border-white/20 bg-slate-950/90 text-white p-6 shadow-2xl">
-            <h3 className="text-xl font-bold">Posting Restricted</h3>
-            <p className="mt-2 text-slate-200">you have been banned from posting messages</p>
+            <h3 className="text-xl font-bold">{t('mehfil.toasts.pban_title')}</h3>
+            <p className="mt-2 text-slate-200">{t('mehfil.toasts.pban_desc')}</p>
             {postingBan.reason && (
               <div className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-100">
-                <span className="font-semibold">Reason:</span> {postingBan.reason}
+                <span className="font-semibold">{t('mehfil.card.report_other')}:</span> {postingBan.reason}
               </div>
             )}
             {postingBan.isPermanent ? (
-              <p className="mt-4 text-sm text-rose-300 font-semibold">Ban duration: Permanent</p>
+              <p className="mt-4 text-sm text-rose-300 font-semibold">{t('mehfil.toasts.pban_perm')}</p>
             ) : (
               <div className="mt-4 rounded-2xl bg-slate-800/70 border border-slate-700 p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Time Remaining</p>
+                <p className="text-xs uppercase tracking-wide text-slate-400">{t('mehfil.toasts.pban_time')}</p>
                 <p className="mt-1 text-2xl font-extrabold text-amber-300 tabular-nums">
                   {formatBanRemaining(banRemainingMs)}
                 </p>
               </div>
             )}
             <p className="mt-4 text-xs text-slate-400">
-              You can still read thoughts, but posting is blocked until unban.
+              {t('mehfil.toasts.pban_hint')}
             </p>
           </div>
         </div>
@@ -785,11 +792,11 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       {shadowBanNotice && (
         <div className="fixed inset-0 z-[79] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-3xl border border-white/20 bg-slate-950/90 text-white p-6 shadow-2xl">
-            <h3 className="text-xl font-bold">Shadow Ban Notice</h3>
+            <h3 className="text-xl font-bold">{t('mehfil.shadow_banning')}</h3>
             <p className="mt-2 text-slate-200">{shadowBanNotice.message}</p>
             {shadowBanNotice.reason && (
               <div className="mt-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-100">
-                <span className="font-semibold">Reason:</span> {shadowBanNotice.reason}
+                <span className="font-semibold">{t('mehfil.card.report_other')}:</span> {shadowBanNotice.reason}
               </div>
             )}
             {Number.isFinite(shadowBanNotice.strikeCount ?? NaN) && (
@@ -800,9 +807,9 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             <div className="mt-5 flex justify-end">
               <button
                 onClick={() => setShadowBanNotice(null)}
-                className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition-colors"
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-sm font-bold"
               >
-                I Understand
+                {t('mehfil.card.cancel')}
               </button>
             </div>
           </div>

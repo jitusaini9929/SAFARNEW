@@ -4,7 +4,9 @@ import {
     ShieldCheck, Trash2, LinkIcon, Play, Pause, Heart, MessageCircle, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { formatDistanceToNow } from 'date-fns';
+import { hi, enUS } from 'date-fns/locale';
 import './SandeshCard.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
@@ -37,6 +39,7 @@ interface Sandesh {
 }
 
 const SandeshCard = () => {
+    const { t, i18n } = useTranslation();
     const [sandeshes, setSandeshes] = useState<Sandesh[]>([]);
     const [loading, setLoading] = useState(true);
     const [isPosting, setIsPosting] = useState(false);
@@ -161,9 +164,9 @@ const SandeshCard = () => {
                 setCommentCountById(prev => ({ ...prev, [sandeshId]: (prev[sandeshId] || 0) + 1 }));
                 setNewCommentById(prev => ({ ...prev, [sandeshId]: '' }));
             } else {
-                toast.error('Failed to post comment');
+                toast.error(t('sandesh.toast.comment_error'));
             }
-        } catch { toast.error('Error posting comment'); }
+        } catch { toast.error(t('sandesh.toast.comment_error')); }
         finally { setIsPostingCommentById(prev => ({ ...prev, [sandeshId]: false })); }
     };
 
@@ -173,9 +176,9 @@ const SandeshCard = () => {
             if (res.ok) {
                 setCommentsById(prev => ({ ...prev, [sandeshId]: (prev[sandeshId] || []).filter(c => c.id !== commentId) }));
                 setCommentCountById(prev => ({ ...prev, [sandeshId]: Math.max((prev[sandeshId] || 1) - 1, 0) }));
-                toast.success('Comment deleted');
-            } else { toast.error('Failed to delete comment'); }
-        } catch { toast.error('Error deleting comment'); }
+                toast.success(t('sandesh.toast.delete_success'));
+            } else { toast.error(t('sandesh.toast.delete_error')); }
+        } catch { toast.error(t('sandesh.toast.delete_error')); }
     };
 
     useEffect(() => {
@@ -252,22 +255,22 @@ const SandeshCard = () => {
                 credentials: 'include',
             });
             if (res.ok) {
-                toast.success(isEditing ? 'Update edited successfully' : 'Update posted successfully');
+                toast.success(isEditing ? t('sandesh.toast.update_success') : t('sandesh.toast.post_success'));
                 setNewContent(''); setLinkMeta(null); setImageUrl(''); setAudioUrl('');
                 setShowInput(false); setIsEditing(false); setEditId(null);
                 fetchSandesh();
             } else {
                 const data = await res.json();
-                toast.error(data.message || 'Failed to post update');
+                toast.error(data.message || t('sandesh.toast.post_error'));
             }
-        } catch { toast.error('Error posting update'); }
+        } catch { toast.error(t('sandesh.toast.post_error')); }
         finally { setIsPosting(false); }
     };
 
     const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (!file.type.startsWith('audio/')) { toast.error('Please upload an audio file'); return; }
+        if (!file.type.startsWith('audio/')) { toast.error(t('sandesh.toast.audio_error')); return; }
         setIsUploadingAudio(true);
         try {
             const reader = new FileReader();
@@ -282,11 +285,11 @@ const SandeshCard = () => {
                     credentials: 'include'
                 });
                 const data = await res.json();
-                if (data.success) { setAudioUrl(data.url); toast.success('Audio uploaded successfully'); }
-                else { toast.error(data.message || 'Audio upload failed'); }
+                if (data.success) { setAudioUrl(data.url); toast.success(t('sandesh.toast.audio_success')); }
+                else { toast.error(data.message || t('sandesh.toast.audio_error')); }
                 setIsUploadingAudio(false);
             };
-        } catch { toast.error('Audio upload failed'); setIsUploadingAudio(false); }
+        } catch { toast.error(t('sandesh.toast.audio_error')); setIsUploadingAudio(false); }
     };
 
     const toggleAudioPlay = (url: string, id: string) => {
@@ -297,7 +300,7 @@ const SandeshCard = () => {
             if (audioRef.current) audioRef.current.pause();
             const audio = new Audio(url);
             audio.onended = () => setPlayingAudioId(null);
-            audio.play().catch(() => toast.error("Playback failed"));
+            audio.play().catch(() => toast.error(t('sandesh.toast.playback_error')));
             audioRef.current = audio;
             setPlayingAudioId(id);
         }
@@ -316,12 +319,12 @@ const SandeshCard = () => {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this update?')) return;
+        if (!confirm(t('sandesh.delete_confirm'))) return;
         try {
             const res = await fetch(`${API_URL}/mehfil/sandesh/${id}`, { method: 'DELETE', credentials: 'include' });
-            if (res.ok) { toast.success('Update deleted successfully'); fetchSandesh(); }
-            else { toast.error('Failed to delete update'); }
-        } catch { toast.error('Error deleting update'); }
+            if (res.ok) { toast.success(t('sandesh.toast.delete_success')); fetchSandesh(); }
+            else { toast.error(t('sandesh.toast.delete_error')); }
+        } catch { toast.error(t('sandesh.toast.delete_error')); }
     };
 
     if (loading) return null;
@@ -345,9 +348,9 @@ const SandeshCard = () => {
                         )}
                     </div>
                     <div>
-                        <h2 className="text-base font-bold text-slate-900 dark:text-slate-200 tracking-wide">Sandesh</h2>
+                        <h2 className="text-base font-bold text-slate-900 dark:text-slate-200 tracking-wide">{t('sandesh.title')}</h2>
                         <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                            {sandeshes.length} announcement{sandeshes.length !== 1 ? 's' : ''}
+                            {sandeshes.length === 1 ? t('sandesh.announcements_singular') : t('sandesh.announcements_plural', { count: sandeshes.length })}
                         </p>
                     </div>
                 </div>
@@ -356,11 +359,11 @@ const SandeshCard = () => {
                     {isEditing && (
                         <button className="sandesh-cancel-btn text-slate-600 dark:text-slate-400" style={{ fontSize: '11px', padding: '4px 10px' }}
                             onClick={() => { setIsEditing(false); setEditId(null); setNewContent(''); setImageUrl(''); setAudioUrl(''); setLinkMeta(null); setShowInput(false); }}>
-                            Cancel Edit
+                            {t('sandesh.cancel_edit')}
                         </button>
                     )}
                     {isAdmin && (
-                        <button className="sandesh-add-btn" onClick={(e) => { e.stopPropagation(); setShowInput(p => !p); }} title="New announcement">
+                        <button className="sandesh-add-btn" onClick={(e) => { e.stopPropagation(); setShowInput(p => !p); }} title={t('sandesh.new_announcement')}>
                             <Plus size={14} />
                         </button>
                     )}
@@ -373,10 +376,10 @@ const SandeshCard = () => {
                     {/* Toolbar */}
                     <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
                         {[
-                            { icon: <Bold size={13} />, action: () => insertText('**', '**'), title: 'Bold' },
-                            { icon: <Italic size={13} />, action: () => insertText('*', '*'), title: 'Italic' },
-                            { icon: <ImageIcon size={13} />, action: () => setShowImageInput(p => !p), title: 'Image', active: showImageInput },
-                            { icon: <Mic size={13} />, action: () => audioInputRef.current?.click(), title: 'Audio', active: !!audioUrl },
+                            { icon: <Bold size={13} />, action: () => insertText('**', '**'), title: t('sandesh.toolbar.bold') },
+                            { icon: <Italic size={13} />, action: () => insertText('*', '*'), title: t('sandesh.toolbar.italic') },
+                            { icon: <ImageIcon size={13} />, action: () => setShowImageInput(p => !p), title: t('sandesh.toolbar.image'), active: showImageInput },
+                            { icon: <Mic size={13} />, action: () => audioInputRef.current?.click(), title: t('sandesh.toolbar.audio'), active: !!audioUrl },
                         ].map((btn, i) => (
                             <button key={i} title={btn.title} onClick={btn.action}
                                 style={{
@@ -404,7 +407,7 @@ const SandeshCard = () => {
                                     setImageUrl(ytMatch?.[1] ? `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg` : val);
                                 }}
                                 className="text-slate-800 dark:text-slate-200"
-                                placeholder="Paste image URL or YouTube link..."
+                                placeholder={t('sandesh.image_placeholder')}
                                 style={{ flex: 1 }}
                             />
                             {imageUrl && <button onClick={() => setImageUrl('')} className="text-slate-500 dark:text-slate-400" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={13} /></button>}
@@ -418,7 +421,7 @@ const SandeshCard = () => {
                             rows={3}
                             value={newContent}
                             onChange={(e) => { setNewContent(e.target.value); handleUrlDetection(e.target.value); }}
-                            placeholder="Write an announcement… (**bold**, *italic* supported)"
+                            placeholder={t('sandesh.content_placeholder')}
                             className="text-slate-800 dark:text-slate-200"
                             style={{ fontSize: '13.5px' }}
                         />
@@ -427,7 +430,7 @@ const SandeshCard = () => {
                     {/* Link preview inside compose */}
                     {previewLoading && (
                         <div className="text-slate-500 dark:text-slate-400" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '11px' }}>
-                            <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Loading preview...
+                            <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> {t('sandesh.loading_preview')}
                         </div>
                     )}
                     {linkMeta && (
@@ -447,13 +450,13 @@ const SandeshCard = () => {
                     {/* Audio status */}
                     {isUploadingAudio && (
                         <div className="bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-300" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '8px', marginBottom: '8px', fontSize: '12px' }}>
-                            <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Uploading audio...
+                            <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> {t('sandesh.uploading_audio')}
                         </div>
                     )}
                     {audioUrl && (
                         <div className="bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-300" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: '8px', marginBottom: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                                <Mic size={13} /> Audio attached
+                                <Mic size={13} /> {t('sandesh.audio_attached')}
                             </div>
                             <button onClick={() => setAudioUrl('')} className="text-slate-500 dark:text-slate-400" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: '2px' }}><X size={12} /></button>
                         </div>
@@ -462,12 +465,12 @@ const SandeshCard = () => {
                     {/* Actions */}
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                         <button className="sandesh-cancel-btn text-slate-600 dark:text-slate-400" onClick={() => { setShowInput(false); setIsEditing(false); setEditId(null); setNewContent(''); setLinkMeta(null); }}>
-                            Cancel
+                            {t('sandesh.cancel')}
                         </button>
                         <button className="sandesh-post-btn" onClick={handlePost}
                             disabled={isPosting || (!newContent.trim() && !imageUrl && !audioUrl) || isUploadingAudio}>
                             {isPosting ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : (isEditing ? <Pencil size={12} /> : <Send size={12} />)}
-                            {isEditing ? 'Update' : 'Post'}
+                            {isEditing ? t('sandesh.update') : t('sandesh.post')}
                         </button>
                     </div>
                 </div>
@@ -503,8 +506,8 @@ const SandeshCard = () => {
                             {sandesh.importance === 'high' && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px' }}>
                                     <div className="sandesh-pin-dot" />
-                                    <span style={{ fontSize: '10px', fontWeight: 600, color: '#f59e0b', letterSpacing: '0.06em' }}>PINNED</span>
-                                    <span className="sandesh-important-badge">Important</span>
+                                    <span style={{ fontSize: '10px', fontWeight: 600, color: '#f59e0b', letterSpacing: '0.06em' }}>{t('sandesh.pinned')}</span>
+                                    <span className="sandesh-important-badge">{t('sandesh.important')}</span>
                                 </div>
                             )}
 
@@ -517,10 +520,10 @@ const SandeshCard = () => {
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                         <span className="text-[13.5px] font-semibold text-slate-900 dark:text-slate-200">Parmar Sir&apos;s Corner</span>
-                                        <span className="sandesh-badge sandesh-badge-indigo">Faculty</span>
+                                        <span className="sandesh-badge sandesh-badge-indigo">{t('sandesh.faculty')}</span>
                                     </div>
                                     <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                                        {formatDistanceToNow(new Date(sandesh.created_at), { addSuffix: true })}
+                                        {formatDistanceToNow(new Date(sandesh.created_at), { addSuffix: true, locale: i18n.language === 'hi' ? hi : enUS })}
                                     </span>
                                 </div>
                             </div>
@@ -605,7 +608,7 @@ const SandeshCard = () => {
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}
                                             className={playingAudioId === sandesh.id ? 'text-rose-600' : 'text-slate-500 dark:text-slate-400'}>
-                                            {playingAudioId === sandesh.id ? 'Broadcasting Now' : 'Voice Announcement'}
+                                            {playingAudioId === sandesh.id ? t('sandesh.broadcasting') : t('sandesh.voice_announcement')}
                                         </div>
                                         <div className="bg-slate-200 dark:bg-white/10" style={{ height: '3px', borderRadius: '9999px', overflow: 'hidden' }}>
                                             <div style={{ height: '100%', width: playingAudioId === sandesh.id ? '100%' : '0%', background: '#e11d48', borderRadius: '9999px', transition: 'width 0.3s' }} />
@@ -668,7 +671,7 @@ const SandeshCard = () => {
                                                         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '4px' }}>
                                                             <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                                                                 <span className="text-[11.5px] font-semibold text-slate-800 dark:text-slate-300">{comment.authorName}</span>
-                                                                <span className="text-[10px] text-slate-500 dark:text-slate-500">{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</span>
+                                                                <span className="text-[10px] text-slate-500 dark:text-slate-500">{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: i18n.language === 'hi' ? hi : enUS })}</span>
                                                             </div>
                                                             {comment.userId === currentUserId && (
                                                                 <button onClick={() => handleDeleteComment(sandesh.id, comment.id)}
@@ -684,14 +687,14 @@ const SandeshCard = () => {
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-slate-500 dark:text-slate-500" style={{ fontSize: '12px', fontStyle: 'italic', marginBottom: '10px' }}>No comments yet. Be the first!</p>
+                                        <p className="text-slate-500 dark:text-slate-500" style={{ fontSize: '12px', fontStyle: 'italic', marginBottom: '10px' }}>{t('sandesh.no_comments')}</p>
                                     )}
 
                                     {/* Comment input */}
                                     <div className="sandesh-input-card text-slate-800 dark:text-slate-200" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px' }}>
                                         <input
                                             type="text"
-                                            placeholder="Add a comment…"
+                                            placeholder={t('sandesh.comment_placeholder')}
                                             value={newCommentById[sandesh.id] || ''}
                                             onChange={(e) => setNewCommentById(prev => ({ ...prev, [sandesh.id]: e.target.value }))}
                                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePostComment(sandesh.id); } }}
@@ -712,7 +715,7 @@ const SandeshCard = () => {
                 ) : (
                     <div style={{ textAlign: 'center', padding: '48px 0' }} className="text-slate-500 dark:text-slate-500">
                         <Bell size={32} style={{ margin: '0 auto 8px', opacity: 0.2 }} />
-                        <p style={{ fontSize: '13px', fontStyle: 'italic' }}>No active announcements.</p>
+                        <p style={{ fontSize: '13px', fontStyle: 'italic' }}>{t('sandesh.no_announcements')}</p>
                     </div>
                 )}
             </div>

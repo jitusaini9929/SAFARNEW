@@ -12,9 +12,6 @@ import {
 import { DHYAN_COURSES } from "@shared/payments";
 import {
   checkPurchaseStatus,
-  createOrder,
-  loadRazorpayScript,
-  openRazorpayCheckout,
 } from "@/utils/paymentService";
 
 interface CourseBannerProps {
@@ -23,7 +20,9 @@ interface CourseBannerProps {
 }
 
 type UnlockState = "checking" | "locked" | "unlocked";
-type CheckoutState = "idle" | "loading" | "error";
+type CheckoutState = "idle" | "redirecting" | "error";
+
+const MEDITATION_PAYMENT_REDIRECT_URL = "https://www.parmaracademy.in/courses/75-safar-30";
 
 export default function CourseBanner({
   user,
@@ -58,44 +57,14 @@ export default function CourseBanner({
   }, [courseId, user]);
 
   const handleUnlock = async () => {
-    if (!user) {
-      setErrorMessage("Please sign in to unlock this section.");
-      setCheckoutState("error");
-      return;
-    }
-
-    setCheckoutState("loading");
+    setCheckoutState("redirecting");
     setErrorMessage("");
 
     try {
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        throw new Error("Could not load Razorpay checkout.");
-      }
-
-      const orderData = await createOrder(courseId);
-      if (!orderData.success) {
-        throw new Error("Failed to create order.");
-      }
-
-      setCheckoutState("idle");
-      openRazorpayCheckout({
-        course,
-        orderData,
-        user,
-        onSuccess: () => {
-          setUnlockState("unlocked");
-          setCheckoutState("idle");
-          setErrorMessage("");
-        },
-        onFailure: (error) => {
-          setCheckoutState("error");
-          setErrorMessage(error || "Payment failed. Please try again.");
-        },
-      });
+      window.location.href = MEDITATION_PAYMENT_REDIRECT_URL;
     } catch (error: any) {
       setCheckoutState("error");
-      setErrorMessage(error?.message || "Unable to start payment.");
+      setErrorMessage(error?.message || "Unable to redirect to payment.");
     }
   };
 
@@ -158,19 +127,19 @@ export default function CourseBanner({
         ) : (
           <button
             onClick={handleUnlock}
-            disabled={checkoutState === "loading"}
+            disabled={checkoutState === "redirecting"}
             className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold text-sm px-4 py-2.5 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:scale-[1.01] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <span className="inline-flex items-center justify-center gap-2">
-              {checkoutState === "loading" ? (
+              {checkoutState === "redirecting" ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Preparing UPI checkout...
+                  Redirecting to payment...
                 </>
               ) : (
                 <>
                   <CreditCard className="w-4 h-4" />
-                  Unlock with Razorpay UPI
+                  Continue to payment
                 </>
               )}
             </span>

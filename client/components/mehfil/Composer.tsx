@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Send, Loader2, Smile } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { MehfilRoom } from '@/store/mehfilStore';
 import { EmojiPicker } from '@/components/ui/EmojiPicker';
 import './Composer.css';
@@ -17,6 +18,7 @@ const MAX_CHARS = 5000;
 const MIN_CHARS = 15;
 
 const Composer: React.FC<ComposerProps> = ({ onSendThought, activeRoom, placeholder }) => {
+  const { t } = useTranslation();
   const [content, setContent] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,10 +67,10 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, activeRoom, placehol
   };
 
   const shareLabel = activeRoom === 'REFLECTIVE'
-    ? 'Share to Thoughts'
+    ? t('mehfil.composer.share_to', { room: t('mehfil.rooms.reflective') })
     : activeRoom === 'ALL'
-      ? 'Share to Mehfil'
-      : 'Share to Academic Hall';
+      ? t('mehfil.composer.post')
+      : t('mehfil.composer.share_to', { room: t('mehfil.rooms.academic') });
 
   const charCountClass = `composer-char-count${isOverLimit ? ' over-limit' : isUnderMin ? ' under-min' : ''}`;
 
@@ -123,14 +125,14 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, activeRoom, placehol
             <div className={`composer-anon-checkbox${isAnonymous ? ' active' : ''}`}>
               {isAnonymous && <div className="composer-anon-checkbox-dot" />}
             </div>
-            <span className="composer-anon-label">Post anonymously</span>
+            <span className="composer-anon-label">{t('mehfil.composer.post_anon')}</span>
             <div className={`pill-toggle${isAnonymous ? ' active' : ''}`}>
               <div className="pill-toggle-thumb" />
             </div>
           </div>
           {isUnderMin && (
             <span className="composer-min-hint">
-              Min {MIN_CHARS} chars
+              {t('mehfil.composer.min_chars', { count: MIN_CHARS })}
             </span>
           )}
         </div>
@@ -145,12 +147,12 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, activeRoom, placehol
             onClick={handleSend as any}
             disabled={!canSubmit}
             className="composer-btn-share"
-            aria-label={isSubmitting ? 'Posting' : 'Publish'}
+            aria-label={isSubmitting ? t('mehfil.composer.posting') : t('mehfil.composer.post')}
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                <span className="hidden sm:inline">Posting...</span>
+                <span className="hidden sm:inline">{t('mehfil.composer.posting')}</span>
               </>
             ) : (
               <>

@@ -3,6 +3,7 @@ import { collections } from "../db";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middleware/auth";
 import { getMehfilNamespace } from "./mehfil-socket";
+import { validateBlockedWords } from "../utils/contentFilter";
 
 export const mehfilInteractionRoutes = Router();
 
@@ -201,6 +202,10 @@ mehfilInteractionRoutes.post("/comments", async (req: any, res: Response) => {
             return res.status(400).json({ error: "ThoughtId and content are required" });
         }
 
+        if (validateBlockedWords(content).isBlocked) {
+            return res.status(400).json({ error: "Comment contains blocked language. Please remove abusive words and try again." });
+        }
+
         const id = uuidv4();
         const now = new Date();
 
@@ -378,37 +383,12 @@ mehfilInteractionRoutes.post("/report", async (req: any, res: Response) => {
             .toArray();
 
         const uniqueReporters = Number(reporterGroups?.[0]?.count || 0);
-        let ban: MehfilBanState | null = null;
-
-        if (uniqueReporters >= REPORTS_TO_BAN) {
-            ban = await getOrApplyReportBan(thought.user_id);
-            if (ban.isActive) {
-                await collections.mehfilReports().updateMany(
-                    { thought_id: thoughtId, status: "pending" },
-                    {
-                        $set: {
-                            status: "actioned",
-                            action: "auto_ban",
-                            actioned_at: new Date(),
-                        },
-                    },
-                );
-            }
-        }
 
         res.json({
             reported: true,
             uniqueReporters,
-            banApplied: Boolean(ban?.isActive),
-            ban: ban
-                ? {
-                    isActive: ban.isActive,
-                    isPermanent: ban.isPermanent,
-                    banLevel: ban.banLevel,
-                    bannedUntil: ban.bannedUntil,
-                    message: ban.message,
-                }
-                : null,
+            banApplied: false,
+            ban: null,
         });
     } catch (error) {
         console.error("Error reporting:", error);

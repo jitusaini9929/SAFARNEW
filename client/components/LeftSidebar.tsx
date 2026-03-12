@@ -14,6 +14,7 @@ import {
   Menu,
   X
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Sheet,
   SheetContent,
@@ -30,45 +31,46 @@ interface LeftSidebarProps {
 
 export default function LeftSidebar({ homeRoute = "/home" }: LeftSidebarProps) {
   const location = useLocation();
+  const { t } = useTranslation();
 
   const navItems = [
     {
-      label: "Home",
+      label: t('nav.home'),
       href: homeRoute,
       icon: Home,
     },
     {
-      label: "Emotional Check-In",
+      label: t('nav.checkin'),
       href: "/nishtha/check-in",
       icon: Heart,
       description: "Daily mood tracking",
     },
     {
-      label: "Journal",
+      label: t('nav.journal'),
       href: "/nishtha/journal",
       icon: BookOpen,
       description: "Private thoughts",
     },
     {
-      label: "Goals",
+      label: t('nav.goals'),
       href: "/nishtha/goals",
       icon: Target,
       description: "Daily & weekly goals",
     },
     {
-      label: "Streaks",
+      label: t('nav.streaks'),
       href: "/nishtha/streaks",
       icon: Flame,
       description: "Maintain your streaks",
     },
     {
-      label: "Analytics",
+      label: t('nav.analytics'),
       href: "/nishtha/analytics",
       icon: BarChart3,
       description: "Monthly scorecard",
     },
     {
-      label: "Suggestions",
+      label: t('nav.suggestions'),
       href: "/nishtha/suggestions",
       icon: Lightbulb,
       description: "Personalized tips",
@@ -77,10 +79,10 @@ export default function LeftSidebar({ homeRoute = "/home" }: LeftSidebarProps) {
 
   // Mobile bottom nav items - Key features + Menu
   const mobileNavItems = [
-    { label: "Home", href: homeRoute, icon: Home },
-    { label: "Check-In", href: "/nishtha/check-in", icon: Heart },
-    { label: "Journal", href: "/nishtha/journal", icon: BookOpen },
-    { label: "Goals", href: "/nishtha/goals", icon: Target },
+    { label: t('nav.home'), href: homeRoute, icon: Home },
+    { label: t('nav.checkin'), href: "/nishtha/check-in", icon: Heart },
+    { label: t('nav.journal'), href: "/nishtha/journal", icon: BookOpen },
+    { label: t('nav.goals'), href: "/nishtha/goals", icon: Target },
   ];
 
   const NavLink = ({ item, isMobile = false }: { item: any, isMobile?: boolean }) => {

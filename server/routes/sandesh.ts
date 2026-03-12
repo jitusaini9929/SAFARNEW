@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { v4 as uuidv4 } from 'uuid';
+import { validateBlockedWords } from '../utils/contentFilter';
 
 const router = Router();
 
@@ -121,6 +122,10 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Content, Image, or Audio is required' });
         }
 
+        if (content && validateBlockedWords(content).isBlocked) {
+            return res.status(400).json({ message: 'Sandesh contains blocked language. Please remove abusive words and try again.' });
+        }
+
         const newSandesh = {
             id: uuidv4(),
             content,
@@ -166,6 +171,9 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
             updated_at: new Date()
         };
 
+        if (content !== undefined && validateBlockedWords(content).isBlocked) {
+            return res.status(400).json({ message: 'Sandesh contains blocked language. Please remove abusive words and try again.' });
+        }
         if (content !== undefined) updateData.content = content;
         if (importance !== undefined) updateData.importance = importance;
         if (link_meta !== undefined) updateData.link_meta = link_meta;
@@ -326,6 +334,10 @@ router.post('/:id/comments', requireAuth, async (req: Request, res: Response) =>
 
         if (!content || !content.trim()) {
             return res.status(400).json({ message: 'Comment content is required' });
+        }
+
+        if (validateBlockedWords(content).isBlocked) {
+            return res.status(400).json({ message: 'Comment contains blocked language. Please remove abusive words and try again.' });
         }
 
         const commentId = uuidv4();

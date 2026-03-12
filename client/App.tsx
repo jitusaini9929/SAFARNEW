@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import React, { Suspense, useEffect, useState } from "react";
 import { authService } from "./utils/authService";
 import { GuidedTourProvider } from "@/contexts/GuidedTourContext";
@@ -34,6 +34,23 @@ const Mehfil = React.lazy(() => import("./pages/Mehfil"));
 const Meditation = React.lazy(() => import("./pages/Meditation"));
 
 const queryClient = new QueryClient();
+const GA_MEASUREMENT_ID = "G-JGR9ENZ8W0";
+
+function AnalyticsTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof (window as any).gtag !== "function") {
+      return;
+    }
+
+    (window as any).gtag("config", GA_MEASUREMENT_ID, {
+      page_path: `${location.pathname}${location.search}${location.hash}`,
+    });
+  }, [location]);
+
+  return null;
+}
 
 // Suspense fallback spinner
 function PageLoadingFallback() {
@@ -88,6 +105,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AnalyticsTracker />
         <FocusProvider>
           <GuidedTourProvider>
             <Suspense fallback={<PageLoadingFallback />}>

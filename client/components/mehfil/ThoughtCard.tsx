@@ -12,6 +12,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useTranslation } from 'react-i18next';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +64,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   isOwnThought = false,
   currentUserId,
 }) => {
+  const { t } = useTranslation();
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -93,7 +95,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   // ── helpers ──────────────────────────────────────────
   const toComment = (comment: any): Comment => ({
     id: comment.id,
-    author_name: comment.authorName ?? comment.author_name ?? "Unknown",
+    author_name: comment.authorName ?? comment.author_name ?? t('mehfil.card.comments.unknown'),
     author_avatar: comment.authorAvatar ?? comment.author_avatar ?? null,
     content: comment.content,
     created_at: comment.createdAt ?? comment.created_at,
@@ -126,7 +128,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       }
     } catch (error) {
       console.error("Error fetching comments:", error);
-      toast.error("Failed to load comments");
+      toast.error(t('mehfil.card.comments.loading_error'));
     } finally {
       setIsLoadingComments(false);
     }
@@ -138,7 +140,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     if (!commentText.trim()) return;
     try {
       if (!currentUserId) {
-        toast.error("You must be logged in to comment");
+        toast.error(t('mehfil.toasts.comment_login'));
         return;
       }
       const response = await fetch(`${API_URL}/mehfil/interactions/comments`, {
@@ -153,13 +155,13 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
           setComments((prev) => [...prev, toComment(data.comment)]);
         }
         setCommentText("");
-        toast.success("Comment posted!");
+        toast.success(t('mehfil.toasts.comment_success'));
       } else {
-        throw new Error("Failed to post comment");
+        throw new Error(t('mehfil.toasts.comment_error'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error posting comment:", error);
-      toast.error("Failed to post comment");
+      toast.error(error.message || t('mehfil.toasts.comment_error'));
     }
   };
 
@@ -171,13 +173,13 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       });
       if (response.ok) {
         setComments((prev) => prev.filter((c) => c.id !== commentId));
-        toast.success("Comment deleted");
+        toast.success(t('mehfil.toasts.comment_deleted'));
       } else {
-        throw new Error("Failed to delete comment");
+        throw new Error(t('mehfil.toasts.comment_error'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting comment:", error);
-      toast.error("Failed to delete comment");
+      toast.error(error.message || t('mehfil.toasts.comment_error'));
     }
   };
 
@@ -196,18 +198,18 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       if (response.ok) {
         const data = await response.json();
         setIsSaved(data.saved);
-        toast.success(data.saved ? "Post saved!" : "Post unsaved");
+        toast.success(data.saved ? t('mehfil.toasts.save_success') : t('mehfil.toasts.unsave_success'));
       }
     } catch (error) {
       console.error("Error saving post:", error);
-      toast.error("Failed to save post");
+      toast.error(t('mehfil.toasts.save_error'));
     }
   };
 
   const handleReport = async () => {
     try {
       if (!currentUserId) {
-        toast.error("You must be logged in to report");
+        toast.error(t('mehfil.toasts.report_login'));
         return;
       }
       const response = await fetch(`${API_URL}/mehfil/interactions/report`, {
@@ -217,16 +219,14 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         body: JSON.stringify({ thoughtId: thought.id, reason: reportReason }),
       });
       if (response.ok) {
-        toast.success(
-          "Report submitted. Thank you for keeping the community safe."
-        );
+        toast.success(t('mehfil.toasts.report_success'));
         setIsReportDialogOpen(false);
       } else {
-        throw new Error("Failed to submit report");
+        throw new Error(t('mehfil.toasts.report_error'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error reporting post:", error);
-      toast.error("Failed to submit report");
+      toast.error(error.message || t('mehfil.toasts.report_error'));
     }
   };
 
@@ -253,7 +253,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
-        toast.success("Link copied to clipboard!");
+        toast.success(t('mehfil.toasts.share_copied'));
         return;
       }
 
@@ -266,26 +266,26 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       textarea.select();
       document.execCommand("copy");
       document.body.removeChild(textarea);
-      toast.success("Link copied to clipboard!");
+      toast.success(t('mehfil.toasts.share_copied'));
     } catch (error) {
       console.error("Error sharing:", error);
-      toast.error("Failed to share");
+      toast.error(t('mehfil.toasts.share_error'));
     }
   };
 
   const handleEdit = () => {
     const trimmed = editText.trim();
     if (trimmed.length < 15) {
-      toast.error("Post must be at least 15 characters");
+      toast.error(t('mehfil.toasts.post_min_chars', { min: 15 }));
       return;
     }
     if (trimmed.length > 5000) {
-      toast.error("Post must be under 5000 characters");
+      toast.error(t('mehfil.toasts.post_max_chars', { max: 5000 }));
       return;
     }
     onEdit?.(thought.id, trimmed);
     setIsEditDialogOpen(false);
-    toast.success("Post update submitted");
+    toast.success(t('mehfil.card.save_success'));
   };
 
 
@@ -300,10 +300,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) return t('mehfil.card.just_now');
+    if (diffMins < 60) return t('mehfil.card.mins_ago', { count: diffMins });
+    if (diffHours < 24) return t('mehfil.card.hours_ago', { count: diffHours });
+    if (diffDays < 7) return t('mehfil.card.days_ago', { count: diffDays });
     return date.toLocaleDateString();
   };
 
@@ -311,7 +311,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     return name ? name.substring(0, 2).toUpperCase() : "??";
   };
 
-  const categoryLabel = thought.category === "REFLECTIVE" ? "Thoughts" : "Academic Hall";
+  const categoryLabel = thought.category === "REFLECTIVE" ? t('mehfil.rooms.reflective') : t('mehfil.rooms.academic');
   const categoryClass =
     thought.category === "REFLECTIVE"
       ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
@@ -340,7 +340,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 {thought.authorName}
                 {isOwnThought && (
                   <span className="ml-2 text-[10px] bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded-full font-semibold">
-                    You
+                    {t('mehfil.card.you')}
                   </span>
                 )}
               </h3>
@@ -370,14 +370,14 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 <Bookmark
                   className={`w-4 h-4 ${isSaved ? "fill-current text-teal-500" : ""}`}
                 />
-                <span>{isSaved ? "Unsave Post" : "Save Post"}</span>
+                <span>{isSaved ? t('mehfil.card.unsave') : t('mehfil.card.save')}</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer gap-2"
                 onClick={handleShare}
               >
                 <Share2 className="w-4 h-4" />
-                <span>Share</span>
+                <span>{t('mehfil.card.share')}</span>
               </DropdownMenuItem>
 
               {isOwnThought && onDelete && (
@@ -387,7 +387,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                     onClick={() => setIsEditDialogOpen(true)}
                   >
                     <Pencil className="w-4 h-4" />
-                    <span>Edit Post</span>
+                    <span>{t('mehfil.card.edit')}</span>
                   </DropdownMenuItem>
                   <Separator className="my-1" />
                   <DropdownMenuItem
@@ -395,7 +395,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                     onClick={() => setIsDeleteDialogOpen(true)}
                   >
                     <Trash2 className="w-4 h-4" />
-                    <span>Delete Post</span>
+                    <span>{t('mehfil.card.delete')}</span>
                   </DropdownMenuItem>
                 </>
               )}
@@ -406,7 +406,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 onClick={() => setIsReportDialogOpen(true)}
               >
                 <Flag className="w-4 h-4" />
-                <span>Report</span>
+                <span>{t('mehfil.card.report')}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -442,7 +442,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 className={`w-4 h-4 transition-all ${hasReacted ? "fill-current" : ""}`}
               />
               <span className="hidden sm:inline">
-                {hasReacted ? "Relatable" : "Relatable?"}
+                {hasReacted ? t('mehfil.card.relatable') : t('mehfil.card.relatable_ask')}
               </span>
               {thought.relatableCount > 0 && `(${thought.relatableCount})`}
             </button>
@@ -455,7 +455,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 }`}
             >
               <MessageCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Comment</span>
+              <span className="hidden sm:inline">{t('mehfil.card.comment')}</span>
               {Math.max(thought.commentsCount || 0, comments.length) > 0 && `(${Math.max(thought.commentsCount || 0, comments.length)})`}
             </button>
           </div>
@@ -477,11 +477,11 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
             <div className="space-y-3 sm:space-y-4 mb-3 sm:mb-4">
               {isLoadingComments ? (
                 <p className="text-center text-xs text-slate-400 py-2">
-                  Loading comments...
+                  {t('mehfil.card.loading_comments')}
                 </p>
               ) : comments.length === 0 ? (
                 <p className="text-center text-xs text-slate-400 py-2">
-                  No comments yet. Be the first!
+                  {t('mehfil.card.no_comments')}
                 </p>
               ) : (
                 comments.map((comment) => (
@@ -529,7 +529,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
             <div className="flex gap-1.5 sm:gap-2">
               <Avatar className="w-7 h-7 sm:w-8 sm:h-8 shrink-0">
                 <AvatarFallback className="text-[10px] sm:text-xs bg-teal-100 text-teal-700">
-                  Me
+                  {t('mehfil.card.me')}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 relative">
@@ -537,7 +537,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handlePostComment()}
-                  placeholder="Write a comment..."
+                  placeholder={t('mehfil.card.write_comment')}
                   className="pr-10 rounded-full bg-slate-50 dark:bg-slate-800/50 border-transparent focus:border-teal-500 focus:ring-teal-500/20"
                 />
                 <Button
@@ -559,25 +559,25 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Report Post</DialogTitle>
+            <DialogTitle>{t('mehfil.card.report_post')}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <RadioGroup value={reportReason} onValueChange={setReportReason}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="spam" id="spam" />
-                <Label htmlFor="spam">Spam or misleading</Label>
+                <Label htmlFor="spam">{t('mehfil.card.report_spam')}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="harassment" id="harassment" />
-                <Label htmlFor="harassment">Harassment or hate speech</Label>
+                <Label htmlFor="harassment">{t('mehfil.card.report_harassment')}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="inappropriate" id="inappropriate" />
-                <Label htmlFor="inappropriate">Inappropriate content</Label>
+                <Label htmlFor="inappropriate">{t('mehfil.card.report_inappropriate')}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="other" id="other" />
-                <Label htmlFor="other">Other</Label>
+                <Label htmlFor="other">{t('mehfil.card.report_other')}</Label>
               </div>
             </RadioGroup>
           </div>
@@ -586,13 +586,13 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               variant="outline"
               onClick={() => setIsReportDialogOpen(false)}
             >
-              Cancel
+              {t('mehfil.card.cancel')}
             </Button>
             <Button
               onClick={handleReport}
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
-              Submit Report
+              {t('mehfil.card.submit_report')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -600,17 +600,17 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Post?</DialogTitle>
+            <DialogTitle>{t('mehfil.card.delete_confirm_title')}</DialogTitle>
           </DialogHeader>
           <p className="py-4 text-slate-600 dark:text-slate-300">
-            Are you sure you want to delete this post? This action cannot be undone.
+            {t('mehfil.card.delete_confirm_desc')}
           </p>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
             >
-              Cancel
+              {t('mehfil.card.cancel')}
             </Button>
             <Button
               onClick={() => {
@@ -619,7 +619,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               }}
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
-              Delete
+              {t('mehfil.card.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -628,14 +628,14 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Post</DialogTitle>
+            <DialogTitle>{t('mehfil.card.edit_post')}</DialogTitle>
           </DialogHeader>
           <div className="py-2">
             <textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value.slice(0, 5000))}
               className="w-full min-h-[160px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/30"
-              placeholder="Update your post..."
+              placeholder={t('mehfil.card.edit_placeholder')}
             />
             <div className="mt-2 text-right text-[11px] text-slate-400">
               {editText.length} / 5000
@@ -643,10 +643,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
+              {t('mehfil.card.cancel')}
             </Button>
             <Button onClick={handleEdit} className="bg-teal-600 hover:bg-teal-700 text-white">
-              Save Changes
+              {t('mehfil.card.save_changes')}
             </Button>
           </DialogFooter>
         </DialogContent>
