@@ -33,6 +33,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
     const [preparationStage, setPreparationStage] = useState("");
     const [gender, setGender] = useState("");
     const [profilePreview, setProfilePreview] = useState<string | null>(null);
+    const [profileFile, setProfileFile] = useState<File | null>(null);
 
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -40,11 +41,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setProfilePreview(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            setProfileFile(file);
+            // Use object URL for instant preview — no base64 encoding needed
+            setProfilePreview(URL.createObjectURL(file));
         }
     };
 
@@ -57,6 +56,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
         setPreparationStage("");
         setGender("");
         setProfilePreview(null);
+        setProfileFile(null);
         setError("");
     };
 
@@ -124,15 +124,26 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
 
         setIsLoading(true);
         try {
+            // Create account without avatar first
             await authService.signup(
                 name,
                 email,
                 password,
                 examType || undefined,
                 preparationStage || undefined,
-                gender,
-                profilePreview || undefined
+                gender
             );
+
+            // If user selected a profile image, upload it separately
+            if (profileFile) {
+                try {
+                    const avatarUrl = await authService.uploadAvatar(profileFile);
+                    await authService.updateProfile({ avatar: avatarUrl });
+                } catch (uploadErr) {
+                    console.warn("Avatar upload after signup failed (non-fatal):", uploadErr);
+                }
+            }
+
             toast.success(t('auth.signup_success'));
             sessionStorage.setItem("showWelcomeNishtha", "true");
             resetForm();

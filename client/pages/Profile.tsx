@@ -20,16 +20,15 @@ export default function Profile() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isDark, setIsDark] = useState(false);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      // Use object URL for instant preview — no base64 encoding needed
+      setAvatarPreview(URL.createObjectURL(file));
+      setAvatarFile(file);
     }
   };
 
@@ -59,6 +58,15 @@ export default function Profile() {
     fetchUser();
   }, [navigate]);
 
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
+
   const toggleDarkMode = () => {
     document.documentElement.classList.toggle('dark');
     setIsDark(!isDark);
@@ -77,12 +85,18 @@ export default function Profile() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // If user selected a new avatar file, upload it first
+      let avatarUrl: string | undefined = undefined;
+      if (avatarFile) {
+        avatarUrl = await authService.uploadAvatar(avatarFile);
+      }
+
       const updatedUser = await authService.updateProfile({
         name: formData.name,
         examType: formData.examType,
         preparationStage: formData.preparationStage,
         gender: formData.gender,
-        avatar: avatarPreview || undefined,
+        avatar: avatarUrl,  // URL path like "/uploads/avatars/abc.webp" or undefined
       });
       setUser(updatedUser);
       setFormData({
@@ -93,6 +107,7 @@ export default function Profile() {
         gender: updatedUser.gender || "Male",
       });
       setAvatarPreview(null);
+      setAvatarFile(null);
       toast.success(t('profile.save_success'));
     } catch (error) {
       toast.error(t('profile.save_error'));

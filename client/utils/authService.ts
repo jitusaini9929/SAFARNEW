@@ -155,7 +155,7 @@ export const authService = {
     examType?: string;
     preparationStage?: string;
     gender?: string;
-    avatar?: string;
+    avatar?: string;  // Now expects a URL path like "/uploads/avatars/abc.webp", not base64
   }): Promise<User> {
     const response = await apiFetch("/api/auth/profile", {
       method: "PATCH",
@@ -170,6 +170,30 @@ export const authService = {
     }
 
     return response.json();
+  },
+
+  /**
+   * Upload avatar image via multipart/form-data.
+   * Returns the URL path (e.g. "/uploads/avatars/abc.webp").
+   */
+  async uploadAvatar(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await apiFetch("/api/upload/avatar", {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+      // Do NOT set Content-Type header — browser sets it with boundary for multipart
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Avatar upload failed");
+    }
+
+    const result = await response.json();
+    return result.url;  // e.g. "/uploads/avatars/550e8400.webp"
   },
 
   async getLoginHistory(): Promise<{ timestamp: string }[]> {

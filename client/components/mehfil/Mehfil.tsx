@@ -489,7 +489,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         <div className="gradient-blob bg-sky-300/30 dark:bg-sky-500/20 w-[500px] h-[500px] bottom-0 left-1/3 opacity-40" />
       </div>
 
-      <nav className="fixed top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 min-h-14 sm:min-h-16 glass-2-0 rounded-2xl z-50 px-2 sm:px-4 md:px-6 py-2 sm:py-0 flex items-center justify-between border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 gap-1.5 sm:gap-2">
+      <nav className="relative w-full min-h-14 sm:min-h-16 glass-2-0 rounded-2xl z-50 px-2 sm:px-4 md:px-6 py-2 sm:py-0 flex items-center justify-between border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 gap-1.5 sm:gap-2 mt-2 sm:mt-4 mb-4 sm:mb-6">
         <Link to="/home" className="flex items-center gap-2 sm:gap-3 group cursor-pointer text-inherit no-underline shrink-0">
           <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
             <span className="text-white font-bold text-sm sm:text-lg tracking-tight whitespace-nowrap break-normal">{t('mehfil.title')}</span>
@@ -567,7 +567,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         </div>
       </nav>
 
-      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pt-20 sm:pt-24 md:pt-28 pb-6 sm:pb-8 md:pb-12">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pb-6 sm:pb-8 md:pb-12">
         <main className="scrollbar-blend">
           <section className="mb-4 sm:mb-6 rounded-2xl sm:rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 p-3 sm:p-4 backdrop-blur-xl flex flex-col items-center text-center">
             <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/70 rounded-xl sm:rounded-2xl w-full sm:w-fit">

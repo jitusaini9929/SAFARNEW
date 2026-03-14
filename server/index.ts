@@ -1,5 +1,6 @@
 import "./load-env";
 import express from "express";
+import path from "path";
 import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
@@ -25,6 +26,7 @@ import { connectMongo, initDatabase } from "./db";
 import { setupMehfilSocket } from "./routes/mehfil-socket";
 import { paymentRoutes } from "./routes/payments";
 import { uploadRoutes, imageServeRouter } from "./routes/uploads";
+import { UPLOAD_BASE } from "./middleware/upload";
 import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
 import mehfilSocialRouter from "./routes/mehfil-social";
 import { dmRoutes } from "./routes/dm";
@@ -287,6 +289,16 @@ export async function createServer() {
   );
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
   app.use(cookieParser());
+
+  // ── Serve uploaded files from disk with cache headers ──
+  // In production on VPS, Nginx should serve /uploads/ directly for better performance.
+  // This Express static middleware is the fallback / dev-mode server.
+  app.use('/uploads', express.static(UPLOAD_BASE, {
+    maxAge: '30d',
+    immutable: true,
+    etag: true,
+    lastModified: true,
+  }));
 
   // Session Setup (using memory store - sessions reset on server restart)
   // For production with multiple instances, consider using redis or a DB-backed store

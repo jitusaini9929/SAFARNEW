@@ -159,12 +159,12 @@ router.post('/signup', async (req: Request, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         const userId = uuidv4();
 
-        let avatarUrl: string;
-        if (profileImage && profileImage.startsWith('data:image')) {
-            avatarUrl = profileImage;
-        } else {
-            avatarUrl = 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png';
-        }
+        // Profile images are now uploaded separately via POST /api/upload/avatar.
+        // Base64 data URIs passed during signup are ignored to prevent DB bloat.
+        const defaultAvatar = 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png';
+        const avatarUrl = (profileImage && profileImage.startsWith('/uploads/'))
+            ? profileImage
+            : defaultAvatar;
 
         await collections.users().insertOne({
             id: userId,

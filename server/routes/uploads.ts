@@ -2,15 +2,73 @@ import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { collections } from "../db";
 import { requireAuth } from "../middleware/auth";
+import { uploadAvatar, uploadGeneral, UPLOAD_BASE } from "../middleware/upload";
+import { deleteOldFile } from "../utils/fileHelper";
 
 export const uploadRoutes = Router();
 
 uploadRoutes.use(requireAuth);
 
-// POST /api/upload
-uploadRoutes.post("/", async (req: Request, res: Response) => {
+// ──────────────────────────────────────────────────────────────────────────────
+// POST /api/upload/avatar — Upload or replace user avatar (multipart/form-data)
+// ──────────────────────────────────────────────────────────────────────────────
+uploadRoutes.post("/avatar", ...uploadAvatar, async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).session.userId!;
+    const userId = req.session.userId!;
+    const processedFile = (req as any).processedFile;
+
+    if (!processedFile) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
+    }
+
+    // Get current avatar to delete old file from disk
+    const user = await collections.users().findOne(
+      { id: userId },
+      { projection: { avatar: 1 } }
+    );
+
+    // Delete old avatar file if it was a disk-based upload
+    if (user?.avatar && user.avatar.startsWith("/uploads/")) {
+      deleteOldFile(user.avatar);
+    }
+
+    // Save only the URL path to MongoDB
+    await collections.users().updateOne(
+      { id: userId },
+      { $set: { avatar: processedFile.urlPath } }
+    );
+
+    return res.json({
+      success: true,
+      url: processedFile.urlPath,
+    });
+  } catch (error: any) {
+    console.error("❌ Avatar upload failed:", error);
+    return res.status(500).json({ success: false, message: "Upload failed" });
+  }
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// POST /api/upload — General file upload (backward compatible)
+// Accepts EITHER:
+//   • multipart/form-data with field "file" (new disk-based path)
+//   • JSON body with { data, mimeType } (legacy base64 path — kept for audio in Sandesh)
+// ──────────────────────────────────────────────────────────────────────────────
+uploadRoutes.post("/", ...uploadGeneral, async (req: Request, res: Response) => {
+  try {
+    const userId = req.session.userId!;
+    const processedFile = (req as any).processedFile;
+
+    // ── New path: multipart/form-data upload was processed by multer+sharp ──
+    if (processedFile) {
+      return res.json({
+        success: true,
+        url: processedFile.urlPath,
+        id: processedFile.filename,
+      });
+    }
+
+    // ── Legacy path: JSON body with base64 data (kept for backward compat) ──
     const { data, mimeType } = req.body;
 
     if (!data || !mimeType) {
@@ -18,15 +76,8 @@ uploadRoutes.post("/", async (req: Request, res: Response) => {
     }
 
     const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "audio/mpeg",
-      "audio/wav",
-      "audio/ogg",
-      "audio/mp4",
-      "audio/aac",
+      "image/jpeg", "image/png", "image/gif", "image/webp",
+      "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/aac",
     ];
     if (!allowedTypes.includes(mimeType)) {
       return res.status(400).json({
@@ -38,7 +89,7 @@ uploadRoutes.post("/", async (req: Request, res: Response) => {
     const sizeInBytes = Math.ceil((data.length * 3) / 4);
     const maxSizeBytes = 5 * 1024 * 1024;
     if (sizeInBytes > maxSizeBytes) {
-      return res.status(400).json({ success: false, message: "Image too large. Max 5MB." });
+      return res.status(400).json({ success: false, message: "File too large. Max 5MB." });
     }
 
     const imageId = uuidv4();
@@ -55,12 +106,14 @@ uploadRoutes.post("/", async (req: Request, res: Response) => {
     const imageUrl = `/api/images/${imageId}`;
     res.json({ success: true, url: imageUrl, id: imageId });
   } catch (error: any) {
-    console.error("❌ Image upload failed:", error);
+    console.error("❌ Upload failed:", error);
     res.status(500).json({ success: false, message: "Upload failed" });
   }
 });
 
-// GET /api/images/:id
+// ──────────────────────────────────────────────────────────────────────────────
+// GET /api/images/:id — Serve images from MongoDB (legacy base64 storage)
+// ──────────────────────────────────────────────────────────────────────────────
 export const imageServeRouter = Router();
 
 imageServeRouter.get("/:id", async (req: Request, res: Response) => {

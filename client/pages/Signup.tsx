@@ -43,11 +43,8 @@ export default function Signup() {
     const file = e.target.files?.[0];
     if (file) {
       setProfileImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      // Use object URL for instant preview — no base64 encoding needed
+      setProfilePreview(URL.createObjectURL(file));
     }
   };
 
@@ -83,7 +80,20 @@ export default function Signup() {
 
     setIsLoading(true);
     try {
-      await authService.signup(name, email, password, examType || undefined, preparationStage || undefined, gender, profilePreview || undefined);
+      // Create account without avatar first
+      await authService.signup(name, email, password, examType || undefined, preparationStage || undefined, gender);
+
+      // If user selected a profile image, upload it separately
+      if (profileImage) {
+        try {
+          const avatarUrl = await authService.uploadAvatar(profileImage);
+          await authService.updateProfile({ avatar: avatarUrl });
+        } catch (uploadErr) {
+          // Avatar upload failure is non-fatal — account was created successfully
+          console.warn("Avatar upload after signup failed (non-fatal):", uploadErr);
+        }
+      }
+
       toast.success(t('auth.signup_success'));
       sessionStorage.setItem("showWelcomeNishtha", "true");
       navigate("/dashboard");
