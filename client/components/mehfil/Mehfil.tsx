@@ -648,10 +648,6 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
                               <span>{t('mehfil.thoughts_rule')}</span>
                             </li>
-                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                              <span>{t('mehfil.blocked_rule')}</span>
-                            </li>
                           </ul>
                         </div>
 
