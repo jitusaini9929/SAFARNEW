@@ -6,8 +6,28 @@ import nodemailer from 'nodemailer';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { checkPerks } from './perks';
+import { signAccessToken, signRefreshToken, verifyRefreshToken, getTokenRemainingTTL } from '../lib/jwt.service';
+import {
+  storeRefreshToken,
+  validateAndRotateRefreshToken,
+  revokeFamilyTokens,
+  blocklistAccessToken,
+  generateFamilyId,
+  generateTokenId,
+} from '../lib/token.store';
 
 const router = Router();
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase())
+);
+const COOKIE_NAME = '__Host-rt';
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: 'strict' as const,
+  path: '/',
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+};
 const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const PASSWORD_RESET_MIN_PASSWORD_LENGTH = 8;
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
@@ -20,6 +40,12 @@ function normalizeEmail(input: unknown): string {
 
 function isValidEmail(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isHostedAvatarUrl(value: unknown): value is string {
+    if (typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    return trimmed.startsWith('/uploads/') || /^https?:\/\//i.test(trimmed);
 }
 
 function isAllowedSignupEmail(email: string): boolean {
@@ -162,7 +188,7 @@ router.post('/signup', async (req: Request, res) => {
         // Profile images are now uploaded separately via POST /api/upload/avatar.
         // Base64 data URIs passed during signup are ignored to prevent DB bloat.
         const defaultAvatar = 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png';
-        const avatarUrl = (profileImage && profileImage.startsWith('/uploads/'))
+        const avatarUrl = isHostedAvatarUrl(profileImage)
             ? profileImage
             : defaultAvatar;
 
@@ -193,16 +219,27 @@ router.post('/signup', async (req: Request, res) => {
             last_active_date: new Date(),
         });
 
-        req.session.userId = userId;
+        // Issue tokens
+        const familyId = generateFamilyId();
+        const tokenId  = generateTokenId();
+        const isAdmin = ADMIN_EMAILS.has(normalizedEmail);
+        const accessToken  = signAccessToken(userId, isAdmin);
+        const refreshToken = signRefreshToken(userId, familyId, tokenId);
+
+        await storeRefreshToken(userId, familyId, tokenId);
+        res.cookie(COOKIE_NAME, refreshToken, COOKIE_OPTS);
 
         res.status(201).json({
-            id: userId,
-            name,
-            email: normalizedEmail,
-            avatar: avatarUrl,
-            examType,
-            preparationStage,
-            gender
+            accessToken,
+            user: {
+                id: userId,
+                name,
+                email: normalizedEmail,
+                avatar: avatarUrl,
+                examType,
+                preparationStage,
+                gender
+            }
         });
     } catch (error) {
         console.error('Signup error:', error);
@@ -324,14 +361,7 @@ router.post('/login', async (req: any, res) => {
             }
         }
 
-        req.session.userId = authenticatedUser.id;
-
-        // Always use 30-day sessions - matching the global session cookie config.
-        // Rolling sessions (rolling: true) auto-renew on activity, so active
-        // users are never logged out without explicitly logging out themselves.
-        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days always
-
-        console.log(`[LOGIN] Session userId set: ${req.session.userId}, MaxAge: ${req.session.cookie.maxAge}`);
+        // Note: req.session is gone, token logic below:
 
         // Update login streak (best effort)
         try {
@@ -349,14 +379,30 @@ router.post('/login', async (req: any, res) => {
             console.error('[LOGIN] Streak update failed (non-fatal):', streakError);
         }
 
+        // Issue tokens
+        const isAdmin = ADMIN_EMAILS.has(normalizedEmail);
+        const familyId = generateFamilyId();
+        const tokenId  = generateTokenId();
+      
+        const accessToken  = signAccessToken(authenticatedUser.id, isAdmin);
+        const refreshToken = signRefreshToken(authenticatedUser.id, familyId, tokenId);
+      
+        await storeRefreshToken(authenticatedUser.id, familyId, tokenId);
+      
+        res.cookie(COOKIE_NAME, refreshToken, COOKIE_OPTS);
+
         res.json({
-            id: authenticatedUser.id,
-            name: authenticatedUser.name,
-            email: authenticatedUser.email,
-            avatar: 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png',
-            examType: authenticatedUser.exam_type,
-            preparationStage: authenticatedUser.preparation_stage,
-            gender: authenticatedUser.gender
+            accessToken,
+            user: {
+                id: authenticatedUser.id,
+                name: authenticatedUser.name,
+                email: authenticatedUser.email,
+                avatar: authenticatedUser.avatar || 'https://www.gstatic.com/images/branding/product/1x/avatar_circle_blue_512dp.png',
+                examType: authenticatedUser.exam_type,
+                preparationStage: authenticatedUser.preparation_stage,
+                gender: authenticatedUser.gender,
+                isAdmin
+            }
         });
         console.log('[LOGIN] Response sent');
     } catch (error: any) {
@@ -415,15 +461,58 @@ async function updateLoginStreak(userId: string) {
     }
 }
 
+// Refresh Token
+router.post('/refresh', async (req, res) => {
+  const token = req.cookies[COOKIE_NAME];
+  if (!token) return res.status(401).json({ error: 'no_refresh_token' });
+
+  let payload;
+  try {
+    payload = verifyRefreshToken(token);
+  } catch {
+    res.clearCookie(COOKIE_NAME, { path: '/' });
+    return res.status(401).json({ error: 'refresh_token_invalid' });
+  }
+
+  const result = await validateAndRotateRefreshToken(payload.familyId, payload.tokenId);
+
+  if (!result) {
+    res.clearCookie(COOKIE_NAME, { path: '/' });
+    return res.status(401).json({ error: 'reuse_detected' });
+  }
+
+  const user = await collections.users().findOne({ id: result.userId }, { projection: { email: 1 } });
+  const isAdmin = ADMIN_EMAILS.has((user?.email || '').toLowerCase());
+
+  const newAccessToken  = signAccessToken(result.userId, isAdmin);
+  const newRefreshToken = signRefreshToken(result.userId, payload.familyId, result.newTokenId);
+
+  await storeRefreshToken(result.userId, payload.familyId, result.newTokenId);
+
+  res.cookie(COOKIE_NAME, newRefreshToken, COOKIE_OPTS);
+  return res.json({ accessToken: newAccessToken });
+});
+
 // Logout
-router.post('/logout', (req: Request, res) => {
-    req.session.destroy((err) => {
-        if (err) {
-            return res.status(500).json({ message: 'Could not log out' });
-        }
-        res.clearCookie('nistha.sid');
-        res.json({ message: 'Logged out successfully' });
-    });
+router.post('/logout', requireAuth, async (req: Request, res) => {
+    const token = req.cookies[COOKIE_NAME];
+  
+    if (token) {
+      try {
+        const payload = verifyRefreshToken(token);
+        await revokeFamilyTokens(payload.familyId);
+      } catch { /* expired RT */ }
+    }
+  
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+        const at = authHeader.slice(7);
+        const ttl = getTokenRemainingTTL(at);
+        await blocklistAccessToken(req.user!.jti, ttl);
+    }
+  
+    res.clearCookie(COOKIE_NAME, { path: '/' });
+    return res.json({ ok: true });
 });
 
 // Request password reset link
@@ -555,10 +644,11 @@ router.post('/reset-password', async (_req: Request, res) => {
 
 // Get Current User
 router.get('/me', requireAuth, async (req: Request, res) => {
-    console.log('🔵 [ME] Request received, session userId:', req.session.userId);
+    const userId = req.user?.userId;
+    console.log('🔵 [ME] Request received, token userId:', userId);
     try {
         const user = await collections.users().findOne(
-            { id: req.session.userId },
+            { id: userId },
             { projection: { id: 1, email: 1, name: 1, exam_type: 1, preparation_stage: 1, gender: 1, avatar: 1, created_at: 1 } }
         );
         console.log('🔵 [ME] User found:', user ? 'Yes' : 'No');
@@ -645,8 +735,9 @@ router.get('/me', requireAuth, async (req: Request, res) => {
 // Get Login History
 router.get('/login-history', requireAuth, async (req: Request, res) => {
     try {
+        const userId = req.user?.userId;
         const rows = await collections.loginHistory()
-            .find({ user_id: req.session.userId })
+            .find({ user_id: userId })
             .sort({ timestamp: -1 })
             .toArray();
         res.json(rows.map(r => ({ timestamp: r.timestamp })));
@@ -659,7 +750,7 @@ router.get('/login-history', requireAuth, async (req: Request, res) => {
 // Update Profile
 router.patch('/profile', requireAuth, async (req: Request, res) => {
     const { name, examType, preparationStage, gender, avatar } = req.body;
-    const userId = req.session.userId;
+    const userId = req.user?.userId;
 
     try {
         const updates: Record<string, any> = {};

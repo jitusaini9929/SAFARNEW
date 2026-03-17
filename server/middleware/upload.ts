@@ -1,85 +1,140 @@
 import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
-import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { Request, Response, NextFunction } from 'express';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
-// ── Upload base directory ──
-// In production (VPS), use UPLOAD_DIR env var pointing to e.g. /var/www/safar/uploads
-// In development, use a local ./uploads folder relative to the project root
-const UPLOAD_BASE = process.env.UPLOAD_DIR || path.resolve(__dirname, '../../uploads');
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '');
+}
 
-// ── Per-type configuration ──
+function readRequiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required Vultr Object Storage env var: ${name}`);
+  }
+  return value;
+}
+
+function getStorageSettings() {
+  const endpoint = trimTrailingSlash(readRequiredEnv('VULTR_ENDPOINT'));
+  const bucket = readRequiredEnv('VULTR_BUCKET_NAME');
+
+  return {
+    endpoint,
+    bucket,
+    region: readRequiredEnv('VULTR_BUCKET_REGION'),
+    accessKeyId: readRequiredEnv('VULTR_ACCESS_KEY'),
+    secretAccessKey: readRequiredEnv('VULTR_SECRET_KEY'),
+    publicBaseUrl: trimTrailingSlash(
+      process.env.VULTR_PUBLIC_BASE_URL?.trim() || `${endpoint}/${bucket}`,
+    ),
+  };
+}
+
+let storageClient: S3Client | null = null;
+
+function getStorageClient(): S3Client {
+  if (storageClient) {
+    return storageClient;
+  }
+
+  const settings = getStorageSettings();
+  storageClient = new S3Client({
+    endpoint: settings.endpoint,
+    region: settings.region,
+    credentials: {
+      accessKeyId: settings.accessKeyId,
+      secretAccessKey: settings.secretAccessKey,
+    },
+    forcePathStyle: true,
+  });
+
+  return storageClient;
+}
+
+function buildPublicUrl(objectKey: string): string {
+  return `${getStorageSettings().publicBaseUrl}/${objectKey}`;
+}
+
+function getAudioExtension(file: Express.Multer.File): string {
+  const originalExtension = path.extname(file.originalname).replace(/^\./, '').toLowerCase();
+  if (originalExtension) {
+    return originalExtension;
+  }
+
+  const mimeSubtype = file.mimetype.split('/')[1]?.toLowerCase() || 'bin';
+  if (mimeSubtype === 'mpeg') return 'mp3';
+  if (mimeSubtype === 'mp4') return 'm4a';
+  return mimeSubtype;
+}
+
 const CONFIGS: Record<string, {
-  dir: string;
   width: number;
   height: number | null;
   quality: number;
-  subfolder: string;
+  folder: string;
 }> = {
   avatar: {
-    dir: path.join(UPLOAD_BASE, 'avatars'),
     width: 256,
     height: 256,
     quality: 80,
-    subfolder: 'avatars',
+    folder: 'avatars',
   },
   post: {
-    dir: path.join(UPLOAD_BASE, 'posts'),
     width: 1200,
-    height: null,      // maintain aspect ratio
+    height: null,
     quality: 75,
-    subfolder: 'posts',
+    folder: 'posts',
   },
   general: {
-    dir: path.join(UPLOAD_BASE, 'general'),
     width: 1200,
     height: null,
     quality: 80,
-    subfolder: 'general',
+    folder: 'general',
   },
 };
 
-// ── Ensure directories exist ──
-for (const config of Object.values(CONFIGS)) {
-  if (!fs.existsSync(config.dir)) {
-    fs.mkdirSync(config.dir, { recursive: true });
-  }
-}
-
-// ── Multer (buffer mode — Sharp processes before writing to disk) ──
 const multerUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },  // 10MB raw limit
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    const ALLOWED_AUDIO = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/aac'];
-    if (ALLOWED_IMAGE.includes(file.mimetype) || ALLOWED_AUDIO.includes(file.mimetype)) {
+    const allowedImage = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedAudio = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/aac'];
+
+    if (allowedImage.includes(file.mimetype) || allowedAudio.includes(file.mimetype)) {
       cb(null, true);
-    } else {
-      cb(new Error('Only JPEG, PNG, WebP, GIF images and MP3, WAV, OGG, M4A, AAC audio are allowed'));
+      return;
     }
+
+    cb(new Error('Only JPEG, PNG, WebP, GIF images and MP3, WAV, OGG, M4A, AAC audio are allowed'));
   },
 });
 
-// ── Sharp processing + save to disk ──
 const processAndSave = (type: string) => async (req: Request, _res: Response, next: NextFunction) => {
   if (!req.file) return next();
 
   const config = CONFIGS[type] || CONFIGS.general;
+  const { bucket } = getStorageSettings();
   const isAudio = req.file.mimetype.startsWith('audio/');
 
   if (isAudio) {
-    // Audio files: save directly to disk without Sharp processing
-    const ext = req.file.originalname.split('.').pop() || 'mp3';
+    const ext = getAudioExtension(req.file);
     const filename = `${uuidv4()}.${ext}`;
-    const filepath = path.join(config.dir, filename);
-    const urlPath = `/uploads/${config.subfolder}/${filename}`;
+    const objectKey = `${config.folder}/${filename}`;
+    const urlPath = buildPublicUrl(objectKey);
 
     try {
-      fs.writeFileSync(filepath, req.file.buffer);
-      (req as any).processedFile = { filename, filepath, urlPath };
+      await getStorageClient().send(new PutObjectCommand({
+        Bucket: bucket,
+        Key: objectKey,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+        ACL: 'public-read',
+      }));
+
+      (req as any).processedFile = { filename, objectKey, urlPath };
       next();
     } catch (err) {
       next(err);
@@ -87,41 +142,43 @@ const processAndSave = (type: string) => async (req: Request, _res: Response, ne
     return;
   }
 
-  // Image files: resize + convert to WebP via Sharp
   const filename = `${uuidv4()}.webp`;
-  const filepath = path.join(config.dir, filename);
-  const urlPath = `/uploads/${config.subfolder}/${filename}`;
+  const objectKey = `${config.folder}/${filename}`;
+  const urlPath = buildPublicUrl(objectKey);
 
   try {
     let sharpInstance = sharp(req.file.buffer);
 
     if (config.height) {
-      // Cover crop (avatars)
       sharpInstance = sharpInstance.resize(config.width, config.height, {
         fit: 'cover',
         position: 'centre',
       });
     } else {
-      // Width-only resize (posts/general)
       sharpInstance = sharpInstance.resize(config.width, null, {
         withoutEnlargement: true,
       });
     }
 
-    await sharpInstance
+    const webpBuffer = await sharpInstance
       .webp({ quality: config.quality })
-      .toFile(filepath);
+      .toBuffer();
 
-    (req as any).processedFile = { filename, filepath, urlPath };
+    await getStorageClient().send(new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      Body: webpBuffer,
+      ContentType: 'image/webp',
+      ACL: 'public-read',
+    }));
+
+    (req as any).processedFile = { filename, objectKey, urlPath };
     next();
   } catch (err) {
     next(err);
   }
 };
 
-// ── Exported middleware chains ──
 export const uploadAvatar = [multerUpload.single('avatar'), processAndSave('avatar')];
 export const uploadPostImage = [multerUpload.single('image'), processAndSave('post')];
 export const uploadGeneral = [multerUpload.single('file'), processAndSave('general')];
-
-export { UPLOAD_BASE };

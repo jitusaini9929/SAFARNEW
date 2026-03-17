@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { collections } from "../db";
 import { requireAuth } from "../middleware/auth";
-import { uploadAvatar, uploadGeneral, UPLOAD_BASE } from "../middleware/upload";
+import { uploadAvatar, uploadGeneral } from "../middleware/upload";
 import { deleteOldFile } from "../utils/fileHelper";
 
 export const uploadRoutes = Router();
@@ -21,18 +21,15 @@ uploadRoutes.post("/avatar", ...uploadAvatar, async (req: Request, res: Response
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
 
-    // Get current avatar to delete old file from disk
+    // Get current avatar so the old asset can be cleaned up after replacement
     const user = await collections.users().findOne(
       { id: userId },
       { projection: { avatar: 1 } }
     );
 
-    // Delete old avatar file if it was a disk-based upload
-    if (user?.avatar && user.avatar.startsWith("/uploads/")) {
-      deleteOldFile(user.avatar);
-    }
+    await deleteOldFile(user?.avatar);
 
-    // Save only the URL path to MongoDB
+    // Save only the public URL to MongoDB
     await collections.users().updateOne(
       { id: userId },
       { $set: { avatar: processedFile.urlPath } }

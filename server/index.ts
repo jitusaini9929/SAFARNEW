@@ -6,11 +6,9 @@ import compression from "compression";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import crypto from "crypto";
-import session, { type SessionData } from "express-session";
 import cookieParser from "cookie-parser";
 import { createServer as createHttpServer } from "http";
 import { createClient } from "redis";
-import { RedisStore } from "connect-redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { handleDemo } from "./routes/demo";
 import { authRoutes } from "./routes/auth";
@@ -26,234 +24,16 @@ import { connectMongo, initDatabase } from "./db";
 import { setupMehfilSocket } from "./routes/mehfil-socket";
 import { paymentRoutes } from "./routes/payments";
 import { uploadRoutes, imageServeRouter } from "./routes/uploads";
-import { UPLOAD_BASE } from "./middleware/upload";
 import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
 import mehfilSocialRouter from "./routes/mehfil-social";
 import { dmRoutes } from "./routes/dm";
 
-type SessionStoreCallback = (err?: unknown, data?: unknown) => void;
-type SessionRedisClient = ReturnType<typeof createClient>;
-const MEHFIL_PAUSED = false;
-const MEHFIL_PAUSED_MESSAGE = "Due to irrelevant and spam posts . Mehfil is currently not accessible . We are working on it and notify shortly";
-
-const RETRYABLE_REDIS_ERROR_CODES = new Set([
-  "ECONNRESET",
-  "ECONNREFUSED",
-  "ETIMEDOUT",
-  "EPIPE",
-  "NR_CLOSED",
-  "NR_CONNECTION_LOST",
-]);
-
-function optionalStoreCb(err: unknown, data: unknown, cb?: SessionStoreCallback) {
-  if (cb) return cb(err, data);
-  if (err) throw err;
-  return data;
-}
-
-function getRedisErrorCode(error: unknown): string | undefined {
-  if (typeof error !== "object" || error === null) return undefined;
-  const maybeCode = (error as { code?: unknown }).code;
-  return typeof maybeCode === "string" ? maybeCode : undefined;
-}
-
-function isRetryableRedisError(error: unknown): boolean {
-  const code = getRedisErrorCode(error);
-  if (code && RETRYABLE_REDIS_ERROR_CODES.has(code)) return true;
-
-  const message = String(
-    (error as { message?: unknown } | undefined)?.message ?? error,
-  ).toLowerCase();
-
-  return (
-    message.includes("econnreset") ||
-    message.includes("socket closed unexpectedly") ||
-    message.includes("the client is closed") ||
-    message.includes("connection is closed") ||
-    message.includes("connection timeout") ||
-    message.includes("read econnreset")
-  );
-}
-
-function maskSessionId(sid: string): string {
-  if (!sid) return "unknown";
-  if (sid.length <= 8) return sid;
-  return `${sid.slice(0, 8)}...`;
-}
-
-async function reconnectRedisClient(redisClient: SessionRedisClient) {
-  if (redisClient.isReady) return;
-
-  try {
-    await redisClient.connect();
-  } catch (error) {
-    const message = String((error as { message?: unknown })?.message ?? error);
-    if (!/already open|socket already opened/i.test(message)) {
-      throw error;
-    }
-  }
-
-  if (!redisClient.isReady) {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-}
-
-class ResilientRedisStore extends RedisStore {
-  private readonly redisClient: SessionRedisClient;
-
-  constructor(redisClient: SessionRedisClient, options: ConstructorParameters<typeof RedisStore>[0]) {
-    super(options);
-    this.redisClient = redisClient;
-  }
-
-  private sessionTtl(sess: SessionData): number {
-    if (typeof this.ttl === "function") return this.ttl(sess);
-
-    if (sess?.cookie?.expires) {
-      const ms = Number(new Date(sess.cookie.expires)) - Date.now();
-      return Math.ceil(ms / 1000);
-    }
-
-    return this.ttl;
-  }
-
-  private async runWithRetry<T>(operation: string, sid: string, command: () => Promise<T>): Promise<T> {
-    try {
-      return await command();
-    } catch (error) {
-      if (!isRetryableRedisError(error)) throw error;
-
-      const code = getRedisErrorCode(error) ?? "UNKNOWN";
-      console.warn(
-        `[SESSION][REDIS] ${operation} failed for sid=${maskSessionId(sid)} code=${code}. Retrying once.`,
-      );
-
-      await reconnectRedisClient(this.redisClient);
-      return command();
-    }
-  }
-
-  async get(sid: string, cb?: SessionStoreCallback) {
-    const key = this.prefix + sid;
-
-    try {
-      const data = await this.runWithRetry("GET", sid, () => this.client.get(key));
-      if (!data) return optionalStoreCb(null, null, cb);
-      return optionalStoreCb(null, await this.serializer.parse(data), cb);
-    } catch (error) {
-      return optionalStoreCb(error, null, cb);
-    }
-  }
-
-  async set(sid: string, sess: SessionData, cb?: SessionStoreCallback) {
-    const key = this.prefix + sid;
-    const ttl = this.sessionTtl(sess);
-
-    try {
-      if (ttl <= 0) return this.destroy(sid, cb);
-
-      const value = this.serializer.stringify(sess);
-      await this.runWithRetry("SET", sid, async () => {
-        if (this.disableTTL) await this.client.set(key, value);
-        else await this.client.set(key, value, ttl);
-      });
-
-      return optionalStoreCb(null, null, cb);
-    } catch (error) {
-      return optionalStoreCb(error, null, cb);
-    }
-  }
-
-  async touch(sid: string, sess: SessionData, cb?: SessionStoreCallback) {
-    const key = this.prefix + sid;
-
-    if (this.disableTouch || this.disableTTL) {
-      return optionalStoreCb(null, null, cb);
-    }
-
-    try {
-      await this.runWithRetry("TOUCH", sid, () => this.client.expire(key, this.sessionTtl(sess)));
-      return optionalStoreCb(null, null, cb);
-    } catch (error) {
-      return optionalStoreCb(error, null, cb);
-    }
-  }
-
-  async destroy(sid: string, cb?: SessionStoreCallback) {
-    const key = this.prefix + sid;
-
-    try {
-      await this.runWithRetry("DESTROY", sid, () => this.client.del([key]));
-      return optionalStoreCb(null, null, cb);
-    } catch (error) {
-      return optionalStoreCb(error, null, cb);
-    }
-  }
-}
-
-async function createRedisSessionStore() {
-  const redisUrl = process.env.REDIS_URL || process.env.REDIS_URI;
-  const redisRequired = process.env.REDIS_REQUIRED === "true";
-
-  if (!redisUrl) {
-    if (redisRequired) {
-      throw new Error("REDIS_REQUIRED is true but REDIS_URL is not set");
-    }
-
-    return null;
-  }
-
-  try {
-    const redisClient = createClient({
-      url: redisUrl,
-      pingInterval: Number(process.env.REDIS_PING_INTERVAL_MS || 10000),
-      socket: {
-        connectTimeout: Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 10000),
-        keepAlive: Number(process.env.REDIS_KEEP_ALIVE_MS || 10000),
-        noDelay: true,
-        reconnectStrategy: (retries) => Math.min(retries * 100, 3000),
-      },
-    });
-
-    redisClient.on("ready", () => {
-      console.log("[SESSION][REDIS] client ready");
-    });
-
-    redisClient.on("reconnecting", () => {
-      console.warn("[SESSION][REDIS] reconnecting...");
-    });
-
-    redisClient.on("end", () => {
-      console.warn("[SESSION][REDIS] connection closed");
-    });
-
-    redisClient.on("error", (error) => {
-      const code = getRedisErrorCode(error);
-      const message = String((error as { message?: unknown })?.message ?? error);
-      console.error(`[SESSION][REDIS] client error${code ? ` (${code})` : ""}: ${message}`);
-    });
-
-    await redisClient.connect();
-    console.log("[SESSION][REDIS] connected for session store");
-
-    const store = new ResilientRedisStore(redisClient, {
-      client: redisClient,
-      prefix: process.env.REDIS_SESSION_PREFIX || "nistha:sess:",
-    });
-
-    return { store, redisClient };
-  } catch (error) {
-    if (redisRequired) {
-      throw new Error(`Redis connection failed while REDIS_REQUIRED=true: ${String(error)}`);
-    }
-
-    console.error("[SESSION][REDIS] unavailable, falling back to MemoryStore:", error);
-    return null;
-  }
-}
+// Setup Mehfil Socket.IO Config Constants
+// Redis adapter logic moved down
 
 export async function createServer() {
   const app = express();
+  const legacyUploadBase = process.env.UPLOAD_DIR || path.resolve(__dirname, "../../uploads");
 
   // Connect MongoDB first
   await connectMongo();
@@ -293,7 +73,7 @@ export async function createServer() {
   // ── Serve uploaded files from disk with cache headers ──
   // In production on VPS, Nginx should serve /uploads/ directly for better performance.
   // This Express static middleware is the fallback / dev-mode server.
-  app.use('/uploads', express.static(UPLOAD_BASE, {
+  app.use('/uploads', express.static(legacyUploadBase, {
     maxAge: '30d',
     immutable: true,
     etag: true,
@@ -306,29 +86,6 @@ export async function createServer() {
   // Trust proxy for Render/Heroku deployments
   if (process.env.NODE_ENV === "production") {
     app.set("trust proxy", 1);
-  }
-
-  const redisSession = await createRedisSessionStore();
-
-  const sessionMiddleware = session({
-    store: redisSession?.store || undefined,
-    secret: process.env.SESSION_SECRET || "your-secret-key",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    },
-    name: "nistha.sid",
-    rolling: true,
-  });
-
-  app.use(sessionMiddleware);
-
-  if (!redisSession) {
-    console.warn("[SESSION][MEMORY] using in-memory store (not recommended for production)");
   }
 
   // ── Rate Limiting (100 requests per minute per IP) ──
@@ -397,31 +154,25 @@ export async function createServer() {
 
   app.get("/api/demo", handleDemo);
 
-  // Convert transient Redis session transport failures into a controlled response.
-  app.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
-    if (!isRetryableRedisError(err)) return next(err);
-
-    const message = String((err as { message?: unknown })?.message ?? err);
-    console.error("[SESSION][REDIS] request failed after retry:", message);
-
-    if (res.headersSent) return next(err);
-    return res.status(503).json({ message: "Session service is temporarily unavailable. Please retry." });
-  });
 
   // Create HTTP server and Socket.IO
   const httpServer = createHttpServer(app);
+
+  const MEHFIL_PAUSED = false;
+  const MEHFIL_PAUSED_MESSAGE = "Due to irrelevant and spam posts . Mehfil is currently not accessible . We are working on it and notify shortly";
 
   // Setup Mehfil Socket.IO handlers
   const io = setupMehfilSocket(httpServer, {
     paused: MEHFIL_PAUSED,
     pausedMessage: MEHFIL_PAUSED_MESSAGE,
-    redisClient: redisSession?.redisClient || null,
-    sessionMiddleware,
+    redisClient: null, // Redis logic handled in token.store.ts now, but passing null for socket auth since we'll upgrade it
   });
 
-  if (redisSession?.redisClient) {
-    const pubClient = redisSession.redisClient.duplicate();
-    const subClient = redisSession.redisClient.duplicate();
+  // Simplified Redis adapter - uses the redis from token.store
+  const { redis } = await import("./lib/token.store");
+  if (redis) {
+    const pubClient = redis.duplicate();
+    const subClient = redis.duplicate();
     await Promise.all([pubClient.connect(), subClient.connect()]);
     io.adapter(createAdapter(pubClient, subClient));
     console.log("[SOCKET.IO] Redis adapter configured for multi-instance scaling");
