@@ -122,7 +122,7 @@ const sessions: Session[] = [
 
 
 const ADMIN_EMAIL = "steve123@gmail.com";
-const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/vWWrcQA6JdU";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://www.youtube.com/watch?v=yhTEuOdTq1M";
 const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.png";
 
 const getYoutubeVideoId = (url: string) => {

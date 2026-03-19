@@ -11,10 +11,11 @@ import AppsGrid from '../components/landing/AppsGrid';
 import CommunitySpotlight from '../components/landing/CommunitySpotlight';
 import ExternalResources from '../components/landing/ExternalResources';
 import Footer from '../components/landing/Footer';
+import Milestone100KShowcase from '../components/landing/Milestone100KShowcase';
 
 const LANDING_UPDATE_NOTIFICATION = {
   title: 'New Video Is Live.',
-  youtubeUrl: 'https://youtu.be/vWWrcQA6JdU',
+  youtubeUrl: 'https://www.youtube.com/watch?v=yhTEuOdTq1M',
 };
 
 const getYoutubeVideoId = (url: string) => {
