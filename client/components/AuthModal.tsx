@@ -82,9 +82,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
             resetForm();
             onAuthSuccess();
             onClose();
-            setTimeout(() => {
-                window.location.reload();
-            }, 100);
+            navigate("/home", { replace: true });
         } catch (err: any) {
             setError(err.message || t('auth.error_invalid_creds'));
         } finally {
@@ -149,9 +147,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
             resetForm();
             onAuthSuccess();
             onClose();
-            setTimeout(() => {
-                window.location.reload();
-            }, 100);
+            navigate("/home", { replace: true });
         } catch (err: any) {
             setError(err.message || t('auth.error_invalid_creds'));
         } finally {

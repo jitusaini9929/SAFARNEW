@@ -1,12 +1,40 @@
 /** @import must precede all other statements */
 @import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Manrope:wght@200..800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap");
 
+@font-face {
+  font-family: "Ranade";
+  src: url("../ranade/Ranade-Regular.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ranade";
+  src: url("../ranade/Ranade-Medium.otf") format("opentype");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ranade";
+  src: url("../ranade/Ranade-Bold.otf") format("opentype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ── Safe Area & Mobile Viewport Utilities ─────────────────── */
 @layer utilities {
+  .font-ranade {
+    font-family: "Ranade", "Plus Jakarta Sans", "Poppins", system-ui, sans-serif;
+  }
+
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
@@ -191,6 +219,24 @@
     -webkit-backdrop-filter: blur(var(--glass-blur));
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
+  }
+
+  .glass-high-contrast {
+    @apply bg-gradient-to-br from-[#1a1a20]/90 via-[#15151a]/80 to-[#0f0f12]/50 backdrop-blur-xl border border-white/5 shadow-2xl;
+    /* Ensure all text inside the achievement/title card is readable against the dark background */
+    color: #ffffff;
+  }
+
+  /* Force common text utilities inside the dark title card to use white for consistent contrast */
+  .glass-high-contrast .text-primary,
+  .glass-high-contrast .text-foreground,
+  .glass-high-contrast p,
+  .glass-high-contrast h1,
+  .glass-high-contrast h2,
+  .glass-high-contrast h3,
+  .glass-high-contrast span,
+  .glass-high-contrast .font-bold {
+    color: #ffffff !important;
   }
 }
 

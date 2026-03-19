@@ -561,7 +561,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
     }
 
     console.log('[MEHFIL] Client connected:', socket.id);
-    const sessionUserId = String((socket.request as any)?.session?.userId || '').trim();
+    const sessionUserId = String(socket.data?.userId || '').trim();
     const effectiveUserId = sessionUserId || socketToUser.get(socket.id) || '';
 
     if (effectiveUserId) {
@@ -573,7 +573,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
     }
 
     const getSocketUserId = () => {
-      const bySession = String((socket.request as any)?.session?.userId || '').trim();
+      const bySession = String(socket.data?.userId || '').trim();
       if (bySession) return bySession;
       return socketToUser.get(socket.id) || '';
     };

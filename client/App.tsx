@@ -99,7 +99,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/?signin=true" replace />;
 }
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    authService.initAuth();
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -251,7 +256,8 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 // HMR and rendering logic is handled in main.tsx
 export default App;

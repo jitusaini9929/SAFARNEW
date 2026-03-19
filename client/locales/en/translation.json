@@ -368,7 +368,7 @@
     "goals": {
         "title": "Command Center",
         "subtitle": "Manage your goals and track progress efficiently.",
-        "add_goal": "+ Add Goal",
+        "add_goal": "Add Goal",
         "tab_goals": "Goals",
         "tab_history": "History",
         "tab_analytics": "Analytics",

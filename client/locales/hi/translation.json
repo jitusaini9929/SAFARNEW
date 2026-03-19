@@ -15,7 +15,7 @@
         "checkin": "मन का हाल",
         "journal": "डायरी",
         "goals": "लक्ष्य",
-        "streaks": "सिलसिला",
+        "streaks": "स्ट्रीक",
         "analytics": "रिपोर्ट",
         "suggestions": "सुझाव",
         "saved_posts": "सेवड पोस्ट्स",
@@ -368,7 +368,7 @@
     "goals": {
         "title": "कमांड सेंटर",
         "subtitle": "अपने लक्ष्य मैनेज करो और प्रोग्रेस आसानी से ट्रैक करो।",
-        "add_goal": "+ लक्ष्य जोड़ो",
+        "add_goal": "लक्ष्य जोड़ो",
         "tab_goals": "लक्ष्य",
         "tab_history": "इतिहास",
         "tab_analytics": "एनैलिटिक्स",

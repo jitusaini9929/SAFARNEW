@@ -33,9 +33,7 @@ export default function Login() {
       const user = await authService.login(email, password, rememberMe);
       toast.success(t('auth.welcome_back_toast'));
       sessionStorage.setItem("showWelcomeNishtha", "true");
-      setTimeout(() => {
-        window.location.href = "/home";
-      }, 100);
+      navigate("/home", { replace: true });
     } catch (err: any) {
       setError(err.message || t('auth.error_invalid_creds'));
       setIsLoading(false);

@@ -143,8 +143,8 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                 </div>
                 <div className="relative z-20 w-full max-w-[1400px] px-6 md:px-8 mt-24 md:mt-12">
                     <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 drop-shadow-2xl">
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif">{t('landing.title_part1')}</span>
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-serif mt-2">{t('landing.title_part2')}</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-ranade font-medium">{t('landing.title_part1')}</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 font-ranade font-medium mt-2">{t('landing.title_part2')}</span>
                     </h1>
                     <p className="text-base md:text-lg lg:text-xl text-slate-800 dark:text-slate-100 font-bold mb-10 md:mb-12 max-w-xl md:max-w-2xl leading-relaxed">
                         {t('landing.subtitle')}

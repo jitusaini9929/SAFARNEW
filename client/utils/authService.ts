@@ -1,4 +1,4 @@
-import { apiFetch, resetCsrfToken } from "@/utils/apiFetch";
+import { apiFetch, resetCsrfToken, setAccessToken, getAccessToken } from "@/utils/apiFetch";
 import { User, Streak } from "@shared/api";
 
 interface AuthResponse {
@@ -63,7 +63,8 @@ export const authService = {
       throw new Error(error.message || "Login failed");
     }
 
-    const user = await response.json();
+    const { accessToken, user } = await response.json();
+    setAccessToken(accessToken);
     writeCachedUser(user);
     emitAuthChanged(true, user);
     return user;
@@ -99,20 +100,52 @@ export const authService = {
       throw new Error(error.message || "Signup failed");
     }
 
-    const user = await response.json();
+    const { accessToken, user } = await response.json();
+    setAccessToken(accessToken);
     writeCachedUser(user);
     emitAuthChanged(true, user);
     return user;
   },
 
   async logout(): Promise<void> {
-    await apiFetch("/api/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    });
-    writeCachedUser(null);
-    emitAuthChanged(false, null);
-    resetCsrfToken();
+    try {
+      await apiFetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      setAccessToken(null);
+      writeCachedUser(null);
+      emitAuthChanged(false, null);
+      resetCsrfToken();
+    }
+  },
+
+  async initAuth(): Promise<User | null> {
+    const cachedUser = readCachedUser();
+    if (!cachedUser) return null;
+
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        // RT expired — clear stale cache
+        writeCachedUser(null);
+        emitAuthChanged(false, null);
+        return null;
+      }
+
+      const { accessToken } = await res.json();
+      setAccessToken(accessToken);
+
+      emitAuthChanged(true, cachedUser);
+      return cachedUser;
+    } catch {
+      return null;
+    }
   },
 
   async getCurrentUser(): Promise<AuthResponse | null> {
