@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/MainLayout';
 import { authService } from '@/utils/authService';
+import { dataService } from '@/utils/dataService';
 import { Award, Clock, Heart, Target, Users, CheckCircle2, Lock, Check, Sparkles, RefreshCw, Medal } from 'lucide-react';
 import { toast } from 'sonner';
 import CelebrationModal from '@/components/CelebrationModal';
@@ -116,8 +117,8 @@ export default function Achievements() {
                 setUser(userData.user);
 
                 const [allData, titleData] = await Promise.all([
-                    fetch('/api/achievements/all', { credentials: 'include' }).then(r => r.json()),
-                    fetch('/api/achievements/active-title', { credentials: 'include' }).then(r => r.json()),
+                    dataService.getAllAchievements(),
+                    dataService.getActiveTitle(),
                 ]);
                 setAchievements(allData.achievements || []);
                 setSelectedId(titleData.selectedId || null);
@@ -142,6 +143,7 @@ export default function Achievements() {
                 }
             } catch (error) {
                 console.error('Failed to fetch achievements:', error);
+                toast.error('Failed to load achievements');
             } finally {
                 setLoading(false);
             }
@@ -153,18 +155,7 @@ export default function Achievements() {
         if (selecting) return;
         setSelecting(true);
         try {
-            const res = await fetch('/api/achievements/select', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ achievementId }),
-            });
-            if (!res.ok) {
-                const errData = await res.json();
-                toast.error(errData.message || 'Failed to set active');
-                return;
-            }
-            const data = await res.json();
+            const data = await dataService.selectAchievement(achievementId);
             setSelectedId(data.selectedId);
             toast.success(`Active display set to "${data.title || data.selectedId}"`);
         } catch (error) {
@@ -187,7 +178,7 @@ export default function Achievements() {
             setWeekTitle(data);
             if (data.title) {
                 toast.success(`🎉 You earned: "${data.title}"`);
-                const allData = await fetch('/api/achievements/all', { credentials: 'include' }).then(r => r.json());
+                const allData = await dataService.getAllAchievements();
                 setAchievements(allData.achievements || []);
             } else {
                 toast.info("Keep going! No special title this week, but you're making progress.");
@@ -276,6 +267,7 @@ export default function Achievements() {
                             <div className="flex items-center justify-center gap-2 mb-2">
                                 <Sparkles className="w-5 h-5 text-red-500" />
                                 <span className="text-2xl font-bold text-foreground">{titles.filter(a => a.earned).length}</span>
+                                <span className="text-muted-foreground text-sm">/ {titles.length}</span>
                             </div>
                             <p className="text-xs text-red-600 dark:text-red-400 uppercase font-semibold">{t('achievements.titles_earned')}</p>
                         </div>
