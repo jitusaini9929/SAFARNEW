@@ -692,14 +692,13 @@ export default function Dashboard() {
                             </h2>
 
                             {/* Description */}
-                            <div className="bg-slate-50 dark:bg-black/20 rounded-xl p-4 mt-4 text-left">
-                                <p className="text-sm text-slate-600 dark:text-slate-300">
-                                    {selectedAchievement.description}
-                                </p>
-                                <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-                                    Earned on: {new Date(selectedAchievement.earnedAt).toLocaleDateString()}
-                                </p>
-                            </div>
+                            {selectedAchievement.description && (
+                                <div className="bg-slate-50 dark:bg-black/20 rounded-xl p-4 mt-4 text-left">
+                                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                                        {selectedAchievement.description}
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Rarity */}
                             {selectedAchievement.holderCount > 0 && (

@@ -192,6 +192,15 @@ const App = () => {
                 </Route>
 
                 <Route
+                  path="/nishtha/achievements"
+                  element={
+                    <ProtectedRoute>
+                      <Achievements />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
                   path="/study"
                   element={
                     <ProtectedRoute>
