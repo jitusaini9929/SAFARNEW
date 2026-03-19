@@ -8,7 +8,6 @@ import rateLimit from "express-rate-limit";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import { createServer as createHttpServer } from "http";
-import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { handleDemo } from "./routes/demo";
 import { authRoutes } from "./routes/auth";
@@ -168,14 +167,17 @@ export async function createServer() {
     redisClient: null, // Redis logic handled in token.store.ts now, but passing null for socket auth since we'll upgrade it
   });
 
-  // Simplified Redis adapter - uses the redis from token.store
-  const { redis } = await import("./lib/token.store");
+  // Configure the Redis adapter only when Redis is available at runtime.
+  const { getRedisClient } = await import("./lib/token.store");
+  const redis = await getRedisClient();
   if (redis) {
     const pubClient = redis.duplicate();
     const subClient = redis.duplicate();
     await Promise.all([pubClient.connect(), subClient.connect()]);
     io.adapter(createAdapter(pubClient, subClient));
     console.log("[SOCKET.IO] Redis adapter configured for multi-instance scaling");
+  } else {
+    console.warn("[SOCKET.IO] Redis unavailable, running without the Redis adapter");
   }
 
   return { app, httpServer, io };
