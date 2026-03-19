@@ -173,16 +173,22 @@ export async function createServer() {
 
   // Configure the Redis adapter only when Redis is available at runtime.
   const { getRedisClient } = await import("./lib/token.store");
-  const redis = await getRedisClient();
-  if (redis) {
-    const pubClient = redis.duplicate();
-    const subClient = redis.duplicate();
-    await Promise.all([pubClient.connect(), subClient.connect()]);
-    io.adapter(createAdapter(pubClient, subClient));
-    console.log("[SOCKET.IO] Redis adapter configured for multi-instance scaling");
-  } else {
-    console.warn("[SOCKET.IO] Redis unavailable, running without the Redis adapter");
-  }
+  void getRedisClient()
+    .then(async (redis) => {
+      if (!redis) {
+        console.warn("[SOCKET.IO] Redis unavailable, running without the Redis adapter");
+        return;
+      }
+
+      const pubClient = redis.duplicate();
+      const subClient = redis.duplicate();
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+      io.adapter(createAdapter(pubClient, subClient));
+      console.log("[SOCKET.IO] Redis adapter configured for multi-instance scaling");
+    })
+    .catch((error) => {
+      console.error("[SOCKET.IO] Redis adapter setup failed:", error);
+    });
 
   return { app, httpServer, io };
 }

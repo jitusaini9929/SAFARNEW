@@ -242,7 +242,20 @@ router.post('/signup', async (req: Request, res) => {
             }
         });
     } catch (error) {
-        console.error('Signup error:', error);
+        const err = error as any;
+
+        if (err?.code === 11000) {
+            const duplicateField = Object.keys(err?.keyPattern || {})[0] || 'field';
+            if (duplicateField === 'email') {
+                return res.status(409).json({ message: 'Email already in use' });
+            }
+            if (duplicateField === 'id') {
+                return res.status(503).json({ message: 'Please try again in a moment' });
+            }
+            return res.status(409).json({ message: 'Duplicate value not allowed' });
+        }
+
+        console.error('Signup error:', err);
         res.status(500).json({ message: 'Internal server error' });
     }
 });

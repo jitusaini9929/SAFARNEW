@@ -1,8 +1,29 @@
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 
-const ACCESS_SECRET  = process.env.JWT_ACCESS_SECRET!;
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
+function resolveSecret(kind: 'access' | 'refresh'): string {
+  const direct = kind === 'access'
+    ? process.env.JWT_ACCESS_SECRET
+    : process.env.JWT_REFRESH_SECRET;
+
+  const legacy = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+  const resolved = direct || legacy;
+
+  if (resolved) return resolved;
+
+  // Keep auth endpoints functional even when env is incomplete.
+  // This avoids hard-to-diagnose 500s during signup/login in misconfigured deploys.
+  const generated = crypto.randomBytes(48).toString('hex');
+  console.warn(
+    `[AUTH] Missing ${kind === 'access' ? 'JWT_ACCESS_SECRET' : 'JWT_REFRESH_SECRET'} and no JWT_SECRET/SESSION_SECRET fallback found. ` +
+      `Using an ephemeral ${kind} JWT secret for this process. Set persistent secrets in production.`
+  );
+  return generated;
+}
+
+const ACCESS_SECRET  = resolveSecret('access');
+const REFRESH_SECRET = resolveSecret('refresh');
 const ACCESS_EXPIRES  = (process.env.JWT_ACCESS_EXPIRES  ?? '15m') as any;
 const REFRESH_EXPIRES = (process.env.JWT_REFRESH_EXPIRES ?? '30d') as any;
 

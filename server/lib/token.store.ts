@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const redisUrl = process.env.REDIS_URL || process.env.REDIS_URI;
 const redisEnabled = Boolean(redisUrl);
+const redisConnectTimeoutMs = Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 3000);
 
 let redisClient: RedisClientType | null = null;
 let redisConnectPromise: Promise<RedisClientType | null> | null = null;
@@ -26,12 +27,33 @@ function getOrCreateRedisClient(): RedisClientType | null {
   if (!redisEnabled) return null;
   if (redisClient) return redisClient;
 
-  redisClient = createClient({ url: redisUrl });
+  redisClient = createClient({
+    url: redisUrl,
+    socket: {
+      connectTimeout: redisConnectTimeoutMs,
+      reconnectStrategy: false,
+    },
+  });
   redisClient.on('error', (error) => {
     console.error('[REDIS] Client error:', error);
   });
 
   return redisClient;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), timeoutMs);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        resolve(null);
+      });
+  });
 }
 
 export async function getRedisClient(): Promise<RedisClientType | null> {
@@ -46,11 +68,22 @@ export async function getRedisClient(): Promise<RedisClientType | null> {
   }
 
   if (!redisConnectPromise) {
-    redisConnectPromise = client
-      .connect()
-      .then(() => client)
+    redisConnectPromise = withTimeout(
+      client.connect().then(() => client),
+      redisConnectTimeoutMs,
+    )
+      .then((connectedClient) => {
+        if (!connectedClient) {
+          console.error(`[REDIS] Connection timed out after ${redisConnectTimeoutMs}ms`);
+          if (redisClient && !redisClient.isOpen) {
+            redisClient = null;
+          }
+        }
+        return connectedClient;
+      })
       .catch((error) => {
         console.error('[REDIS] Connection failed:', error);
+        redisClient = null;
         return null;
       })
       .finally(() => {
@@ -117,8 +150,12 @@ export async function storeRefreshToken(
   const client = await getRedisClient();
 
   if (client) {
-    await client.set(key, userId, { EX: REFRESH_TTL_SEC });
-    return;
+    try {
+      await client.set(key, userId, { EX: REFRESH_TTL_SEC });
+      return;
+    } catch (error) {
+      console.error('[REDIS] Failed to store refresh token, using in-memory fallback:', error);
+    }
   }
 
   setMemoryRefreshToken(key, userId, REFRESH_TTL_SEC);
@@ -132,20 +169,24 @@ export async function validateAndRotateRefreshToken(
   const client = await getRedisClient();
 
   if (client) {
-    const userId = await client.get(key);
+    try {
+      const userId = await client.get(key);
 
-    if (!userId) {
-      await revokeFamilyTokens(familyId);
-      return null;
+      if (!userId) {
+        await revokeFamilyTokens(familyId);
+        return null;
+      }
+
+      const newTokenId = uuidv4();
+      const newKey = `${RT_PREFIX}:${familyId}:${newTokenId}`;
+
+      await client.del(key);
+      await client.set(newKey, userId, { EX: REFRESH_TTL_SEC });
+
+      return { userId, newTokenId };
+    } catch (error) {
+      console.error('[REDIS] Failed to rotate refresh token, using in-memory fallback:', error);
     }
-
-    const newTokenId = uuidv4();
-    const newKey = `${RT_PREFIX}:${familyId}:${newTokenId}`;
-
-    await client.del(key);
-    await client.set(newKey, userId, { EX: REFRESH_TTL_SEC });
-
-    return { userId, newTokenId };
   }
 
   const userId = getMemoryRefreshToken(key);
@@ -168,10 +209,14 @@ export async function revokeFamilyTokens(familyId: string): Promise<void> {
   const client = await getRedisClient();
 
   if (client) {
-    for await (const key of client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-      await client.del(key);
+    try {
+      for await (const key of client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+        await client.del(key);
+      }
+      return;
+    } catch (error) {
+      console.error('[REDIS] Failed to revoke token family in Redis, using in-memory fallback:', error);
     }
-    return;
   }
 
   cleanupExpiredMemoryEntries();
@@ -189,8 +234,12 @@ export async function blocklistAccessToken(jti: string, ttlSeconds: number): Pro
   const client = await getRedisClient();
 
   if (client) {
-    await client.set(key, '1', { EX: ttlSeconds });
-    return;
+    try {
+      await client.set(key, '1', { EX: ttlSeconds });
+      return;
+    } catch (error) {
+      console.error('[REDIS] Failed to blocklist access token in Redis, using in-memory fallback:', error);
+    }
   }
 
   blocklistMemoryToken(key, ttlSeconds);
@@ -201,8 +250,12 @@ export async function isAccessTokenBlocked(jti: string): Promise<boolean> {
   const client = await getRedisClient();
 
   if (client) {
-    const result = await client.get(key);
-    return result !== null;
+    try {
+      const result = await client.get(key);
+      return result !== null;
+    } catch (error) {
+      console.error('[REDIS] Failed to check blocklisted token in Redis, using in-memory fallback:', error);
+    }
   }
 
   return isMemoryTokenBlocked(key);

@@ -41,6 +41,7 @@ Copy `.env.example` to `.env` and set at least:
 Common optional settings:
 
 - `MONGODB_DB_NAME` (default: `safar`)
+- `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (recommended; falls back to `JWT_SECRET` or `SESSION_SECRET`)
 - `REDIS_URL` / `REDIS_REQUIRED`
 - `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`
 - `GROQ_API_KEY` (Mehfil AI moderation)
