@@ -1,9 +1,12 @@
 import '../load-env';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { connectMongo, collections } from '../db';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const LEGACY_UPLOAD_BASE = process.env.UPLOAD_DIR || path.resolve(__dirname, '../../uploads');
 const FOLDERS = ['avatars', 'posts', 'general'] as const;
 

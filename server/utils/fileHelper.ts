@@ -1,7 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const LEGACY_UPLOAD_BASE = process.env.UPLOAD_DIR || path.resolve(__dirname, '../../uploads');
 
 function trimTrailingSlash(value: string): string {

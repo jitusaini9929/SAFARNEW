@@ -1,6 +1,7 @@
 import "./load-env";
 import express from "express";
 import path from "path";
+import { fileURLToPath } from "url";
 import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
@@ -29,6 +30,9 @@ import { dmRoutes } from "./routes/dm";
 
 // Setup Mehfil Socket.IO Config Constants
 // Redis adapter logic moved down
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export async function createServer() {
   const app = express();
