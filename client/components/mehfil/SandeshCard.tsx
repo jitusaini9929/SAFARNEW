@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { formatDistanceToNow } from 'date-fns';
 import { hi, enUS } from 'date-fns/locale';
+import { apiFetch } from '@/utils/apiFetch';
 import './SandeshCard.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
@@ -152,7 +153,7 @@ const SandeshCard = () => {
         if (!content || isPostingCommentById[sandeshId]) return;
         setIsPostingCommentById(prev => ({ ...prev, [sandeshId]: true }));
         try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/comments`, {
+            const res = await apiFetch(`${API_URL}/mehfil/sandesh/${sandeshId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content }),
@@ -172,7 +173,7 @@ const SandeshCard = () => {
 
     const handleDeleteComment = async (sandeshId: string, commentId: string) => {
         try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/comments/${commentId}`, { method: 'DELETE', credentials: 'include' });
+            const res = await apiFetch(`${API_URL}/mehfil/sandesh/${sandeshId}/comments/${commentId}`, { method: 'DELETE', credentials: 'include' });
             if (res.ok) {
                 setCommentsById(prev => ({ ...prev, [sandeshId]: (prev[sandeshId] || []).filter(c => c.id !== commentId) }));
                 setCommentCountById(prev => ({ ...prev, [sandeshId]: Math.max((prev[sandeshId] || 1) - 1, 0) }));
@@ -190,7 +191,7 @@ const SandeshCard = () => {
     useEffect(() => {
         const fetchCurrentUser = async () => {
             try {
-                const res = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
+                const res = await apiFetch(`${API_URL}/auth/me`, { credentials: 'include' });
                 if (res.ok) {
                     const data = await res.json();
                     setCurrentUserId(data?.user?.id || data?.id || null);

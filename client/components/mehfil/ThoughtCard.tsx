@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { apiFetch } from "@/utils/apiFetch";
 import {
   Dialog,
   DialogContent,
@@ -106,7 +107,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     try {
       if (!currentUserId) return;
 
-      const response = await fetch(`${API_URL}/mehfil/interactions/save/${thought.id}`, { credentials: "include" });
+      const response = await apiFetch(`${API_URL}/mehfil/interactions/save/${thought.id}`, { credentials: "include" });
       if (response.ok) {
         const data = await response.json();
         setIsSaved(data.saved);
@@ -121,7 +122,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const fetchComments = async () => {
     setIsLoadingComments(true);
     try {
-      const response = await fetch(`${API_URL}/mehfil/interactions/comments/${thought.id}`, { credentials: "include" });
+      const response = await apiFetch(`${API_URL}/mehfil/interactions/comments/${thought.id}`, { credentials: "include" });
       if (response.ok) {
         const data = await response.json();
         setComments(Array.isArray(data?.comments) ? data.comments.map(toComment) : []);
@@ -143,7 +144,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         toast.error(t('mehfil.toasts.comment_login'));
         return;
       }
-      const response = await fetch(`${API_URL}/mehfil/interactions/comments`, {
+      const response = await apiFetch(`${API_URL}/mehfil/interactions/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -167,7 +168,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
   const handleDeleteComment = async (commentId: string) => {
     try {
-      const response = await fetch(`${API_URL}/mehfil/interactions/comments/${commentId}`, {
+      const response = await apiFetch(`${API_URL}/mehfil/interactions/comments/${commentId}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -189,7 +190,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         toast.error("You must be logged in to save posts");
         return;
       }
-      const response = await fetch(`${API_URL}/mehfil/interactions/save`, {
+      const response = await apiFetch(`${API_URL}/mehfil/interactions/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -212,7 +213,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         toast.error(t('mehfil.toasts.report_login'));
         return;
       }
-      const response = await fetch(`${API_URL}/mehfil/interactions/report`, {
+      const response = await apiFetch(`${API_URL}/mehfil/interactions/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -234,7 +235,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     const shareUrl = `${window.location.origin}/mehfil/${thought.id}`;
     try {
       if (currentUserId) {
-        fetch(`${API_URL}/mehfil/interactions/share`, {
+        apiFetch(`${API_URL}/mehfil/interactions/share`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
