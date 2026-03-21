@@ -2,6 +2,7 @@ const LANGUAGE_TOGGLE_ALLOWED_EMAILS = new Set([
   "steve123@example.com",
   "safarparmar0@gmail.com",
   "shashank181002@gmail.com",
+  "thatkindchic@gmail.com",
 ]);
 
 export const canAccessLanguageToggle = (email?: string | null) =>
