@@ -33,6 +33,12 @@ const PASSWORD_RESET_MIN_PASSWORD_LENGTH = 8;
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const ALLOWED_SIGNUP_DOMAINS = new Set(['gmail.com', 'outlook.com']);
 const SIGNUP_EMAIL_EXCEPTION = 'steve123@example.com';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+function logMeDebug(...args: any[]) {
+    if (IS_PRODUCTION) return;
+    console.log(...args);
+}
 
 function normalizeEmail(input: unknown): string {
     return String(input || '').trim().toLowerCase();
@@ -658,13 +664,13 @@ router.post('/reset-password', async (_req: Request, res) => {
 // Get Current User
 router.get('/me', requireAuth, async (req: Request, res) => {
     const userId = req.user?.userId;
-    console.log('🔵 [ME] Request received, token userId:', userId);
+    logMeDebug('🔵 [ME] Request received, token userId:', userId);
     try {
         const user = await collections.users().findOne(
             { id: userId },
             { projection: { id: 1, email: 1, name: 1, exam_type: 1, preparation_stage: 1, gender: 1, avatar: 1, created_at: 1 } }
         );
-        console.log('🔵 [ME] User found:', user ? 'Yes' : 'No');
+        logMeDebug('🔵 [ME] User found:', user ? 'Yes' : 'No');
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -714,7 +720,7 @@ router.get('/me', requireAuth, async (req: Request, res) => {
                     user_id: user.id,
                     timestamp: new Date(),
                 });
-                console.log('🟢 [ME] Logged daily activity for:', todayIST);
+                logMeDebug('🟢 [ME] Logged daily activity for:', todayIST);
             }
         } catch (logError) {
             console.error('Failed to log daily activity:', logError);
@@ -737,7 +743,7 @@ router.get('/me', requireAuth, async (req: Request, res) => {
                 lastActiveDate: streaks?.last_active_date
             }
         });
-        console.log('🟢 [ME] Sending response with user and streaks');
+        logMeDebug('🟢 [ME] Sending response with user and streaks');
 
     } catch (error) {
         console.error('Get user error:', error);
