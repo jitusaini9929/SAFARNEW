@@ -14,10 +14,11 @@ import Footer from '../components/landing/Footer';
 import Milestone100KModal from '../components/landing/Milestone100KModal';
 import { triggerFireworks, triggerSideCannons } from '../components/ui/confetti';
 
+let hasAutoOpenedMilestoneThisPageLoad = false;
+
 const Landing = () => {
   const [user, setUser] = useState<any>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [hasShownMilestoneModal, setHasShownMilestoneModal] = useState(false);
   const [suppressMilestoneAutoOpen, setSuppressMilestoneAutoOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [is100KModalOpen, setIs100KModalOpen] = useState(false);
@@ -52,12 +53,13 @@ const Landing = () => {
   }, []);
 
   useEffect(() => {
-    // Auto-open milestone modal on reload for everyone, unless user explicitly enters sign-in flow.
-    if (suppressMilestoneAutoOpen || isAuthModalOpen || hasShownMilestoneModal) return;
+    // Auto-open only once per full page load, not on every client-side return to home.
+    if (suppressMilestoneAutoOpen || isAuthModalOpen || hasAutoOpenedMilestoneThisPageLoad) return;
+
+    hasAutoOpenedMilestoneThisPageLoad = true;
 
     const timer = window.setTimeout(() => {
       setIs100KModalOpen(true);
-      setHasShownMilestoneModal(true);
 
       // Fireworks and side cannons should appear above the modal overlay.
       window.setTimeout(() => {
@@ -67,7 +69,7 @@ const Landing = () => {
     }, 750);
 
     return () => window.clearTimeout(timer);
-  }, [suppressMilestoneAutoOpen, isAuthModalOpen, hasShownMilestoneModal]);
+  }, [suppressMilestoneAutoOpen, isAuthModalOpen]);
 
   return (
     <div className="min-h-[100dvh] font-sans text-slate-800 dark:text-slate-100 selection:bg-brand-accent selection:text-black bg-gradient-to-br from-white via-slate-50 to-indigo-100 dark:bg-gradient-to-br dark:from-plum-dark dark:via-purple-deep dark:to-midnight">

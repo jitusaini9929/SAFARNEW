@@ -539,31 +539,33 @@ export default function Goals() {
               </h1>
               <p className="text-muted-foreground font-medium pl-1">{t('goals.subtitle')}</p>
             </div>
-            
-            <button
-              onClick={() => setModal({ mode: "add", goal: null })}
-              className="px-6 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all w-full md:w-auto"
-            >
-              <Plus size={20} strokeWidth={3} /> {t('goals.add_goal')}
-            </button>
           </header>
 
-          <div className="flex items-center p-1 bg-muted/50 rounded-2xl border w-full md:w-fit">
-            {[
-              { id: "goals", label: t('goals.tab_goals'), icon: Check },
-              { id: "history", label: t('goals.tab_history'), icon: Clock },
-              { id: "analytics", label: t('goals.tab_analytics'), icon: TrendingUp }
-            ].map((tabItem) => (
-              <button
-                key={tabItem.id}
-                onClick={() => setTab(tabItem.id)}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-[14px] text-sm font-bold transition-all
-                  ${tab === tabItem.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                <tabItem.icon size={16} />
-                {tabItem.label}
-              </button>
-            ))}
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+            <div className="flex items-center p-1 bg-muted/50 rounded-2xl border w-full md:w-fit overflow-x-auto no-scrollbar">
+              {[
+                { id: "goals", label: t('goals.tab_goals'), icon: Check },
+                { id: "history", label: t('goals.tab_history'), icon: Clock },
+                { id: "analytics", label: t('goals.tab_analytics'), icon: TrendingUp }
+              ].map((tabItem) => (
+                <button
+                  key={tabItem.id}
+                  onClick={() => setTab(tabItem.id)}
+                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-[14px] text-sm font-bold transition-all whitespace-nowrap
+                    ${tab === tabItem.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  <tabItem.icon size={16} />
+                  {tabItem.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setModal({ mode: "add", goal: null })}
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all w-full md:w-auto"
+            >
+              <Plus size={18} strokeWidth={3} /> {t('goals.add_goal')}
+            </button>
           </div>
 
           {tab === "analytics" ? (

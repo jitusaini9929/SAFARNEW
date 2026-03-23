@@ -32,10 +32,10 @@ const PASSWORD_RESET_MIN_PASSWORD_LENGTH = 8;
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 const ALLOWED_SIGNUP_DOMAINS = new Set(['gmail.com', 'outlook.com']);
 const SIGNUP_EMAIL_EXCEPTION = 'steve123@example.com';
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const AUTH_DEBUG_LOGS = process.env.AUTH_DEBUG_LOGS === 'true';
 
 function logMeDebug(...args: any[]) {
-    if (IS_PRODUCTION) return;
+    if (!AUTH_DEBUG_LOGS) return;
     console.log(...args);
 }
 
