@@ -69,6 +69,9 @@ export const collections = {
 
 export async function connectMongo(): Promise<void> {
     if (client) return;
+    if (!MONGODB_URI) {
+        throw new Error('MONGODB_URI is required for server startup.');
+    }
 
     const maxRetries = 3;
     let delay = 2000;
