@@ -11,14 +11,12 @@ import cookieParser from "cookie-parser";
 import { createServer as createHttpServer } from "http";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { handleDemo } from "./routes/demo";
-import { authRoutes } from "./routes/auth";
 import { moodRoutes } from "./routes/moods";
 import { journalRoutes } from "./routes/journal";
 import { goalRoutes } from "./routes/goals";
 import { streakRoutes } from "./routes/streaks";
 import { focusSessionRoutes } from "./routes/focus-sessions";
 import { focusOverlayRoutes } from "./routes/focus-overlay";
-import { achievementRoutes, seedAchievementDefinitions } from "./routes/achievements";
 import { analyticsRoutes } from "./routes/analytics";
 import { connectMongo, initDatabase } from "./db";
 import { setupMehfilSocket } from "./routes/mehfil-socket";
@@ -27,8 +25,6 @@ import { uploadRoutes, imageServeRouter } from "./routes/uploads";
 import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
 import mehfilSocialRouter from "./routes/mehfil-social";
 import { dmRoutes } from "./routes/dm";
-import { liveCounterRoutes } from "./routes/live-counter";
-import planRouter from "../sylaabus planner/plan.routes";
 
 // Setup Mehfil Socket.IO Config Constants
 // Redis adapter logic moved down
@@ -36,18 +32,52 @@ import planRouter from "../sylaabus planner/plan.routes";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+async function loadStartupModule<T>(label: string, loader: () => Promise<T>): Promise<T> {
+  try {
+    return await loader();
+  } catch (error) {
+    console.error(`[STARTUP] Failed to load ${label}:`, error);
+    throw error;
+  }
+}
+
+async function runStartupTask(label: string, task: () => Promise<void>): Promise<void> {
+  try {
+    console.log(`[STARTUP] ${label}...`);
+    await task();
+    console.log(`[STARTUP] ${label} complete`);
+  } catch (error) {
+    console.error(`[STARTUP] ${label} failed:`, error);
+    throw error;
+  }
+}
+
 export async function createServer() {
   const app = express();
   const legacyUploadBase = process.env.UPLOAD_DIR || path.resolve(__dirname, "../../uploads");
 
   // Connect MongoDB first
-  await connectMongo();
-  await initDatabase();
+  await runStartupTask("connect MongoDB", async () => {
+    await connectMongo();
+  });
+  await runStartupTask("initialize MongoDB indexes", async () => {
+    await initDatabase();
+  });
 
-  // Seed definitions
-  await seedAchievementDefinitions();
-  const { seedPerkDefinitions } = await import("./routes/perks");
-  await seedPerkDefinitions();
+  const achievementsModule = await loadStartupModule("achievement routes", () => import("./routes/achievements"));
+  const perksModule = await loadStartupModule("perk routes", () => import("./routes/perks"));
+  const authModule = await loadStartupModule("auth routes", () => import("./routes/auth"));
+  const liveCounterModule = await loadStartupModule("live counter routes", () => import("./routes/live-counter"));
+  const planModule = await loadStartupModule("study planner routes", () => import("../sylaabus planner/plan.routes"));
+  const sandeshModule = await loadStartupModule("sandesh routes", () => import("./routes/sandesh"));
+  const suggestionsModule = await loadStartupModule("suggestions routes", () => import("./routes/suggestions"));
+
+  await runStartupTask("seed achievement definitions", async () => {
+    await achievementsModule.seedAchievementDefinitions();
+  });
+  await runStartupTask("seed perk definitions", async () => {
+    await perksModule.seedPerkDefinitions();
+  });
 
 
   // Performance: gzip/brotli compression
@@ -134,25 +164,25 @@ export async function createServer() {
   */
 
   // Routes
-  app.use("/api/auth", authRoutes);
+  app.use("/api/auth", authModule.authRoutes);
   app.use("/api/moods", moodRoutes);
   app.use("/api/journal", journalRoutes);
   app.use("/api/goals", goalRoutes);
   app.use("/api/streaks", streakRoutes);
   app.use("/api/focus-sessions", focusSessionRoutes);
   app.use("/api/focus-overlay", focusOverlayRoutes);
-  app.use("/api/achievements", achievementRoutes);
+  app.use("/api/achievements", achievementsModule.achievementRoutes);
   app.use("/api/analytics", analyticsRoutes);
   app.use("/api/payments", paymentRoutes);
   app.use("/api/upload", uploadRoutes);
   app.use("/api/images", imageServeRouter);
   app.use("/api/mehfil/interactions", mehfilInteractionRoutes);
-  app.use("/api/mehfil/sandesh", (await import("./routes/sandesh")).sandeshRoutes);
+  app.use("/api/mehfil/sandesh", sandeshModule.sandeshRoutes);
   app.use("/api/mehfil", mehfilSocialRouter);
   app.use("/api/dm", dmRoutes);
-  app.use("/api/live", liveCounterRoutes);
-  app.use("/api/plans", planRouter);
-  app.use("/api/suggestions", (await import("./routes/suggestions")).suggestionsRoutes);
+  app.use("/api/live", liveCounterModule.liveCounterRoutes);
+  app.use("/api/plans", planModule.default);
+  app.use("/api/suggestions", suggestionsModule.suggestionsRoutes);
 
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";

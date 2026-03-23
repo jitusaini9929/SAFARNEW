@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid';
 import nodemailer from 'nodemailer';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
-import { checkPerks } from './perks';
 import { signAccessToken, signRefreshToken, verifyRefreshToken, getTokenRemainingTTL } from '../lib/jwt.service';
 import {
   storeRefreshToken,
@@ -389,6 +388,7 @@ router.post('/login', async (req: any, res) => {
             console.log('[LOGIN] Streaks updated');
 
             try {
+                const { checkPerks } = await import('./perks');
                 await checkPerks(authenticatedUser.id, 'login');
                 console.log('[LOGIN] Perks checked');
             } catch (perkError) {
