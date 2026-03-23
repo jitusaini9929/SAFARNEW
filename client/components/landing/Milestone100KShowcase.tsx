@@ -5,6 +5,7 @@ import { triggerFireworks, triggerSideCannons } from '@/components/ui/confetti';
 
 const STARTING_SUBSCRIBERS = 100000;
 const LIVECOUNT_CHANNEL_ID = 'UCsbT4wZ_FUUpJGtVa4mooow';
+const LIVECOUNT_POLL_MS = 30000;
 
 type LiveCounterApiResponse = {
   success: boolean;
@@ -94,6 +95,8 @@ const Milestone100KShowcase = () => {
     };
 
     const loadLiveCount = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+
       try {
         const response = await fetch(`/api/live/youtube-subs?channelId=${LIVECOUNT_CHANNEL_ID}`, {
           method: 'GET',
@@ -123,7 +126,7 @@ const Milestone100KShowcase = () => {
 
     const interval = window.setInterval(() => {
       void loadLiveCount();
-    }, 4000);
+    }, LIVECOUNT_POLL_MS);
 
     return () => {
       isMounted = false;

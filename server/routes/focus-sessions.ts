@@ -4,6 +4,36 @@ import { requireAuth } from '../middleware/auth';
 import { v4 as uuid } from 'uuid';
 
 const router = Router();
+const FOCUS_STATS_DEBUG_LOGS = process.env.FOCUS_STATS_DEBUG_LOGS === 'true';
+const FOCUS_STATS_CACHE_TTL_MS = Number(process.env.FOCUS_STATS_CACHE_TTL_MS || 20000);
+
+type FocusStatsCacheEntry = {
+    expiresAt: number;
+    payload: any;
+};
+
+const focusStatsCache = new Map<string, FocusStatsCacheEntry>();
+
+function getCachedFocusStats(userId: string) {
+    const entry = focusStatsCache.get(userId);
+    if (!entry) return null;
+    if (Date.now() >= entry.expiresAt) {
+        focusStatsCache.delete(userId);
+        return null;
+    }
+    return entry.payload;
+}
+
+function setCachedFocusStats(userId: string, payload: any) {
+    focusStatsCache.set(userId, {
+        payload,
+        expiresAt: Date.now() + Math.max(1000, FOCUS_STATS_CACHE_TTL_MS),
+    });
+}
+
+function invalidateFocusStatsCache(userId: string) {
+    focusStatsCache.delete(userId);
+}
 
 // Log a completed focus session
 router.post('/', requireAuth, async (req: Request, res) => {
@@ -62,6 +92,9 @@ router.post('/', requireAuth, async (req: Request, res) => {
             });
         }
 
+        // Session write changed user analytics; invalidate short-lived stats cache.
+        invalidateFocusStatsCache(req.session.userId!);
+
         res.json({ success: true, id });
     } catch (error) {
         console.error('Log focus session error:', error);
@@ -73,6 +106,11 @@ router.post('/', requireAuth, async (req: Request, res) => {
 router.get('/stats', requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
+
+        const cached = getCachedFocusStats(userId);
+        if (cached) {
+            return res.json(cached);
+        }
 
         // Total focus time (completed sessions only)
         const totalPipeline = [
@@ -222,14 +260,14 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             taskText: null,
         }));
 
-        res.json({
-            totalFocusMinutes: (() => {
-                // DEBUG: Analytics
-                console.log(`[FocusStats] User: ${userId}`, {
-                    totals, weeklyData, weeklyBreaks, focusStreak, goals
-                });
-                return totals.total_focus_minutes || 0;
-            })(),
+        if (FOCUS_STATS_DEBUG_LOGS) {
+            console.log(`[FocusStats] User: ${userId}`, {
+                totals, weeklyData, weeklyBreaks, focusStreak, goals,
+            });
+        }
+
+        const payload = {
+            totalFocusMinutes: totals.total_focus_minutes || 0,
             totalBreakMinutes: totals.total_break_minutes || 0,
             totalSessions: totals.total_sessions || 0,
             completedSessions: totals.completed_sessions || 0,
@@ -242,7 +280,10 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             dailyGoalProgress: Math.min(100, Math.round(((totals.total_focus_minutes || 0) / 240) * 100)),
             hourlyDistribution,
             recentSessions,
-        });
+        };
+
+        setCachedFocusStats(userId, payload);
+        res.json(payload);
     } catch (error) {
         console.error('Get focus stats error:', error);
         res.status(500).json({ message: 'Internal server error' });

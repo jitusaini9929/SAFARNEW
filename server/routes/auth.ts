@@ -30,6 +30,8 @@ const COOKIE_OPTS = {
 const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const PASSWORD_RESET_MIN_PASSWORD_LENGTH = 8;
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX_KEYS = 200000;
+let rateLimitOpCounter = 0;
 const ALLOWED_SIGNUP_DOMAINS = new Set(['gmail.com', 'outlook.com']);
 const SIGNUP_EMAIL_EXCEPTION = 'steve123@example.com';
 const AUTH_DEBUG_LOGS = process.env.AUTH_DEBUG_LOGS === 'true';
@@ -85,6 +87,27 @@ async function findUserByEmailInsensitive(
 
 function isRateLimited(key: string, limit: number, windowMs: number) {
     const now = Date.now();
+
+    // Prevent unbounded growth for long-running processes with many unique IPs.
+    rateLimitOpCounter += 1;
+    if ((rateLimitOpCounter & 0xff) === 0 || rateLimitStore.size > RATE_LIMIT_MAX_KEYS) {
+        for (const [entryKey, entry] of rateLimitStore.entries()) {
+            if (now > entry.resetAt) {
+                rateLimitStore.delete(entryKey);
+            }
+        }
+
+        if (rateLimitStore.size > RATE_LIMIT_MAX_KEYS) {
+            const overflow = rateLimitStore.size - RATE_LIMIT_MAX_KEYS;
+            let removed = 0;
+            for (const entryKey of rateLimitStore.keys()) {
+                rateLimitStore.delete(entryKey);
+                removed += 1;
+                if (removed >= overflow) break;
+            }
+        }
+    }
+
     const bucket = rateLimitStore.get(key);
 
     if (!bucket || now > bucket.resetAt) {
@@ -273,7 +296,7 @@ router.post('/signup', async (req: Request, res) => {
 
 // Login
 router.post('/login', async (req: any, res) => {
-    console.log('[LOGIN] Request received:', { email: req.body.email });
+    logMeDebug('[LOGIN] Request received:', { email: req.body.email });
     const normalizedEmail = normalizeEmail(req.body?.email);
     const password = String(req.body?.password || '');
 
@@ -286,7 +309,7 @@ router.post('/login', async (req: any, res) => {
     }
 
     try {
-        console.log('[LOGIN] Querying user candidates...');
+        logMeDebug('[LOGIN] Querying user candidates...');
         const escapedEmail = escapeRegExp(normalizedEmail);
         const exactRegex = new RegExp(`^${escapedEmail}$`, 'i');
         const looseRegex = new RegExp(`^\\s*${escapedEmail}\\s*$`, 'i');
@@ -318,7 +341,7 @@ router.post('/login', async (req: any, res) => {
             .limit(20)
             .toArray();
 
-        console.log('[LOGIN] Candidate count:', candidates.length);
+        logMeDebug('[LOGIN] Candidate count:', candidates.length);
 
         let authenticatedUser: any = null;
         let usedLegacyPassword = false;
@@ -349,10 +372,10 @@ router.post('/login', async (req: any, res) => {
         }
 
         if (!authenticatedUser) {
-            console.log('[LOGIN] Invalid credentials');
+            logMeDebug('[LOGIN] Invalid credentials');
             return res.status(401).json({ message: 'Invalid credentials' });
         }
-        console.log('[LOGIN] Password verified');
+        logMeDebug('[LOGIN] Password verified');
 
         if (usedLegacyPassword) {
             try {
@@ -383,14 +406,14 @@ router.post('/login', async (req: any, res) => {
 
         // Update login streak (best effort)
         try {
-            console.log('[LOGIN] Updating streaks...');
+            logMeDebug('[LOGIN] Updating streaks...');
             await updateLoginStreak(authenticatedUser.id);
-            console.log('[LOGIN] Streaks updated');
+            logMeDebug('[LOGIN] Streaks updated');
 
             try {
                 const { checkPerks } = await import('./perks');
                 await checkPerks(authenticatedUser.id, 'login');
-                console.log('[LOGIN] Perks checked');
+                logMeDebug('[LOGIN] Perks checked');
             } catch (perkError) {
                 console.error('[LOGIN] Perk check failed (non-fatal):', perkError);
             }
@@ -423,7 +446,7 @@ router.post('/login', async (req: any, res) => {
                 isAdmin
             }
         });
-        console.log('[LOGIN] Response sent');
+        logMeDebug('[LOGIN] Response sent');
     } catch (error: any) {
         console.error('[LOGIN ERROR]:', error.message || error);
         res.status(500).json({ message: 'Internal server error' });

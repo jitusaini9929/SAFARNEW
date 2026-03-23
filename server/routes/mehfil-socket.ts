@@ -79,6 +79,7 @@ const MODERATION_EXEMPT_EMAILS = new Set(
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean),
 );
+const MEHFIL_SOCKET_DEBUG_LOGS = process.env.MEHFIL_SOCKET_DEBUG_LOGS === 'true';
 
 const GROQ_SYSTEM_PROMPT = `You are the Content Architect for "Mehfil," a support community for students.
 
@@ -560,7 +561,9 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
       return;
     }
 
-    console.log('[MEHFIL] Client connected:', socket.id);
+    if (MEHFIL_SOCKET_DEBUG_LOGS) {
+      console.log('[MEHFIL] Client connected:', socket.id);
+    }
     const sessionUserId = String(socket.data?.userId || '').trim();
     const effectiveUserId = sessionUserId || socketToUser.get(socket.id) || '';
 
@@ -611,7 +614,9 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
       socket.join(`user:${userId}`);
       await emitPendingDmRequestsToUser(mehfil, socket.id, userId);
 
-      console.log(`[MEHFIL] User registered: ${user.name} (${userId})`);
+      if (MEHFIL_SOCKET_DEBUG_LOGS) {
+        console.log(`[MEHFIL] User registered: ${user.name} (${userId})`);
+      }
       mehfil.emit('onlineCount', connectedUsers.size);
 
       try {
@@ -1253,7 +1258,9 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const user = connectedUsers.get(userId);
         if (user?.socketId === socket.id) {
           connectedUsers.delete(userId);
-          console.log(`[MEHFIL] User disconnected: ${user.name}`);
+          if (MEHFIL_SOCKET_DEBUG_LOGS) {
+            console.log(`[MEHFIL] User disconnected: ${user.name}`);
+          }
         }
         socketToUser.delete(socket.id);
         markDmUserOffline(userId);

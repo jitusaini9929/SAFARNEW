@@ -11,6 +11,7 @@ import { apiFetch } from '@/utils/apiFetch';
 import './SandeshCard.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
+const SANDESH_POLL_MS = 60000;
 
 interface LinkMeta {
     url: string;
@@ -184,8 +185,22 @@ const SandeshCard = () => {
 
     useEffect(() => {
         fetchSandesh();
-        const intervalId = setInterval(fetchSandesh, 30000);
-        return () => clearInterval(intervalId);
+        const intervalId = setInterval(() => {
+            if (typeof document !== 'undefined' && document.hidden) return;
+            fetchSandesh();
+        }, SANDESH_POLL_MS);
+
+        const onVisibilityChange = () => {
+            if (typeof document !== 'undefined' && !document.hidden) {
+                fetchSandesh();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        return () => {
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
     }, []);
 
     useEffect(() => {

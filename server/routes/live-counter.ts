@@ -11,10 +11,15 @@ const router = Router();
 const DEFAULT_CHANNEL_ID = "UCsbT4wZ_FUUpJGtVa4mooow";
 const LIVECOUNTS_API_HOST = "https://api.livecounts.io";
 const LIVECOUNTS_SERVICE = "youtube-live-subscriber-counter";
-const CACHE_TTL_MS = 3000;
+const CACHE_TTL_MS = Number(process.env.LIVECOUNTS_CACHE_TTL_MS || 30000);
 
-let cachedCount: number | null = null;
-let cachedAt = 0;
+type CounterCacheEntry = {
+  count: number;
+  cachedAt: number;
+};
+
+const counterCache = new Map<string, CounterCacheEntry>();
+const inflightFetches = new Map<string, Promise<number>>();
 
 function hexDigest(algorithm: "sha256" | "sha384" | "ripemd160", value: string) {
   return crypto.createHash(algorithm).update(value, "utf8").digest("hex");
@@ -73,21 +78,35 @@ router.get("/youtube-subs", async (req, res) => {
   }
 
   const now = Date.now();
-  if (cachedCount !== null && now - cachedAt < CACHE_TTL_MS) {
+  const cached = counterCache.get(channelId);
+  if (cached && now - cached.cachedAt < CACHE_TTL_MS) {
     return res.status(200).json({
       success: true,
-      subscriberCount: cachedCount,
+      subscriberCount: cached.count,
       channelId,
       cached: true,
-      fetchedAt: new Date(cachedAt).toISOString(),
+      fetchedAt: new Date(cached.cachedAt).toISOString(),
       source: "livecounts",
     });
   }
 
   try {
-    const subscriberCount = await fetchLiveSubscriberCount(channelId);
-    cachedCount = subscriberCount;
-    cachedAt = now;
+    const inflight = inflightFetches.get(channelId);
+    const subscriberCount = inflight
+      ? await inflight
+      : await (() => {
+          const pending = fetchLiveSubscriberCount(channelId)
+            .finally(() => {
+              inflightFetches.delete(channelId);
+            });
+          inflightFetches.set(channelId, pending);
+          return pending;
+        })();
+
+    counterCache.set(channelId, {
+      count: subscriberCount,
+      cachedAt: now,
+    });
 
     return res.status(200).json({
       success: true,
@@ -98,10 +117,11 @@ router.get("/youtube-subs", async (req, res) => {
       source: "livecounts",
     });
   } catch (error) {
-    if (cachedCount !== null) {
+    const fallback = counterCache.get(channelId);
+    if (fallback) {
       return res.status(200).json({
         success: true,
-        subscriberCount: cachedCount,
+        subscriberCount: fallback.count,
         channelId,
         cached: true,
         stale: true,
