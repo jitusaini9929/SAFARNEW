@@ -287,7 +287,7 @@ router.get('/by-goal/:goalId', requireAuth, async (req: Request, res) => {
 router.post('/by-goals', requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
-        const { goalIds } = req.body;
+        const { goalIds, dayKey } = req.body;
 
         if (!Array.isArray(goalIds) || goalIds.length === 0) {
             return res.json({});
@@ -300,8 +300,23 @@ router.post('/by-goals', requireAuth, async (req: Request, res) => {
             return res.json({});
         }
 
+        const matchStage: Record<string, any> = {
+            user_id: userId,
+            associated_goal_id: { $in: ids },
+        };
+
+        if (typeof dayKey === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dayKey)) {
+            matchStage.completed = true;
+            matchStage.$expr = {
+                $eq: [
+                    { $dateToString: { format: '%Y-%m-%d', date: '$completed_at', timezone: '+05:30' } },
+                    dayKey,
+                ],
+            };
+        }
+
         const pipeline = [
-            { $match: { user_id: userId, associated_goal_id: { $in: ids } } },
+            { $match: matchStage },
             {
                 $group: {
                     _id: '$associated_goal_id',

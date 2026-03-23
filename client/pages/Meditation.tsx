@@ -518,11 +518,9 @@ export default function Meditation() {
     return (
         <div className="min-h-[100dvh] lg:h-[100dvh] flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-[#0a0a0f] dark:to-[#0f0f17] transition-colors duration-500 font-sans overflow-x-hidden lg:overflow-hidden">
             <audio ref={audioRef} src="/Dhyan_processed.mp3" loop />
-            {/* Theme Toggle - Fixed Top Right */}
-
-
+            
             {/* Header */}
-            <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-200/50 dark:border-white/5">
+            <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-200/50 dark:border-white/5 relative z-20">
                 <button
                     onClick={() => setIsGlobalSidebarOpen(true)}
                     className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
@@ -530,7 +528,7 @@ export default function Meditation() {
                     <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
                 </button>
                 <div className="flex items-center gap-2">
-                    <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">Meditation</span>
+                    <span className="text-xl font-serif italic tracking-wide text-slate-900 dark:text-white">Meditation</span>
                 </div>
                 <div className="flex items-center gap-3">
                     <ThemeToggle />
@@ -551,7 +549,7 @@ export default function Meditation() {
             {/* ═══════════════════════════════════════════════════════ */}
             {/* 3-COLUMN LAYOUT                                       */}
             {/* ═══════════════════════════════════════════════════════ */}
-            <main className="flex-1 flex overflow-x-hidden overflow-y-visible lg:overflow-y-auto">
+            <main className="flex-1 flex overflow-x-hidden overflow-y-visible lg:overflow-y-auto relative z-10">
 
                 {/* Active Session Modal Overlay - Full Screen Adaptive */}
                 {isModalOpen && (
@@ -569,14 +567,14 @@ export default function Meditation() {
 
                             {/* Background Ambience */}
                             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                                <div className="absolute top-1/4 left-1/4 w-[40rem] h-[40rem] bg-emerald-500/5 rounded-full blur-3xl" />
-                                <div className="absolute bottom-1/4 right-1/4 w-[40rem] h-[40rem] bg-teal-500/5 rounded-full blur-3xl" />
+                                <div className="absolute top-1/4 left-1/4 w-[40rem] h-[40rem] bg-indigo-500/5 rounded-full blur-3xl opacity-50" />
+                                <div className="absolute bottom-1/4 right-1/4 w-[40rem] h-[40rem] bg-blue-500/5 rounded-full blur-3xl opacity-50" />
                             </div>
 
                             {/* 1. Header Section - Always at top */}
-                            <div className="flex-none text-center space-y-1 md:space-y-2 z-10 mb-4 md:mb-8 w-full max-w-4xl mx-auto">
-                                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-slate-800 dark:text-white tracking-tight">{selectedSession.title}</h2>
-                                <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 max-w-lg mx-auto line-clamp-2 md:line-clamp-none px-4">{selectedSession.description}</p>
+                            <div className="flex-none text-center space-y-1 md:space-y-2 z-10 mb-4 md:mb-8 w-full max-w-4xl mx-auto px-6">
+                                <h2 className="text-2xl md:text-3xl lg:text-4xl font-serif italic text-slate-800 dark:text-white tracking-tight">{selectedSession.title}</h2>
+                                <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 max-w-lg mx-auto line-clamp-2 md:line-clamp-none font-medium italic opacity-80">{selectedSession.description}</p>
                             </div>
 
                             <div className="flex-1 w-full flex relative z-10 min-h-0 transition-all duration-500 flex-col items-center justify-between">
@@ -597,12 +595,12 @@ export default function Meditation() {
                                 {/* 3. Controls Section */}
                                 <div className="flex flex-col items-center gap-4 md:gap-6 w-full max-w-md transition-all duration-500 flex-none order-2 pb-4 md:pb-8">
 
-                                    {/* Phase Label */}
+                                    {/* Phase Label - Elevated Tonal Shift */}
                                     <div className="text-center w-full md:w-auto">
-                                        <span className={`inline-block px-6 py-2 rounded-full text-lg md:text-xl font-bold tracking-widest transition-all duration-300 shadow-lg
-                                            ${breathPhase === 'inhale' ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300' :
-                                                breathPhase === 'exhale' ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-800 dark:text-indigo-300' :
-                                                    'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300'}`}
+                                        <span className={`inline-block px-7 py-2.5 rounded-full text-lg md:text-xl font-black tracking-[0.15em] transition-all duration-500 shadow-xl backdrop-blur-md
+                                            ${breathPhase === 'inhale' ? 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500/20' :
+                                                breathPhase === 'exhale' ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/20' :
+                                                    'bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/20'}`}
                                         >
                                             {breathPhase === 'inhale' ? 'INHALE' : breathPhase === 'exhale' ? 'EXHALE' : 'HOLD'}
                                         </span>
@@ -613,9 +611,9 @@ export default function Meditation() {
                                     </div>
 
                                     {/* Progress Bar */}
-                                    <div className="w-full max-w-xs h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                    <div className="w-full max-w-xs h-1.5 bg-slate-200 dark:bg-slate-800/80 rounded-full overflow-hidden backdrop-blur-sm">
                                         <div
-                                            className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-1000"
+                                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000"
                                             style={{ width: `${progress}%` }}
                                         />
                                     </div>
@@ -624,23 +622,23 @@ export default function Meditation() {
                                     <div className="flex items-center justify-center gap-8 md:gap-10 mt-2 w-full md:w-auto">
                                         <button
                                             onClick={handleReset}
-                                            className="p-4 rounded-full bg-white dark:bg-slate-800 shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 border border-slate-100 dark:border-white/5"
+                                            className="p-4 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 border border-slate-100 dark:border-white/5"
                                         >
                                             <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                                         </button>
                                         <button
                                             onClick={() => setIsActive(!isActive)}
-                                            className={`p-6 md:p-7 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95
+                                            className={`p-6 md:p-7 rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95 duration-500
                                                 ${isActive
-                                                    ? "bg-amber-500 text-white shadow-amber-500/40 hover:shadow-amber-500/50"
-                                                    : "bg-emerald-500 text-white shadow-emerald-500/40 hover:shadow-emerald-500/50"
+                                                    ? "bg-amber-500 text-white shadow-amber-500/40 hover:shadow-amber-500/60"
+                                                    : "bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-blue-500/40 hover:shadow-blue-500/60 ring-2 ring-white/20"
                                                 }`}
                                         >
                                             {isActive ? <Pause className="w-8 h-8 md:w-9 md:h-9 fill-current" /> : <Play className="w-8 h-8 md:w-9 md:h-9 fill-current ml-1" />}
                                         </button>
                                         <button
                                             onClick={() => setIsMuted(!isMuted)}
-                                            className="p-4 rounded-full bg-white dark:bg-slate-800 shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 border border-slate-100 dark:border-white/5"
+                                            className="p-4 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 border border-slate-100 dark:border-white/5"
                                         >
                                             {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                                         </button>
@@ -652,49 +650,51 @@ export default function Meditation() {
                 )}
 
                 {/* ═══ LEFT SIDEBAR ═══════ */}
-                <div className="hidden lg:flex flex-col w-[406px] min-w-[406px] border-r border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0d0d14]/60 backdrop-blur-sm p-4 gap-4">
+                <aside className="hidden lg:flex flex-col w-[406px] min-w-[406px] border-r border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0d0d14]/60 backdrop-blur-sm p-5 gap-5">
                     {/* Course Banner with In-App Payment */}
                     <CourseBanner
                         user={user ? { name: user.name, email: user.email } : null}
                         courseId="safar-30"
                     />
 
-                    {renderMeditationVideoCard("meditation-video-url-desktop", "flex-1")}
-                </div>
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                        {renderMeditationVideoCard("meditation-video-url-desktop", "flex-1 mb-0 backdrop-blur-xl bg-white/30 dark:bg-white/5 border-none shadow-sm")}
+                    </div>
+                </aside>
 
                 {/* ═══ CENTER CONTENT ═══════ */}
-                <div className="flex-1 flex flex-col items-center justify-start lg:justify-center relative overflow-visible lg:overflow-hidden px-4 md:px-6 py-4 lg:py-0">
+                <section className="flex-1 flex flex-col items-center justify-start lg:justify-center relative overflow-visible lg:overflow-hidden px-4 md:px-6 py-4 lg:py-0">
                     {/* Background Image — very subtle */}
                     <div className="absolute inset-0 opacity-[0.06] dark:opacity-[0.03] pointer-events-none select-none">
-                        <img loading="lazy" src={meditationBg} alt="" className="w-full h-full object-cover" />
+                        <img loading="lazy" src={meditationBg} alt="" className="w-full h-full object-cover scale-110 blur-sm" />
                     </div>
 
                     {/* Floating Gradient Orbs */}
-                    <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-emerald-400/10 dark:bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-                    <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-teal-400/10 dark:bg-teal-500/5 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-400/10 dark:bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-sky-300/5 dark:bg-sky-500/3 rounded-full blur-3xl pointer-events-none" />
 
                     {/* Center Content */}
                     <div className="relative z-10 flex flex-col items-center gap-5 md:gap-7 max-w-md md:max-w-2xl w-full pb-24 lg:pb-0">
-                        <div className="hidden lg:hidden w-full">
-                            {renderMeditationVideoCard("meditation-video-url-mobile", "mb-1")}
+                        <div className="lg:hidden w-full">
+                            {renderMeditationVideoCard("meditation-video-url-mobile", "mb-4 backdrop-blur-xl bg-white/30 dark:bg-white/5 border-none")}
                         </div>
 
                         {/* Meditation Image */}
                         <div className="relative md:mt-2">
-                            <div className="absolute inset-0 bg-gradient-to-b from-sky-300/30 to-transparent rounded-3xl blur-2xl scale-125" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-blue-400/20 to-transparent rounded-[3rem] blur-3xl scale-150 opacity-50" />
                             <img loading="lazy"
                                 src={meditationBg}
                                 alt="Meditation"
-                                className="relative w-56 h-32 md:w-[28rem] md:h-56 object-cover object-top rounded-2xl md:rounded-3xl shadow-lg shadow-sky-200/30 dark:shadow-sky-900/20"
+                                className="relative w-56 h-32 md:w-[28rem] md:h-56 object-cover object-top rounded-3xl md:rounded-[2.5rem] shadow-2xl shadow-blue-500/10 dark:shadow-blue-900/20 border border-white/10 animate-[pulse_6s_ease-in-out_infinite]"
                                 style={{ filter: 'contrast(1.05) brightness(1.02)' }}
                             />
                         </div>
 
                         {/* Session Section Description */}
                         <div className="text-center mt-2 md:mt-3">
-                            <h2 className="text-2xl md:text-4xl font-bold text-slate-800 dark:text-white mb-2">Dhyan</h2>
-                            <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 max-w-sm md:max-w-xl leading-relaxed">A mindful space to breathe, relax, and restore inner calm through guided breathing techniques.</p>
+                            <h2 className="text-4xl md:text-6xl font-serif italic font-medium text-slate-800 dark:text-white mb-3 tracking-tight">Dhyan</h2>
+                            <p className="text-sm md:text-lg text-slate-500 dark:text-slate-400 max-w-sm md:max-w-xl leading-relaxed italic font-medium opacity-80">A mindful space to breathe, relax, and restore inner calm through guided breathing techniques.</p>
                         </div>
 
                         {/* Timer Display */}
@@ -702,16 +702,16 @@ export default function Meditation() {
                             <div className="text-6xl md:text-8xl font-light text-slate-800 dark:text-white font-mono tracking-wider tabular-nums">
                                 {formatTime(timeLeft)}
                             </div>
-                            <p className="text-slate-400 dark:text-slate-500 text-sm md:text-base font-medium mt-2 tracking-wide">
-                                Select duration & press play
+                            <p className="text-slate-400 dark:text-slate-500 text-sm md:text-base font-medium mt-2 tracking-wide uppercase opacity-60">
+                                Press play to begin
                             </p>
 
                             {/* Slider Section - Only show for Dhyan Custom */}
                             {selectedSession.id === "dhyan-custom" && (
-                                <div className="mt-6 w-full max-w-xs md:max-w-md mx-auto">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Duration</span>
-                                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100/50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                                <div className="mt-8 w-full max-w-xs md:max-w-sm mx-auto p-4 rounded-3xl bg-slate-100/50 dark:bg-white/5 backdrop-blur-sm">
+                                    <div className="flex items-center justify-between mb-3 px-1">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Session Length</span>
+                                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
                                             {sliderValue} min
                                         </span>
                                     </div>
@@ -722,139 +722,148 @@ export default function Meditation() {
                                         step="1"
                                         value={sliderValue}
                                         onChange={handleSliderChange}
-                                        onPointerDown={() => {
-                                            if (selectedSession.id !== "dhyan-custom") {
-                                                switchToCustomSession();
-                                            }
-                                        }}
-                                        className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
+                                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600"
                                     />
-                                    <div className="flex justify-between mt-2 text-[10px] text-slate-400 font-medium">
-                                        <span>1m</span>
-                                        <span>60m</span>
+                                    <div className="flex justify-between mt-2 px-1 text-[9px] text-slate-400 font-bold uppercase tracking-tighter">
+                                        <span>1 min</span>
+                                        <span>60 min</span>
                                     </div>
                                 </div>
                             )}
                         </div>
 
                         {/* Progress Bar */}
-                        <div className="w-64 md:w-96 h-1.5 md:h-2 bg-slate-200/80 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                        <div className="w-64 md:w-80 h-1 md:h-1.5 bg-slate-200/80 dark:bg-slate-700/50 rounded-full overflow-hidden backdrop-blur-sm">
                             <div
-                                className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all duration-1000"
+                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000"
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
 
                         {/* Playback Controls */}
-                        <div className="flex items-center justify-center gap-8 md:gap-12 mt-1 md:mt-3">
+                        <div className="flex items-center justify-center gap-8 md:gap-14 mt-2">
                             <button
                                 data-tour="reset-button"
                                 onClick={handleReset}
-                                className="p-4 md:p-5 rounded-full bg-white dark:bg-slate-800 shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-105 ring-1 ring-slate-200/50 dark:ring-white/5"
+                                className="p-4 md:p-5 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 ring-1 ring-slate-200/50 dark:ring-white/5"
                             >
                                 <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
                             <button
                                 data-tour="play-button"
                                 onClick={() => setIsActive(!isActive)}
-                                className={`p-7 md:p-9 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 
+                                className={`p-8 md:p-10 rounded-full shadow-[0_0_50px_-12px_rgba(37,99,235,0.5)] transition-all hover:scale-110 active:scale-95 duration-500
                                     ${isActive
                                         ? "bg-amber-500 text-white shadow-amber-500/40 hover:shadow-amber-500/60"
-                                        : "bg-emerald-500 text-white shadow-emerald-500/40 hover:shadow-emerald-500/60"
+                                        : "bg-gradient-to-br from-blue-600 to-indigo-700 text-white hover:shadow-blue-500/60 ring-4 ring-white/10"
                                     }`}
                             >
                                 {isActive
-                                    ? <Pause className="w-9 h-9 md:w-11 md:h-11 fill-current" />
-                                    : <Play className="w-9 h-9 md:w-11 md:h-11 fill-current ml-0.5" />
+                                    ? <Pause className="w-10 h-10 md:w-12 md:h-12 fill-current" />
+                                    : <Play className="w-10 h-10 md:w-12 md:h-12 fill-current ml-1" />
                                 }
                             </button>
                             <button
                                 onClick={() => setIsMuted(!isMuted)}
-                                className="p-4 md:p-5 rounded-full bg-white dark:bg-slate-800 shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-105 ring-1 ring-slate-200/50 dark:ring-white/5"
+                                className="p-4 md:p-5 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 ring-1 ring-slate-200/50 dark:ring-white/5"
                             >
                                 {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
                             </button>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                {/* ═══ RIGHT SIDEBAR — Breathing Techniques ═══════ */}
-                <div className="hidden lg:flex flex-col w-[300px] min-w-[300px] border-l border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0d0d14]/60 backdrop-blur-sm p-4">
-                    <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Breathing Techniques</h3>
+                {/* ═══ RIGHT SIDEBAR ═══════ */}
+                <aside className="hidden lg:flex flex-col w-[406px] min-w-[406px] border-l border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0d0d14]/60 backdrop-blur-sm p-5 overflow-hidden">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-lg font-serif italic font-medium text-slate-800 dark:text-white">Breathing Techniques</h3>
+                        <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Library</span>
+                    </div>
 
-                    <div data-tour="session-cards" className="flex flex-col gap-3">
+                    <div data-tour="technique-list" className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
                         {sessions.map((session) => (
                             <div
                                 key={session.id}
                                 onClick={() => handleCardClick(session)}
-                                className={`group relative rounded-2xl border overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5
+                                className={`group relative p-4 rounded-3xl transition-all duration-500 cursor-pointer overflow-hidden
                                     ${selectedSession.id === session.id
-                                        ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/30 shadow-md shadow-emerald-500/10'
-                                        : 'bg-white dark:bg-[#15151A] border-slate-200 dark:border-white/5 hover:border-emerald-500/30'
+                                        ? 'bg-blue-50/70 dark:bg-blue-500/10 shadow-sm'
+                                        : 'bg-white/40 dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 active:bg-slate-100 dark:active:bg-white/20'
                                     }`}
                             >
-                                <div className="p-4 flex items-start gap-3">
-                                    <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors
+                                {/* Active Indicator Overlay */}
+                                {selectedSession.id === session.id && (
+                                    <div className="absolute inset-0 bg-blue-500/5 dark:bg-blue-400/5 pointer-events-none" />
+                                )}
+                                
+                                <div className="flex gap-4 items-start relative z-10">
+                                    <div className={`flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm
                                         ${selectedSession.id === session.id
-                                            ? 'bg-emerald-500 text-white'
-                                            : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-slate-100 dark:bg-white/5 text-slate-400 group-hover:text-blue-500'
                                         }`}
                                     >
-                                        <Wind className="w-4 h-4" />
+                                        <Wind className="w-5 h-5" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h4 className={`font-bold text-sm leading-tight mb-0.5 transition-colors
+                                        <h4 className={`font-bold text-sm leading-tight mb-1 transition-colors
                                             ${selectedSession.id === session.id
-                                                ? 'text-emerald-700 dark:text-emerald-300'
+                                                ? 'text-blue-700 dark:text-blue-300'
                                                 : 'text-slate-900 dark:text-white'
                                             }`}
                                         >
                                             {session.title}
                                         </h4>
-                                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium capitalize">{session.type} • {session.duration} min</span>
-                                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 leading-relaxed line-clamp-2">{session.description}</p>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">{session.type}</span>
+                                            <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
+                                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">{session.duration} min</span>
+                                        </div>
+                                        <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed line-clamp-2 italic font-medium">{session.description}</p>
                                     </div>
                                     {selectedSession.id === session.id && (
-                                        <div className="flex-shrink-0 w-2 h-2 rounded-full bg-emerald-500 mt-1.5 animate-pulse" />
+                                        <div className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1.5 animate-pulse" />
                                     )}
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
+                </aside>
             </main>
 
             {/* Instruction Modal */}
             {showInstructions && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-lg rounded-3xl shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-white/10">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-white/10 overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 blur-2xl" />
+                        
                         <button
                             onClick={() => setShowInstructions(false)}
-                            className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors"
+                            className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors z-10"
                         >
                             <span className="sr-only">Close</span>
                             <X className="w-5 h-5" />
                         </button>
 
-                        <div className="text-center mb-8">
-                            <div className="w-16 h-16 mx-auto bg-emerald-100 dark:bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4">
+                        <div className="text-center mb-8 relative z-10">
+                            <div className="w-16 h-16 mx-auto bg-blue-600/10 dark:bg-blue-500/20 rounded-3xl flex items-center justify-center text-blue-600 dark:text-blue-400 mb-6 shadow-sm">
                                 <Wind className="w-8 h-8" />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{selectedSession.title}</h2>
-                            <p className="text-slate-600 dark:text-slate-300">
+                            <h2 className="text-3xl font-serif italic text-slate-900 dark:text-white mb-3">{selectedSession.title}</h2>
+                            <p className="text-slate-600 dark:text-slate-400 italic font-medium leading-relaxed">
                                 {selectedSession.longDescription}
                             </p>
                         </div>
 
-                        <div data-tour="session-info" className="bg-slate-50 dark:bg-black/20 rounded-xl p-6 mb-8 text-left">
-                            <h3 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">How to perform</h3>
-                            <div className="space-y-3">
+                        <div data-tour="session-info" className="bg-slate-50 dark:bg-black/20 rounded-3xl p-6 mb-8 text-left border border-slate-100 dark:border-white/5 relative z-10">
+                            <h3 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4">The Ritual</h3>
+                            <div className="space-y-4">
                                 {selectedSession.steps.map((step, idx) => (
-                                    <div key={idx} className="flex gap-3 text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
-                                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">
+                                    <div key={idx} className="flex gap-4 text-slate-700 dark:text-slate-300 text-sm leading-relaxed items-start">
+                                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black shadow-sm mt-0.5">
                                             {idx + 1}
                                         </span>
-                                        {step}
+                                        <span className="font-medium">{step}</span>
                                     </div>
                                 ))}
                             </div>
@@ -862,87 +871,44 @@ export default function Meditation() {
 
                         <button
                             onClick={startSession}
-                            className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-lg shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02] transition-all"
+                            className="w-full py-4.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold text-lg shadow-xl shadow-blue-600/20 hover:shadow-blue-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all relative z-10"
                         >
-                            Start Session
+                            Begin Journey
                         </button>
                     </div>
                 </div>
             )}
 
             {showResources && (
-                <div className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="relative w-full max-w-2xl md:max-w-3xl rounded-3xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#11131C] p-4 md:p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-2xl md:max-w-3xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#11131C] p-4 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
                         <button
                             onClick={() => setShowResources(false)}
-                            className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors"
+                            className="absolute top-6 right-6 p-2 rounded-full hover:bg-white dark:hover:bg-white/10 text-slate-400 transition-colors z-10"
                         >
                             <span className="sr-only">Close</span>
                             <X className="w-5 h-5" />
                         </button>
 
-                        <div className="mb-5 pr-10">
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dhyan Resources</h2>
-                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                Access the latest guided video and course details in one place.
+                        <div className="mb-8 pr-10">
+                            <h2 className="text-2xl font-serif italic text-slate-900 dark:text-white mb-2">Dhyan Resources</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 italic font-medium opacity-80">
+                                Guided experiences and editorial content to deepen your practice.
                             </p>
                         </div>
 
-                        <div className="max-h-[75vh] space-y-4 overflow-y-auto pr-1">
+                        <div className="max-h-[60vh] space-y-6 overflow-y-auto pr-2 custom-scrollbar">
                             <CourseBanner
                                 user={user ? { name: user.name, email: user.email } : null}
                                 courseId="safar-30"
                             />
-                            {renderMeditationVideoCard("meditation-video-url-modal")}
+                            {renderMeditationVideoCard("meditation-video-url-modal", "bg-white/50 dark:bg-white/5 border-none shadow-none")}
                         </div>
                     </div>
                 </div>
             )}
 
             {/* Mobile FABs for Sidebars */}
-            <div className="lg:hidden">
-                <FloatingActionButton
-                    onClick={() => setShowSessionList(true)}
-                    icon={<List className="w-5 h-5" />}
-                    label="Sessions"
-                    position="bottom-right"
-                />
-            </div>
-
-            <GlobalSidebar isOpen={isGlobalSidebarOpen} onClose={() => setIsGlobalSidebarOpen(false)} />
-
-            {/* Mobile Bottom Sheets */}
-            <BottomSheet
-                isOpen={showSessionList}
-                onClose={() => setShowSessionList(false)}
-                title="Meditation Sessions"
-            >
-                <div className="space-y-3">
-                    {sessions.map((session) => (
-                        <button
-                            key={session.id}
-                            onClick={() => {
-                                setShowSessionList(false);
-                                handleCardClick(session);
-                            }}
-                            className={`w-full p-4 rounded-xl border-2 transition-all text-left ${selectedSession.id === session.id
-                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                                : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
-                                }`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl text-emerald-500"><Wind className="w-6 h-6" /></span>
-                                <div className="flex-1">
-                                    <h3 className="font-semibold text-slate-900 dark:text-white">{session.title}</h3>
-                                    <p className="text-sm text-slate-600 dark:text-slate-400">{session.duration} min • {session.description}</p>
-                                </div>
-                            </div>
-                        </button>
-                    ))}
-                </div>
-            </BottomSheet>
-
-
 
         {/* Tour Prompt */}
         <TourPrompt tour={meditationTour} featureName="Meditation" />

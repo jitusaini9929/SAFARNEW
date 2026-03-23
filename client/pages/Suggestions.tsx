@@ -7,6 +7,7 @@ import {
   Quote, Zap, PhoneCall, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { apiFetch } from '@/utils/apiFetch';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -101,12 +102,19 @@ export default function Suggestions() {
 
   const fetchSuggestions = async () => {
     try {
-      const res = await fetch(`${API_URL}/suggestions/personalized`, { credentials: 'include' });
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-        setShowSOS(json.showSOS);
+      const res = await apiFetch(`${API_URL}/suggestions/personalized`, { method: 'GET' });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          navigate('/login');
+          return;
+        }
+        throw new Error(`Failed to fetch suggestions (${res.status})`);
       }
+
+      const json = await res.json();
+      setData(json);
+      setShowSOS(json.showSOS);
     } catch (err) {
       console.error('Failed to fetch suggestions', err);
     } finally {

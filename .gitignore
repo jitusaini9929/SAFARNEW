@@ -29,3 +29,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Local database dumps
+safar_dump/
+safar_dump_final/
+safar_dump_resync/

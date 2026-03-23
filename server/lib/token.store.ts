@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 const redisUrl = process.env.REDIS_URL || process.env.REDIS_URI;
 const redisEnabled = Boolean(redisUrl);
 const redisConnectTimeoutMs = Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 3000);
+const redisMaxReconnectDelayMs = Number(process.env.REDIS_MAX_RECONNECT_DELAY_MS || 3000);
+const redisReconnectWarningAfterAttempts = Number(process.env.REDIS_RECONNECT_WARN_AFTER || 5);
 
 let redisClient: RedisClientType | null = null;
 let redisConnectPromise: Promise<RedisClientType | null> | null = null;
@@ -31,7 +33,14 @@ function getOrCreateRedisClient(): RedisClientType | null {
     url: redisUrl,
     socket: {
       connectTimeout: redisConnectTimeoutMs,
-      reconnectStrategy: false,
+      reconnectStrategy: (retries) => {
+        if (retries >= redisReconnectWarningAfterAttempts) {
+          console.warn(`[REDIS] Reconnect attempt #${retries + 1}`);
+        }
+
+        // Keep retrying with bounded exponential backoff to survive transient network drops.
+        return Math.min(100 * 2 ** retries, redisMaxReconnectDelayMs);
+      },
     },
   });
   redisClient.on('error', (error) => {

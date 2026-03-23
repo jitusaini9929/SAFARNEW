@@ -23,11 +23,7 @@ const getMonthWindow = (monthInput?: string) => {
     } else {
         const now = toISTDate(new Date());
         year = now.getUTCFullYear();
-        monthIndex = now.getUTCMonth() - 1;
-        if (monthIndex < 0) {
-            monthIndex = 11;
-            year -= 1;
-        }
+        monthIndex = now.getUTCMonth();
     }
 
     const startIST = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0));
@@ -313,18 +309,8 @@ router.get('/monthly-report', requireAuth, async (req: any, res) => {
     try {
         const userId = req.session.userId!;
         const monthInput = req.query.month ? String(req.query.month) : undefined;
-        const { monthKey } = getMonthWindow(monthInput);
-
-        const report = await collections.monthlyReports().findOne(
-            { user_id: userId, month: monthKey },
-            { projection: { _id: 0, report_json: 1 } }
-        );
-
-        if (!report?.report_json) {
-            return res.status(404).json({ message: 'Monthly report not generated yet for this month', month: monthKey });
-        }
-
-        res.json(report.report_json);
+        const report = await generateMonthlyReport(userId, monthInput);
+        res.json(report);
     } catch (error) {
         console.error('Get monthly report error:', error);
         res.status(500).json({ message: 'Internal server error' });

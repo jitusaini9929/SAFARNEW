@@ -1,7 +1,12 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChevronDown } from 'lucide-react';
 
-export default function LanguageToggle() {
+interface LanguageToggleProps {
+    className?: string;
+}
+
+export default function LanguageToggle({ className = '' }: LanguageToggleProps) {
     const { i18n } = useTranslation();
 
     const toggle = () => {
@@ -10,27 +15,15 @@ export default function LanguageToggle() {
         localStorage.setItem('language', next); // remembers after page refresh
     };
 
+    const label = i18n.language === 'en' ? 'EN' : 'HI';
+
     return (
         <button
             onClick={toggle}
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '12px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 700,
-                color: 'inherit',
-                transition: 'transform 0.2s, box-shadow 0.2s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.background = 'rgba(148,163,184,0.15)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.background = 'transparent'; }}
+            className={`flex items-center gap-1.5 text-[#3c4146] dark:text-[#e7e5e5] font-bold text-sm hover:text-[#1a1c1e] dark:hover:text-white transition-colors cursor-pointer focus:outline-none ${className}`.trim()}
         >
-            {i18n.language === 'en' ? '🇮🇳 हिंदी' : '🇬🇧 English'}
+            <span>{label}</span>
+            <ChevronDown className="w-4 h-4 opacity-100 font-black" />
         </button>
     );
 }

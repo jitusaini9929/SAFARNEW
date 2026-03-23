@@ -144,14 +144,17 @@ export const focusService = {
     },
 
     // Get total focus times for multiple goals at once (batch)
-    getGoalsFocusTimes: async (goalIds: string[]): Promise<Record<string, { totalMinutes: number; sessionCount: number }>> => {
+    getGoalsFocusTimes: async (
+        goalIds: string[],
+        options?: { dayKey?: string },
+    ): Promise<Record<string, { totalMinutes: number; sessionCount: number }>> => {
         if (!goalIds.length) return {};
         try {
             const response = await apiFetch(`${API_BASE}/by-goals`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ goalIds }),
+                body: JSON.stringify({ goalIds, ...(options?.dayKey ? { dayKey: options.dayKey } : {}) }),
             });
 
             if (!response.ok) {

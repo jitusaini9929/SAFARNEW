@@ -181,6 +181,12 @@ router.post('/signup', async (req: Request, res) => {
         return res.status(400).json({ message: 'Please enter a valid email address' });
     }
 
+    if (!isAllowedSignupEmail(normalizedEmail)) {
+        return res.status(400).json({
+            message: 'Registration is currently allowed only with Gmail or Outlook email addresses.'
+        });
+    }
+
     try {
         // Check if user exists (case-insensitive)
         const existing = await findUserByEmailInsensitive(normalizedEmail, { id: 1 });
@@ -278,12 +284,6 @@ router.post('/login', async (req: any, res) => {
 
     if (!isValidEmail(normalizedEmail)) {
         return res.status(400).json({ message: 'Please enter a valid email address' });
-    }
-
-    if (!isAllowedSignupEmail(normalizedEmail)) {
-        return res.status(400).json({
-            message: 'Registration is currently allowed only with Gmail or Outlook email addresses.'
-        });
     }
 
     try {

@@ -449,6 +449,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     t.authorName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const isGuestReadOnly = !user?.id;
+
   const isAll = activeRoom === 'ALL';
   const isReflective = activeRoom === 'REFLECTIVE';
   const roomPalette = isAll
@@ -684,12 +686,21 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                   </Collapsible>
                 </div>
 
-                <Composer
-                  onSendThought={handleSendThought}
-                  userAvatar={user?.avatar}
-                  activeRoom={activeRoom}
-                  placeholder={t(`mehfil.placeholders.${activeRoom.toLowerCase()}`)}
-                />
+                {isGuestReadOnly ? (
+                  <div className="rounded-2xl border border-amber-300/70 dark:border-amber-500/30 bg-amber-50/90 dark:bg-amber-500/10 px-4 py-3.5 text-sm text-amber-800 dark:text-amber-200">
+                    <span className="font-semibold">Guest mode:</span> You can read all community posts. Sign in to post, react, comment, and connect.
+                    <Link to="/?signin=true" className="ml-2 font-semibold underline underline-offset-2 hover:opacity-80">
+                      Sign in
+                    </Link>
+                  </div>
+                ) : (
+                  <Composer
+                    onSendThought={handleSendThought}
+                    userAvatar={user?.avatar}
+                    activeRoom={activeRoom}
+                    placeholder={t(`mehfil.placeholders.${activeRoom.toLowerCase()}`)}
+                  />
+                )}
               </div>
 
               {/* Mobile Sandesh (only visible on small screens) */}
@@ -715,6 +726,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                       hasReacted={userReactions.has(thought.id)}
                       isOwnThought={thought.userId === user?.id}
                       currentUserId={user?.id}
+                      readOnly={isGuestReadOnly}
                     />
                   ))
                 )}

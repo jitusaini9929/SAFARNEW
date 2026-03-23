@@ -45,6 +45,7 @@ interface ThoughtCardProps {
   hasReacted: boolean;
   isOwnThought?: boolean;
   currentUserId?: string;
+  readOnly?: boolean;
 }
 
 interface Comment {
@@ -64,6 +65,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   hasReacted,
   isOwnThought = false,
   currentUserId,
+  readOnly = false,
 }) => {
   const { t } = useTranslation();
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -357,60 +359,62 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
           </div>
 
           {/* Three-dot menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="p-2 -mr-2 text-slate-300 hover:text-slate-600 dark:hover:text-slate-200 transition-colors focus:outline-none">
-                <MoreHorizontal className="w-5 h-5" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                className="cursor-pointer gap-2"
-                onClick={handleSave}
-              >
-                <Bookmark
-                  className={`w-4 h-4 ${isSaved ? "fill-current text-teal-500" : ""}`}
-                />
-                <span>{isSaved ? t('mehfil.card.unsave') : t('mehfil.card.save')}</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer gap-2"
-                onClick={handleShare}
-              >
-                <Share2 className="w-4 h-4" />
-                <span>{t('mehfil.card.share')}</span>
-              </DropdownMenuItem>
+          {!readOnly && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-2 -mr-2 text-slate-300 hover:text-slate-600 dark:hover:text-slate-200 transition-colors focus:outline-none">
+                  <MoreHorizontal className="w-5 h-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2"
+                  onClick={handleSave}
+                >
+                  <Bookmark
+                    className={`w-4 h-4 ${isSaved ? "fill-current text-teal-500" : ""}`}
+                  />
+                  <span>{isSaved ? t('mehfil.card.unsave') : t('mehfil.card.save')}</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2"
+                  onClick={handleShare}
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>{t('mehfil.card.share')}</span>
+                </DropdownMenuItem>
 
-              {isOwnThought && onDelete && (
-                <>
-                  <DropdownMenuItem
-                    className="cursor-pointer gap-2"
-                    onClick={() => setIsEditDialogOpen(true)}
-                  >
-                    <Pencil className="w-4 h-4" />
-                    <span>{t('mehfil.card.edit')}</span>
-                  </DropdownMenuItem>
-                  <Separator className="my-1" />
-                  <DropdownMenuItem
-                    className="cursor-pointer gap-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-900/20"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>{t('mehfil.card.delete')}</span>
-                  </DropdownMenuItem>
-                </>
-              )}
+                {isOwnThought && onDelete && (
+                  <>
+                    <DropdownMenuItem
+                      className="cursor-pointer gap-2"
+                      onClick={() => setIsEditDialogOpen(true)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                      <span>{t('mehfil.card.edit')}</span>
+                    </DropdownMenuItem>
+                    <Separator className="my-1" />
+                    <DropdownMenuItem
+                      className="cursor-pointer gap-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-900/20"
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>{t('mehfil.card.delete')}</span>
+                    </DropdownMenuItem>
+                  </>
+                )}
 
-              <Separator className="my-1" />
-              <DropdownMenuItem
-                className="cursor-pointer gap-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-900/20"
-                onClick={() => setIsReportDialogOpen(true)}
-              >
-                <Flag className="w-4 h-4" />
-                <span>{t('mehfil.card.report')}</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <Separator className="my-1" />
+                <DropdownMenuItem
+                  className="cursor-pointer gap-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-900/20"
+                  onClick={() => setIsReportDialogOpen(true)}
+                >
+                  <Flag className="w-4 h-4" />
+                  <span>{t('mehfil.card.report')}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {/* Thought Content */}
@@ -430,50 +434,52 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         )}
 
         {/* Action Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 md:gap-3 w-full sm:w-auto">
-            <button
-              onClick={onReact}
-              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${hasReacted
-                ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-2 ring-rose-200 dark:ring-rose-500/20"
-                : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-rose-500"
-                }`}
-            >
-              <Heart
-                className={`w-4 h-4 transition-all ${hasReacted ? "fill-current" : ""}`}
-              />
-              <span className="hidden sm:inline">
-                {hasReacted ? t('mehfil.card.relatable') : t('mehfil.card.relatable_ask')}
-              </span>
-              {thought.relatableCount > 0 && `(${thought.relatableCount})`}
-            </button>
+        {!readOnly && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 md:gap-3 w-full sm:w-auto">
+              <button
+                onClick={onReact}
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${hasReacted
+                  ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-2 ring-rose-200 dark:ring-rose-500/20"
+                  : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-rose-500"
+                  }`}
+              >
+                <Heart
+                  className={`w-4 h-4 transition-all ${hasReacted ? "fill-current" : ""}`}
+                />
+                <span className="hidden sm:inline">
+                  {hasReacted ? t('mehfil.card.relatable') : t('mehfil.card.relatable_ask')}
+                </span>
+                {thought.relatableCount > 0 && `(${thought.relatableCount})`}
+              </button>
 
-            <button
-              onClick={() => setIsCommentsOpen(!isCommentsOpen)}
-              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${isCommentsOpen
-                ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-200 dark:ring-teal-500/20"
-                : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-500"
-                }`}
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">{t('mehfil.card.comment')}</span>
-              {Math.max(thought.commentsCount || 0, comments.length) > 0 && `(${Math.max(thought.commentsCount || 0, comments.length)})`}
-            </button>
+              <button
+                onClick={() => setIsCommentsOpen(!isCommentsOpen)}
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${isCommentsOpen
+                  ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-200 dark:ring-teal-500/20"
+                  : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-500"
+                  }`}
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">{t('mehfil.card.comment')}</span>
+                {Math.max(thought.commentsCount || 0, comments.length) > 0 && `(${Math.max(thought.commentsCount || 0, comments.length)})`}
+              </button>
+            </div>
+            {canConnectToPost && (
+              <ConnectButton
+                targetUserId={thought.userId}
+                context={{
+                  type: "post",
+                  id: thought.id,
+                  preview: thought.content.slice(0, 60),
+                }}
+              />
+            )}
           </div>
-          {canConnectToPost && (
-            <ConnectButton
-              targetUserId={thought.userId}
-              context={{
-                type: "post",
-                id: thought.id,
-                preview: thought.content.slice(0, 60),
-              }}
-            />
-          )}
-        </div>
+        )}
 
         {/* Comment Section (Collapsible) */}
-        {isCommentsOpen && (
+        {!readOnly && isCommentsOpen && (
           <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2 duration-200">
             <div className="space-y-3 sm:space-y-4 mb-3 sm:mb-4">
               {isLoadingComments ? (

@@ -4,910 +4,733 @@ import NishthaLayout from "@/components/NishthaLayout";
 import { useTheme } from "@/contexts/ThemeContext";
 import { dataService } from "@/utils/dataService";
 import { focusService } from "@/utils/focusService";
-import { Goal } from "@shared/api";
+import { Goal, GoalSubtask } from "@shared/api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import { 
+  getISTDateKey, 
+  dateKeyToUtcDate, 
+  formatDateLabel, 
+  formatISTDate, 
+  getISTMinutesSinceMidnight, 
+  formatTimeFromMinutes,
+  diffISTDays
+} from "@/utils/dateUtils";
+import { 
+  Plus, 
+  Check, 
+  Edit2, 
+  Trash2, 
+  Play, 
+  RotateCcw, 
+  Calendar, 
+  TrendingUp, 
+  Clock, 
+  BarChart3,
+  X
+} from "lucide-react";
 
 // ─── TYPES ────────────────────────────────────────────────────
 interface UIGoal extends Goal {
-    title: string;
+  title: string;
 }
 
 const MAX_COMPLETED_DISPLAY = 5;
 
-// ─── DESIGN TOKENS (matching Command Center palette exactly) ──
-const T = {
-    teal900: "#134e4a", teal800: "#115e59", teal700: "#0f766e",
-    teal600: "#0d9488", teal500: "#14b8a6", teal400: "#2dd4bf",
-    teal300: "#5eead4", teal200: "#99f6e4", teal100: "#ccfbf1", teal50: "#f0fdf9",
-    maroon900: "#771d1d", maroon800: "#9b1c1c", maroon700: "#c81e1e",
-    maroon600: "#e02424", maroon400: "#f98080", maroon200: "#fbd5d5", maroon100: "#fde8e8",
-    slate900: "#0f172a", slate800: "#1e293b", slate700: "#334155",
-    slate600: "#475569", slate500: "#64748b", slate400: "#94a3b8",
-    slate300: "#cbd5e1", slate200: "#e2e8f0", slate100: "#f1f5f9", slate50: "#f8fafc",
-    white: "#ffffff",
-    indigo500: "#6366f1", indigo50: "#eef2ff",
-    amber500: "#f59e0b", amber50: "#fffbeb",
-    blue800: "#1e40af", blue50: "#eff6ff",
-    // dark mode additions
-    darkBg: "#0f172a", // slate900
-    darkCard: "#1e293b", // slate800
-    darkCardHover: "#334155", // slate700
-    darkText: "#f8fafc", // slate50
-    darkTextMuted: "#94a3b8", // slate400
-    darkBorder: "#334155", // slate700
-};
-
-const IST_TIME_ZONE = "Asia/Kolkata";
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const formatISTDate = (date: Date, options: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat("en-US", { timeZone: IST_TIME_ZONE, ...options }).format(date);
-const getISTDateKey = (date: Date) => {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: IST_TIME_ZONE,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-    }).formatToParts(date);
-    const year = parts.find(p => p.type === "year")?.value ?? "1970";
-    const month = parts.find(p => p.type === "month")?.value ?? "01";
-    const day = parts.find(p => p.type === "day")?.value ?? "01";
-    return `${year}-${month}-${day}`;
-};
-const dateKeyToUtcDate = (dateKey: string) => new Date(`${dateKey}T00:00:00.000Z`);
-const diffISTDays = (aKey: string, bKey: string) =>
-    Math.round((dateKeyToUtcDate(aKey).getTime() - dateKeyToUtcDate(bKey).getTime()) / DAY_MS);
-
-// ─── CONSTANTS ────────────────────────────────────────────────
-
 // ─── HELPERS ─────────────────────────────────────────────────
-const formatDate = (str?: string) => {
-    if (!str) return "";
-    const d = new Date(str);
-    const dateKey = getISTDateKey(d);
-    const todayKey = getISTDateKey(new Date());
-    const diff = diffISTDays(dateKey, todayKey);
-    if (diff === 0) return "Today";
-    if (diff === 1) return "Tomorrow";
-    if (diff === -1) return "Yesterday";
-    if (diff > 0 && diff < 7) return formatISTDate(d, { weekday: "short", month: "short", day: "numeric" });
-    return formatISTDate(d, { month: "short", day: "numeric", year: "numeric" });
-};
 const formatTime = (date?: Date | null) => {
-    if (!date || !Number.isFinite(date.getTime())) return "";
-    return new Intl.DateTimeFormat("en-US", {
-        timeZone: IST_TIME_ZONE,
-        hour: "numeric",
-        minute: "2-digit",
-    }).format(date);
+  if (!date || !Number.isFinite(date.getTime())) return "";
+  return formatISTDate(date, { hour: "numeric", minute: "2-digit" });
 };
+
 const formatDuration = (ms?: number | null) => {
-    if (!ms || !Number.isFinite(ms) || ms <= 0) return "";
-    const totalMinutes = Math.round(ms / 60000);
-    if (totalMinutes < 60) return `${totalMinutes}m`;
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  if (!ms || !Number.isFinite(ms) || ms <= 0) return "";
+  const totalMinutes = Math.round(ms / 60000);
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
 };
+
 const getGoalDurationMs = (goal: UIGoal) => {
-    if (!goal.completedAt) return null;
-    // Only calculate duration if user explicitly set a start time
-    if (!(goal as any).startedAt) return null;
-    const end = new Date(goal.completedAt);
-    const start = new Date((goal as any).startedAt);
-    if (!Number.isFinite(end.getTime()) || !Number.isFinite(start.getTime())) return null;
-    if (end.getTime() < start.getTime()) return null;
-    return end.getTime() - start.getTime();
+  if (!goal.completedAt || !(goal as any).startedAt) return null;
+  const end = new Date(goal.completedAt);
+  const start = new Date((goal as any).startedAt);
+  if (!Number.isFinite(end.getTime()) || !Number.isFinite(start.getTime())) return null;
+  if (end.getTime() < start.getTime()) return null;
+  return end.getTime() - start.getTime();
 };
+
 const getGoalCreatedTime = (goal: UIGoal) => {
-    const raw = (goal as any).createdAt || (goal as any).created_at || goal.scheduledDate;
-    const created = raw ? new Date(raw) : null;
-    return created && Number.isFinite(created.getTime()) ? created.getTime() : 0;
+  const raw = (goal as any).createdAt || (goal as any).created_at || goal.scheduledDate;
+  const created = raw ? new Date(raw) : null;
+  return created && Number.isFinite(created.getTime()) ? created.getTime() : 0;
 };
+
 const getGoalCreatedDateKey = (goal: UIGoal) => {
-    const raw = (goal as any).createdAt || (goal as any).created_at || goal.scheduledDate;
-    const created = raw ? new Date(raw) : null;
-    return created && Number.isFinite(created.getTime()) ? getISTDateKey(created) : null;
+  const raw = (goal as any).createdAt || (goal as any).created_at || goal.scheduledDate;
+  const created = raw ? new Date(raw) : null;
+  return created && Number.isFinite(created.getTime()) ? getISTDateKey(created) : null;
 };
-const getGoalCreatedLabel = (goal: UIGoal) => {
-    const key = getGoalCreatedDateKey(goal);
-    return key ? formatISTDate(dateKeyToUtcDate(key), { month: "short", day: "numeric", year: "numeric" }) : "";
+
+const getDailyCompletionMetrics = (
+  completedGoals: UIGoal[],
+  dayKey: string,
+  goalFocusTimes: Record<string, { totalMinutes: number }> = {},
+) => {
+  const dayGoals = completedGoals.filter(g => g.completedAt && getISTDateKey(new Date(g.completedAt)) === dayKey);
+  const durations = dayGoals
+    .map((goal) => {
+      const trackedDuration = getGoalDurationMs(goal);
+      if (typeof trackedDuration === "number" && Number.isFinite(trackedDuration) && trackedDuration > 0) {
+        return trackedDuration;
+      }
+
+      const focusMinutes = goalFocusTimes[goal.id]?.totalMinutes;
+      if (typeof focusMinutes === "number" && Number.isFinite(focusMinutes) && focusMinutes > 0) {
+        return focusMinutes * 60000;
+      }
+
+      return null;
+    })
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
+  const totalDuration = durations.reduce((sum, v) => sum + v, 0);
+  const avgDuration = durations.length ? totalDuration / durations.length : 0;
+  const completionMinutes = dayGoals
+    .map(g => g.completedAt ? getISTMinutesSinceMidnight(new Date(g.completedAt)) : null)
+    .filter((v): v is number => v !== null && Number.isFinite(v));
+  const avgCompletionMinutes = completionMinutes.length
+    ? completionMinutes.reduce((sum, v) => sum + v, 0) / completionMinutes.length
+    : null;
+  return { count: dayGoals.length, totalDuration, avgDuration, avgCompletionMinutes };
 };
-const getISTMinutesSinceMidnight = (date: Date) => {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-        timeZone: IST_TIME_ZONE,
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-    }).formatToParts(date);
-    const hours = Number(parts.find(p => p.type === "hour")?.value ?? 0);
-    const minutes = Number(parts.find(p => p.type === "minute")?.value ?? 0);
-    return hours * 60 + minutes;
-};
-const formatTimeFromMinutes = (minutes?: number | null) => {
-    if (minutes === null || minutes === undefined || !Number.isFinite(minutes)) return "";
-    const total = Math.round(minutes);
-    const hours = Math.floor(total / 60);
-    const mins = total % 60;
-    const hour12 = hours % 12 || 12;
-    const ampm = hours >= 12 ? "PM" : "AM";
-    return `${hour12}:${String(mins).padStart(2, "0")} ${ampm}`;
-};
-const getDailyCompletionMetrics = (completedGoals: UIGoal[], dayKey: string) => {
-    const dayGoals = completedGoals.filter(g => g.completedAt && getISTDateKey(new Date(g.completedAt)) === dayKey);
-    const durations = dayGoals
-        .map(getGoalDurationMs)
-        .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
-    const totalDuration = durations.reduce((sum, v) => sum + v, 0);
-    const avgDuration = durations.length ? totalDuration / durations.length : 0;
-    const completionMinutes = dayGoals
-        .map(g => g.completedAt ? getISTMinutesSinceMidnight(new Date(g.completedAt)) : null)
-        .filter((v): v is number => v !== null && Number.isFinite(v));
-    const avgCompletionMinutes = completionMinutes.length
-        ? completionMinutes.reduce((sum, v) => sum + v, 0) / completionMinutes.length
-        : null;
-    return { count: dayGoals.length, totalDuration, avgDuration, avgCompletionMinutes };
-};
-// ─── WEEK CHART ───────────────────────────────────────────────
+
+// ─── COMPONENTS ───────────────────────────────────────────────
+
 const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
-    const todayKey = getISTDateKey(new Date());
-    const base = dateKeyToUtcDate(todayKey);
-    const data = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(base.getTime() - (6 - i) * DAY_MS);
-        const ds = getISTDateKey(d);
-        return {
-            day: formatISTDate(d, { weekday: "short" })[0],
-            count: goals.filter(g => g.completed && g.completedAt && getISTDateKey(new Date(g.completedAt)).startsWith(ds)).length,
-        };
-    });
-    const max = Math.max(...data.map(d => d.count), 1);
-    return (
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 96 }}>
-            {data.map((d, i) => (
-                <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, height: "100%" }}>
-                    <div style={{ flex: 1, display: "flex", alignItems: "flex-end", width: "100%" }}>
-                        <div style={{
-                            width: "100%", minHeight: d.count > 0 ? 8 : 3,
-                            height: `${(d.count / max) * 100}%`,
-                            background: d.count > 0 ? `linear-gradient(180deg,${T.teal400},${T.teal700})` : T.slate100,
-                            borderRadius: "4px 4px 2px 2px", transition: "height 0.4s ease", position: "relative",
-                        }}>
-                            {d.count > 0 && <span style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", fontSize: 9, fontWeight: 700, color: T.teal700 }}>{d.count}</span>}
-                        </div>
-                    </div>
-                    <span style={{ fontSize: 9, color: T.slate400, fontWeight: 700, textTransform: "uppercase" }}>{d.day}</span>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-// ─── BADGE ───────────────────────────────────────────────────
-// ─── GOAL CARD ────────────────────────────────────────────────
-const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, theme, isPhone, hideActions = false, createdMeta, focusMinutes }: any) => {
-    const isDark = theme === 'dark';
-    const hoverBg = isDark ? T.darkCardHover : T.slate50;
-    const textColor = isDark ? (goal.completed ? T.darkTextMuted : T.darkText) : (goal.completed ? T.slate400 : T.slate700);
-    const metaColor = isDark ? T.darkTextMuted : T.slate400;
-
-    const completedAt = goal.completedAt ? new Date(goal.completedAt) : null;
-    const durationMs = getGoalDurationMs(goal);
-    const completedDateLabel = completedAt ? formatDate(completedAt.toISOString()) : "";
-    const completedTimeLabel = completedAt ? formatTime(completedAt) : "";
-    const completedLabel = completedAt
-        ? `Completed ${completedDateLabel}${completedTimeLabel ? ` · ${completedTimeLabel}` : ""}`
-        : "Completed";
-    const primaryMeta = goal.completed
-        ? completedLabel
-        : (goal.scheduledDate ? `Due ${formatDate(goal.scheduledDate)}` : "");
-    const focusDurationLabel = typeof focusMinutes === 'number' && focusMinutes > 0
-        ? `Focused ${formatDuration(focusMinutes * 60000)}`
-        : null;
-    const secondaryMeta = goal.completed && durationMs && !focusDurationLabel ? `Took ${formatDuration(durationMs)}` : "";
-    const metaPieces = [primaryMeta, focusDurationLabel || secondaryMeta, createdMeta].filter(Boolean);
-
-    return (
-        <div style={{
-            display: "flex", alignItems: "flex-start", gap: isPhone ? 10 : 12, padding: isPhone ? "12px" : "12px 14px",
-            flexWrap: isPhone ? "wrap" : "nowrap",
-            borderRadius: 14, transition: "background 0.15s",
-            background: "transparent",
-            opacity: goal.completed ? 0.72 : 1,
-        }}
-            onMouseOver={e => e.currentTarget.style.background = hoverBg}
-            onMouseOut={e => e.currentTarget.style.background = "transparent"}
-        >
-            <div style={{ width: isPhone ? 34 : 40, height: isPhone ? 34 : 40, borderRadius: "50%", background: isDark ? "rgba(45, 212, 191, 0.18)" : T.teal50, display: "flex", alignItems: "center", justifyContent: "center", fontSize: isPhone ? 15 : 18, flexShrink: 0, color: isDark ? T.teal400 : T.teal700 }}>
-                {goal.completed ? "✓" : ""}
-            </div>
-
-            <div style={{ flex: 1, minWidth: 0, minHeight: isPhone ? 34 : undefined }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: isPhone ? 12 : 13, fontWeight: 600, color: textColor, textDecoration: goal.completed ? "line-through" : "none" }}>
-                        {goal.title}
-                    </span>
-                </div>
-                {goal.description && (
-                    <p style={{ fontSize: isPhone ? 10 : 11, color: metaColor, margin: "0 0 6px", lineHeight: 1.45 }}>
-                        {goal.description}
-                    </p>
-                )}
-                {metaPieces.length > 0 && (
-                    <p style={{ fontSize: isPhone ? 10 : 11, color: metaColor, margin: 0, lineHeight: 1.45, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {metaPieces.join(" · ")}
-                    </p>
-                )}
-            </div>
-
-            {!hideActions && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: isPhone ? "auto" : 0, width: isPhone ? "100%" : "auto", justifyContent: isPhone ? "flex-end" : "flex-start" }}>
-                    {!goal.completed && onFocus && (
-                        <button onClick={() => onFocus(goal)} style={{ background: isDark ? "rgba(245, 158, 11, 0.1)" : T.amber50, border: "none", borderRadius: 8, color: isDark ? T.amber500 : T.amber500, padding: isPhone ? "0 12px" : "0 10px", height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: isPhone ? 60 : undefined, gap: 4 }} title="Start Focus Session">
-                            ▶ Focus
-                        </button>
-                    )}
-                    <button onClick={() => onRepeat(goal)} style={{ background: isDark ? "rgba(99, 102, 241, 0.1)" : T.indigo50, border: "none", borderRadius: 8, color: isDark ? T.indigo500 : T.indigo500, padding: isPhone ? "0 12px" : "0 10px", height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", minWidth: isPhone ? 60 : undefined }} title="Repeat">Repeat</button>
-                    {!goal.completed && (
-                        <>
-                            <button onClick={() => onEdit(goal)} style={{ background: isDark ? "rgba(45, 212, 191, 0.1)" : T.teal50, border: "none", borderRadius: 8, color: isDark ? T.teal400 : T.teal700, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit">✎</button>
-                            <button onClick={() => onDelete(goal.id)} style={{ background: isDark ? "rgba(249, 128, 128, 0.1)" : T.maroon100, border: "none", borderRadius: 8, color: isDark ? T.maroon400 : T.maroon800, width: isPhone ? 44 : 30, height: isPhone ? 44 : 30, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete">✕</button>
-                            <button
-                                onClick={() => onToggle(goal.id, goal.completed)}
-                                style={{
-                                    width: isPhone ? 44 : 28, height: isPhone ? 44 : 28, borderRadius: "50%",
-                                    border: `2px solid ${T.slate300}`,
-                                    background: "transparent",
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    cursor: "pointer", flexShrink: 0, transition: "all 0.15s",
-                                }}
-                                title="Mark as done"
-                            />
-                        </>
-                    )}
-                    {goal.completed && (
-                        <div style={{
-                            width: isPhone ? 44 : 28, height: isPhone ? 44 : 28, borderRadius: "50%",
-                            border: `2px solid ${T.teal600}`,
-                            background: T.teal600,
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            flexShrink: 0, opacity: 0.85,
-                        }} title="Completed">
-                            <span style={{ color: T.white, fontSize: 14, fontWeight: 900 }}>✓</span>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-};
-
-// ─── MODAL ────────────────────────────────────────────────────
-const GoalModal = ({ goal, mode, onSave, onClose, theme, isPhone, todayKey, maxDateKey }: any) => {
-    const isDark = theme === 'dark';
-    const isEdit = mode === "edit";
-    const isRepeat = mode === "repeat";
-    const initialDateKey = useMemo(
-        () => (goal?.scheduledDate ? getISTDateKey(new Date(goal.scheduledDate)) : todayKey),
-        [goal?.scheduledDate, todayKey]
-    );
-    const [title, setTitle] = useState(goal?.title || "");
-    const [desc, setDesc] = useState(goal?.description || "");
-    const [date, setDate] = useState(initialDateKey);
-    // startTime stored as "HH:MM" in 24h format (IST); empty = not set
-    const [startTime, setStartTime] = useState("");
-
-    useEffect(() => {
-        setTitle(goal?.title || "");
-        setDesc(goal?.description || "");
-        setDate(initialDateKey);
-        setStartTime("");
-    }, [goal?.title, goal?.description, initialDateKey]);
-
-    const submit = () => {
-        if (!title.trim()) return;
-        if (date < todayKey && (!isEdit || date !== initialDateKey)) {
-            toast.error("Please choose today or a future date.");
-            setDate(todayKey);
-            return;
-        }
-        if (date > maxDateKey && (!isEdit || date !== initialDateKey)) {
-            toast.error("Please choose a date within the next 7 days.");
-            setDate(maxDateKey);
-            return;
-        }
-        // Convert "HH:MM" (local IST) on the scheduled date to a UTC ISO string
-        let startedAt: string | null = null;
-        if (startTime) {
-            const [hh, mm] = startTime.split(":").map(Number);
-            // Build a UTC timestamp: treat the chosen date+time as IST (UTC+5:30)
-            const istOffsetMs = 5.5 * 60 * 60 * 1000;
-            const utcMs = new Date(`${date}T00:00:00.000Z`).getTime()
-                + hh * 3600000 + mm * 60000
-                - istOffsetMs;
-            startedAt = new Date(utcMs).toISOString();
-        }
-        onSave({ title: title.trim(), description: desc.trim(), scheduledDate: date, startedAt });
+  const todayKey = getISTDateKey(new Date());
+  const base = dateKeyToUtcDate(todayKey);
+  const data = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(base.getTime() - (6 - i) * (24 * 60 * 60 * 1000));
+    const ds = getISTDateKey(d);
+    return {
+      day: formatISTDate(d, { weekday: "short" })[0],
+      count: goals.filter(g => g.completed && g.completedAt && getISTDateKey(new Date(g.completedAt)).startsWith(ds)).length,
     };
+  });
+  const max = Math.max(...data.map(d => d.count), 1);
 
-    useEffect(() => {
-        if (date < todayKey && (!isEdit || date !== initialDateKey)) {
-            setDate(todayKey);
-            return;
-        }
-        if (date > maxDateKey && (!isEdit || date !== initialDateKey)) {
-            setDate(maxDateKey);
-        }
-    }, [date, todayKey, maxDateKey, isEdit, initialDateKey]);
-
-    const inp = { width: "100%", background: isDark ? T.darkCardHover : T.slate50, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, colorScheme: isDark ? 'dark' : 'light', borderRadius: 10, padding: "9px 12px", color: isDark ? T.darkText : T.slate800, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" as any };
-    const lbl = { fontSize: 10, color: isDark ? T.maroon400 : T.maroon400, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" as any, marginBottom: 5, display: "block" };
-
-    return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.65)", display: "flex", alignItems: isPhone ? "flex-end" : "center", justifyContent: "center", zIndex: 1000, padding: isPhone ? 0 : 20, overflowY: isPhone ? "auto" : "hidden" }}>
-            <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? "20px 20px 0 0" : 24, width: "100%", maxWidth: 480, height: isPhone ? "90dvh" : "auto", maxHeight: isPhone ? "90dvh" : "85vh", display: "flex", flexDirection: "column", boxShadow: "0 25px 60px rgba(0,0,0,0.2)", overflowX: "hidden" }}>
-                <div style={{ flexShrink: 0, background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, padding: isPhone ? "16px 14px" : "20px 24px", position: "relative", overflow: "hidden" }}>
-                    <div style={{ position: "absolute", top: -30, right: -30, width: 100, height: 100, background: T.maroon600, borderRadius: "50%", opacity: 0.2, filter: "blur(20px)" }} />
-                    <div style={{ position: "relative", zIndex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <h2 style={{ color: T.white, fontSize: 17, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-                            {isEdit ? "Edit Goal" : isRepeat ? "Repeat Goal" : "New Goal"}
-                        </h2>
-                        <button onClick={onClose} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: T.white, fontSize: 15, cursor: "pointer", borderRadius: 8, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
-                    </div>
-                </div>
-
-                <div style={{ flex: 1, minHeight: 0, padding: isPhone ? "16px 14px 40px" : "22px 24px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", overflowX: "hidden", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" as any }}>
-                    <div style={{ flexShrink: 0 }}>
-                        <label style={lbl}>Title *</label>
-                        <input style={inp} placeholder="e.g. Study 2 hours: Algebra Revision" value={title} onChange={e => setTitle(e.target.value)} autoFocus />
-                    </div>
-                    <div style={{ flexShrink: 0 }}>
-                        <label style={lbl}>Description (optional)</label>
-                        <textarea style={{ ...inp, resize: "vertical", minHeight: 80 }} placeholder="Add details or context..." value={desc} onChange={e => setDesc(e.target.value)} />
-                    </div>
-                    <div style={{ flexShrink: 0 }}>
-                        <label style={lbl}>Date</label>
-                        <input type="date" style={inp} value={date} onChange={e => setDate(e.target.value)} min={todayKey} max={maxDateKey} />
-                    </div>
-                    <div style={{ flexShrink: 0 }}>
-                        <label style={lbl}>When will you start? <span style={{ fontWeight: 400, textTransform: "none", opacity: 0.7 }}>(optional · IST)</span></label>
-                        <input
-                            type="time"
-                            style={inp}
-                            value={startTime}
-                            onChange={e => setStartTime(e.target.value)}
-                            placeholder="--:--"
-                        />
-                        {startTime && (
-                            <button
-                                onClick={() => setStartTime("")}
-                                style={{ marginTop: 6, background: "none", border: "none", color: isDark ? T.darkTextMuted : T.slate400, fontSize: 11, cursor: "pointer", padding: 0 }}
-                            >
-                                ✕ Clear start time
-                            </button>
-                        )}
-                    </div>
-
-                    <button
-                        onClick={submit}
-                        disabled={!title.trim()}
-                        style={{
-                            marginTop: "10px",
-                            background: title.trim() ? `linear-gradient(135deg,${T.maroon700},${T.maroon900})` : T.slate100,
-                            border: "none", borderRadius: 12, color: title.trim() ? T.white : T.slate400,
-                            padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: title.trim() ? "pointer" : "not-allowed",
-                            width: "100%", letterSpacing: "0.02em", transition: "all 0.2s",
-                            boxShadow: title.trim() ? "0 4px 14px rgba(155,28,28,0.3)" : "none",
-                            flexShrink: 0
-                        }}
-                    >
-                        {isEdit ? "Save Changes" : isRepeat ? "Repeat Goal" : "Create Goal"}
-                    </button>
-                </div>
+  return (
+    <div className="flex items-end gap-1.5 h-24">
+      {data.map((d, i) => (
+        <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full">
+          <div className="flex-1 flex items-end w-full">
+            <div 
+              className={`w-full min-h-[4px] rounded-t-md transition-all duration-500 relative group
+                ${d.count > 0 ? 'bg-gradient-to-t from-emerald-600 to-emerald-400' : 'bg-muted'}`}
+              style={{ height: `${(d.count / max) * 100}%` }}
+            >
+              {d.count > 0 && (
+                <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {d.count}
+                </span>
+              )}
             </div>
+          </div>
+          <span className="text-[10px] text-muted-foreground font-bold uppercase">{d.day}</span>
         </div>
-    );
+      ))}
+    </div>
+  );
 };
 
-// ─── ANALYTICS ────────────────────────────────────────────────
-const Analytics = ({ goals, theme, isPhone, isTablet }: { goals: UIGoal[], theme: string, isPhone: boolean, isTablet: boolean }) => {
-    const isDark = theme === 'dark';
-    const completedGoals = goals.filter(g => g.completed && g.completedAt);
-    const todayKey = getISTDateKey(new Date());
-    const base = dateKeyToUtcDate(todayKey);
+const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, focusMinutes, hideActions = false, createdMeta }: any) => {
+  const { t } = useTranslation();
+  const durationMs = getGoalDurationMs(goal);
+  const completedAt = goal.completedAt ? new Date(goal.completedAt) : null;
+  const completedDateLabel = completedAt ? formatDateLabel(completedAt.toISOString()) : "";
+  const completedTimeLabel = completedAt ? formatTime(completedAt) : "";
+  
+  const primaryMeta = goal.completed
+    ? completedTimeLabel
+      ? t("goals.meta.completed_with_time", { date: completedDateLabel, time: completedTimeLabel })
+      : t("goals.meta.completed", { date: completedDateLabel })
+    : (goal.scheduledDate ? t("goals.meta.due", { date: formatDateLabel(goal.scheduledDate) }) : "");
+    
+  const focusDurationLabel = typeof focusMinutes === 'number' && focusMinutes > 0
+    ? t("goals.meta.focused", { duration: formatDuration(focusMinutes * 60000) })
+    : null;
+    
+  const secondaryMeta = goal.completed && durationMs && !focusDurationLabel
+    ? t("goals.meta.took", { duration: formatDuration(durationMs) })
+    : "";
+  const metaPieces = [primaryMeta, focusDurationLabel || secondaryMeta, createdMeta].filter(Boolean);
 
-    const days = Array.from({ length: 7 }, (_, i) => {
-        const dayDate = new Date(base.getTime() - (6 - i) * DAY_MS);
-        const key = getISTDateKey(dayDate);
-        const dayGoals = completedGoals.filter(g => g.completedAt && getISTDateKey(new Date(g.completedAt)) === key);
-        const durations = dayGoals
-            .map(getGoalDurationMs)
-            .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
-        const totalDuration = durations.reduce((sum, v) => sum + v, 0);
-        const avgDuration = durations.length ? totalDuration / durations.length : 0;
-        const completionMinutes = dayGoals
-            .map(g => g.completedAt ? getISTMinutesSinceMidnight(new Date(g.completedAt)) : null)
-            .filter((v): v is number => v !== null && Number.isFinite(v));
-        const avgCompletionMinutes = completionMinutes.length
-            ? completionMinutes.reduce((sum, v) => sum + v, 0) / completionMinutes.length
-            : null;
+  return (
+    <div className={`p-4 rounded-xl transition-all duration-200 group flex items-start gap-4 
+      ${goal.completed ? 'opacity-60 bg-muted/30' : 'hover:bg-muted/50'}`}>
+      
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors
+        ${goal.completed ? 'bg-emerald-500/10 text-emerald-500' : 'bg-primary/10 text-primary'}`}>
+        {goal.completed ? <Check size={20} strokeWidth={3} /> : <div className="w-2 h-2 rounded-full bg-primary/40" />}
+      </div>
 
-        return {
-            key,
-            label: formatISTDate(dayDate, { weekday: "short" }),
-            count: dayGoals.length,
-            totalDuration,
-            avgDuration,
-            avgCompletionMinutes,
-        };
-    });
+      <div className="flex-1 min-w-0">
+        <h4 className={`text-sm font-bold truncate ${goal.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+          {goal.title}
+        </h4>
+        {goal.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
+            {goal.description}
+          </p>
+        )}
+        {metaPieces.length > 0 && (
+          <div className="flex items-center gap-2 mt-2">
+            <Clock size={12} className="text-muted-foreground" />
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              {metaPieces.join(" · ")}
+            </span>
+          </div>
+        )}
+      </div>
 
-    const totalCompleted = completedGoals.length;
-    const totalDuration = days.reduce((sum, d) => sum + d.totalDuration, 0);
-    const avgDuration = totalCompleted ? totalDuration / totalCompleted : 0;
-    const allCompletionMinutes = completedGoals
-        .map(g => g.completedAt ? getISTMinutesSinceMidnight(new Date(g.completedAt)) : null)
-        .filter((v): v is number => v !== null && Number.isFinite(v));
-    const avgCompletionMinutes = allCompletionMinutes.length
-        ? allCompletionMinutes.reduce((sum, v) => sum + v, 0) / allCompletionMinutes.length
-        : null;
-    const avgDurationLabel = totalCompleted ? (formatDuration(avgDuration) || "0m") : "—";
-    const avgCompletionLabel = avgCompletionMinutes !== null ? formatTimeFromMinutes(avgCompletionMinutes) : "—";
-    const totalDurationLabel = totalDuration ? formatDuration(totalDuration) : "—";
-
-    return (
-        <div style={{ display: "grid", gridTemplateColumns: isTablet ? "1fr" : "1fr 340px", gap: isPhone ? 14 : 24, alignItems: "start" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "1fr 1fr", gap: 12 }}>
-                    {[
-                        ["Completed (7d)", String(totalCompleted), T.teal700],
-                        ["Avg Duration", avgDurationLabel, T.indigo500],
-                        ["Avg Completion Time", avgCompletionLabel, T.maroon800],
-                        ["Total Duration", totalDurationLabel, T.teal700],
-                    ].map(([label, val, col]) => (
-                        <div key={label} style={{ background: isDark ? T.darkCard : T.white, borderRadius: 16, padding: isPhone ? "14px 16px" : "16px 18px", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                <span style={{ fontSize: 10, color: isDark ? T.darkTextMuted : T.slate500, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{label}</span>
-                            </div>
-                            <div style={{ fontSize: 22, fontWeight: 800, color: col, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{val}</div>
-                        </div>
-                    ))}
-                </div>
-
-                <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: 20, padding: 20, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800 }}>History</span>
-                        <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400 }}>Last 7 Days</span>
-                    </div>
-                    <WeekChart goals={goals} />
-                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500 }}>Goals Completed</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700 }}>{totalCompleted}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: 20, padding: 20, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 16px" }}>Daily Breakdown</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {days.map(day => (
-                        <div key={day.key} style={{ display: "grid", gridTemplateColumns: isPhone ? "1fr" : "56px 1fr 1fr 1fr", gap: isPhone ? 6 : 8, padding: "8px 10px", borderRadius: 12, background: isDark ? T.darkCardHover : T.slate50, alignItems: "center", minWidth: 0 }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.darkText : T.slate700, whiteSpace: "nowrap" }}>{day.label}</span>
-                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{day.count} done</span>
-                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{day.count ? (formatDuration(day.totalDuration) || "0m") : "—"} total</span>
-                            <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{day.avgCompletionMinutes !== null ? formatTimeFromMinutes(day.avgCompletionMinutes) : "—"}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
+      {!hideActions && (
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {!goal.completed && (
+            <>
+              <button onClick={() => onFocus(goal)} className="p-2 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors" title={t("goals.actions.start_focus")}>
+                <Play size={16} fill="currentColor" />
+              </button>
+              <button onClick={() => onEdit(goal)} className="p-2 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors" title={t("goals.actions.edit")}>
+                <Edit2 size={16} />
+              </button>
+            </>
+          )}
+          <button onClick={() => onRepeat(goal)} className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors" title={t("goals.actions.repeat_task")}>
+            <RotateCcw size={16} />
+          </button>
+          {!goal.completed && (
+            <>
+              <button onClick={() => onDelete(goal.id)} className="p-2 rounded-lg bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 transition-colors" title={t("goals.actions.delete")}>
+                <Trash2 size={16} />
+              </button>
+              <button 
+                onClick={() => onToggle(goal.id, goal.completed)}
+                className="w-8 h-8 rounded-full border-2 border-primary/30 hover:border-primary hover:bg-primary/10 transition-all flex items-center justify-center"
+                title={t("goals.actions.mark_done")}
+              >
+                <div className="w-4 h-4 rounded-full border-2 border-transparent hover:border-primary/50" />
+              </button>
+            </>
+          )}
         </div>
-    );
+      )}
+    </div>
+  );
+};
+
+const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) => {
+  const { t } = useTranslation();
+  const isEdit = mode === "edit";
+  const [title, setTitle] = useState(goal?.title || "");
+  const [desc, setDesc] = useState(goal?.description || "");
+  const [date, setDate] = useState(goal?.scheduledDate ? getISTDateKey(new Date(goal.scheduledDate)) : todayKey);
+  const [startTime, setStartTime] = useState("");
+  const [newSubtaskText, setNewSubtaskText] = useState("");
+  const [subtasks, setSubtasks] = useState<GoalSubtask[]>(() => {
+    const initial = Array.isArray(goal?.subtasks) ? goal.subtasks : [];
+    return initial
+      .map((entry: any) => ({
+        id: String(entry?.id || crypto.randomUUID()),
+        text: String(entry?.text || "").trim(),
+        done: Boolean(entry?.done),
+      }))
+      .filter((entry: GoalSubtask) => entry.text.length > 0);
+  });
+
+  const addSubtask = () => {
+    const text = newSubtaskText.trim();
+    if (!text) return;
+    setSubtasks((prev) => [...prev, { id: crypto.randomUUID(), text, done: false }]);
+    setNewSubtaskText("");
+  };
+
+  const removeSubtask = (id: string) => {
+    setSubtasks((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const toggleSubtaskDone = (id: string) => {
+    setSubtasks((prev) => prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)));
+  };
+
+  const submit = () => {
+    if (!title.trim()) return;
+    let startedAt: string | null = null;
+    if (startTime) {
+      const [hh, mm] = startTime.split(":").map(Number);
+      const istOffsetMs = 5.5 * 60 * 60 * 1000;
+      const utcMs = new Date(`${date}T00:00:00.000Z`).getTime() + hh * 3600000 + mm * 60000 - istOffsetMs;
+      startedAt = new Date(utcMs).toISOString();
+    }
+    onSave({
+      title: title.trim(),
+      description: desc.trim(),
+      scheduledDate: date,
+      startedAt,
+      subtasks: subtasks
+        .map((item) => ({ ...item, text: item.text.trim() }))
+        .filter((item) => item.text.length > 0),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-lg bg-card border shadow-2xl rounded-3xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-500 p-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <Plus className="w-5 h-5" /> {isEdit ? t("goals.edit_goal") : t("goals.new_goal")}
+          </h2>
+          <button onClick={onClose} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.title")}</label>
+            <input 
+              className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+              placeholder={t("goals.modal.title_placeholder")}
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.description_optional")}</label>
+            <textarea 
+              className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all min-h-[100px] resize-none"
+              placeholder={t("goals.modal.description_placeholder")}
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.subtasks_optional")}</label>
+            <div className="flex gap-2">
+              <input
+                className="flex-1 bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                placeholder={t("goals.modal.subtask_placeholder")}
+                value={newSubtaskText}
+                onChange={(e) => setNewSubtaskText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addSubtask();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={addSubtask}
+                className="px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
+              >
+                {t("goals.modal.add")}
+              </button>
+            </div>
+
+            {subtasks.length > 0 && (
+              <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                {subtasks.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2 bg-muted/40 border rounded-xl px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleSubtaskDone(item.id)}
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-border text-transparent'}`}
+                      title={t("goals.modal.toggle_subtask")}
+                    >
+                      <Check size={12} strokeWidth={3} />
+                    </button>
+                    <span className={`flex-1 text-sm ${item.done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{item.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeSubtask(item.id)}
+                      className="p-1 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
+                      title={t("goals.modal.remove_subtask")}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.target_date")}</label>
+              <input 
+                type="date"
+                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all color-scheme-dark"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                min={todayKey}
+                max={maxDateKey}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.start_time_ist")}</label>
+              <input 
+                type="time"
+                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all color-scheme-dark"
+                value={startTime}
+                onChange={e => setStartTime(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={submit}
+            disabled={!title.trim()}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] mt-2"
+          >
+            {isEdit ? t("goals.modal.save_changes") : t("goals.modal.create_goal")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ─── MAIN ─────────────────────────────────────────────────────
 export default function Goals() {
-    const { theme } = useTheme();
-    const navigate = useNavigate();
-    const { t } = useTranslation();
-    const isDark = theme === 'dark';
-    const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
-    const maxDateKey = useMemo(() => {
-        const base = dateKeyToUtcDate(todayKey);
-        return getISTDateKey(new Date(base.getTime() + 7 * DAY_MS));
-    }, [todayKey]);
-    const [viewportWidth, setViewportWidth] = useState(
-        typeof window !== "undefined" ? window.innerWidth : 1280
-    );
-    const [goals, setGoals] = useState<UIGoal[]>([]);
-    const [modal, setModal] = useState<any>(null);
-    const [tab, setTab] = useState("goals");
-    const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
-    const [goalFocusTimes, setGoalFocusTimes] = useState<Record<string, { totalMinutes: number; sessionCount: number }>>({});
-    const getErrorMessage = (error: unknown, fallback: string) =>
-        error instanceof Error && error.message ? error.message : fallback;
-    const getScheduledKey = (g: UIGoal) => g.scheduledDate ? getISTDateKey(new Date(g.scheduledDate)) : null;
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  
+  const [goals, setGoals] = useState<UIGoal[]>([]);
+  const [modal, setModal] = useState<any>(null);
+  const [tab, setTab] = useState("goals");
+  const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
+  const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
+  const [goalFocusTimes, setGoalFocusTimes] = useState<Record<string, { totalMinutes: number }>>({});
+  const [todayGoalFocusTimes, setTodayGoalFocusTimes] = useState<Record<string, { totalMinutes: number }>>({});
 
-    const fetchGoals = async () => {
-        try {
-            const res = await dataService.getGoals();
-            const data: UIGoal[] = (res || []).map(g => ({
-                ...g,
-                title: g.title || g.text || '',
-            }));
-            setGoals(data);
+  const maxDateKey = useMemo(() => {
+    const base = dateKeyToUtcDate(todayKey);
+    return getISTDateKey(new Date(base.getTime() + 7 * (24 * 60 * 60 * 1000)));
+  }, [todayKey]);
 
-            // Fetch focus times for all goals in one batch
-            const allIds = data.map(g => g.id).filter(Boolean);
-            if (allIds.length > 0) {
-                focusService.getGoalsFocusTimes(allIds).then(times => {
-                    setGoalFocusTimes(times);
-                }).catch(() => { /* silent */ });
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error(getErrorMessage(error, "Failed to load goals"));
+  const fetchGoals = async () => {
+    try {
+      const res = await dataService.getGoals();
+      const data: UIGoal[] = (res || []).map(g => ({
+        ...g,
+        title: g.title || g.text || '',
+      }));
+      setGoals(data);
+
+      const allIds = data.map(g => g.id).filter(Boolean);
+      if (allIds.length > 0) {
+        focusService.getGoalsFocusTimes(allIds).then(times => {
+          setGoalFocusTimes(times);
+        }).catch(() => {});
+
+        focusService.getGoalsFocusTimes(allIds, { dayKey: todayKey }).then(times => {
+          setTodayGoalFocusTimes(times);
+        }).catch(() => {});
+      } else {
+        setGoalFocusTimes({});
+        setTodayGoalFocusTimes({});
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(t("goals.toast.load_failed"));
+    }
+  };
+
+  useEffect(() => {
+    fetchGoals();
+    const interval = setInterval(() => setTodayKey(getISTDateKey(new Date())), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const toggleGoal = async (id: string, currentCompleted: boolean) => {
+    if (currentCompleted) {
+      toast.info(t("goals.toast.already_completed"));
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    setGoals(gs => gs.map(g => g.id !== id ? g : { ...g, completed: true, completedAt: nowIso }));
+    try {
+      await dataService.updateGoal(id, true, nowIso);
+      toast.success(t("goals.toast.completed"));
+    } catch (error) {
+      toast.error(t("goals.toast.update_failed"));
+      fetchGoals();
+    }
+  };
+
+  const deleteGoal = async (id: string) => {
+    setGoals(gs => gs.filter(g => g.id !== id));
+    try {
+      await dataService.deleteGoal(id);
+      toast.success(t("goals.toast.deleted"));
+    } catch (error) {
+      toast.error(t("goals.toast.delete_failed"));
+      fetchGoals();
+    }
+  };
+
+  const saveGoal = async (data: any) => {
+    setModal(null);
+    try {
+      if (modal?.mode === "edit") {
+        await dataService.updateGoalDetails(modal.goal.id, {
+          title: data.title,
+          description: data.description,
+          subtasks: data.subtasks || [],
+        });
+        const oldKey = getISTDateKey(new Date(modal.goal.scheduledDate));
+        if (oldKey !== data.scheduledDate) {
+          await dataService.rescheduleGoal(modal.goal.id, new Date(data.scheduledDate));
         }
-    };
+        toast.success(t("goals.toast.updated"));
+      } else {
+        await dataService.addGoal({
+          title: data.title,
+          description: data.description,
+          scheduledDate: data.scheduledDate,
+          startedAt: data.startedAt,
+          subtasks: data.subtasks || [],
+        });
+        toast.success(t("goals.toast.created"));
+      }
+      fetchGoals();
+    } catch (error) {
+      toast.error(t("goals.toast.operation_failed"));
+      fetchGoals();
+    }
+  };
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setTodayKey(getISTDateKey(new Date()));
-        }, 60 * 1000);
-        return () => clearInterval(interval);
-    }, []);
+  const pendingGoals = useMemo(() => goals.filter(g => !g.completed).sort((a,b) => (a.scheduledDate || "") > (b.scheduledDate || "") ? 1 : -1), [goals]);
+  const completedRecent = useMemo(() => goals.filter(g => g.completed).sort((a,b) => (b.completedAt || "") > (a.completedAt || "") ? 1 : -1).slice(0, MAX_COMPLETED_DISPLAY), [goals]);
+  const historyDateKeys = useMemo(() => Array.from(new Set(goals.map(getGoalCreatedDateKey).filter(Boolean))).sort() as string[], [goals]);
+  const filteredHistory = useMemo(() => historyDateFilter ? goals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter) : goals, [goals, historyDateFilter]);
 
-    useEffect(() => { fetchGoals(); }, []);
+  const todayMetrics = useMemo(
+    () => getDailyCompletionMetrics(goals.filter(g => g.completed), todayKey, todayGoalFocusTimes),
+    [goals, todayKey, todayGoalFocusTimes],
+  );
 
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const onResize = () => setViewportWidth(window.innerWidth);
-        onResize();
-        window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
-    }, []);
-
-    const toggleGoal = async (id: string, currentCompleted: boolean) => {
-        if (currentCompleted) {
-            toast.info("Completed goals stay completed. Edit to plan it again.");
-            return;
-        }
-
-        const nowIso = new Date().toISOString();
-        setGoals(gs => gs.map(g =>
-            g.id !== id ? g : { ...g, completed: true, completedAt: nowIso }
-        ));
-        try {
-            await dataService.updateGoal(id, true, nowIso);
-            toast.success("Goal completed!");
-        } catch (error) {
-            toast.error(getErrorMessage(error, "Failed to update goal"));
-            fetchGoals();
-        }
-    };
-
-    const deleteGoal = async (id: string) => {
-        setGoals(gs => gs.filter(g => g.id !== id));
-        try {
-            await dataService.deleteGoal(id);
-            toast.success("Goal deleted");
-        } catch (error) {
-            toast.error(getErrorMessage(error, "Failed to delete goal"));
-            fetchGoals();
-        }
-    };
-
-    const saveGoal = async (data: any) => {
-        if (modal?.mode === "edit") {
-            const scheduleChanged = getScheduledKey(modal.goal) !== data.scheduledDate;
-            const shouldRepeat = modal.goal.completed && scheduleChanged;
-
-            setModal(null);
-            if (shouldRepeat) {
-                try {
-                    await dataService.addGoal({
-                        title: data.title,
-                        scheduledDate: data.scheduledDate,
-                        description: data.description || "",
-                    });
-                    toast.success(`Goal copied to ${formatDate(data.scheduledDate)}`);
-                    fetchGoals();
-                } catch (error) {
-                    toast.error(getErrorMessage(error, "Creation failed"));
-                    fetchGoals();
-                }
-                return;
-            }
-
-            try {
-                await dataService.updateGoalDetails(modal.goal.id, {
-                    title: data.title,
-                    description: data.description,
-                });
-
-                if (scheduleChanged) {
-                    await dataService.rescheduleGoal(modal.goal.id, new Date(data.scheduledDate));
-                }
-
-                toast.success("Goal updated");
-                fetchGoals();
-            } catch (error) { toast.error(getErrorMessage(error, "Update failed")); fetchGoals(); }
-        } else {
-            setModal(null);
-            try {
-                await dataService.addGoal({
-                    title: data.title,
-                    scheduledDate: data.scheduledDate,
-                    description: data.description || "",
-                });
-                toast.success(modal?.mode === "repeat" ? "Goal repeated" : "Goal created");
-                fetchGoals();
-            } catch (error) { toast.error(getErrorMessage(error, "Creation failed")); fetchGoals(); }
-        }
-    };
-
-    const startFocusForGoal = (goal: UIGoal) => {
-        const params = new URLSearchParams();
-        params.set('goalId', goal.id);
-        params.set('goalTitle', goal.title || goal.text || '');
-        navigate(`/study?${params.toString()}`);
-    };
-
-    const pendingGoals = useMemo(() => (
-        goals.filter(g => !g.completed).sort((a, b) => {
-            const aKey = getScheduledKey(a) || "9999-12-31";
-            const bKey = getScheduledKey(b) || "9999-12-31";
-            return aKey < bKey ? -1 : 1;
-        })
-    ), [goals]);
-
-    const completedGoals = useMemo(() => (
-        goals.filter(g => g.completed).sort((a, b) => {
-            const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
-            const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
-            return bTime - aTime;
-        })
-    ), [goals]);
-    const completedGoalsDisplay = useMemo(
-        () => completedGoals.slice(0, MAX_COMPLETED_DISPLAY),
-        [completedGoals]
-    );
-    const historyGoals = useMemo(() => (
-        [...goals].sort((a, b) => getGoalCreatedTime(a) - getGoalCreatedTime(b))
-    ), [goals]);
-    const historyDateKeys = useMemo(() => {
-        const keys = historyGoals
-            .map(getGoalCreatedDateKey)
-            .filter((key): key is string => !!key);
-        return Array.from(new Set(keys)).sort();
-    }, [historyGoals]);
-    const filteredHistoryGoals = useMemo(() => (
-        historyDateFilter
-            ? historyGoals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter)
-            : historyGoals
-    ), [historyGoals, historyDateFilter]);
-    const historyFilterLabel = useMemo(() => (
-        historyDateFilter
-            ? formatISTDate(dateKeyToUtcDate(historyDateFilter), { month: "short", day: "numeric", year: "numeric" })
-            : "All dates"
-    ), [historyDateFilter]);
-    const historyMinKey = historyDateKeys[0];
-    const historyMaxKey = historyDateKeys[historyDateKeys.length - 1];
-
-    const todayMetrics = useMemo(() => getDailyCompletionMetrics(completedGoals, todayKey), [completedGoals, todayKey]);
-    const weekKeys = useMemo(() => (
-        Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(dateKeyToUtcDate(todayKey).getTime() - (6 - i) * DAY_MS);
-            return getISTDateKey(d);
-        })
-    ), [todayKey]);
-    const weekGoals = useMemo(() => (
-        completedGoals.filter(g => g.completedAt && weekKeys.includes(getISTDateKey(new Date(g.completedAt))))
-    ), [completedGoals, weekKeys]);
-    const weekDuration = weekGoals
-        .map(getGoalDurationMs)
-        .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0)
-        .reduce((sum, v) => sum + v, 0);
-
-    const isPhone = viewportWidth < 640;
-    const isTablet = viewportWidth < 1024;
-    const contentGrid = isTablet ? "1fr" : "1fr 340px";
-    const pagePadding = isPhone ? "16px 12px 24px" : isTablet ? "22px 16px 28px" : "28px 20px";
-    const historyFilterInputStyle = {
-        background: isDark ? T.darkCardHover : T.slate50,
-        border: `1px solid ${isDark ? T.darkBorder : T.slate200}`,
-        color: isDark ? T.darkText : T.slate800,
-        borderRadius: 8,
-        padding: "6px 8px",
-        fontSize: 11,
-        outline: "none",
-        colorScheme: isDark ? "dark" : "light",
-    } as const;
-    const historyFilterButtonStyle = {
-        background: isDark ? "rgba(99, 102, 241, 0.12)" : T.indigo50,
-        border: "none",
-        borderRadius: 8,
-        color: isDark ? T.indigo500 : T.indigo500,
-        padding: "6px 10px",
-        fontSize: 11,
-        fontWeight: 700,
-        cursor: historyDateFilter ? "pointer" : "not-allowed",
-        opacity: historyDateFilter ? 1 : 0.6,
-    } as const;
-
-    return (
-        <NishthaLayout>
-            <div style={{ minHeight: "100vh", background: isDark ? T.darkBg : T.slate50, fontFamily: "'Plus Jakarta Sans',sans-serif", color: isDark ? T.darkText : T.slate800, width: "100%", transition: "background 0.3s ease", overflowX: "hidden" }}>
-                <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-                <div style={{ maxWidth: 1200, margin: "0 auto", padding: pagePadding, width: "100%", boxSizing: "border-box" }}>
-                    <header style={{ display: "flex", justifyContent: "space-between", alignItems: isPhone ? "stretch" : "flex-start", marginBottom: isPhone ? 18 : 28, gap: isPhone ? 12 : 16, flexDirection: isPhone ? "column" : "row" }}>
-                        <div>
-                            <h1 style={{ fontSize: isPhone ? 22 : 26, fontWeight: 800, color: isDark ? T.darkText : T.slate900, margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
-                                Command Center
-                            </h1>
-                            <p style={{ fontSize: isPhone ? 12 : 13, color: isDark ? T.darkTextMuted : T.slate500, margin: "4px 0 0" }}>{t('goals.subtitle')}</p>
-                        </div>
-                        <button
-                            onClick={() => setModal({ mode: "add", goal: null })}
-                            style={{ background: `linear-gradient(135deg,${T.maroon800},${T.maroon900})`, border: "none", borderRadius: 12, color: T.white, padding: isPhone ? "14px 20px" : "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 14px rgba(155,28,28,0.28)", width: isPhone ? "100%" : "auto" }}
-                        >
-                            ＋ {t('goals.add_goal')}
-                        </button>
-                    </header>
-
-                    <div style={{ display: "flex", gap: 4, marginBottom: isPhone ? 16 : 24, background: isDark ? T.darkCard : T.white, borderRadius: 12, padding: 4, width: isPhone ? "100%" : "fit-content", border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                        {([["goals", t('goals.tab_goals')], ["history", t('goals.tab_history')], ["analytics", t('goals.tab_analytics')]] as [string, string][]).map(([k, l]) => (
-                            <button key={k} onClick={() => setTab(k)} style={{
-                                background: tab === k ? `linear-gradient(135deg,${T.teal800},${T.teal900})` : "transparent",
-                                border: "none", borderRadius: 10, color: tab === k ? T.white : (isDark ? T.darkTextMuted : T.slate500),
-                                padding: isPhone ? "12px 18px" : "7px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all 0.15s", flex: isPhone ? 1 : undefined,
-                                boxShadow: tab === k ? "0 2px 8px rgba(17,94,89,0.3)" : "none",
-                            }}>{l}</button>
-                        ))}
-                    </div>
-
-                    {tab === "analytics" ? <Analytics goals={goals} theme={theme} isPhone={isPhone} isTablet={isTablet} /> : (
-                        <div style={{ display: "grid", gridTemplateColumns: contentGrid, gap: isPhone ? 14 : 24, alignItems: "start" }}>
-                            <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 14 : 20 }}>
-                                {tab === "goals" && (
-                                    <>
-                                        <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                                            <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                    <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>{t('goals.pending_section')}</h3>
-                                                    <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{pendingGoals.length}</span>
-                                                </div>
-                                            </div>
-
-                                            {pendingGoals.length === 0 ? (
-                                                <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
-                                                    <div style={{ fontSize: 14, fontWeight: 600 }}>No pending goals.</div>
-                                                </div>
-                                            ) : (
-                                                <div>
-                                                    {pendingGoals.map((g, i) => (
-                                                        <div key={g.id} style={{ borderBottom: i < pendingGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                            <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} onFocus={startFocusForGoal} focusMinutes={goalFocusTimes[g.id]?.totalMinutes} />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                                            <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                    <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>{t('goals.completed_section')}</h3>
-                                                    <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{completedGoalsDisplay.length}</span>
-                                                </div>
-                                            </div>
-
-                                            {completedGoalsDisplay.length === 0 ? (
-                                                <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
-                                                    <div style={{ fontSize: 14, fontWeight: 600 }}>No completed goals yet.</div>
-                                                </div>
-                                            ) : (
-                                                <div>
-                                                    {completedGoalsDisplay.map((g, i) => (
-                                                        <div key={g.id} style={{ borderBottom: i < completedGoalsDisplay.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                            <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} focusMinutes={goalFocusTimes[g.id]?.totalMinutes} />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
-
-                                {tab === "history" && (
-                                    <div style={{ background: isDark ? T.darkCard : T.white, borderRadius: isPhone ? 18 : 24, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                                        <div style={{ padding: isPhone ? "14px 12px" : "16px 20px", borderBottom: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                <h3 style={{ fontSize: 15, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: 0 }}>Goal History</h3>
-                                                <span style={{ background: isDark ? T.darkCardHover : T.slate100, color: isDark ? T.darkTextMuted : T.slate600, fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 8 }}>{historyDateFilter ? filteredHistoryGoals.length : historyGoals.length}</span>
-                                            </div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                                                <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate500 }}>{historyFilterLabel}</span>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                                    <input
-                                                        type="date"
-                                                        value={historyDateFilter}
-                                                        onChange={e => setHistoryDateFilter(e.target.value)}
-                                                        min={historyMinKey}
-                                                        max={historyMaxKey}
-                                                        style={historyFilterInputStyle}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setHistoryDateFilter("")}
-                                                        disabled={!historyDateFilter}
-                                                        style={historyFilterButtonStyle}
-                                                    >
-                                                        Clear
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {filteredHistoryGoals.length === 0 ? (
-                                            <div style={{ textAlign: "center", padding: "32px 20px", color: isDark ? T.darkTextMuted : T.slate400 }}>
-                                                <div style={{ fontSize: 14, fontWeight: 600 }}>
-                                                    {historyGoals.length === 0 ? "No goals yet." : "No goals created on this date."}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div style={{ maxHeight: isPhone ? 400 : 600, overflowY: "auto" }}>
-                                                {filteredHistoryGoals.map((g, i) => (
-                                                    <div key={g.id} style={{ borderBottom: i < filteredHistoryGoals.length - 1 ? `1px solid ${isDark ? T.darkBorder : T.slate50}` : "none" }}>
-                                                        <GoalCard theme={theme} isPhone={isPhone} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} createdMeta={getGoalCreatedLabel(g) ? `Created ${getGoalCreatedLabel(g)}` : ""} hideActions />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 14 : 18 }}>
-                                <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: isPhone ? 16 : 20, padding: isPhone ? 14 : 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                    <h3 style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.darkText : T.slate800, margin: "0 0 14px" }}>
-                                        Today
-                                    </h3>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
-                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap" }}>Completed</span>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{todayMetrics.count}</span>
-                                    </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}>
-                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap" }}>Total Duration</span>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{todayMetrics.count ? (formatDuration(todayMetrics.totalDuration) || "0m") : "—"}</span>
-                                    </div>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                                        <span style={{ fontSize: 12, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Avg Completion Time</span>
-                                        <span style={{ fontSize: 12, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{todayMetrics.count ? (todayMetrics.avgCompletionMinutes !== null ? formatTimeFromMinutes(todayMetrics.avgCompletionMinutes) : "—") : "—"}</span>
-                                    </div>
-                                </div>
-
-                                <div style={{ background: isDark ? T.darkCard : T.white, border: `1px solid ${isDark ? T.darkBorder : T.slate200}`, borderRadius: isPhone ? 16 : 20, padding: isPhone ? 14 : 20, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                                        <span style={{ fontSize: 14, fontWeight: 700, color: isDark ? T.darkText : T.slate800 }}>Last 7 Days</span>
-                                        <span style={{ fontSize: 11, color: isDark ? T.darkTextMuted : T.slate400 }}>Completion count</span>
-                                    </div>
-                                    <WeekChart goals={goals} />
-                                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${isDark ? T.darkBorder : T.slate100}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap" }}>Completed</span>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{weekGoals.length}</span>
-                                    </div>
-                                    <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                                        <span style={{ fontSize: 13, color: isDark ? T.darkTextMuted : T.slate500, whiteSpace: "nowrap" }}>Total Duration</span>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: isDark ? T.teal400 : T.teal700, whiteSpace: "nowrap" }}>{weekGoals.length ? (formatDuration(weekDuration) || "0m") : "—"}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+  return (
+    <NishthaLayout>
+      <div className="flex-1 min-h-screen bg-background/95 p-6 md:p-8 animate-in fade-in duration-500">
+        <div className="max-w-7xl mx-auto space-y-8">
+          
+          <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-1">
+              <h1 className="text-3xl font-black flex items-center gap-3 tracking-tight">
+                <div className="p-2.5 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20">
+                  <BarChart3 className="text-white w-6 h-6" />
                 </div>
-                {modal && <GoalModal theme={theme} isPhone={isPhone} goal={modal.goal || null} mode={modal.mode} onSave={saveGoal} onClose={() => setModal(null)} todayKey={todayKey} maxDateKey={maxDateKey} />}
+                {t('goals.title')}
+              </h1>
+              <p className="text-muted-foreground font-medium pl-1">{t('goals.subtitle')}</p>
             </div>
-        </NishthaLayout>
-    );
+            
+            <button
+              onClick={() => setModal({ mode: "add", goal: null })}
+              className="px-6 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all w-full md:w-auto"
+            >
+              <Plus size={20} strokeWidth={3} /> {t('goals.add_goal')}
+            </button>
+          </header>
+
+          <div className="flex items-center p-1 bg-muted/50 rounded-2xl border w-full md:w-fit">
+            {[
+              { id: "goals", label: t('goals.tab_goals'), icon: Check },
+              { id: "history", label: t('goals.tab_history'), icon: Clock },
+              { id: "analytics", label: t('goals.tab_analytics'), icon: TrendingUp }
+            ].map((tabItem) => (
+              <button
+                key={tabItem.id}
+                onClick={() => setTab(tabItem.id)}
+                className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-[14px] text-sm font-bold transition-all
+                  ${tab === tabItem.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <tabItem.icon size={16} />
+                {tabItem.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "analytics" ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="lg:col-span-2 space-y-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-6 bg-card border rounded-3xl shadow-sm">
+                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">{t("goals.analytics.completed_7d")}</h4>
+                       <span className="text-4xl font-black text-emerald-500">{goals.filter(g => g.completed).length}</span>
+                    </div>
+                    <div className="p-6 bg-card border rounded-3xl shadow-sm">
+                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">{t("goals.analytics.total_focus_time")}</h4>
+                       <span className="text-4xl font-black text-amber-500">
+                         {formatDuration(Object.values(goalFocusTimes).reduce((acc, curr) => acc + (curr.totalMinutes * 60000), 0)) || "0m"}
+                       </span>
+                    </div>
+                 </div>
+                 <div className="p-8 bg-card border rounded-[32px] shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="font-bold flex items-center gap-2"><Calendar className="text-primary w-4 h-4" /> {t("goals.analytics.weekly_pulse")}</h3>
+                        <span className="text-xs text-muted-foreground">{t("goals.analytics.completion_velocity")}</span>
+                    </div>
+                    <WeekChart goals={goals} />
+                 </div>
+              </div>
+              <div className="p-8 bg-card border rounded-[32px] shadow-sm">
+                   <h3 className="font-bold mb-6">{t("goals.analytics.daily_breakdown")}</h3>
+                <div className="space-y-4">
+                  {Array.from({length: 7}, (_, i) => {
+                    const d = new Date(dateKeyToUtcDate(todayKey).getTime() - (6-i) * (24*60*60*1000));
+                    const key = getISTDateKey(d);
+                    const metrics = getDailyCompletionMetrics(goals.filter(g => g.completed), key);
+                    return (
+                      <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                        <span className="text-xs font-bold w-12">{formatISTDate(d, { weekday: "short" })}</span>
+                        <div className="flex-1 px-4">
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden w-full">
+                            <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, (metrics.count / 5) * 100)}%` }} />
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-muted-foreground w-12 text-right">{t("goals.analytics.done_count", { count: metrics.count })}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in slide-in-from-bottom-4 duration-500">
+              <div className="lg:col-span-8 space-y-6">
+                
+                {tab === "goals" && (
+                  <div className="bg-card border rounded-[32px] shadow-sm overflow-hidden">
+                    <div className="p-6 border-b bg-muted/10 flex items-center justify-between">
+                      <h3 className="font-bold flex items-center gap-2">
+                        <Check size={18} className="text-emerald-500" /> {t('goals.pending_section')}
+                      </h3>
+                      <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-[10px] font-bold">
+                        {t("goals.pending_tasks", { count: pendingGoals.length })}
+                      </span>
+                    </div>
+                    
+                    {pendingGoals.length === 0 ? (
+                      <div className="py-20 text-center space-y-2">
+                        <div className="text-4xl">🎉</div>
+                        <p className="font-bold text-muted-foreground">{t("goals.all_caught_up")}</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-muted/50">
+                        {pendingGoals.map(g => (
+                          <GoalCard key={g.id} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} onFocus={() => navigate(`/study?goalId=${g.id}&goalTitle=${g.title}`)} focusMinutes={goalFocusTimes[g.id]?.totalMinutes} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {tab === "history" && (
+                  <div className="bg-card border rounded-[32px] shadow-sm overflow-hidden flex flex-col h-[700px]">
+                    <div className="p-6 border-b bg-muted/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <h3 className="font-bold flex items-center gap-2">
+                        <Clock size={18} className="text-blue-500" /> {t("goals.archive")}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="date"
+                          value={historyDateFilter}
+                          onChange={e => setHistoryDateFilter(e.target.value)}
+                          className="bg-muted border rounded-xl px-3 py-2 text-xs focus:outline-none color-scheme-dark"
+                        />
+                        <button onClick={() => setHistoryDateFilter("")} className="p-2 text-muted-foreground hover:text-foreground">
+                          <RotateCcw size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto divide-y divide-muted/50">
+                      {filteredHistory.length === 0 ? (
+                        <div className="py-20 text-center text-muted-foreground italic">{t("goals.nothing_found_for_date")}</div>
+                      ) : (
+                        filteredHistory.map(g => (
+                          <GoalCard key={g.id} goal={g} hideActions hideMeta createdMeta={formatDateLabel(g.scheduledDate)} />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {tab === "goals" && completedRecent.length > 0 && (
+                  <div className="bg-card/50 border rounded-[32px] shadow-sm overflow-hidden">
+                    <div className="p-6 border-b bg-muted/5 flex items-center justify-between">
+                      <h3 className="font-bold text-sm text-muted-foreground">{t('goals.completed_section')}</h3>
+                    </div>
+                    <div className="divide-y divide-muted/50">
+                      {completedRecent.map(g => (
+                        <GoalCard key={g.id} goal={g} hideActions />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="lg:col-span-4 space-y-6">
+                <div className="p-8 bg-card border rounded-[32px] shadow-sm space-y-6">
+                  <div>
+                    <h3 className="text-sm font-bold opacity-60 uppercase tracking-widest mb-6">{t("goals.live_pulse")}</h3>
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center bg-muted/30 p-4 rounded-2xl">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-70">{t("goals.focus_activity")}</p>
+                          <p className="text-lg font-black">{t("goals.completed_count", { count: todayMetrics.count })}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {t("goals.total_duration", { duration: formatDuration(todayMetrics.totalDuration) || "0m" })}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {t("goals.avg_completion_time", { time: todayMetrics.avgCompletionMinutes !== null ? formatTimeFromMinutes(todayMetrics.avgCompletionMinutes) : "-" })}
+                          </p>
+                        </div>
+                        <TrendingUp className="text-emerald-500 w-8 h-8 opacity-20" />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span>{t("goals.daily_progress")}</span>
+                          <span className="text-primary">{Math.round((todayMetrics.count / 5) * 100)}%</span>
+                        </div>
+                        <div className="h-3 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, (todayMetrics.count / 5) * 100)}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-gradient-to-br from-emerald-600/10 to-teal-500/10 border border-emerald-500/20 rounded-[32px] shadow-sm relative overflow-hidden group">
+                  <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
+                  <h3 className="font-bold mb-2">{t("goals.pro_tip_title")}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {t("goals.pro_tip_desc")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        {modal && <GoalModal goal={modal.goal} mode={modal.mode} onSave={saveGoal} onClose={() => setModal(null)} todayKey={todayKey} maxDateKey={maxDateKey} />}
+      </div>
+    </NishthaLayout>
+  );
 }

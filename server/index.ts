@@ -27,6 +27,8 @@ import { uploadRoutes, imageServeRouter } from "./routes/uploads";
 import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
 import mehfilSocialRouter from "./routes/mehfil-social";
 import { dmRoutes } from "./routes/dm";
+import { liveCounterRoutes } from "./routes/live-counter";
+import planRouter from "../sylaabus planner/plan.routes";
 
 // Setup Mehfil Socket.IO Config Constants
 // Redis adapter logic moved down
@@ -148,6 +150,8 @@ export async function createServer() {
   app.use("/api/mehfil/sandesh", (await import("./routes/sandesh")).sandeshRoutes);
   app.use("/api/mehfil", mehfilSocialRouter);
   app.use("/api/dm", dmRoutes);
+  app.use("/api/live", liveCounterRoutes);
+  app.use("/api/plans", planRouter);
   app.use("/api/suggestions", (await import("./routes/suggestions")).suggestionsRoutes);
 
   app.get("/api/ping", (_req, res) => {
@@ -183,6 +187,33 @@ export async function createServer() {
       const pubClient = redis.duplicate();
       const subClient = redis.duplicate();
       await Promise.all([pubClient.connect(), subClient.connect()]);
+
+      const originalPublish = pubClient.publish.bind(pubClient);
+      (pubClient as any).publish = async (...args: any[]) => {
+        try {
+          return await originalPublish(...args);
+        } catch (error: any) {
+          const isClosedClient =
+            error?.name === "ClientClosedError" ||
+            /client is closed/i.test(String(error?.message || ""));
+
+          if (isClosedClient) {
+            console.warn("[SOCKET.IO] Redis pub client closed, skipping cross-instance publish for this event");
+            return 0;
+          }
+
+          throw error;
+        }
+      };
+
+      pubClient.on("error", (error) => {
+        console.error("[SOCKET.IO] Redis pub client error:", error);
+      });
+
+      subClient.on("error", (error) => {
+        console.error("[SOCKET.IO] Redis sub client error:", error);
+      });
+
       io.adapter(createAdapter(pubClient, subClient));
       console.log("[SOCKET.IO] Redis adapter configured for multi-instance scaling");
     })

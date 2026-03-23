@@ -14,10 +14,10 @@
 - **ORM used?**
   None (Raw `mongodb` native driver is used).
 - **Hosting assumptions?**
-  Assumed to be hosted on platforms like Render/Heroku/Vultr (due to `trust proxy` setting and `nixpacks.toml`/`railway.json` presence). Redis is expected for session management.
+  Assumed to be hosted on platforms like Render/Heroku/Vultr (due to `trust proxy` setting and `nixpacks.toml`/`railway.json` presence). Redis is optional and used for token/blocklist storage + Socket.io scaling fallback behavior.
 
 **Explanation of Frontend/Backend Communication:**
-The React frontend communicates with the Express backend via REST API calls (typically prefixed with `/api/`). The frontend relies on session cookies (`nistha.sid`) sent via the `withCredentials: true` configuration in Axios/Fetch requests. There is also a real-time Socket.io connection used for community features ("Mehfil").
+The React frontend communicates with the Express backend via REST API calls (typically prefixed with `/api/`). Auth now uses short-lived JWT access tokens in the `Authorization: Bearer <token>` header, with a secure HTTP-only refresh cookie (`__Host-rt`) for token rotation (`/api/auth/refresh`). There is also a real-time Socket.io connection used for community features ("Mehfil").
 
 ------------------------------------------------------------
 2️⃣ BACKEND DETECTION
@@ -29,7 +29,7 @@ The React frontend communicates with the Express backend via REST API calls (typ
 - **Are API routes defined?** Yes, comprehensively mapped out in `server/routes/` (20 route files).
 - **Are there controllers/services?** Logic is primarily housed directly within the route definitions in `server/routes/` rather than highly abstracted service layers.
 - **Are environment variables used?** Yes (loaded via `dotenv` and custom `load-env.ts`).
-- **Are secret keys exposed?** No, secrets like `SESSION_SECRET`, `RAZORPAY_KEY_SECRET`, `GMAIL_APP_PASSWORD`, `GROQ_API_KEY`, etc. are expected to be in `.env`.
+- **Are secret keys exposed?** No, secrets like `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `SESSION_SECRET`, `RAZORPAY_KEY_SECRET`, `GMAIL_APP_PASSWORD`, `GROQ_API_KEY`, etc. are expected to be in `.env`.
 
 ------------------------------------------------------------
 3️⃣ COMPLETE API EXTRACTION
@@ -37,8 +37,9 @@ The React frontend communicates with the Express backend via REST API calls (typ
 
 ### **Authentication APIs** (`/api/auth`)
 - **POST `/api/auth/signup`** (Public) - Creates user. Body: `{ name, email, password, examType, preparationStage, gender, profileImage }`. Allowed email domains: `gmail.com`, `outlook.com`.
-- **POST `/api/auth/login`** (Public) - Authenticates. Body: `{ email, password }`. Response sets `nistha.sid` cookie. Triggers login streak update and perk evaluation.
-- **POST `/api/auth/logout`** (Auth Req) - Destroys session.
+- **POST `/api/auth/login`** (Public) - Authenticates. Body: `{ email, password }`. Response returns `{ accessToken, user }` and sets HTTP-only refresh cookie `__Host-rt`. Triggers login streak update and perk evaluation.
+- **POST `/api/auth/refresh`** (Public, Cookie Req) - Rotates refresh token family and returns a new `{ accessToken }`.
+- **POST `/api/auth/logout`** (Auth Req) - Revokes token family/blocklists active access token and clears refresh cookie.
 - **POST `/api/auth/forgot-password`** (Public, Rate Limited: 5/15min) - Sends reset email via Gmail SMTP. Body: `{ email }`.
 - **POST `/api/auth/reset-password/confirm`** (Public, Rate Limited: 10/15min) - Confirms reset. Body: `{ token, newPassword }`. Min password: 8 chars.
 - **GET `/api/auth/me`** (Auth Req) - Returns current user profile, streaks (login, check-in, goal completion), and logs daily login history. Response: `{ user: {...}, streaks: {...} }`
@@ -57,7 +58,8 @@ The React frontend communicates with the Express backend via REST API calls (typ
 - **GET `/api/payments/enrollments`** (Auth Req) - User's active course enrollments.
 
 ### **Upload/Media APIs** (`/api/upload`, `/api/images`)
-- **POST `/api/upload`** (Auth Req) - Uploads file. Body: `{ data: "<base64_string>", mimeType: "image/png" }`. Max 5MB. Stores directly in MongoDB.
+- **POST `/api/upload/avatar`** (Auth Req) - Upload/replace avatar via `multipart/form-data` field `avatar`. Returns hosted URL path.
+- **POST `/api/upload`** (Auth Req) - General upload endpoint. Supports `multipart/form-data` field `file` (preferred) and legacy JSON `{ data, mimeType }` (backward compatible).
 - **GET `/api/images/:id`** (Public) - Serves uploaded image/audio as binary buffer.
 
 ### **Goals APIs** (`/api/goals`) — *Enhanced*
@@ -163,18 +165,18 @@ The React frontend communicates with the Express backend via REST API calls (typ
 ------------------------------------------------------------
 4️⃣ AUTHENTICATION ANALYSIS
 ------------------------------------------------------------
-- **Session-based or JWT?** Session-based.
-- **Token generation logic?** Managed entirely by `express-session` relying on Redis (or Memory Store fallback). Uses custom `ResilientRedisStore` with auto-reconnect and retry logic.
-- **Token expiry?** 30 days (always). Rolling sessions extend expiry automatically via `express-session` `rolling: true`.
-- **Refresh token present?** No.
-- **Cookie-based auth?** Yes, depends heavily on the `nistha.sid` cookie.
+- **Session-based or JWT?** JWT-based.
+- **Token generation logic?** Access/refresh JWTs are issued from `server/lib/jwt.service.ts`. Refresh token family state and access-token blocklist are stored in Redis when available, otherwise in-memory fallback (`server/lib/token.store.ts`).
+- **Token expiry?** Access token short-lived (default 15m). Refresh token long-lived (default 30d, rotated on each refresh).
+- **Refresh token present?** Yes (`/api/auth/refresh`).
+- **Cookie-based auth?** Partially. Access token is Bearer header; refresh token is an HTTP-only cookie (`__Host-rt`).
 - **OAuth/social login?** None detected.
 - **CSRF protection?** Code exists in `server/index.ts` but is **currently commented out/paused**.
 - **Email domain restriction?** Signups restricted to `gmail.com` and `outlook.com` only.
-- **Mobile compatibility issues?** **HIGH.** Cookie-based authentication is notoriously difficult to manage robustly in native Android apps (Retrofit/OkHttp). It requires explicit cookie jar management and passing `Cookie` headers manually.
+- **Mobile compatibility issues?** **MEDIUM.** Mobile must manage both Bearer access token lifecycle and refresh cookie persistence for silent token rotation.
 
 **Changes Required for Android:**
-Ideally, the backend should be refactored to support JWTs sent via the `Authorization: Bearer <token>` header, alongside refresh tokens. If backend changes are forbidden, the Android networking layer (e.g., OkHttp) MUST implement a `CookieJar` to persist the `nistha.sid` session cookie across app restarts.
+Implement an access-token manager for `Authorization: Bearer <token>` and maintain refresh cookie support (OkHttp `CookieJar`) for `/api/auth/refresh`. On app cold-start, attempt refresh to obtain a new access token before protected API calls.
 
 ------------------------------------------------------------
 5️⃣ DATABASE STRUCTURE
@@ -224,13 +226,13 @@ Ideally, the backend should be refactored to support JWTs sent via the `Authoriz
 ------------------------------------------------------------
 7️⃣ FILE & MEDIA HANDLING
 ------------------------------------------------------------
-- **Upload endpoints?** `POST /api/upload`
-- **Storage type (local/cloud)?** Database (MongoDB Base64 Buffer).
+- **Upload endpoints?** `POST /api/upload/avatar`, `POST /api/upload`
+- **Storage type (local/cloud)?** Mixed: primary flow stores processed files and saves URL paths; legacy fallback stores Base64 payloads in MongoDB.
 - **File validation?** Yes, limits array of mimeTypes (images and audio). Max size 5MB.
-- **Image optimization?** None. Files stored as-is in Base64.
+- **Image optimization?** Yes in primary multipart flow (processed before persistence). Legacy Base64 flow stores raw payload.
 - **Signed URLs?** No. Files publicly accessible via `/api/images/:id`.
 - **Audio support?** Yes — Sandesh announcements support `audio_url` for voice notes.
-- **Mobile requirements:** Convert images/audio to Base64 strings before uploading via JSON POST.
+- **Mobile requirements:** Prefer multipart upload (`POST /api/upload/avatar` for avatars, `POST /api/upload` for general files). Legacy Base64 JSON upload is still supported for backward compatibility.
 
 ------------------------------------------------------------
 8️⃣ REAL-TIME FEATURES
@@ -246,7 +248,7 @@ Ideally, the backend should be refactored to support JWTs sent via the `Authoriz
 ------------------------------------------------------------
 - **Rate limiting?** Yes, global `/api/` limiter: 100 requests/minute. Auth routes (forgot-password: 5/15min, reset-confirm: 10/15min) have stricter limiters.
 - **Input validation?** Mostly manual in handlers. Content filtering on Mehfil and Sandesh via `contentFilter.ts` utility (blocked words).
-- **Authentication middleware?** `requireAuth` checks for `req.session.userId`.
+- **Authentication middleware?** `requireAuth` verifies Bearer access token and blocklist status, then sets `req.user` (also keeps a compatibility `req.session.userId` shim).
 - **Role-based access?** Admin access via `ADMIN_EMAILS` environment variable (email whitelist). Shadow banning and progressive ban system for Mehfil.
 - **Exposed secrets?** None visible in source control.
 - **CORS configuration?** Enabled (`origin: true`, `credentials: true`), permissive.
@@ -293,13 +295,13 @@ The website includes these pages/features that the Android app should replicate:
 1️⃣1️⃣ MOBILE READINESS REPORT
 ------------------------------------------------------------
 **Evaluate:**
-- **Is backend mobile-ready?** Partially. It functions, but relies heavily on web-centric patterns (Session Cookies, Base64 Image Uploads).
+- **Is backend mobile-ready?** Partially. JWT auth is mobile-friendlier now, but refresh-cookie + token rotation must be implemented correctly in the app; legacy Base64 uploads still exist for compatibility.
 - **Are APIs consistent?** Yes, standard JSON responses.
 - **Is pagination implemented?** Basic (skip/limit in WebSockets and REST).
 - **Is error handling standardized?** Response structures occasionally differ (sometimes `{ message: string }`, sometimes `{ success: false, message: string }`).
 - **What changes are required for Android integration?**
-  1. Deep management of Session Cookies in Retrofit/OkHttp (`CookieJar` with `nistha.sid` persistence).
-  2. Implement Base64 string encoding for image/audio uploads from gallery/camera/microphone.
+  1. Implement Bearer token lifecycle (store short-lived access token, refresh on 401 via `/api/auth/refresh`).
+  2. Keep persistent cookie handling for refresh token cookie (`__Host-rt`) via Retrofit/OkHttp `CookieJar`.
   3. Integration of Socket.io client (`socket.io-client-java`) for real-time Mehfil feeds.
   4. Implement local notifications for streaks, achievements, daily challenges.
   5. Offline caching strategy for goals, journal entries, and mood check-ins.
@@ -308,10 +310,15 @@ The website includes these pages/features that the Android app should replicate:
 1️⃣2️⃣ ANDROID DEVELOPMENT HANDOVER DOCUMENT
 ------------------------------------------------------------
 - **Base API URL:** Target deployment URL (e.g., `https://api.yourdomain.com`).
-- **Auth method:** Cookie-based Session.
-- **Token handling rules:** Android HTTP Client (Retrofit/OkHttp) MUST use a persistent `CookieJar`. Upon login at `/api/auth/login`, intercept the `Set-Cookie` header and store `nistha.sid`. Attach this `Cookie` to every subsequent authenticated request.
-- **Required headers:** `Content-Type: application/json` for REST.
-- **File upload method:** Convert local `File`/`Bitmap`/Audio to a Base64 encoded string. Send JSON POST to `/api/upload` containing `{ "data": "base64_string", "mimeType": "image/jpeg" }`.
+- **Auth method:** JWT Access Token + HTTP-only Refresh Cookie.
+- **Token handling rules:**
+  1. On `POST /api/auth/login` or `POST /api/auth/signup`, store `accessToken` from response body.
+  2. Attach `Authorization: Bearer <accessToken>` to all protected requests.
+  3. Persist refresh cookie (`__Host-rt`) with an OkHttp `CookieJar`.
+  4. On 401, call `POST /api/auth/refresh` (with cookie), replace access token, then retry the failed request once.
+  5. On refresh failure, force logout and clear local auth state.
+- **Required headers:** `Content-Type: application/json` for REST + `Authorization: Bearer <accessToken>` for protected routes.
+- **File upload method:** Prefer multipart/form-data (`avatar` on `/api/upload/avatar`, `file` on `/api/upload`). Legacy Base64 JSON upload on `/api/upload` remains supported.
 - **Payment integration flow:**
   1. Call `POST /api/payments/create-order`
   2. Launch Razorpay Native Android SDK using `order.id` and `amount`
@@ -329,7 +336,7 @@ The website includes these pages/features that the Android app should replicate:
 1️⃣3️⃣ MISSING COMPONENTS (Required Backend Refactors for Mobile)
 ------------------------------------------------------------
 - **Missing APIs:** No OAuth endpoints (Google/Apple login). No endpoint to fetch mobile app minimum version requirements. No push notification registration endpoint.
-- **Missing auth improvements:** JWT Token issuance (to replace fragile cookie handling on mobile). Refresh token mechanism.
+- **Missing auth improvements:** No dedicated mobile token introspection/session-info endpoint and no device-scoped refresh management API (current rotation is family-based).
 - **Perks route mounting:** Verify that `/api/perks` routes are explicitly mounted in production (`index.ts` seeds definitions but may not mount the router — needs confirmation).
 - **Security concerns:** Base64 uploading of 5MB files in JSON is highly inefficient for mobile networks and server RAM; should refactor to use Multipart/Form-Data and cloud storage like AWS S3 or Cloudinary.
 - **Performance concerns:** Raw database operations without careful projection limits could result in over-fetching. Database image storage will eventually bloat the MongoDB instance.

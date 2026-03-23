@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { authService } from "@/utils/authService";
@@ -9,18 +9,24 @@ import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { checkInTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
 import { Button } from "@/components/ui/button";
-import { HelpCircle } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import {
+import { 
+  HelpCircle,
   CheckCircle,
   Edit3,
   ArrowRight,
   Sparkles,
   Zap,
   Heart,
-  History,
-  Clock
+  History as LucideHistory,
+  Clock,
+  ChevronRight
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { 
+  getISTDateKey, 
+  formatISTDate, 
+  formatDateLabel 
+} from "@/utils/dateUtils";
 
 type MoodType = "peaceful" | "happy" | "okay" | "motivated" | "anxious" | "low" | "frustrated" | "overwhelmed" | "numb";
 
@@ -30,25 +36,28 @@ interface MoodOption {
   label: string;
   subLabel: string;
   gradient: string;
+  color: string;
 }
 
-const moodOptions: MoodOption[] = [
-  { type: "peaceful", emoji: "😌", label: "Peaceful", subLabel: "Calm & Content", gradient: "from-teal-500/20 to-emerald-500/20" },
-  { type: "happy", emoji: "😃", label: "Happy", subLabel: "Great & Positive", gradient: "from-yellow-500/20 to-orange-500/20" },
-  { type: "okay", emoji: "😐", label: "Okay", subLabel: "Neutral & Balanced", gradient: "from-slate-500/20 to-gray-500/20" },
-  { type: "motivated", emoji: "🌱", label: "Motivated", subLabel: "Inspired & Driven", gradient: "from-green-500/20 to-lime-500/20" },
-  { type: "anxious", emoji: "😟", label: "Anxious", subLabel: "Worried", gradient: "from-rose-500/20 to-orange-500/20" },
-  { type: "low", emoji: "😔", label: "Low", subLabel: "Down or Discouraged", gradient: "from-blue-500/20 to-indigo-500/20" },
-  { type: "frustrated", emoji: "😠", label: "Frustrated", subLabel: "Irritated", gradient: "from-red-500/20 to-orange-600/20" },
-  { type: "overwhelmed", emoji: "😵", label: "Overwhelmed", subLabel: "Stressed", gradient: "from-purple-500/20 to-pink-500/20" },
-  { type: "numb", emoji: "😶", label: "Numb", subLabel: "Disconnected", gradient: "from-gray-500/20 to-slate-600/20" },
+const MOOD_OPTIONS: MoodOption[] = [
+  { type: "peaceful", emoji: "😌", label: "Peaceful", subLabel: "Calm & Content", gradient: "from-teal-500/20 to-emerald-500/20", color: "text-emerald-500" },
+  { type: "happy", emoji: "😃", label: "Happy", subLabel: "Great & Positive", gradient: "from-yellow-500/20 to-orange-500/20", color: "text-amber-500" },
+  { type: "okay", emoji: "😐", label: "Okay", subLabel: "Neutral & Balanced", gradient: "from-slate-500/20 to-gray-500/20", color: "text-slate-500" },
+  { type: "motivated", emoji: "🌱", label: "Motivated", subLabel: "Inspired & Driven", gradient: "from-green-500/20 to-lime-500/20", color: "text-lime-500" },
+  { type: "anxious", emoji: "😟", label: "Anxious", subLabel: "Worried", gradient: "from-rose-500/20 to-orange-500/20", color: "text-orange-500" },
+  { type: "low", emoji: "😔", label: "Low", subLabel: "Down or Discouraged", gradient: "from-blue-500/20 to-indigo-500/20", color: "text-blue-500" },
+  { type: "frustrated", emoji: "😠", label: "Frustrated", subLabel: "Irritated", gradient: "from-red-500/20 to-orange-600/20", color: "text-red-500" },
+  { type: "overwhelmed", emoji: "😵", label: "Overwhelmed", subLabel: "Stressed", gradient: "from-purple-500/20 to-pink-500/20", color: "text-purple-500" },
+  { type: "numb", emoji: "😶", label: "Numb", subLabel: "Disconnected", gradient: "from-gray-500/20 to-slate-600/20", color: "text-zinc-500" },
 ];
 
-const quickTags = ["work", "family", "sleep", "health", "relationship", "finance", "study"];
+const QUICK_TAGS = ["work", "family", "sleep", "health", "relationship", "finance", "study"];
 
 export default function CheckIn() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { startTour } = useGuidedTour();
+
   const [user, setUser] = useState<any>(null);
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
   const [intensity, setIntensity] = useState<number>(3);
@@ -57,68 +66,39 @@ export default function CheckIn() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [moodHistory, setMoodHistory] = useState<any[]>([]);
 
-  // Helper to get emoji for mood
-  const getMoodEmoji = (mood: string) => {
-    const option = moodOptions.find(o => o.type === mood);
-    return option?.emoji || '😐';
-  };
-
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await authService.getCurrentUser();
-        if (!data || !data.user) {
-          navigate("/login");
-          return;
-        }
-        setUser(data.user);
-
-        // Fetch mood history
-        try {
-          const moods = await dataService.getMoods();
-          setMoodHistory(moods || []);
-        } catch (e) {
-          console.error('Failed to fetch moods', e);
-        }
-      } catch (error) {
-        navigate("/login");
-      }
+    const init = async () => {
+      const data = await authService.getCurrentUser();
+      if (!data?.user) return navigate("/login");
+      setUser(data.user);
+      fetchMoods();
     };
-    loadData();
+    init();
   }, [navigate]);
 
-  // Guided tour integration
-  const { startTour } = useGuidedTour();
+  const fetchMoods = async () => {
+    try {
+      const moods = await dataService.getMoods();
+      setMoodHistory(moods || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const toggleTag = (tag: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(x => x !== tag) : [...prev, tag]
-    );
+    setSelectedTags(prev => prev.includes(tag) ? prev.filter(x => x !== tag) : [...prev, tag]);
   };
 
   const handleSubmit = async () => {
-    if (!selectedMood) {
-      toast.error(t('checkin.select_mood_error'));
-      return;
-    }
-
+    if (!selectedMood) return toast.error(t('checkin.select_mood_error'));
     setIsSubmitting(true);
     try {
       const finalNote = note + (selectedTags.length > 0 ? `\n\nTags: ${selectedTags.join(", ")}` : "");
       const newMood = await dataService.addMood(selectedMood, intensity, finalNote);
       toast.success(t('checkin.save_success'));
-
-      // Update local state immediately
       setMoodHistory(prev => [newMood, ...prev]);
-
-      // Reset form
-      setSelectedMood(null);
-      setIntensity(3);
-      setNote("");
-      setSelectedTags([]);
-
+      setSelectedMood(null); setIntensity(3); setNote(""); setSelectedTags([]);
     } catch (error) {
-      console.error(error);
       toast.error(t('checkin.save_error'));
     } finally {
       setIsSubmitting(false);
@@ -129,239 +109,186 @@ export default function CheckIn() {
 
   return (
     <NishthaLayout userName={user.name} userAvatar={user.avatar}>
-      <div className="flex-1 w-full bg-background font-['Plus_Jakarta_Sans'] p-4 md:p-8 lg:p-10 relative selection:bg-primary/30 selection:text-primary transition-colors duration-300">
-
-        {/* Deep Space Ambient Glows */}
-        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-          <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] bg-primary/10 rounded-full blur-[100px] animate-pulse-slow"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-secondary/10 rounded-full blur-[120px] animate-pulse-slower"></div>
+      <div className="flex-1 min-h-screen bg-background p-6 md:p-10 animate-in fade-in duration-700 font-sans">
+        
+        {/* Glow Backgrounds */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/5 blur-[120px] rounded-full" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/5 blur-[120px] rounded-full" />
         </div>
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-8 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground tracking-tight">{t('checkin.title')}</h2>
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 animate-pulse" />
+        <div className="max-w-7xl mx-auto space-y-10 relative z-10">
+          
+          <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-[0.3em] pl-1">
+                <Sparkles size={14} /> {t('checkin.reflection_mode')}
+              </div>
+              <h1 className="text-4xl md:text-5xl font-black tracking-tight">{t('checkin.title')}</h1>
+              <p className="text-muted-foreground font-medium pl-1">{t('checkin.subtitle')}</p>
             </div>
-            <p className="text-muted-foreground font-light text-sm sm:text-base">{t('checkin.subtitle')}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
+            <button
               onClick={() => startTour(checkInTour)}
-              className="gap-2"
+              className="px-6 py-3 bg-muted/50 hover:bg-muted border rounded-2xl font-bold flex items-center gap-2 transition-all shadow-sm active:scale-95 text-sm"
             >
-              <HelpCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">{t('checkin.start_tour')}</span>
-            </Button>
-          </div>
-        </div>
+              <HelpCircle size={18} /> {t('checkin.start_tour')}
+            </button>
+          </header>
 
-        {/* Bento Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative z-10 pb-8">
-
-          {/* Mood Selector Card (Col Span 2) */}
-          <div className="glass-high lg:col-span-2 rounded-[2rem] p-8 relative overflow-hidden group/card shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
-
-            <div className="mb-8 flex items-center justify-between relative z-10">
-              <div>
-                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                  {t('checkin.current_state')} <span className="text-sm px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">{t('checkin.select_one')}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* Mood Grid */}
+            <div className="lg:col-span-8 bg-card border-2 rounded-[40px] p-8 lg:p-10 shadow-sm space-y-8 animate-in slide-in-from-bottom-8 duration-500">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black flex items-center gap-2">
+                  <div className="w-1.5 h-6 bg-primary rounded-full" /> {t('checkin.current_state')}
                 </h3>
+                <span className="text-[10px] font-black uppercase bg-muted px-4 py-1.5 rounded-full text-muted-foreground tracking-widest">{t('checkin.select_one')}</span>
               </div>
-              <div className="h-1 w-20 bg-gradient-to-r from-primary to-transparent rounded-full"></div>
-            </div>
 
-            <div data-tour="mood-selection" className="grid grid-cols-2 md:grid-cols-3 gap-4 flex-1 relative z-10">
-              {moodOptions.map((option) => (
-                <button
-                  key={option.type}
-                  onClick={() => setSelectedMood(option.type)}
-                  className={`group relative flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-300 ${selectedMood === option.type
-                    ? `bg-gradient-to-br ${option.gradient} border-primary/30 shadow-[0_0_30px_rgba(0,0,0,0.3)] transform scale-[1.02]`
-                    : "bg-muted/50 border-transparent hover:bg-muted hover:border-border"
-                    }`}
-                >
-                  {selectedMood === option.type && (
-                    <div className="absolute top-3 right-3 text-primary animate-in zoom-in duration-300">
-                      <CheckCircle className="w-5 h-5 fill-current" />
+              <div data-tour="mood-selection" className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {MOOD_OPTIONS.map((m) => (
+                  <button
+                    key={m.type}
+                    onClick={() => setSelectedMood(m.type)}
+                    className={`relative p-6 rounded-[28px] border-2 transition-all duration-300 group flex flex-col items-center gap-3
+                      ${selectedMood === m.type 
+                        ? `bg-gradient-to-br ${m.gradient} border-primary/30 shadow-2xl shadow-primary/10 scale-[1.02]` 
+                        : 'bg-muted/20 border-transparent hover:bg-muted/40 hover:border-muted'}`}
+                  >
+                    <span className="text-5xl group-hover:scale-110 transition-transform duration-300 filter drop-shadow-md">{m.emoji}</span>
+                    <div className="text-center">
+                      <p className={`font-black tracking-tight ${selectedMood === m.type ? 'text-foreground' : 'text-muted-foreground'}`}>{t(`moods.${m.type}`)}</p>
+                      <p className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest mt-0.5">{m.subLabel}</p>
                     </div>
-                  )}
-                  <span className="text-4xl mb-3 filter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] transition-transform group-hover:scale-110 duration-300">{option.emoji}</span>
-                  <span className={`font-semibold text-sm transition-colors ${selectedMood === option.type ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{t(`moods.${option.type}`)}</span>
-                  <span className={`text-[10px] text-center mt-1 uppercase tracking-wider font-medium transition-colors hidden xl:block ${selectedMood === option.type ? "text-foreground/60" : "text-muted-foreground group-hover:text-muted-foreground/80"}`}>{option.subLabel}</span>
-
-                  {/* Glow effect on hover */}
-                  <div className={`absolute inset-0 rounded-2xl bg-gradient-to-tr ${option.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-300 pointer-events-none`}></div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Intensity Slider Card */}
-          <div className="glass-high rounded-[2rem] p-8 relative flex flex-col items-center justify-between overflow-hidden min-h-[400px] group/card shadow-2xl">
-            {/* Dynamic Background Blob based on Intensity */}
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full blur-[80px] transition-all duration-700 opacity-40`}
-              style={{
-                backgroundColor: intensity > 3 ? '#ef4444' : intensity > 2 ? '#eab308' : 'hsl(var(--primary))',
-                transform: `translate(-50%, -50%) scale(${0.8 + (intensity * 0.2)})`
-              }}
-            ></div>
-
-            <div className="text-center z-10 w-full">
-              <h3 className="text-lg font-bold text-foreground flex items-center justify-center gap-2">
-                <Zap className="w-4 h-4 text-yellow-400" /> {t('checkin.intensity')}
-              </h3>
-              <p className="text-xs text-muted-foreground mb-6 uppercase tracking-wider font-semibold">{t('checkin.scale')}</p>
-              <div className="flex items-end justify-center gap-1 mb-2">
-                <span className={`text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-b ${intensity > 3 ? 'from-red-400 to-red-600' : intensity > 2 ? 'from-yellow-400 to-yellow-600' : 'from-primary to-primary/60'}`}>
-                  {intensity}
-                </span>
-                <span className="text-2xl font-medium text-muted-foreground mb-2">/5</span>
+                    {selectedMood === m.type && <div className="absolute top-4 right-4 text-primary animate-in zoom-in-50 duration-300"><CheckCircle size={20} fill="currentColor" className="text-white" stroke="hsl(var(--primary))" /></div>}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="flex-1 flex items-center justify-center w-full z-10 py-6">
-              <div data-tour="intensity-slider" className="h-48 relative flex items-center justify-center w-24">
-                <div className="absolute inset-y-0 w-1 bg-muted rounded-full"></div>
-                <Slider
-                  defaultValue={[3]}
-                  value={[intensity]}
-                  onValueChange={(vals) => setIntensity(vals[0])}
-                  max={5}
-                  min={1}
-                  step={1}
-                  orientation="vertical"
-                  className="h-full [&>.relative>.absolute]:bg-gradient-to-t [&>.relative>.absolute]:from-primary [&>.relative>.absolute]:to-primary/60 [&_span]:border-none [&_span]:shadow-[0_0_20px_hsl(var(--primary)/0.5)]"
-                />
+            {/* Intensity & Energy */}
+            <div className="lg:col-span-4 space-y-6">
+              <div className="bg-card border-2 rounded-[40px] p-10 shadow-sm text-center space-y-8 relative overflow-hidden group min-h-[400px] flex flex-col">
+                <div className={`absolute inset-0 bg-gradient-to-b opacity-10 transition-colors duration-700
+                  ${intensity > 3 ? 'from-rose-500/20' : intensity > 2 ? 'from-amber-500/20' : 'from-primary/20'} to-transparent`} />
+                
+                <div className="relative z-10 space-y-2">
+                  <h3 className="font-black flex items-center justify-center gap-2 text-muted-foreground uppercase text-[10px] tracking-[0.2em]"><Zap size={14} className="text-amber-500" /> {t('checkin.intensity')}</h3>
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className={`text-7xl font-black tracking-tighter ${intensity > 3 ? 'text-rose-500' : intensity > 2 ? 'text-amber-500' : 'text-primary'}`}>{intensity}</span>
+                    <span className="text-xl font-bold text-muted-foreground/40">/5</span>
+                  </div>
+                </div>
+
+                <div data-tour="intensity-slider" className="flex-1 flex justify-center py-6 relative z-10">
+                   <div className="h-48 group-hover:scale-y-110 transition-transform duration-500">
+                    <Slider
+                      defaultValue={[3]}
+                      value={[intensity]}
+                      onValueChange={(vals) => setIntensity(vals[0])}
+                      max={5} min={1} step={1}
+                      orientation="vertical"
+                      className="h-full"
+                    />
+                   </div>
+                </div>
+
+                <div className="relative z-10 flex justify-between text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground px-4">
+                  <span>{t('checkin.mild')}</span>
+                  <span>{t('checkin.extreme')}</span>
+                </div>
               </div>
             </div>
 
-            <div className="w-full flex justify-between text-[10px] uppercase font-bold text-muted-foreground z-10 px-4 tracking-widest">
-              <span>{t('checkin.mild')}</span>
-              <span>{t('checkin.extreme')}</span>
-            </div>
-          </div>
-
-          {/* Daily Note & Tags (Full Width Bottom) */}
-          <div className="glass-high lg:col-span-3 rounded-[2rem] p-8 flex flex-col md:flex-row gap-8 relative overflow-hidden group/card shadow-2xl">
-            <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-50"></div>
-
-            <div className="flex-1 z-10">
-              <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
-                {t('checkin.why_feel')} <Edit3 className="text-primary w-4 h-4" />
-              </h3>
-              <p className="text-sm text-muted-foreground mb-6 font-light">
-                {selectedMood
-                  ? t('checkin.why_feel_selected', { mood: t(`moods.${selectedMood}`).toLowerCase() })
-                  : t('checkin.why_feel_hint')}
-              </p>
-              <div className="relative">
+            {/* Note Area */}
+            <div className="lg:col-span-12 bg-card border-2 rounded-[40px] p-10 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-10 animate-in slide-in-from-bottom-8 duration-700 delay-100">
+              <div className="lg:col-span-8 space-y-6">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-black flex items-center gap-2">
+                    <Edit3 size={18} className="text-primary" /> {t('checkin.why_feel')}
+                  </h3>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {selectedMood ? t('checkin.why_feel_selected', { mood: t(`moods.${selectedMood}`).toLowerCase() }) : t('checkin.why_feel_hint')}
+                  </p>
+                </div>
                 <textarea
-                  className="w-full h-40 bg-muted/50 border border-border rounded-2xl p-6 text-foreground placeholder-muted-foreground focus:bg-muted focus:border-primary/30 focus:ring-1 focus:ring-primary/30 resize-none transition-all outline-none leading-relaxed"
-                  placeholder={selectedMood
-                    ? t('checkin.why_feel_placeholder_selected', { mood: t(`moods.${selectedMood}`).toLowerCase() })
-                    : t('checkin.why_feel_placeholder_hint')}
+                  className="w-full h-48 bg-muted/40 border-2 border-transparent focus:border-primary/20 focus:bg-background rounded-[28px] p-8 text-lg font-medium outline-none transition-all resize-none shadow-inner"
+                  placeholder={selectedMood ? t('checkin.why_feel_placeholder_selected', { mood: t(`moods.${selectedMood}`).toLowerCase() }) : t('checkin.why_feel_placeholder_hint')}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                ></textarea>
-                <div className="absolute bottom-4 right-4 text-xs text-muted-foreground pointer-events-none">
-                  {note.length} chars
+                />
+              </div>
+
+              <div className="lg:col-span-4 flex flex-col justify-between space-y-8">
+                <div className="space-y-6">
+                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Heart size={14} /> {t('checkin.context_tags')}</h4>
+                   <div data-tour="quick-tags" className="flex flex-wrap gap-2.5">
+                    {QUICK_TAGS.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all border-2
+                          ${selectedTags.includes(tag)
+                            ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20 animate-in zoom-in-95'
+                            : 'bg-muted/50 border-transparent hover:bg-muted text-muted-foreground'}`}
+                      >
+                        {t(`tags.${tag}`)}
+                      </button>
+                    ))}
+                   </div>
                 </div>
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={!selectedMood || isSubmitting}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black py-6 rounded-[28px] flex items-center justify-center gap-3 transition-all shadow-2xl shadow-emerald-500/20 active:scale-[0.98] group"
+                >
+                  {isSubmitting ? t('checkin.saving') : t('checkin.complete')}
+                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" strokeWidth={3} />
+                </button>
               </div>
             </div>
 
-            <div className="flex flex-col justify-between md:w-80 border-l border-border md:pl-8 pt-8 md:pt-0 z-10">
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <Heart className="w-4 h-4 text-secondary" />
-                  <h4 className="font-bold text-foreground text-sm uppercase tracking-wider">{t('checkin.context_tags')}</h4>
-                </div>
-                <div data-tour="quick-tags" className="flex flex-wrap gap-2">
-                  {quickTags.map(tag => (
-                    <span
-                      key={tag}
-                      onClick={() => toggleTag(tag)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all border ${selectedTags.includes(tag)
-                        ? "bg-primary/20 text-primary border-primary/30 shadow-[0_0_10px_hsl(var(--primary)/0.1)]"
-                        : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80 hover:text-foreground"
-                        }`}
-                    >
-                      {t(`tags.${tag}`)}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            {/* History List */}
+            <div className="lg:col-span-12 bg-card border-2 rounded-[40px] p-10 shadow-sm animate-in slide-in-from-bottom-8 duration-700 delay-200">
+               <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-xl font-black flex items-center gap-3">
+                    <div className="p-2 bg-muted rounded-xl"><LucideHistory size={20} className="text-primary" /></div>
+                    {t('checkin.mood_history')}
+                  </h3>
+                  <div className="px-5 py-2 bg-muted/50 rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">{moodHistory.length} Check-ins</div>
+               </div>
 
-              <button
-                data-tour="submit-checkin"
-                onClick={handleSubmit}
-                disabled={!selectedMood || isSubmitting}
-                aria-label={isSubmitting ? "Saving entry" : "Complete check-in"}
-                className="mt-8 md:mt-0 w-full py-4 bg-gradient-to-r from-secondary to-secondary/80 hover:from-secondary/90 hover:to-secondary/70 disabled:opacity-50 disabled:cursor-not-allowed text-secondary-foreground rounded-xl font-bold tracking-wide shadow-lg hover:shadow-secondary/20 transform hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 group/btn action-btn-nowrap"
-              >
-                <span className="action-label-mobile-hidden">{isSubmitting ? t('checkin.saving') : t('checkin.complete')}</span>
-                <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
-              </button>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Mood History Section */}
-        <div className="glass-high rounded-[2rem] p-8 mt-8 shadow-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <History className="w-6 h-6 text-primary" />
-              <h3 className="text-xl font-bold text-foreground">{t('checkin.mood_history')}</h3>
-            </div>
-            <span className="text-sm text-muted-foreground">{moodHistory.length} {t('checkin.check_ins_label')}</span>
-          </div>
-
-          {
-            moodHistory.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                <p className="text-lg">{t('checkin.no_history')}</p>
-                <p className="text-sm">{t('checkin.history_hint')}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto pr-2">
-                {moodHistory.slice(0, 12).map((m: any, idx: number) => {
-                  const date = m.timestamp ? new Date(m.timestamp.replace(' ', 'T') + (m.timestamp.includes('Z') ? '' : 'Z')) : new Date();
-                  const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-                  return (
-                    <div
-                      key={m.id || idx}
-                      className="p-5 rounded-2xl bg-muted/30 border border-border hover:border-primary/30 transition-all"
-                    >
-                      <div className="flex items-start gap-4">
-                        <span className="text-3xl">{getMoodEmoji(m.mood)}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-bold text-foreground capitalize">{m.mood}</span>
-                            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold">{m.intensity}/5</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-2">{dateStr}</p>
-                          {m.notes && (
-                            <p className="text-sm text-foreground/70 line-clamp-2">{m.notes}</p>
-                          )}
-                        </div>
-                      </div>
+               {moodHistory.length === 0 ? (
+                 <div className="py-20 text-center space-y-4">
+                    <Clock size={48} className="mx-auto text-muted-foreground/30 animate-pulse" />
+                    <div className="space-y-1">
+                      <p className="font-black text-xl">{t('checkin.no_history')}</p>
+                      <p className="text-muted-foreground font-medium">{t('checkin.history_hint')}</p>
                     </div>
-                  );
-                })}
-              </div>
-            )
-          }
+                 </div>
+               ) : (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {moodHistory.slice(0, 9).map((m: any, idx: number) => (
+                      <div key={m.id || idx} className="p-6 bg-muted/20 border-2 border-transparent hover:border-primary/10 rounded-3xl transition-all group flex gap-5 items-start">
+                         <div className="text-4xl filter drop-shadow-sm group-hover:scale-110 transition-transform">{MOOD_OPTIONS.find(o => o.type === m.mood)?.emoji || '😐'}</div>
+                         <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                               <p className="font-black capitalize">{m.mood}</p>
+                               <span className="text-[10px] font-black text-primary px-2.5 py-1 bg-primary/10 rounded-lg">{m.intensity}/5</span>
+                            </div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">{formatDateLabel(m.timestamp || m.createdAt)}</p>
+                            {m.notes && <p className="text-sm font-medium text-muted-foreground line-clamp-2 leading-relaxed italic border-l-2 pl-3">{m.notes}</p>}
+                         </div>
+                      </div>
+                    ))}
+                 </div>
+               )}
+            </div>
+          </div>
         </div>
-
       </div>
-
-      {/* Tour Prompt */}
       <TourPrompt tour={checkInTour} featureName="Check-In" />
     </NishthaLayout>
   );

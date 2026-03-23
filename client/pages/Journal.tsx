@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { authService } from "@/utils/authService";
@@ -8,6 +8,11 @@ import { User } from "@shared/api";
 import { TourPrompt } from "@/components/guided-tour";
 import { journalTour } from "@/components/guided-tour/tourSteps";
 import { useTranslation } from "react-i18next";
+import { 
+  getISTDateKey, 
+  formatISTDate, 
+  formatDateLabel 
+} from "@/utils/dateUtils";
 
 import {
   Smile,
@@ -23,155 +28,131 @@ import {
   Trash2,
   ChevronDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Quote,
+  Sparkles
 } from "lucide-react";
 
+// ─── TYPES & CONSTANTS ───────────────────────────────────────
+const PROMPT_KEYS = [
+  "p1",
+  "p2",
+  "p3",
+  "p4",
+  "p5",
+  "p6",
+  "p7",
+];
+
+const MOOD_OPTIONS = [
+  { value: "calm", emoji: "😌" },
+  { value: "happy", emoji: "😊" },
+  { value: "grateful", emoji: "🙏" },
+  { value: "motivated", emoji: "💪" },
+  { value: "peaceful", emoji: "☮️" },
+  { value: "sad", emoji: "😢" },
+  { value: "anxious", emoji: "😰" },
+  { value: "angry", emoji: "😠" },
+  { value: "tired", emoji: "😴" },
+  { value: "confused", emoji: "😕" },
+  { value: "hopeful", emoji: "🌟" },
+  { value: "neutral", emoji: "😐" }
+];
+
+// ─── HELPERS ─────────────────────────────────────────────────
+const getEntryTitle = (html: string, fallback: string) => {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  const h = div.querySelector('h2') || div.querySelector('h3');
+  if (h?.textContent) return h.textContent.trim().slice(0, 50) + (h.textContent.length > 50 ? '...' : '');
+  const text = div.textContent || '';
+  return text.split('\n')[0].trim().slice(0, 50) || fallback;
+};
+
+const getEntryBody = (html: string) => {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  div.querySelector('h2')?.remove();
+  div.querySelector('h3')?.remove();
+  div.querySelector('.mood-tag')?.remove();
+  return (div.textContent || '').trim();
+};
+
+// ─── MAIN COMPONENT ──────────────────────────────────────────
 export default function Journal() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const editorRef = useRef<HTMLDivElement>(null);
+
   const [user, setUser] = useState<User | null>(null);
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const editorRef = useRef<HTMLDivElement>(null);
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
-
-  // Active formatting states
+  
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isList, setIsList] = useState(false);
+  
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showPromptAnswer, setShowPromptAnswer] = useState(false);
   const [promptAnswer, setPromptAnswer] = useState("");
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
-  const [selectedMood, setSelectedMood] = useState("Calm");
+  const [selectedMood, setSelectedMood] = useState("calm");
   const [showMoodDropdown, setShowMoodDropdown] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+  const dailyPrompts = useMemo(() => PROMPT_KEYS.map((key) => t(`journal.prompts.${key}`)), [t]);
 
-  // Mood options
-  const moodOptions = [
-    { label: "Calm", emoji: "😌" },
-    { label: "Happy", emoji: "😊" },
-    { label: "Grateful", emoji: "🙏" },
-    { label: "Motivated", emoji: "💪" },
-    { label: "Peaceful", emoji: "☮️" },
-    { label: "Sad", emoji: "😢" },
-    { label: "Anxious", emoji: "😰" },
-    { label: "Angry", emoji: "😠" },
-    { label: "Tired", emoji: "😴" },
-    { label: "Confused", emoji: "😕" },
-    { label: "Hopeful", emoji: "🌟" },
-    { label: "Neutral", emoji: "😐" }
-  ];
-
-  // Daily inspiration questions - 7 reflective prompts the user can navigate through
-  const dailyQuestions = [
-    "What is one thing you are grateful for right now?",
-    "What is the one thing in your life that you wouldn't change right now?",
-    "What felt heavy today and what felt right?",
-    "What part of you deserves more kindness right now?",
-    "What is one thing you are proud of, even if it's tiny?",
-    "What did you avoid today and why?",
-    "What made today feel even slightly better than yesterday?"
-  ];
-
-  // Get current question based on selected index
-  const getDailyQuestion = () => dailyQuestions[currentPromptIndex];
-
-  // Navigate to next/previous prompt
-  const nextPrompt = () => setCurrentPromptIndex((prev) => (prev + 1) % dailyQuestions.length);
-  const prevPrompt = () => setCurrentPromptIndex((prev) => (prev - 1 + dailyQuestions.length) % dailyQuestions.length);
-
-  const today = new Date();
-  const dateString = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-
-  // Current month info for calendar
-  const currentMonth = today.getMonth();
-  const currentYear = today.getFullYear();
-  const currentMonthName = today.toLocaleDateString('en-IN', { month: 'long' });
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
-
-  // Helper to convert database UTC timestamp to IST date string
-  const toISTDateStr = (timestamp: string) => {
-    if (!timestamp) return '';
-    const utcTimestamp = timestamp.replace(' ', 'T') + (timestamp.includes('Z') ? '' : 'Z');
-    const date = new Date(utcTimestamp);
-    const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000));
-    return istDate.toISOString().split('T')[0];
-  };
+  const todayKey = getISTDateKey(new Date());
+  const dateDisplay = formatISTDate(new Date(), { weekday: 'long', month: 'long', day: 'numeric' });
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await authService.getCurrentUser();
-        if (!data || !data.user) {
-          navigate("/login");
-          return;
-        }
-        setUser(data.user);
-
-        // Fetch journal entries
-        try {
-          const entries = await dataService.getJournalEntries();
-          setJournalEntries(entries || []);
-        } catch (e) {
-          console.error('Failed to fetch journal entries', e);
-        }
-      } catch (error) {
-        navigate("/login");
-      }
+    const init = async () => {
+      const data = await authService.getCurrentUser();
+      if (!data?.user) return navigate("/login");
+      setUser(data.user);
+      fetchEntries();
     };
-    loadData();
+    init();
   }, [navigate]);
 
-  const checkFormattingState = () => {
+  const fetchEntries = async () => {
+    try {
+      const entries = await dataService.getJournalEntries();
+      setJournalEntries(entries || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Modernized editor commands
+  const exec = (command: string) => {
+    document.execCommand(command, false);
+    editorRef.current?.focus();
+    checkFormatting();
+  };
+
+  const checkFormatting = () => {
     setIsBold(document.queryCommandState('bold'));
     setIsItalic(document.queryCommandState('italic'));
     setIsList(document.queryCommandState('insertUnorderedList'));
-  };
-
-  const formatBold = () => {
-    document.execCommand('bold', false);
-    setIsBold(!isBold);
-    editorRef.current?.focus();
-  };
-
-  const formatItalic = () => {
-    document.execCommand('italic', false);
-    setIsItalic(!isItalic);
-    editorRef.current?.focus();
-  };
-
-  const formatBulletList = () => {
-    document.execCommand('insertUnorderedList', false);
-    setIsList(!isList);
-    editorRef.current?.focus();
   };
 
   const handleAddEntry = async () => {
     const content = editorRef.current?.innerHTML || "";
     const bodyText = editorRef.current?.textContent?.trim() || "";
 
-    if (!title.trim()) {
-      toast.error(t('journal.title_error'));
-      return;
-    }
-
-    if (!bodyText || bodyText === '') {
-      toast.error(t('journal.body_error'));
-      return;
-    }
+    if (!title.trim()) return toast.error(t('journal.title_error'));
+    if (!bodyText) return toast.error(t('journal.body_error'));
 
     setIsSubmitting(true);
     try {
-      const fullContent = `<h2>${title}</h2><p class="mood-tag">Feeling: ${selectedMood}</p>${content}`;
+      const moodLabel = t(`journal.moods.${selectedMood}`);
+      const fullContent = `<h2>${title}</h2><p class="mood-tag">${t('journal.feeling')}: ${moodLabel}</p>${content}`;
       await dataService.addJournalEntry(fullContent);
       setTitle("");
       if (editorRef.current) editorRef.current.innerHTML = "";
       toast.success(t('journal.save_success'));
-
-      const entries = await dataService.getJournalEntries();
-      setJournalEntries(entries || []);
+      fetchEntries();
     } catch (error) {
       toast.error(t('journal.save_error'));
     } finally {
@@ -179,414 +160,238 @@ export default function Journal() {
     }
   };
 
-  const formatDate = (timestamp: string) => {
-    if (!timestamp) return 'Unknown date';
-    const utcTimestamp = timestamp.replace(' ', 'T') + (timestamp.includes('Z') ? '' : 'Z');
-    const date = new Date(utcTimestamp);
-    const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000));
-    return istDate.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getPreview = (html: string) => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    const text = div.textContent || div.innerText || '';
-    return text.length > 80 ? text.substring(0, 80) + '...' : text;
-  };
-
-  // Extract title from content - look for h2/h3 tag first, then first line
-  const getTitle = (html: string) => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-
-    const titleFromHeader = div.querySelector('h2') || div.querySelector('h3');
-    if (titleFromHeader && titleFromHeader.textContent) {
-      const title = titleFromHeader.textContent.trim();
-      return title.length > 50 ? title.substring(0, 50) + '...' : title;
-    }
-
-    const text = div.textContent || div.innerText || '';
-    const firstLine = text.split('\n')[0].trim();
-    if (firstLine.length > 50) return firstLine.substring(0, 50) + '...';
-    return firstLine || 'Untitled Entry';
-  };
-
-  // Get body content (everything except the header title)
-  const getBody = (html: string) => {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-
-    const titleTag = div.querySelector('h2') || div.querySelector('h3');
-    if (titleTag) titleTag.remove();
-
-    const text = div.textContent || div.innerText || '';
-    return text.trim();
-  };
-
-  // Calculate weekly entries count
-  const getWeeklyCount = () => {
-    const now = new Date();
-    const todayIST = now.toLocaleDateString('en-CA');
-    const dayOfWeek = now.getDay();
-    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - daysFromMonday);
-    const weekStartStr = startOfWeek.toLocaleDateString('en-CA');
-    return journalEntries.filter((e: any) => {
-      const entryDateStr = toISTDateStr(e.timestamp || e.createdAt || e.created_at);
-      return entryDateStr >= weekStartStr && entryDateStr <= todayIST;
-    }).length;
-  };
+  const weeklyCount = useMemo(() => {
+    const start = new Date();
+    start.setDate(start.getDate() - (start.getDay() || 7) + 1); // Monday
+    const startStr = getISTDateKey(start);
+    return journalEntries.filter(e => getISTDateKey(new Date(e.timestamp || e.createdAt)) >= startStr).length;
+  }, [journalEntries]);
 
   if (!user) return null;
 
   return (
     <NishthaLayout userName={user.name} userAvatar={user.avatar}>
-      <div className="relative min-h-[calc(100dvh-64px)] w-full bg-slate-50 dark:bg-[#0a0a0f] font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500">
+      <div className="min-h-screen bg-background text-foreground selection:bg-emerald-500/20">
+        
+        {/* Glow Effects */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 blur-[120px] rounded-full" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/5 blur-[120px] rounded-full" />
+        </div>
 
-        {/* Ambient Glow Effects */}
-        <div className="fixed top-0 left-0 w-[500px] h-[500px] bg-emerald-500/10 dark:bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none -translate-x-1/2 -translate-y-1/2" />
-        <div className="fixed bottom-0 right-0 w-[600px] h-[600px] bg-violet-500/10 dark:bg-violet-500/5 rounded-full blur-[120px] pointer-events-none translate-x-1/3 translate-y-1/3" />
+        <div className="relative z-10 flex flex-col lg:flex-row max-w-[1600px] mx-auto">
+          
+          {/* Main Content Area */}
+          <main className="flex-1 p-6 lg:p-12 space-y-10">
+            <header className="space-y-2 animate-in fade-in slide-in-from-top-4 duration-700">
+              <h1 className="text-4xl md:text-5xl font-black tracking-tight">{dateDisplay}</h1>
+              <div className="flex items-center gap-2 text-emerald-500 font-bold text-xs uppercase tracking-widest pl-1">
+                <Sparkles size={14} />
+                {t('journal.reflection_mode')}
+              </div>
+            </header>
 
-        {/* Main Content Area */}
-        <div className="relative z-10 flex flex-col lg:flex-row h-full overflow-auto">
+            {/* Editor Card */}
+            <div data-tour="journal-editor" className="bg-card border rounded-[32px] shadow-2xl shadow-emerald-500/5 overflow-hidden group transition-all hover:shadow-emerald-500/10 animate-in fade-in zoom-in-95 duration-500">
+              
+              {/* Toolbar */}
+              <div className="px-6 py-4 border-b bg-muted/20 flex items-center justify-between gap-4 backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowMoodDropdown(!showMoodDropdown)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background border hover:border-emerald-500/50 transition-all text-sm font-bold shadow-sm"
+                    >
+                      <span className="text-lg">{MOOD_OPTIONS.find(m => m.value === selectedMood)?.emoji}</span>
+                      <span className="hidden md:inline">{t(`journal.moods.${selectedMood}`)}</span>
+                      <ChevronDown size={14} className={`transition-transform duration-300 ${showMoodDropdown ? 'rotate-180' : ''}`} />
+                    </button>
 
-          {/* Editor Section - Main Area */}
-          <section className="flex-[2] min-w-0 p-4 md:p-6 lg:p-10 relative">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(16,185,129,0.06),transparent_60%)] dark:bg-[radial-gradient(circle_at_50%_10%,rgba(16,185,129,0.08),transparent_60%)] pointer-events-none" />
+                    {showMoodDropdown && (
+                      <div className="absolute top-full left-0 mt-2 w-48 bg-card border rounded-2xl shadow-2xl z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                        {MOOD_OPTIONS.map((m) => (
+                          <button
+                            key={m.value}
+                            onClick={() => { setSelectedMood(m.value); setShowMoodDropdown(false); }}
+                            className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-muted transition-colors"
+                          >
+                            <span className="text-base">{m.emoji}</span>
+                            <span className={selectedMood === m.value ? "font-bold text-emerald-500" : "font-medium"}>{t(`journal.moods.${m.value}`)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-            <div className="max-w-3xl mx-auto relative">
+                  <div className="h-6 w-px bg-border mx-1" />
 
-              {/* Header */}
-              <header className="mb-6 md:mb-10">
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight font-serif">
-                  {dateString}
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide uppercase text-sm flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  {t('journal.reflection_mode')}
-                </p>
-              </header>
-
-              {/* Editor Card */}
-              <div data-tour="journal-editor" className="bg-white dark:bg-[#1E1E1E] rounded-3xl shadow-xl dark:shadow-2xl dark:shadow-black/50 border border-slate-200/50 dark:border-white/5 overflow-hidden transition-all duration-300 hover:shadow-emerald-500/5">
-
-                {/* Toolbar */}
-                <div data-tour="journal-toolbar" className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 dark:bg-white/[0.02]">
-                  <div className="flex items-center gap-4">
-                    {/* Mood Dropdown */}
-                    <div className="relative">
+                  <div className="flex items-center gap-1">
+                    {[
+                      { icon: Bold, cmd: 'bold', active: isBold },
+                      { icon: Italic, cmd: 'italic', active: isItalic },
+                      { icon: List, cmd: 'insertUnorderedList', active: isList }
+                    ].map((btn) => (
                       <button
-                        onClick={() => setShowMoodDropdown(!showMoodDropdown)}
-                        aria-label={`Feeling ${selectedMood}`}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-medium hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors action-btn-nowrap"
+                        key={btn.cmd}
+                        onClick={() => exec(btn.cmd)}
+                        className={`p-2.5 rounded-xl transition-all ${btn.active ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'hover:bg-muted'}`}
                       >
-                        <span>{moodOptions.find(m => m.label === selectedMood)?.emoji || "😌"}</span>
-                        <span className="action-label-mobile-hidden">{t('journal.feeling')} {selectedMood}</span>
-                        <ChevronDown className={`w-4 h-4 transition-transform ${showMoodDropdown ? 'rotate-180' : ''}`} />
+                        <btn.icon size={18} />
                       </button>
-
-                      {showMoodDropdown && (
-                        <div className="absolute top-full left-0 mt-2 bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/10 rounded-xl shadow-xl z-50 py-2 min-w-[180px] max-h-[250px] overflow-y-auto">
-                          {moodOptions.map((mood) => (
-                            <button
-                              key={mood.label}
-                              onClick={() => {
-                                setSelectedMood(mood.label);
-                                setShowMoodDropdown(false);
-                              }}
-                              className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors ${selectedMood === mood.label ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-700 dark:text-slate-300'
-                                }`}
-                            >
-                              <span>{mood.emoji}</span>
-                              {mood.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="h-4 w-px bg-slate-300 dark:bg-white/10 mx-2" />
-                    <div className="flex items-center gap-1 text-slate-700 dark:text-slate-400">
-                      <button onClick={formatBold} className={`p-1.5 rounded-lg transition-all ${isBold ? 'bg-emerald-500 text-white' : 'hover:bg-slate-200 dark:hover:bg-white/10'}`}>
-                        <Bold className="w-5 h-5" />
-                      </button>
-                      <button onClick={formatItalic} className={`p-1.5 rounded-lg transition-all ${isItalic ? 'bg-emerald-500 text-white' : 'hover:bg-slate-200 dark:hover:bg-white/10'}`}>
-                        <Italic className="w-5 h-5" />
-                      </button>
-                      <button onClick={formatBulletList} className={`p-1.5 rounded-lg transition-all ${isList ? 'bg-emerald-500 text-white' : 'hover:bg-slate-200 dark:hover:bg-white/10'}`}>
-                        <List className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Editor Area */}
-                <div className="p-8 lg:p-12 min-h-[500px]">
-                  {/* Title Input with Label */}
-                  <div className="mb-8">
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-500 mb-2 uppercase tracking-wider">{t('journal.title_label')}</label>
-                    <input
-                      className="w-full text-2xl md:text-3xl font-serif bg-transparent border-b-2 border-slate-200 dark:border-white/10 focus:border-emerald-500 dark:focus:border-emerald-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-600 pb-3 outline-none transition-colors"
-                      placeholder={t('journal.title_placeholder')}
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Body Editor with Label */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-500 mb-4 uppercase tracking-wider">{t('journal.body_label')}</label>
-                    <div
-                      ref={editorRef}
-                      contentEditable
-                      className="w-full min-h-[300px] bg-transparent border-none focus:ring-0 text-lg leading-relaxed text-slate-900 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-700 resize-none outline-none"
-                      data-placeholder={t('journal.body_placeholder')}
-                      onSelect={checkFormattingState}
-                      onKeyUp={checkFormattingState}
-                    ></div>
+                    ))}
                   </div>
                 </div>
+              </div>
 
-                {/* Gradient line */}
-                <div className="h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent opacity-30" />
+              {/* Editor Area */}
+              <div className="p-8 lg:p-16 space-y-8 min-h-[500px]">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] pl-1">{t('journal.title_label')}</label>
+                  <input
+                    className="w-full text-3xl md:text-4xl font-black bg-transparent border-none focus:ring-0 placeholder:text-muted-foreground/30 outline-none"
+                    placeholder={t('journal.title_placeholder')}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
 
-                {/* Save Button */}
-                <div data-tour="save-entry" className="px-4 md:px-8 py-4 md:py-6 flex justify-end sticky bottom-0 bg-white dark:bg-[#1E1E1E] border-t border-slate-200/50 dark:border-white/5 md:border-t-0 md:static">
-                  <button
-                    onClick={handleAddEntry}
-                    disabled={isSubmitting}
-                    aria-label={isSubmitting ? "Saving entry" : "Save entry"}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold py-3 px-6 md:px-8 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto justify-center action-btn-nowrap"
+                <div className="space-y-4">
+                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] pl-1">{t('journal.body_label')}</label>
+                   <div
+                    ref={editorRef}
+                    contentEditable
+                    className="w-full min-h-[350px] bg-transparent border-none focus:ring-0 text-xl leading-relaxed outline-none prose prose-slate dark:prose-invert max-w-none"
+                    onSelect={checkFormatting}
+                    onKeyUp={checkFormatting}
+                    data-placeholder={t('journal.body_placeholder')}
+                  />
+                </div>
+              </div>
+
+              <div className="p-6 border-t bg-muted/10 backdrop-blur-md flex justify-end">
+                <button
+                  onClick={handleAddEntry}
+                  disabled={isSubmitting}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-10 rounded-2xl flex items-center gap-3 transition-all shadow-xl shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                >
+                  <CheckCircle size={20} strokeWidth={3} />
+                  {isSubmitting ? t('journal.saving') : t('journal.save_entry')}
+                </button>
+              </div>
+            </div>
+          </main>
+
+          {/* Sidebar */}
+          <aside className="w-full lg:w-[450px] p-6 lg:p-12 lg:border-l space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
+            
+            {/* Daily Inspiration */}
+            <div data-tour="daily-inspiration" className="bg-gradient-to-br from-violet-600 to-indigo-600 rounded-[32px] p-8 text-white shadow-2xl shadow-violet-500/20 relative overflow-hidden group">
+              <Quote className="absolute -top-4 -left-4 w-32 h-32 opacity-10 rotate-12 group-hover:scale-110 transition-transform duration-500" />
+              
+              <div className="relative z-10 space-y-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] opacity-80">
+                    <Sun size={14} /> {t('journal.daily_inspiration')}
+                  </div>
+                  <span className="text-[10px] font-bold bg-white/20 px-2.5 py-1 rounded-full">{currentPromptIndex + 1} / 7</span>
+                </div>
+
+                <div className="py-2">
+                  <p className="text-2xl font-bold leading-tight italic">"{dailyPrompts[currentPromptIndex]}"</p>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex gap-2">
+                    <button onClick={() => setCurrentPromptIndex(p => (p - 1 + 7) % 7)} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all"><ChevronLeft size={18} /></button>
+                    <button onClick={() => setCurrentPromptIndex(p => (p + 1) % 7)} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all"><ChevronRight size={18} /></button>
+                  </div>
+                  <button 
+                    onClick={() => setShowPromptAnswer(true)}
+                    className="flex-1 bg-white text-violet-600 font-bold py-3 rounded-xl hover:bg-violet-50 transition-all active:scale-95 text-sm"
                   >
-                    <CheckCircle className="w-5 h-5" />
-                    <span className="action-label-mobile-hidden">{isSubmitting ? t('journal.saving') : t('journal.save_entry')}</span>
+                    {t('journal.answer_prompt')}
                   </button>
                 </div>
               </div>
-            </div>
-          </section>
 
-          {/* Right Sidebar - Daily Inspiration & History */}
-          <aside className="w-full lg:w-[400px] lg:flex-shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-white/5 bg-slate-100/50 dark:bg-[#151515]/90 backdrop-blur-sm p-4 md:p-6 space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-6 lg:flex lg:flex-col lg:gap-6 lg:space-y-0">
-
-            {/* Daily Inspiration Card */}
-            <div data-tour="daily-inspiration" className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-6 border border-slate-200/50 dark:border-white/5 relative overflow-hidden group shadow-lg shadow-slate-200/50 dark:shadow-black/20 hover:shadow-xl hover:shadow-violet-500/5 dark:hover:shadow-violet-500/10 transition-all duration-300">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/20 dark:bg-violet-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-violet-500/30 transition-colors duration-500" />
-
-              <div className="flex justify-between items-start mb-6 relative z-10">
-                <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 font-medium text-xs tracking-wider uppercase">
-                  <Sun className="w-4 h-4" />
-                  {t('journal.daily_inspiration')}
-                </div>
-                <span className="text-xs text-slate-500 font-mono bg-slate-100 dark:bg-white/5 px-2 py-1 rounded">
-                  {currentPromptIndex + 1} / {dailyQuestions.length}
-                </span>
-              </div>
-
-              {/* Navigation and Question */}
-              <div className="text-center py-4 relative z-10">
-                <button
-                  onClick={prevPrompt}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <blockquote className="font-serif text-xl italic text-slate-800 dark:text-slate-100 leading-snug px-8">
-                  "{getDailyQuestion()}"
-                </blockquote>
-                <button
-                  onClick={nextPrompt}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Indicator dots */}
-              <div className="flex justify-center gap-1.5 mt-6 mb-6">
-                {dailyQuestions.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentPromptIndex(idx)}
-                    className={`h-1 rounded-full transition-all ${idx === currentPromptIndex
-                      ? 'bg-violet-500 w-6'
-                      : 'bg-slate-300 dark:bg-slate-700 w-1.5 hover:bg-slate-400 dark:hover:bg-slate-600'
-                      }`}
-                  />
-                ))}
-              </div>
-
-              {!showPromptAnswer ? (
-                <button
-                  onClick={() => setShowPromptAnswer(true)}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 text-white font-medium shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
-                >
-                  <span>{t('journal.answer_prompt')}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  <textarea
-                    value={promptAnswer}
-                    onChange={(e) => setPromptAnswer(e.target.value)}
-                    placeholder="Write your thoughts here..."
-                    className="w-full h-24 p-3 text-sm bg-slate-50 dark:bg-[#121212] border border-slate-200 dark:border-white/10 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-slate-700 dark:text-slate-300"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={async () => {
-                        if (promptAnswer.trim()) {
-                          try {
-                            const questionContent = `<h3>${getDailyQuestion()}</h3><p>${promptAnswer}</p>`;
-                            await dataService.addJournalEntry(questionContent);
-                            toast.success("Prompt answer saved!");
-                            setPromptAnswer("");
-                            setShowPromptAnswer(false);
-                            const entries = await dataService.getJournalEntries();
-                            setJournalEntries(entries || []);
-                          } catch (e) {
-                            toast.error("Failed to save");
-                          }
-                        }
-                      }}
-                      className="flex-1 bg-violet-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-violet-600 transition-colors"
-                    >
-                      {t('journal.save_answer')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowPromptAnswer(false);
-                        setPromptAnswer("");
-                      }}
-                      className="px-4 py-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 border border-slate-200 dark:border-white/10 rounded-lg transition-colors"
-                    >
-                      {t('journal.cancel')}
-                    </button>
+              {showPromptAnswer && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                  <div className="w-full max-w-lg bg-card border rounded-[32px] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                    <div className="space-y-6">
+                      <h3 className="text-xl font-bold flex items-center gap-3 text-violet-500"><Quote size={24} /> {t('journal.reflection')}</h3>
+                      <p className="font-bold leading-relaxed">{dailyPrompts[currentPromptIndex]}</p>
+                      <textarea 
+                        className="w-full h-40 bg-muted/50 border rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 resize-none font-medium"
+                        placeholder={t('journal.write_your_heart_out')}
+                        value={promptAnswer}
+                        onChange={e => setPromptAnswer(e.target.value)}
+                        autoFocus
+                      />
+                      <div className="flex gap-4">
+                        <button onClick={() => setShowPromptAnswer(false)} className="flex-1 py-4 rounded-2xl font-bold hover:bg-muted transition-all">{t('journal.cancel')}</button>
+                        <button 
+                          onClick={async () => {
+                            if (!promptAnswer.trim()) return;
+                            await dataService.addJournalEntry(`<h3>${dailyPrompts[currentPromptIndex]}</h3><p>${promptAnswer}</p>`);
+                            toast.success(t('journal.saved_to_journal'));
+                            setPromptAnswer(""); setShowPromptAnswer(false); fetchEntries();
+                          }}
+                          className="flex-1 py-4 bg-violet-600 text-white rounded-2xl font-bold shadow-lg shadow-violet-500/20 hover:bg-violet-500 transition-all active:scale-95"
+                        >
+                          {t('journal.save_reflection')}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* This Week Progress Card */}
-            <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-6 border border-slate-200/50 dark:border-white/5 shadow-lg shadow-slate-200/50 dark:shadow-black/20">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t('journal.this_week')}</h3>
-                <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-500/20">
-                  {getWeeklyCount()}/7 entries
-                </span>
+            {/* Progress Section */}
+            <div className="bg-card border rounded-[32px] p-8 space-y-6 shadow-sm">
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold">{t('journal.this_week')}</h3>
+                <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-[10px] font-black uppercase">{t('journal.weekly_done', { count: weeklyCount })}</div>
               </div>
-
-              {/* Day indicators */}
-              <div className="grid grid-cols-7 gap-1 mt-4 max-w-xs mx-auto">
+              
+              <div className="flex justify-between items-end gap-1 px-1">
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => {
                   const now = new Date();
-                  const todayStr = now.toLocaleDateString('en-CA');
-                  const dayOfWeek = now.getDay();
-                  const sunday = new Date(now);
-                  sunday.setDate(now.getDate() - dayOfWeek);
-                  const targetDay = new Date(sunday);
-                  targetDay.setDate(sunday.getDate() + i);
-                  const targetDayStr = targetDay.toLocaleDateString('en-CA');
-                  const hasEntry = journalEntries.some((e: any) => toISTDateStr(e.timestamp || e.createdAt || e.created_at) === targetDayStr);
-                  const isToday = targetDayStr === todayStr;
+                  const start = new Date(); start.setDate(now.getDate() - now.getDay());
+                  const target = new Date(start); target.setDate(start.getDate() + i);
+                  const key = getISTDateKey(target);
+                  const hasEntry = journalEntries.some(e => getISTDateKey(new Date(e.timestamp || e.createdAt)) === key);
+                  const isToday = key === todayKey;
+                  
                   return (
-                    <div key={i} className="flex flex-col items-center gap-1 group cursor-pointer">
-                      <div className={`w-1.5 h-6 rounded-full transition-all ${hasEntry ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-200 dark:bg-slate-700'} ${isToday && !hasEntry ? 'ring-2 ring-emerald-500/50' : ''}`} />
-                      <span className={`text-[10px] font-medium ${hasEntry ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>{day}</span>
+                    <div key={i} className="flex flex-col items-center gap-2 group cursor-default">
+                      <div className={`w-3 rounded-full transition-all duration-500 ${hasEntry ? 'bg-emerald-500 h-12 shadow-lg shadow-emerald-500/20' : 'bg-muted h-6'} ${isToday && !hasEntry ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-card' : ''}`} />
+                      <span className={`text-[10px] font-bold ${hasEntry ? 'text-emerald-500' : 'text-muted-foreground'}`}>{day}</span>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Calendar Card */}
-            <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-6 border border-slate-200/50 dark:border-white/5 shadow-lg shadow-slate-200/50 dark:shadow-black/20">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{currentMonthName}</h3>
-                <div className="flex gap-1">
-                  <button className="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded transition-colors">
-                    <ChevronLeft className="w-4 h-4 text-slate-400" />
-                  </button>
-                  <button className="p-1 hover:bg-slate-100 dark:hover:bg-white/10 rounded transition-colors">
-                    <ChevronRight className="w-4 h-4 text-slate-400" />
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-7 gap-y-3 gap-x-1 text-center text-sm max-w-xs mx-auto">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, idx) => (
-                  <div key={idx} className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{d}</div>
-                ))}
-                {Array.from({ length: firstDayOfMonth }, (_, i) => <div key={`empty-${i}`} className="p-1.5" />)}
-                {Array.from({ length: daysInMonth }, (_, i) => {
-                  const dayNum = i + 1;
-                  const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                  const hasEntry = journalEntries.some((e: any) => toISTDateStr(e.timestamp || e.createdAt || e.created_at) === dateStr);
-                  const now = new Date();
-                  const isToday = dayNum === now.getDate() && currentMonth === now.getMonth() && currentYear === now.getFullYear();
-                  const isFuture = dayNum > now.getDate() && currentMonth === now.getMonth() && currentYear === now.getFullYear();
-                  return (
-                    <button
-                      key={i}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center mx-auto text-xs font-medium transition-all ${isToday
-                        ? 'bg-emerald-500 text-white font-bold shadow-[0_0_10px_rgba(16,185,129,0.4)] ring-2 ring-emerald-500/30'
-                        : hasEntry
-                          ? 'relative text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
-                          : isFuture
-                            ? 'text-slate-300 dark:text-slate-600'
-                            : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5'
-                        }`}
-                    >
-                      {dayNum}
-                      {hasEntry && !isToday && (
-                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-violet-500 rounded-full" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* History Section */}
-            <div data-tour="journal-history" className="space-y-4">
+            {/* History Feed */}
+            <div className="space-y-4">
               <div className="flex justify-between items-center px-1">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
-                  <History className="w-5 h-5 text-slate-400" />
-                  {t('journal.history')}
-                </h3>
-                <button
-                  onClick={() => setShowHistoryModal(true)}
-                  className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors uppercase tracking-wider"
-                >
-                  {t('journal.view_all')}
-                </button>
+                <h3 className="flex items-center gap-2 font-bold"><History size={18} className="text-muted-foreground" /> {t('journal.history')}</h3>
+                <button onClick={() => setShowHistoryModal(true)} className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest hover:text-emerald-600 transition-colors">{t('journal.view_all')}</button>
               </div>
-              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                {journalEntries.length === 0 ? (
-                  <div className="p-6 rounded-xl bg-white dark:bg-[#1A1A1A] border border-slate-200/50 dark:border-white/5 text-center text-slate-400">
-                    {t('journal.no_entries')}
-                  </div>
-                ) : (
-                  journalEntries.slice(0, 5).map((entry: any, idx: number) => (
-                    <div
-                      key={entry.id || idx}
-                      className="bg-white dark:bg-[#1A1A1A] rounded-xl p-4 border border-slate-200/50 dark:border-white/5 hover:border-emerald-300 dark:hover:border-emerald-500/30 transition-all cursor-pointer group shadow-sm hover:shadow-md"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 mb-1">
-                            {formatDate(entry.timestamp || entry.createdAt || entry.created_at)}
-                          </p>
-                          <p className="text-slate-700 dark:text-slate-300 font-serif text-sm truncate group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                            {getTitle(entry.content)}
-                          </p>
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 transition-colors flex-shrink-0 ml-2" />
+
+              <div className="space-y-3">
+                {journalEntries.slice(0, 4).map((e) => (
+                  <div key={e.id} className="p-4 bg-muted/30 border border-transparent hover:border-emerald-500/30 hover:bg-muted/50 rounded-2xl transition-all group cursor-pointer">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest mb-1">{formatDateLabel(e.timestamp || e.createdAt)}</p>
+                        <h4 className="text-sm font-bold truncate leading-snug">{getEntryTitle(e.content, t('journal.untitled_entry'))}</h4>
                       </div>
+                      <ArrowRight size={14} className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-500" />
                     </div>
-                  ))
-                )}
+                  </div>
+                ))}
               </div>
             </div>
           </aside>
@@ -595,132 +400,71 @@ export default function Journal() {
 
       {/* History Modal */}
       {showHistoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 overflow-hidden flex flex-col m-4">
-
-            {/* Modal Header */}
-            <div className="px-8 py-6 border-b border-slate-200 dark:border-white/5 flex items-center justify-between bg-slate-50 dark:bg-white/[0.02]">
-              <div className="flex items-center gap-3">
-                <History className="w-6 h-6 text-emerald-500" />
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white font-serif">{t('journal.all_entries')}</h2>
-                <span className="text-sm text-slate-500">({journalEntries.length} entries)</span>
-              </div>
-              <button
-                onClick={() => setShowHistoryModal(false)}
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-[#121212]">
-              {journalEntries.length === 0 ? (
-                <div className="text-center text-slate-400 py-12">
-                  <History className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg">{t('journal.no_journal_yet')}</p>
-                  <p className="text-sm">{t('journal.start_writing')}</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
+           <div className="w-full max-w-5xl h-[85vh] bg-card border rounded-[40px] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+              <header className="p-8 border-b bg-muted/30 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20"><History className="text-white" /></div>
+                  <div>
+                    <h2 className="text-2xl font-black">{t('journal.all_entries')}</h2>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{t('journal.stories_collected', { count: journalEntries.length })}</p>
+                  </div>
                 </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {journalEntries.map((entry: any, idx: number) => (
-                    <div
-                      key={entry.id || idx}
-                      className="p-5 rounded-2xl bg-white dark:bg-[#1A1A1A] border border-slate-200 dark:border-white/5 hover:border-emerald-300 dark:hover:border-emerald-500/30 transition-all group shadow-sm"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h4 className="text-base font-bold text-slate-900 dark:text-white mb-1 font-serif">
-                            {getTitle(entry.content)}
-                          </h4>
-                          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                            {formatDate(entry.timestamp || entry.createdAt || entry.created_at)}
-                          </p>
+                <button onClick={() => setShowHistoryModal(false)} className="p-3 rounded-full hover:bg-muted transition-colors"><X /></button>
+              </header>
+
+              <div className="flex-1 overflow-y-auto p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-muted/5">
+                {journalEntries.map((e) => {
+                  const body = getEntryBody(e.content);
+                  const isLong = body.length > 150;
+                  const isExpanded = expandedEntries.has(e.id);
+                  
+                  return (
+                    <div key={e.id} className="p-6 bg-card border rounded-3xl shadow-sm hover:shadow-xl transition-all flex flex-col group h-fit">
+                      <div className="flex justify-between mb-4">
+                        <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest">{formatDateLabel(e.timestamp || e.createdAt)}</span>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={async () => {
+                              if (!confirm(t('journal.delete_confirm'))) return;
+                              await dataService.deleteJournalEntry(e.id);
+                              toast.success(t('journal.entry_deleted')); fetchEntries();
+                            }}
+                            className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
-                        <button
-                          onClick={async () => {
-                            if (confirm('Delete this entry?')) {
-                              try {
-                                await dataService.deleteJournalEntry(entry.id);
-                                const entries = await dataService.getJournalEntries();
-                                setJournalEntries(entries || []);
-                                toast.success('Entry deleted');
-                              } catch (err) {
-                                toast.error('Failed to delete');
-                              }
-                            }
-                          }}
-                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/50 transition-all"
-                          title="Delete entry"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
-                      {(() => {
-                        const body = getBody(entry.content);
-                        const entryId = entry.id || idx.toString();
-                        const isExpanded = expandedEntries.has(entryId);
-                        const isLong = body.length > 100;
-
-                        if (!body) {
-                          return <span className="text-sm text-slate-400 italic">{t('journal.no_content')}</span>;
-                        }
-
-                        return (
-                          <div className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                            {isExpanded || !isLong ? (
-                              <>
-                                <p>{body}</p>
-                                {isLong && (
-                                  <button
-                                    onClick={() => {
-                                      const newSet = new Set(expandedEntries);
-                                      newSet.delete(entryId);
-                                      setExpandedEntries(newSet);
-                                    }}
-                                    className="text-emerald-600 dark:text-emerald-400 text-xs font-bold mt-2 hover:underline"
-                                  >
-                                    {t('journal.show_less')}
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <p>{body.substring(0, 100)}
-                                  <button
-                                    onClick={() => {
-                                      const newSet = new Set(expandedEntries);
-                                      newSet.add(entryId);
-                                      setExpandedEntries(newSet);
-                                    }}
-                                    className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline ml-1"
-                                  >
-                                    ...</button>
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })()}
+                      <h3 className="text-lg font-black mb-3 leading-tight">{getEntryTitle(e.content, t('journal.untitled_entry'))}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {isExpanded || !isLong ? body : `${body.slice(0, 150)}...`}
+                      </p>
+                      {isLong && (
+                        <button 
+                          onClick={() => {
+                            const n = new Set(expandedEntries);
+                            isExpanded ? n.delete(e.id) : n.add(e.id);
+                            setExpandedEntries(n);
+                          }}
+                          className="mt-4 text-[10px] font-black uppercase tracking-widest text-emerald-500 hover:underline inline-flex items-center gap-1"
+                        >
+                          {isExpanded ? t('journal.collapse') : t('journal.read_full_story')} <ChevronRight size={10} className={isExpanded ? '-rotate-90' : ''} />
+                        </button>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  );
+                })}
+              </div>
 
-            {/* Modal Footer */}
-            <div className="px-8 py-4 border-t border-slate-200 dark:border-white/5 flex justify-end bg-white dark:bg-[#1A1A1A]">
-              <button
-                onClick={() => setShowHistoryModal(false)}
-                className="px-6 py-2 rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
-              >
-                {t('journal.close')}
-              </button>
-            </div>
-          </div>
+              <footer className="p-6 border-t bg-card flex justify-center">
+                  <button onClick={() => setShowHistoryModal(false)} className="px-12 py-3 bg-muted font-bold rounded-2xl hover:bg-muted/80 transition-all">{t('journal.close_archive')}</button>
+              </footer>
+           </div>
         </div>
       )}
-      <TourPrompt tour={journalTour} featureName="Journal" />
+
+          <TourPrompt tour={journalTour} featureName={t('journal.feature_name')} />
     </NishthaLayout>
   );
 }

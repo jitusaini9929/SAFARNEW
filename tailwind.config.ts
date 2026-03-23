@@ -14,8 +14,11 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Poppins", "sans-serif"],
+        sans: ["Poppins", "Inter", "sans-serif"],
         serif: ["Playfair Display", "serif"],
+        manrope: ["Manrope", "sans-serif"],
+        inter: ["Inter", "sans-serif"],
+        playfair: ["Playfair Display", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -74,6 +77,30 @@ export default {
         "plum-dark": "#2a1b2b",
         "purple-deep": "#1f1525",
         "brand-accent": "#6EE7B7",
+        // The Horizon Narrative Palette
+        "forest": {
+          DEFAULT: "#2E5A27",
+          container: "#4c7a43",
+          on: "#ffffff",
+        },
+        "road": {
+          DEFAULT: "#1B365D",
+          container: "#2a4a7a",
+          on: "#ffffff",
+        },
+        "solar": {
+          DEFAULT: "#FDB813",
+          hover: "#e0ac48",
+          on: "#ffffff",
+        },
+        "horizon": {
+          neutral: "#F2F4F2",
+          surface: "#f8faf8",
+          "surface-container": "#eceeec",
+          "surface-container-low": "#f2f4f2",
+          "surface-container-high": "#e8eae8",
+          "on-surface": "#191c1b",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
