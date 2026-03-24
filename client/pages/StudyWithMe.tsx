@@ -188,6 +188,7 @@ export default function StudyWithMe() {
     const [awaitingProceed, setAwaitingProceed] = useState(false);
     const [showDurationPrompt, setShowDurationPrompt] = useState(false);
     const [nextDurationInput, setNextDurationInput] = useState("");
+    const [pendingLinkedGoal, setPendingLinkedGoal] = useState<{ goalId: string; goalTitle: string | null } | null>(null);
 
     // Get current task (first uncompleted)
     const activeTask = tasks.find(task => !task.completed);
@@ -212,28 +213,32 @@ export default function StudyWithMe() {
         const goalTitle = searchParams.get('goalTitle');
         if (goalId) {
             setAssociatedGoal(goalId, goalTitle);
-            // Set the goal as the primary active task
-            if (goalTitle) {
-                setTasks(prev => {
-                    // Check if it's already the active task to avoid duplicate spam
-                    const currentActive = prev.find(t => !t.completed);
-                    if (currentActive?.text === goalTitle) {
-                        return prev;
-                    }
+            setPendingLinkedGoal({ goalId, goalTitle });
 
-                    const newTask: Task = { id: Date.now(), text: goalTitle, completed: false };
-                    // Put it at the front of the array so it's prioritized as the next active task
-                    const next = [newTask, ...prev];
-                    saveTasks(next, user?.id);
-                    return next;
-                });
-            }
-            // Clean the URL params without triggering a navigation
-            searchParams.delete('goalId');
-            searchParams.delete('goalTitle');
-            setSearchParams(searchParams, { replace: true });
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete('goalId');
+            nextParams.delete('goalTitle');
+            setSearchParams(nextParams, { replace: true });
         }
-    }, []);  // Run once on mount
+    }, [searchParams, setAssociatedGoal, setSearchParams]);
+
+    useEffect(() => {
+        if (!pendingLinkedGoal?.goalTitle) return;
+
+        setTasks(prev => {
+            const alreadyExists = prev.some(task => !task.completed && task.text === pendingLinkedGoal.goalTitle);
+            if (alreadyExists) {
+                return prev;
+            }
+
+            const linkedTask: Task = { id: Date.now(), text: pendingLinkedGoal.goalTitle, completed: false };
+            const next = [linkedTask, ...prev];
+            saveTasks(next, user?.id);
+            return next;
+        });
+
+        setPendingLinkedGoal(null);
+    }, [pendingLinkedGoal, user?.id]);
 
 
 

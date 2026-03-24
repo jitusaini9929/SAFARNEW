@@ -89,6 +89,12 @@ const STATUS_UI: Record<TopicStatus, { label: string; color: string; bg: string 
 
 const EXAM_TYPE_OPTIONS = ["CGL", "CHSL", "GD", "MTS", "12th Boards", "NTPC", "JEE", "NEET", "UPSC", "CAT"];
 
+const COLUMN_DESCRIPTIONS: Record<string, string> = {
+  "todo": "Your Study Queue. Topics you haven't started yet. Drag items here to prioritize your upcoming work.",
+  "in_progress": "Active Learning. Topics you are currently studying. Focus on these modules to stay on schedule.",
+  "done": "Study Archive. Successfully completed topics. Great progress! Your achievements are logged here.",
+};
+
 function toIsoDateOnly(input: Date | string): string {
   return new Date(input).toISOString().split("T")[0];
 }
@@ -506,56 +512,73 @@ export default function StudyPlanner({ planId }: { planId: string }) {
               <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {plan.title}.
               </h1>
-              <div data-tour="planner-countdown" className="inline-flex flex-wrap items-center gap-3">
-                {countdown === null ? (
-                  <button
-                    onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
-                    className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] text-[20px] md:text-[22px] font-black uppercase tracking-[0.1em] px-8 py-3 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.12)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05),0_10px_20px_rgba(0,0,0,0.4)] border border-[#c0c4d1] dark:border-[#252626] transition-transform hover:scale-[1.03]"
-                    title="Set your exam date"
-                  >
-                    Set Exam Date
-                  </button>
-                ) : (
-                  <>
-                    <span className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#acabaa] text-[10px] font-extrabold uppercase tracking-[0.1em] px-4 py-1.5 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]">
-                      {countdownLabel}
-                    </span>
-                    <button
+              <motion.div layout className="flex flex-wrap items-center gap-6">
+                <div data-tour="planner-countdown" className="inline-flex gap-3">
+                  {countdown === null ? (
+                    <motion.button
+                      layout
                       onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
-                      className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[10px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-full border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]"
-                      title="Edit exam date"
+                      className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] text-[20px] md:text-[22px] font-black uppercase tracking-[0.1em] px-8 py-3 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.12)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05),0_10px_20px_rgba(0,0,0,0.4)] border border-[#c0c4d1] dark:border-[#252626] transition-transform hover:scale-[1.03]"
+                      title="Set your exam date"
                     >
-                      Update Date
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {isExamDateEditorOpen && (
-                <div className="mt-4 inline-flex flex-wrap items-center gap-3 rounded-2xl bg-[#f0f0f5] dark:bg-[#1a1c1e] px-4 py-3 border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]">
-                  <input
-                    type="date"
-                    value={examDateDraft}
-                    onChange={(e) => setExamDateDraft(e.target.value)}
-                    className="text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-xl px-4 py-2 text-[#4b5563] dark:text-[#e7e5e5] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)]"
-                  />
-                  <button
-                    onClick={() => { void saveExamDate(); }}
-                    className="bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white text-[10px] font-extrabold uppercase tracking-[0.15em] px-5 py-2.5 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.35)]"
-                  >
-                    Save Date
-                  </button>
-                  <button
-                    onClick={() => {
-                      setExamDateDraft(plan?.examDate ? toIsoDateOnly(plan.examDate) : "");
-                      setIsExamDateEditorOpen(false);
-                    }}
-                    className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[10px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-xl border border-[#c0c4d1] dark:border-[#2b2c2c]"
-                  >
-                    Cancel
-                  </button>
+                      Set Exam Date
+                    </motion.button>
+                  ) : (
+                    <>
+                      <motion.span layout className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#acabaa] text-[10px] font-extrabold uppercase tracking-[0.1em] px-4 py-1.5 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]">
+                        {countdownLabel}
+                      </motion.span>
+                      <motion.button
+                        layout
+                        onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
+                        className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[10px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-full border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]"
+                        title="Edit exam date"
+                      >
+                        Update Date
+                      </motion.button>
+                    </>
+                  )}
                 </div>
-              )}
+
+                <AnimatePresence mode="wait">
+                  {isExamDateEditorOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                      className="inline-flex flex-col gap-3 rounded-2xl bg-[#f0f0f5] dark:bg-[#1a1c1e] px-5 py-4 border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]"
+                    >
+                      <div className="text-[11px] font-bold text-white uppercase tracking-[0.2em] px-1">
+                        Select Exam
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4">
+                      <input
+                        type="date"
+                        value={examDateDraft}
+                        onChange={(e) => setExamDateDraft(e.target.value)}
+                        className="text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-[#c0c4d1] dark:border-[#252626] rounded-xl px-4 py-2 text-[#1e293b] dark:text-[#e7e5e5] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)]"
+                      />
+                      <button
+                        onClick={() => { void saveExamDate(); }}
+                        className="bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white text-[10px] font-extrabold uppercase tracking-[0.15em] px-5 py-2.5 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.35)]"
+                      >
+                        Save Date
+                      </button>
+                      <button
+                        onClick={() => {
+                          setExamDateDraft(plan?.examDate ? toIsoDateOnly(plan.examDate) : "");
+                          setIsExamDateEditorOpen(false);
+                        }}
+                        className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[10px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-xl border border-[#c0c4d1] dark:border-[#2b2c2c]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              </motion.div>
             </div>
           </div>
 
@@ -578,7 +601,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
             </div>
 
             {/* Topics Done */}
-            <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#ffffff] dark:border-[#2b2c2c]">
+            <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Topics Done</div>
               <div className="text-4xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {summary.done} <span className="text-base text-[#8b919e] dark:text-[#767575] font-['Poppins',sans-serif] font-bold">/ {summary.total}</span>
@@ -586,7 +609,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
             </div>
 
             {/* Daily Goal */}
-            <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#ffffff] dark:border-[#2b2c2c]">
+            <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Daily Target</div>
               <div className="text-4xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {plan.dailyGoal || 3} <span className="text-base text-[#8b919e] dark:text-[#767575] font-['Poppins',sans-serif] font-bold">topics</span>
@@ -594,7 +617,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
             </div>
 
             {/* Planned This Month */}
-            <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#ffffff] dark:border-[#2b2c2c]">
+            <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Planned (Month)</div>
               <div className="text-4xl font-extrabold text-blue-600 dark:text-blue-400 mt-auto drop-shadow-[0_2px_4px_rgba(59,130,246,0.2)]" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {topics.filter((t) => t.plannedDate?.startsWith(toIsoDateOnly(monthDate).slice(0, 7))).length}
@@ -609,7 +632,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
             <div data-tour="planner-view-toggle" className="flex p-1.5 rounded-full transition-colors duration-500 bg-[#d9dbe2] dark:bg-[#0e0e0e] shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#1a1c1e] w-full md:w-auto">
               {([
                 ["tree", "Planner"],
-                ["kanban", "Kanban"],
+                ["kanban", "Task Panel"],
                 ["calendar", "Log"],
               ] as Array<[PlannerView, string]>).map(([value, label]) => (
                 <button
@@ -677,7 +700,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void saveExamType(); } }}
                       placeholder="Exam Engine Protocol (e.g., UPSC, JEE)"
                       data-tour="planner-exam-input"
-                      className="w-full bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#e7e5e5] placeholder-[#8b919e] dark:placeholder-[#565555] rounded-xl px-5 py-3.5 focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold transition-all focus:shadow-[inset_4px_4px_8px_rgba(166,171,189,0.7),inset_-4px_-4px_8px_rgba(255,255,255,0.9),0_0_0_2px_rgba(59,130,246,0.3)]"
+                      className="w-full bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#1e293b] dark:text-[#e7e5e5] placeholder-[#475569] dark:placeholder-[#94a3b8] rounded-xl px-5 py-3.5 focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold transition-all focus:shadow-[inset_4px_4px_8px_rgba(166,171,189,0.7),inset_-4px_-4px_8px_rgba(255,255,255,0.9),0_0_0_2px_rgba(59,130,246,0.3)]"
                     />
                     <datalist id="planner-exam-type-options">
                       {EXAM_TYPE_OPTIONS.map((item) => (
@@ -691,7 +714,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                     onChange={(e) => setSubjectName(e.target.value)}
                     placeholder="Initialize New Subject"
                     data-tour="planner-subject-input"
-                    className="flex-1 bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#e7e5e5] placeholder-[#8b919e] dark:placeholder-[#565555] rounded-xl px-5 py-3.5 focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold transition-all focus:shadow-[inset_4px_4px_8px_rgba(166,171,189,0.7),inset_-4px_-4px_8px_rgba(255,255,255,0.9),0_0_0_2px_rgba(59,130,246,0.3)]"
+                    className="flex-1 bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#1e293b] dark:text-[#e7e5e5] placeholder-[#475569] dark:placeholder-[#94a3b8] rounded-xl px-5 py-3.5 focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold transition-all focus:shadow-[inset_4px_4px_8px_rgba(166,171,189,0.7),inset_-4px_-4px_8px_rgba(255,255,255,0.9),0_0_0_2px_rgba(59,130,246,0.3)]"
                   />
 
                   <motion.button
@@ -700,149 +723,131 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                     data-tour="planner-add-subject"
                     className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] font-extrabold uppercase tracking-[0.15em] text-[11px] rounded-xl px-8 py-3.5 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#ffffff] dark:border-[#2b2c2c] active:shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.5)] dark:active:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.02)] transition-all"
                   >
-                    Inject
+                    Add
                   </motion.button>
                 </div>
               </div>
 
               <div data-tour="planner-subjects-area" className="flex flex-col gap-6">
-              {plan.subjects.map((subject) => (
-                <div key={subject.id} className="rounded-3xl overflow-hidden transition-colors duration-500 bg-[#e6e7ee] dark:bg-[#131416] shadow-[8px_8px_16px_rgba(166,171,189,0.3),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] mb-6">
+                {plan.subjects.map((subject) => (
+                  <div key={subject.id} className="rounded-3xl overflow-hidden transition-colors duration-500 bg-[#e6e7ee] dark:bg-[#131416] shadow-[8px_8px_16px_rgba(166,171,189,0.3),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] mb-6">
+                    {/* Subject Header Tray */}
+                    <div className="p-5 md:p-8 bg-[#f0f0f5] dark:bg-[#1a1c1e] border-b border-[#d9dbe2] dark:border-[#252626] relative z-10 shadow-[0_4px_8px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)]">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 relative z-10">
+                        <strong className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>{subject.name}</strong>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] uppercase font-black tracking-widest text-[#4b5563] dark:text-[#acabaa] bg-[#d9dbe2] dark:bg-[#0e0e0e] px-4 py-1.5 rounded-full shadow-[inset_1px_1px_3px_rgba(166,171,189,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]">
+                            {subjectPercent(subject)}% SYNCED
+                          </span>
+                        </div>
+                      </div>
 
-                  {/* Subject Header Tray */}
-                  <div className="p-5 md:p-8 bg-[#f0f0f5] dark:bg-[#1a1c1e] border-b border-[#d9dbe2] dark:border-[#252626] relative z-10 shadow-[0_4px_8px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)]">
-
-                    {/* Physical Color Band Indicator */}
-                    <div
-                      className="absolute left-0 top-0 bottom-0 w-2.5 shadow-[inset_1px_0_2px_rgba(255,255,255,0.6)]"
-                      style={{ backgroundColor: subject.color }}
-                    />
-
-                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 pl-4 relative z-10">
-                      <strong className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>{subject.name}</strong>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] uppercase font-black tracking-widest text-[#4b5563] dark:text-[#acabaa] bg-[#d9dbe2] dark:bg-[#0e0e0e] px-4 py-1.5 rounded-full shadow-[inset_1px_1px_3px_rgba(166,171,189,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]">
-                          {subjectPercent(subject)}% SYNCED
-                        </span>
+                      <div className="mt-6 flex flex-col sm:flex-row gap-4 relative z-10">
+                        <input
+                          value={chapterName[subject.id] || ""}
+                          onChange={(e) => setChapterName((prev) => ({ ...prev, [subject.id]: e.target.value }))}
+                          placeholder="Initialize Chapter Module..."
+                          className="flex-1 bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold rounded-xl px-5 py-3 text-[#1e293b] dark:text-[#e7e5e5] placeholder-[#475569] dark:placeholder-[#94a3b8] focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] transition-all"
+                        />
+                        <motion.button
+                          whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.95 }}
+                          onClick={() => addChapter(subject.id)}
+                          className="font-black tracking-[0.15em] uppercase text-[10px] rounded-xl px-6 py-3 shadow-[0_4px_8px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.4)] text-white"
+                          style={{ background: `linear-gradient(135deg, ${subject.color}, #00000050)` }}
+                        >
+                          Add Chapter
+                        </motion.button>
                       </div>
                     </div>
 
-                    <div className="mt-6 pl-4 flex flex-col sm:flex-row gap-4 relative z-10">
-                      <input
-                        value={chapterName[subject.id] || ""}
-                        onChange={(e) => setChapterName((prev) => ({ ...prev, [subject.id]: e.target.value }))}
-                        placeholder="Initialize Chapter Module..."
-                        className="flex-1 bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold rounded-xl px-5 py-3 text-[#4b5563] dark:text-[#e7e5e5] placeholder-[#8b919e] dark:placeholder-[#565555] focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] transition-all"
-                      />
-                      <motion.button
-                        whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.95 }}
-                        onClick={() => addChapter(subject.id)}
-                        className="font-black tracking-[0.15em] uppercase text-[10px] rounded-xl px-6 py-3 shadow-[0_4px_8px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.4)] text-white"
-                        style={{ background: `linear-gradient(135deg, ${subject.color}, #00000050)` }}
-                      >
-                        Add Chapter
-                      </motion.button>
-                    </div>
-                  </div>
+                    {/* Chapters Container List */}
+                    <div className="p-5 md:p-8 flex flex-col gap-8 bg-[#e6e7ee] dark:bg-[#131416]">
+                      {subject.chapters.map((chapter) => {
+                        const key = `${subject.id}:${chapter.id}`;
+                        return (
+                          <div key={chapter.id} className="border border-[#c0c4d1] dark:border-[#2b2c2c] rounded-2xl p-5 md:p-6 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[6px_6px_12px_rgba(166,171,189,0.3),-6px_-6px_12px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[6px_6px_16px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] transition-colors duration-500">
+                            <div className="flex justify-between items-center mb-6 border-b border-[#d9dbe2] dark:border-[#252626] pb-4">
+                              <strong className="text-xl md:text-2xl font-bold text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-sm">{chapter.name}</strong>
+                              <span className="text-[10px] font-black text-[#8b919e] dark:text-[#767575] bg-[#d9dbe2] dark:bg-[#0e0e0e] px-3 py-1 rounded-lg border border-[#c0c4d1] dark:border-[#252626] shadow-[inset_1px_1px_2px_rgba(166,171,189,0.5)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8)] tracking-widest">{chapterPercent(chapter)}% COMPLETED</span>
+                            </div>
 
-                  {/* Chapters Container List */}
-                  <div className="p-5 md:p-8 flex flex-col gap-8 bg-[#e6e7ee] dark:bg-[#131416]">
-                    {subject.chapters.map((chapter) => {
-                      const key = `${subject.id}:${chapter.id}`;
-
-                      return (
-                        <div key={chapter.id} className="border border-[#c0c4d1] dark:border-[#2b2c2c] rounded-2xl p-5 md:p-6 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[6px_6px_12px_rgba(166,171,189,0.3),-6px_-6px_12px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[6px_6px_16px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] transition-colors duration-500">
-
-                          <div className="flex justify-between items-center mb-6 border-b border-[#d9dbe2] dark:border-[#252626] pb-4">
-                            <strong className="text-xl md:text-2xl font-bold text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-sm">{chapter.name}</strong>
-                            <span className="text-[10px] font-black text-[#8b919e] dark:text-[#767575] bg-[#d9dbe2] dark:bg-[#0e0e0e] px-3 py-1 rounded-lg border border-[#c0c4d1] dark:border-[#252626] shadow-[inset_1px_1px_2px_rgba(166,171,189,0.5)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8)] tracking-widest">{chapterPercent(chapter)}% COMPLETED</span>
-                          </div>
-
-                          <div className="grid gap-4 mb-6">
-                            {chapter.topics.map((topic) => (
-                              <div key={topic.id} className="flex flex-col lg:flex-row lg:items-center gap-4 py-3 px-4 rounded-xl bg-[#e6e7ee] dark:bg-[#131416] border border-[#c0c4d1] dark:border-[#252626] shadow-[inset_2px_2px_6px_rgba(166,171,189,0.4),inset_-2px_-2px_6px_rgba(255,255,255,0.6)] dark:shadow-[inset_2px_2px_8px_rgba(0,0,0,0.6),inset_-1px_-1px_3px_rgba(255,255,255,0.03)] transition-colors">
-
-                                <div className="flex items-center gap-4 flex-1">
-                                  <motion.button
-                                    whileTap={{ scale: 0.8 }}
-                                    onClick={() => patchTopic(topic.id, { status: topic.status === "done" ? "todo" : "done" })}
-                                    className="w-6 h-6 flex-shrink-0 rounded-[4px] flex items-center justify-center transition-all cursor-pointer shadow-[inset_1px_1px_2px_rgba(0,0,0,0.2)] dark:shadow-[inset_1px_1px_3px_rgba(0,0,0,0.8)] border border-transparent"
-                                    style={{
-                                      backgroundColor: topic.status === "done" ? subject.color : "transparent",
-                                      borderColor: topic.status === "done" ? "transparent" : "#a6abbd", // dynamic border fallback
-                                    }}
-                                  >
-                                    {topic.status === "done" && <span className="text-white text-[10px] font-black leading-none drop-shadow-md">✓</span>}
-                                  </motion.button>
-
-                                  <span className={`text-base font-bold leading-snug drop-shadow-sm transition-opacity duration-300 ${topic.status === "done" ? "line-through text-[#8b919e] dark:text-[#565555] opacity-60" : "text-[#3c4146] dark:text-[#e7e5e5]"}`}>
-                                    {topic.name}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-4 lg:ml-auto ml-10">
-
-                                  {/* Recessed Date Input */}
-                                  <input
-                                    type="date"
-                                    value={topic.plannedDate ? toIsoDateOnly(topic.plannedDate) : ""}
-                                    onChange={(e) => patchTopic(topic.id, { plannedDate: e.target.value || "" })}
-                                    className="text-[11px] font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-lg px-3 py-2 text-[#6b7280] dark:text-[#acabaa] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] transition-colors cursor-pointer"
-                                  />
-
-                                  {/* Physical Status Indicator */}
-                                  <div className="relative">
-                                    <select
-                                      value={topic.status}
-                                      onChange={(e) => patchTopic(topic.id, { status: e.target.value })}
-                                      className="text-[10px] font-black tracking-widest uppercase border border-white dark:border-[#2b2c2c] rounded-lg px-3 py-2 focus:outline-none transition-colors appearance-none cursor-pointer shadow-[2px_2px_4px_rgba(166,171,189,0.3),-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[2px_2px_6px_rgba(0,0,0,0.6),-1px_-1px_2px_rgba(255,255,255,0.02)] pr-8"
+                            <div className="grid gap-4 mb-6">
+                              {chapter.topics.map((topic) => (
+                                <div key={topic.id} className="flex flex-col lg:flex-row lg:items-center gap-4 py-3 px-4 rounded-xl bg-[#e6e7ee] dark:bg-[#131416] border border-[#c0c4d1] dark:border-[#252626] shadow-[inset_2px_2px_6px_rgba(166,171,189,0.4),inset_-2px_-2px_6px_rgba(255,255,255,0.6)] dark:shadow-[inset_2px_2px_8px_rgba(0,0,0,0.6),inset_-1px_-1px_3px_rgba(255,255,255,0.03)] transition-colors">
+                                  <div className="flex items-center gap-4 flex-1">
+                                    <motion.button
+                                      whileTap={{ scale: 0.8 }}
+                                      onClick={() => patchTopic(topic.id, { status: topic.status === "done" ? "todo" : "done" })}
+                                      className="w-6 h-6 flex-shrink-0 rounded-[4px] flex items-center justify-center transition-all cursor-pointer shadow-[inset_1px_1px_2px_rgba(0,0,0,0.2)] dark:shadow-[inset_1px_1px_3px_rgba(0,0,0,0.8)] border border-transparent"
                                       style={{
-                                        backgroundColor: isDarkMode ? STATUS_UI[topic.status].bg : "#e6e7ee",
-                                        color: STATUS_UI[topic.status].color,
+                                        backgroundColor: topic.status === "done" ? subject.color : "transparent",
+                                        borderColor: topic.status === "done" ? "transparent" : "#a6abbd",
                                       }}
                                     >
-                                      {Object.entries(STATUS_UI).map(([value, ui]) => (
-                                        <option key={value} value={value} style={{ background: isDarkMode ? "#131416" : "#e6e7ee", color: ui.color }}>
-                                          {ui.label}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    {/* Custom arrow to emulate physical dial cut */}
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">▼</div>
+                                      {topic.status === "done" && <span className="text-white text-[10px] font-black leading-none drop-shadow-md">✓</span>}
+                                    </motion.button>
+                                    <span className={`text-base font-bold leading-snug drop-shadow-sm transition-opacity duration-300 ${topic.status === "done" ? "line-through text-[#8b919e] dark:text-[#565555] opacity-60" : "text-[#3c4146] dark:text-[#e7e5e5]"}`}>
+                                      {topic.name}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-4 lg:ml-auto ml-10">
+                                    <input
+                                      type="date"
+                                      value={topic.plannedDate ? toIsoDateOnly(topic.plannedDate) : ""}
+                                      onChange={(e) => patchTopic(topic.id, { plannedDate: e.target.value || "" })}
+                                      className="text-[11px] font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-lg px-3 py-2 text-[#1e293b] dark:text-[#acabaa] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] transition-colors cursor-pointer"
+                                    />
+                                    <div className="relative">
+                                      <select
+                                        value={topic.status}
+                                        onChange={(e) => patchTopic(topic.id, { status: e.target.value })}
+                                        className="text-[10px] font-black tracking-widest uppercase border border-white dark:border-[#2b2c2c] rounded-lg px-3 py-2 focus:outline-none transition-colors appearance-none cursor-pointer shadow-[2px_2px_4px_rgba(166,171,189,0.3),-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[2px_2px_6px_rgba(0,0,0,0.6),-1px_-1px_2px_rgba(255,255,255,0.02)] pr-8"
+                                        style={{
+                                          backgroundColor: STATUS_UI[topic.status].bg,
+                                          color: STATUS_UI[topic.status].color,
+                                        }}
+                                      >
+                                        {Object.entries(STATUS_UI).map(([value, ui]) => (
+                                          <option key={value} value={value} style={{ background: isDarkMode ? "#131416" : "#e6e7ee", color: ui.color }}>
+                                            {ui.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">▼</div>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
 
-                          {/* Add Topic Tray */}
-                          <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-[#d9dbe2] dark:border-[#252626]">
-                            <input
-                              value={topicName[key] || ""}
-                              onChange={(e) => setTopicName((prev) => ({ ...prev, [key]: e.target.value }))}
-                              placeholder="Inject New Topic Detail..."
-                              className="flex-1 text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-xl px-5 py-3 text-[#4b5563] dark:text-[#e7e5e5] placeholder-[#8b919e] dark:placeholder-[#565555] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] transition-all"
-                            />
-                            <input
-                              type="date"
-                              value={topicDate[key] || ""}
-                              onChange={(e) => setTopicDate((prev) => ({ ...prev, [key]: e.target.value }))}
-                              className="text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-xl px-4 py-3 text-[#6b7280] dark:text-[#acabaa] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] transition-all cursor-pointer"
-                            />
-                            <motion.button
-                              whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.95 }}
-                              onClick={() => addTopic(subject.id, chapter.id)}
-                              className="text-[11px] font-extrabold uppercase tracking-widest rounded-xl px-6 py-3 bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] border border-slate-300 dark:border-[#2b2c2c] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] transition-all"
-                            >
-                              Push Topic
-                            </motion.button>
+                            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-[#d9dbe2] dark:border-[#252626]">
+                              <input
+                                value={topicName[key] || ""}
+                                onChange={(e) => setTopicName((prev) => ({ ...prev, [key]: e.target.value }))}
+                                placeholder="Add New Topic Detail..."
+                                className="flex-1 text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-xl px-5 py-3 text-[#1e293b] dark:text-[#e7e5e5] placeholder-[#475569] dark:placeholder-[#94a3b8] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] transition-all"
+                              />
+                              <input
+                                type="date"
+                                value={topicDate[key] || ""}
+                                onChange={(e) => setTopicDate((prev) => ({ ...prev, [key]: e.target.value }))}
+                                className="text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-xl px-4 py-3 text-[#6b7280] dark:text-[#acabaa] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] transition-all cursor-pointer"
+                              />
+                              <motion.button
+                                whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.95 }}
+                                onClick={() => addTopic(subject.id, chapter.id)}
+                                className="text-[11px] font-extrabold uppercase tracking-widest rounded-xl px-6 py-3 bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] border border-slate-300 dark:border-[#2b2c2c] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] transition-all"
+                              >
+                                Add Topic
+                              </motion.button>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
               </div>
             </motion.div>
           )}
@@ -934,8 +939,10 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                       </AnimatePresence>
 
                       {kanban[status].length === 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e]/50 dark:text-[#565555]">Drop Zone Target</div>
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-12">
+                          <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#4b5563]/60 dark:text-[#acabaa]/60 text-center leading-relaxed max-w-[80%]">
+                            {COLUMN_DESCRIPTIONS[status]}
+                          </div>
                         </div>
                       )}
                     </div>
