@@ -4,6 +4,8 @@ import { apiFetch } from "../client/utils/apiFetch";
 import PlannerSidebar from "../client/components/PlannerSidebar";
 import LanguageToggle from "../client/components/LanguageToggle";
 import ThemeToggle from "../client/components/ui/theme-toggle";
+import { TourPrompt } from "../client/components/guided-tour";
+import { studyPlannerTour } from "../client/components/guided-tour/tourSteps";
 
 type TopicStatus = "todo" | "in_progress" | "done" | "revision_needed";
 type PlannerView = "tree" | "kanban" | "calendar";
@@ -269,6 +271,8 @@ export default function StudyPlanner({ planId }: { planId: string }) {
   const [monthDate, setMonthDate] = useState(new Date());
 
   const [examType, setExamType] = useState("");
+  const [examDateDraft, setExamDateDraft] = useState("");
+  const [isExamDateEditorOpen, setIsExamDateEditorOpen] = useState(false);
   const [subjectName, setSubjectName] = useState("");
   const [chapterName, setChapterName] = useState<Record<string, string>>({});
   const [topicName, setTopicName] = useState<Record<string, string>>({});
@@ -277,6 +281,12 @@ export default function StudyPlanner({ planId }: { planId: string }) {
 
   const summary = useMemo(() => (plan ? plannerProgress(plan) : { total: 0, done: 0, percent: 0 }), [plan]);
   const countdown = useMemo(() => dayDiff(plan?.examDate), [plan?.examDate]);
+  const countdownLabel = useMemo(() => {
+    if (countdown === null) return "Set Exam Date";
+    if (countdown > 0) return `${countdown} Days Remaining`;
+    if (countdown === 0) return "Exam is Today";
+    return `${Math.abs(countdown)} Days Since Exam`;
+  }, [countdown]);
 
   async function fetchPlan() {
     try {
@@ -303,6 +313,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
   useEffect(() => {
     if (!plan) return;
     setExamType(plan.examType || "");
+    setExamDateDraft(plan.examDate ? toIsoDateOnly(plan.examDate) : "");
   }, [plan]);
 
   useEffect(() => {
@@ -333,6 +344,25 @@ export default function StudyPlanner({ planId }: { planId: string }) {
       setError("");
     } catch (err: any) {
       setError(err?.message || "Failed to save exam type");
+    }
+  }
+
+  async function saveExamDate() {
+    const normalized = examDateDraft.trim();
+    if (!normalized) {
+      setError("Please choose a valid exam date");
+      return;
+    }
+    if (normalized === (plan?.examDate || "")) {
+      setIsExamDateEditorOpen(false);
+      return;
+    }
+    try {
+      await updatePlanMeta({ examDate: normalized });
+      setError("");
+      setIsExamDateEditorOpen(false);
+    } catch (err: any) {
+      setError(err?.message || "Failed to save exam date");
     }
   }
 
@@ -471,21 +501,66 @@ export default function StudyPlanner({ planId }: { planId: string }) {
         <div className="max-w-7xl mx-auto p-4 md:p-8 relative z-10">
 
           {/* Header Section */}
-          <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 relative">
+          <div data-tour="planner-header" className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 relative">
             <div>
               <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {plan.title}.
               </h1>
-              <div className="inline-flex flex-wrap items-center gap-3">
-                <span className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#acabaa] text-[10px] font-extrabold uppercase tracking-[0.1em] px-4 py-1.5 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]">
-                  {countdown !== null ? `${countdown} Days Remaining` : "Set Exam Date"}
-                </span>
+              <div data-tour="planner-countdown" className="inline-flex flex-wrap items-center gap-3">
+                {countdown === null ? (
+                  <button
+                    onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
+                    className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] text-[20px] md:text-[22px] font-black uppercase tracking-[0.1em] px-8 py-3 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.12)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05),0_10px_20px_rgba(0,0,0,0.4)] border border-[#c0c4d1] dark:border-[#252626] transition-transform hover:scale-[1.03]"
+                    title="Set your exam date"
+                  >
+                    Set Exam Date
+                  </button>
+                ) : (
+                  <>
+                    <span className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#acabaa] text-[10px] font-extrabold uppercase tracking-[0.1em] px-4 py-1.5 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]">
+                      {countdownLabel}
+                    </span>
+                    <button
+                      onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
+                      className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[10px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-full border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]"
+                      title="Edit exam date"
+                    >
+                      Update Date
+                    </button>
+                  </>
+                )}
               </div>
+
+              {isExamDateEditorOpen && (
+                <div className="mt-4 inline-flex flex-wrap items-center gap-3 rounded-2xl bg-[#f0f0f5] dark:bg-[#1a1c1e] px-4 py-3 border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]">
+                  <input
+                    type="date"
+                    value={examDateDraft}
+                    onChange={(e) => setExamDateDraft(e.target.value)}
+                    className="text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-xl px-4 py-2 text-[#4b5563] dark:text-[#e7e5e5] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)]"
+                  />
+                  <button
+                    onClick={() => { void saveExamDate(); }}
+                    className="bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white text-[10px] font-extrabold uppercase tracking-[0.15em] px-5 py-2.5 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.35)]"
+                  >
+                    Save Date
+                  </button>
+                  <button
+                    onClick={() => {
+                      setExamDateDraft(plan?.examDate ? toIsoDateOnly(plan.examDate) : "");
+                      setIsExamDateEditorOpen(false);
+                    }}
+                    className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[10px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-xl border border-[#c0c4d1] dark:border-[#2b2c2c]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Metrics Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 md:gap-8 mb-12">
+          <div data-tour="planner-metrics" className="grid grid-cols-2 lg:grid-cols-4 gap-5 md:gap-8 mb-12">
             {/* Completion */}
             <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] group">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Completion</div>
@@ -531,7 +606,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
           <div className="flex flex-col md:flex-row items-center gap-6 mb-12">
 
             {/* Hardware Toggle Switch for Views */}
-            <div className="flex p-1.5 rounded-full transition-colors duration-500 bg-[#d9dbe2] dark:bg-[#0e0e0e] shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#1a1c1e] w-full md:w-auto">
+            <div data-tour="planner-view-toggle" className="flex p-1.5 rounded-full transition-colors duration-500 bg-[#d9dbe2] dark:bg-[#0e0e0e] shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#1a1c1e] w-full md:w-auto">
               {([
                 ["tree", "Planner"],
                 ["kanban", "Kanban"],
@@ -561,6 +636,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
               whileHover={{ scale: 0.985 }}
               whileTap={{ scale: 0.96 }}
               onClick={autoDistribute}
+              data-tour="planner-autoplan"
               className="md:ml-auto w-full md:w-auto rounded-full px-8 py-3.5 font-bold tracking-[0.15em] text-[11px] uppercase transition-all duration-300
               bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white
               shadow-[0_4px_10px_rgba(37,99,235,0.4),inset_0_1px_1px_rgba(255,255,255,0.4),inset_0_-4px_8px_rgba(0,0,0,0.2)]
@@ -585,7 +661,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
               className="flex flex-col gap-8"
             >
               {/* Configure Setup Tray */}
-              <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
+              <div data-tour="planner-setup-tray" className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575] flex items-center gap-2 drop-shadow-sm">
                   <span className="w-2 h-2 bg-[#8b919e] dark:bg-[#565555] rounded-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.8)]" />
                   Syllabus Planner Array
@@ -600,6 +676,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                       onBlur={() => { void saveExamType(); }}
                       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void saveExamType(); } }}
                       placeholder="Exam Engine Protocol (e.g., UPSC, JEE)"
+                      data-tour="planner-exam-input"
                       className="w-full bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#e7e5e5] placeholder-[#8b919e] dark:placeholder-[#565555] rounded-xl px-5 py-3.5 focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold transition-all focus:shadow-[inset_4px_4px_8px_rgba(166,171,189,0.7),inset_-4px_-4px_8px_rgba(255,255,255,0.9),0_0_0_2px_rgba(59,130,246,0.3)]"
                     />
                     <datalist id="planner-exam-type-options">
@@ -613,12 +690,14 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                     value={subjectName}
                     onChange={(e) => setSubjectName(e.target.value)}
                     placeholder="Initialize New Subject"
+                    data-tour="planner-subject-input"
                     className="flex-1 bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#e7e5e5] placeholder-[#8b919e] dark:placeholder-[#565555] rounded-xl px-5 py-3.5 focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold transition-all focus:shadow-[inset_4px_4px_8px_rgba(166,171,189,0.7),inset_-4px_-4px_8px_rgba(255,255,255,0.9),0_0_0_2px_rgba(59,130,246,0.3)]"
                   />
 
                   <motion.button
                     whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.94 }}
                     onClick={addSubject}
+                    data-tour="planner-add-subject"
                     className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] font-extrabold uppercase tracking-[0.15em] text-[11px] rounded-xl px-8 py-3.5 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#ffffff] dark:border-[#2b2c2c] active:shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.5)] dark:active:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.02)] transition-all"
                   >
                     Inject
@@ -626,6 +705,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                 </div>
               </div>
 
+              <div data-tour="planner-subjects-area" className="flex flex-col gap-6">
               {plan.subjects.map((subject) => (
                 <div key={subject.id} className="rounded-3xl overflow-hidden transition-colors duration-500 bg-[#e6e7ee] dark:bg-[#131416] shadow-[8px_8px_16px_rgba(166,171,189,0.3),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] mb-6">
 
@@ -763,6 +843,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                   </div>
                 </div>
               ))}
+              </div>
             </motion.div>
           )}
 
@@ -938,6 +1019,8 @@ export default function StudyPlanner({ planId }: { planId: string }) {
           )}
         </div>
       </div>
+
+      <TourPrompt tour={studyPlannerTour} featureName="Syllabus Planner" />
     </>
   );
 }

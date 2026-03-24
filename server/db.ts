@@ -94,10 +94,12 @@ export async function connectMongo(): Promise<void> {
                 console.log(`   Retrying in ${delay / 1000}s...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2;
+            } else {
+                // Re-throw on final attempt so startup cannot proceed with an uninitialized DB.
+                throw err;
             }
         }
     }
-    console.error('❌ MongoDB connection failed after all retries.');
 }
 
 export async function initDatabase(): Promise<void> {

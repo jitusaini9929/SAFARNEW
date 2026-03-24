@@ -304,6 +304,79 @@ export const suggestionsTour: TourConfig = {
 };
 
 // =====================================================
+// STUDY PLANNER Tour
+// =====================================================
+export const studyPlannerTour: TourConfig = {
+    id: "study-planner",
+    steps: [
+        {
+            target: "[data-tour='planner-header']",
+            title: "Your Planner Dashboard",
+            content: "This is your main syllabus command center. You can track exam readiness, subject progress, and daily execution from one place.",
+            placement: "bottom",
+            spotlightPadding: 16,
+        },
+        {
+            target: "[data-tour='planner-countdown']",
+            title: "Exam Countdown",
+            content: "Set your exam type and timeline to keep urgency visible. This counter helps you plan backward from your target date.",
+            placement: "bottom",
+        },
+        {
+            target: "[data-tour='planner-metrics']",
+            title: "Progress Metrics",
+            content: "Watch completion %, finished topics, daily target, and month planning volume. These numbers reveal whether your pace is enough.",
+            placement: "bottom",
+            spotlightPadding: 14,
+        },
+        {
+            target: "[data-tour='planner-view-toggle']",
+            title: "Three Working Views",
+            content: "Use Planner view to build structure, Kanban for status movement, and Log view for date-wise planning. Start in Planner, then switch as needed.",
+            placement: "bottom",
+        },
+        {
+            target: "[data-tour='planner-autoplan']",
+            title: "Auto-Plan Generator",
+            content: "Once you add enough topics, click Run Auto-Plan to auto-distribute pending work across upcoming days.",
+            placement: "left",
+        },
+        {
+            target: "[data-tour='planner-setup-tray']",
+            title: "Setup Tray: Start Here",
+            content: "This tray is the first setup step for new plans: define your exam context, then start adding subjects before building chapters and topics.",
+            placement: "top",
+            spotlightPadding: 14,
+        },
+        {
+            target: "[data-tour='planner-exam-input']",
+            title: "Exam Type Field",
+            content: "Type your exam (UPSC, JEE, NEET, etc.) and press Enter or click outside to save. This personalizes the planning context.",
+            placement: "bottom",
+        },
+        {
+            target: "[data-tour='planner-subject-input']",
+            title: "Add Your First Subject",
+            content: "Enter a subject like Physics, Math, Polity, or Reasoning. Keep subjects broad; you will break them into chapters next.",
+            placement: "bottom",
+        },
+        {
+            target: "[data-tour='planner-add-subject']",
+            title: "Create Subject",
+            content: "Click Inject to create the subject card. After this, add chapters inside that subject and then add individual topics inside each chapter.",
+            placement: "left",
+        },
+        {
+            target: "[data-tour='planner-subjects-area']",
+            title: "Subject Tree Workflow",
+            content: "Inside each subject card, add chapters, then topics, set dates, and update status from Not Started to In Progress and Done. This is your full end-to-end study flow.",
+            placement: "top",
+            spotlightPadding: 14,
+        },
+    ],
+};
+
+// =====================================================
 // Tour Descriptions (shown in the prompt modal before starting)
 // =====================================================
 export const tourDescriptions: Record<string, string> = {
@@ -315,6 +388,7 @@ export const tourDescriptions: Record<string, string> = {
     "nishtha-goals": "Set daily and weekly goals to stay on track with what matters to you.",
     "nishtha-streaks": "See how consistent you've been — your streaks and activity calendar at a glance.",
     "nishtha-suggestions": "Curated wellness tips and insights personalized for your journey.",
+    "study-planner": "A complete guided flow to set up your syllabus, schedule topics, and track progress to exam day.",
 };
 
 // Export all tours
@@ -327,4 +401,5 @@ export const allTours = {
     goals: goalsTour,
     streaks: streaksTour,
     suggestions: suggestionsTour,
+    studyPlanner: studyPlannerTour,
 };
