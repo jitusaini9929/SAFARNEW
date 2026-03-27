@@ -1,8 +1,8 @@
 import React from 'react';
 import { ExternalLink, Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import youtubeImg from "@/assets/youtube-thumbnail.png";
-import courseImg from "@/assets/course-thumbnail.png";
+import youtubeImg from "@/assets/youtube-thumbnail.webp";
+import courseImg from "@/assets/course-thumbnail.webp";
 
 const ExternalResources = () => {
     const { t } = useTranslation();

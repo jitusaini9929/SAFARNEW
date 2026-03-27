@@ -146,7 +146,7 @@ export async function initDatabase(): Promise<void> {
         await db.collection('mehfil_thoughts').createIndex({ category: 1, status: 1, created_at: -1 });
         await db.collection('mehfil_thoughts').createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
         await db.collection('mehfil_reactions').createIndex({ thought_id: 1, user_id: 1 }, { unique: true });
-        await db.collection('mehfil_comments').createIndex({ thought_id: 1 });
+        await db.collection('mehfil_comments').createIndex({ thought_id: 1, created_at: -1 });
         await db.collection('mehfil_saves').createIndex({ user_id: 1, thought_id: 1 }, { unique: true });
         await db.collection('mehfil_reports').createIndex({ thought_id: 1 });
         await db.collection('mehfil_reports').createIndex({ thought_id: 1, reporter_id: 1 });
@@ -169,13 +169,8 @@ export async function initDatabase(): Promise<void> {
         await db.collection('sandesh_comments').createIndex({ sandesh_id: 1, created_at: 1 });
         await db.collection('user_social_handles').createIndex({ user_id: 1 }, { unique: true });
 
-        await db.collection('mehfil_reactions').createIndex({ thought_id: 1, user_id: 1 }, { unique: true });
-        await db.collection('mehfil_comments').createIndex({ thought_id: 1 });
-        await db.collection('mehfil_saves').createIndex({ user_id: 1, thought_id: 1 }, { unique: true });
-        await db.collection('mehfil_reports').createIndex({ thought_id: 1 });
-        await db.collection('mehfil_shares').createIndex({ thought_id: 1 });
-        await db.collection('mehfil_friendships').createIndex({ user_id: 1, friend_id: 1 }, { unique: true });
-        await db.collection('mehfil_friendships').createIndex({ friend_id: 1 });
+        // Note: mehfil_reactions, comments, saves, reports, shares, friendships indexes
+        // are already defined above — removed duplicate createIndex calls here.
         await db.collection('orders').createIndex({ razorpay_order_id: 1 }, { unique: true });
         await db.collection('orders').createIndex({ user_id: 1 });
         await db.collection('payments').createIndex({ razorpay_payment_id: 1 }, { unique: true });

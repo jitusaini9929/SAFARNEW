@@ -96,7 +96,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                     <div className="flex items-center gap-3 md:gap-4">
                         <div className="flex items-center justify-center rounded-full shadow-2xl shadow-black/25 dark:shadow-white/15">
                             <img loading="lazy"
-                                src="/safar-logo.png.jpeg"
+                                src="/safar-logo.png.webp"
                                 alt="Safar Logo"
                                 className="w-10 h-10 md:w-[74px] md:h-[74px] rounded-full object-cover shadow-md border-[4px] md:border-[5px] border-gray-700"
                             />
@@ -172,7 +172,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                 <div className="absolute inset-0 z-0">
                     {/* Static Background Image */}
                     <img loading="lazy"
-                        src="/hero-background.png"
+                        src="/hero-background.webp"
                         alt="Hero background"
                         className="absolute inset-0 w-full h-full object-cover"
                     />

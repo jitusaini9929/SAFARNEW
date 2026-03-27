@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
-import nishthaLogo from "@/assets/nishtha-logo.jpg";
+import nishthaLogo from "@/assets/nishtha-logo.webp";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 

@@ -790,9 +790,11 @@ router.get('/me', requireAuth, async (req: Request, res) => {
 router.get('/login-history', requireAuth, async (req: Request, res) => {
     try {
         const userId = req.user?.userId;
+        const limit = Math.min(Number(req.query.limit) || 90, 365);
         const rows = await collections.loginHistory()
-            .find({ user_id: userId })
+            .find({ user_id: userId }, { projection: { timestamp: 1, _id: 0 } })
             .sort({ timestamp: -1 })
+            .limit(limit)
             .toArray();
         res.json(rows.map(r => ({ timestamp: r.timestamp })));
     } catch (error) {

@@ -920,12 +920,25 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const skip = (page - 1) * limit;
         const room = normalizeFeedRoom(data?.room);
 
-        const thoughts = await collections.mehfilThoughts()
-          .find(buildThoughtQuery(room))
-          .sort({ created_at: -1 })
-          .skip(skip)
-          .limit(limit)
-          .toArray();
+        // ── Redis feed cache (base data without per-user reactions) ──
+        const feedCacheKey = `mehfil:feed:${room}:p${page}:l${limit}`;
+        const cacheTtl = page === 1 ? 30 : 60; // page 1 = 30s, rest = 60s
+        let thoughts: any[];
+
+        const cachedFeed = redisClient ? await redisGetJSON<any[]>(redisClient, feedCacheKey) : null;
+        if (cachedFeed) {
+          thoughts = cachedFeed;
+        } else {
+          thoughts = await collections.mehfilThoughts()
+            .find(buildThoughtQuery(room))
+            .sort({ created_at: -1 })
+            .skip(skip)
+            .limit(limit)
+            .toArray();
+          if (redisClient) {
+            await redisSetJSON(redisClient, feedCacheKey, thoughts, cacheTtl);
+          }
+        }
 
         const userId = socketToUser.get(socket.id);
         const thoughtIds = thoughts.map((t) => t.id);
@@ -1090,6 +1103,12 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           category: routeRoom,
         });
         mehfil.to(toRoomName(routeRoom)).emit('thoughtCreated', thought);
+
+        // Invalidate feed cache for the routed room (page 1 is most affected)
+        if (redisClient) {
+          await redisDelKey(redisClient, `mehfil:feed:${routeRoom}:p1:l${DEFAULT_THOUGHTS_PAGE_SIZE}`);
+          await redisDelKey(redisClient, `mehfil:feed:ALL:p1:l${DEFAULT_THOUGHTS_PAGE_SIZE}`);
+        }
       } catch (err) {
         console.error('[MEHFIL] New thought error:', err);
         socket.emit('error', { message: 'Failed to create thought' });

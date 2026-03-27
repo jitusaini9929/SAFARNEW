@@ -150,7 +150,7 @@ export default function Profile() {
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <img loading="lazy"
-                src="/safar-logo.png.jpeg"
+                src="/safar-logo.png.webp"
                 alt="Safar Logo"
                 className="w-10 h-10 rounded-full border border-emerald-500 object-cover shadow-sm"
               />

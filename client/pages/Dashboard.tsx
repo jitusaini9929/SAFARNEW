@@ -39,8 +39,8 @@ import {
     BarChart3,
     Flame,
 } from "lucide-react";
-import youtubeImg from "@/assets/youtube-thumbnail.png";
-import courseImg from "@/assets/course-thumbnail.png";
+import youtubeImg from "@/assets/youtube-thumbnail.webp";
+import courseImg from "@/assets/course-thumbnail.webp";
 import GlobalSidebar from "@/components/GlobalSidebar";
 import { useTranslation } from "react-i18next";
 
@@ -63,37 +63,37 @@ const getMoodEmoji = (mood: string): string => {
 
 // Achievement badge images - mythological theme mapping
 const achievementImages: Record<string, string> = {
-    'G001': '/Achievments/Badges/Badge (1).png',
-    'G002': '/Achievments/Badges/Badge (2).png',
-    'G003': '/Achievments/Badges/Badge (3).png',
-    'G004': '/Achievments/Badges/Badge (4).png',
-    'F001': '/Achievments/Badges/Special_Badge (2).png',
-    'F002': '/Achievments/Badges/Special_Badge (5).png',
-    'F003': '/Achievments/Badges/Special_Badge (4).png',
-    'F004': '/Achievments/Badges/Badge (6).png',
-    'F005': '/Achievments/Badges/Badge (7).png',
-    'S001': '/Achievments/Badges/Badge (8).png',
-    'S002': '/Achievments/Badges/Special_Badge (1).png',
-    'ET006': '/Achievments/Badges/Special_Badge (3).png',
+    'G001': '/Achievments/Badges/Badge (1).webp',
+    'G002': '/Achievments/Badges/Badge (2).webp',
+    'G003': '/Achievments/Badges/Badge (3).webp',
+    'G004': '/Achievments/Badges/Badge (4).webp',
+    'F001': '/Achievments/Badges/Special_Badge (2).webp',
+    'F002': '/Achievments/Badges/Special_Badge (5).webp',
+    'F003': '/Achievments/Badges/Special_Badge (4).webp',
+    'F004': '/Achievments/Badges/Badge (6).webp',
+    'F005': '/Achievments/Badges/Badge (7).webp',
+    'S001': '/Achievments/Badges/Badge (8).webp',
+    'S002': '/Achievments/Badges/Special_Badge (1).webp',
+    'ET006': '/Achievments/Badges/Special_Badge (3).webp',
 
     // Titles - Goal Completion (image text matches code name)
-    'T005': '/Achievments/Titles/Title (5).png', // Heavy Heart High Effort
-    'T006': '/Achievments/Titles/Title (3).png', // Mindset of a Warrior
-    'T007': '/Achievments/Titles/Title (7).png', // Exhaustion to Excellence
-    'T008': '/Achievments/Titles/Title (6).png', // High Energy Ace
+    'T005': '/Achievments/Titles/Title (5).webp', // Heavy Heart High Effort
+    'T006': '/Achievments/Titles/Title (3).webp', // Mindset of a Warrior
+    'T007': '/Achievments/Titles/Title (7).webp', // Exhaustion to Excellence
+    'T008': '/Achievments/Titles/Title (6).webp', // High Energy Ace
 
     // Titles - Login Streaks (image text matches code name)
-    'T001': '/Achievments/Titles/Title (8).png', // Top Tier Energy
-    'T002': '/Achievments/Titles/Title (2).png', // Restless Yet Relentless
-    'T003': '/Achievments/Titles/Title (1).png', // Strong Comeback
-    'T004': '/Achievments/Titles/Title (4).png', // Tired But Triumphant
+    'T001': '/Achievments/Titles/Title (8).webp', // Top Tier Energy
+    'T002': '/Achievments/Titles/Title (2).webp', // Restless Yet Relentless
+    'T003': '/Achievments/Titles/Title (1).webp', // Strong Comeback
+    'T004': '/Achievments/Titles/Title (4).webp', // Tired But Triumphant
 
     // Emotional Titles (image text matches code name)
-    'ET001': '/Achievments/Titles/Special_Title (3).png', // Showed Up Tired
-    'ET002': '/Achievments/Titles/Special_Title (2).png', // Did It Anyway
-    'ET003': '/Achievments/Titles/Special_Title (1).png', // Quiet Consistency
-    'ET004': '/Achievments/Titles/Special_Title (4).png', // Survived Bad Week
-    'ET005': '/Achievments/Titles/Special_Title (5).png', // Pushed Through Overwhelm
+    'ET001': '/Achievments/Titles/Special_Title (3).webp', // Showed Up Tired
+    'ET002': '/Achievments/Titles/Special_Title (2).webp', // Did It Anyway
+    'ET003': '/Achievments/Titles/Special_Title (1).webp', // Quiet Consistency
+    'ET004': '/Achievments/Titles/Special_Title (4).webp', // Survived Bad Week
+    'ET005': '/Achievments/Titles/Special_Title (5).webp', // Pushed Through Overwhelm
 
     // Zen Master - User Provided SVG
     'T009': '/Achievments/svgviewer-output.svg',

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import BreathingVisualizer from "@/components/meditation/BreathingVisualizer";
-import meditationBg from "@/assets/meditation-bg.jpg";
+import meditationBg from "@/assets/meditation-bg.webp";
 import { authService } from "@/utils/authService";
 import ThemeToggle from "@/components/ui/theme-toggle";
 
@@ -140,7 +140,7 @@ const sessions: Session[] = [
 
 const ADMIN_EMAIL = "steve123@gmail.com";
 const DEFAULT_MEDITATION_VIDEO_URL = "https://www.youtube.com/watch?v=yhTEuOdTq1M";
-const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.png";
+const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.webp";
 
 const getYoutubeVideoId = (url: string) => {
     const match = String(url || "").match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);

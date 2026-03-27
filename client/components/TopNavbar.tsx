@@ -12,7 +12,7 @@ import { authService } from "@/utils/authService";
 import { HelpCircle, LogOut, Settings, Sun, Moon, Home, Menu, X } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
-import safarLogo from "@/assets/safar-logo.png.jpeg";
+import safarLogo from "@/assets/safar-logo.png.webp";
 import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ui/theme-toggle";
 import GlobalSidebar from "./GlobalSidebar";

@@ -219,8 +219,8 @@ export async function createServer() {
   });
 
   // Configure the Redis adapter only when Redis is available at runtime.
-  const { getRedisClient } = await import("./lib/token.store");
-  void getRedisClient()
+  const { getRedisClient: getTokenStoreRedis } = await import("./lib/token.store");
+  void getTokenStoreRedis()
     .then(async (redis) => {
       if (!redis) {
         console.warn("[SOCKET.IO] Redis unavailable, running without the Redis adapter");

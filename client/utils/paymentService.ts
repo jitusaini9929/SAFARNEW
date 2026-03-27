@@ -122,7 +122,7 @@ export function openRazorpayCheckout({
     currency: orderData.order.currency,
     name: "SAFAR",
     description: course.name,
-    image: "/Banner.jpeg",
+    image: "/Banner.webp",
     order_id: orderData.order.id,
     method: {
       upi: true,

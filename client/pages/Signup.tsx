@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authService } from "@/utils/authService";
-import nishthaLogo from "@/assets/nishtha-logo.jpg";
+import nishthaLogo from "@/assets/nishtha-logo.webp";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 

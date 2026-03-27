@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authService } from "@/utils/authService";
-import nishthaLogo from "@/assets/nishtha-logo.jpg";
+import nishthaLogo from "@/assets/nishtha-logo.webp";
 import { toast } from "sonner";
 import { ArrowLeft, KeyRound, Mail, Eye, EyeOff } from "lucide-react";
 import { useTranslation } from "react-i18next";

@@ -11,7 +11,7 @@ const Footer = () => {
                 <div className="text-center mb-12">
                     <div className="flex items-center justify-center gap-4 mb-4">
                         <div className="rounded-full bg-forest p-1 shadow-xl">
-                            <img loading="lazy" src="/safar-logo.png.jpeg" alt="Safar Logo" className="w-12 h-12 rounded-full object-cover" />
+                            <img loading="lazy" src="/safar-logo.png.webp" alt="Safar Logo" className="w-12 h-12 rounded-full object-cover" />
                         </div>
                         <span className="text-3xl font-playfair font-extrabold text-forest dark:text-white tracking-widest uppercase">Safar</span>
                     </div>
