@@ -439,20 +439,22 @@ export default function Meditation() {
     };
 
     const renderMeditationVideoCard = (inputId: string, extraClassName = "") => (
-        <section className={`rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-[#11131C]/80 p-4 shadow-lg shadow-slate-300/20 dark:shadow-black/20 ${extraClassName}`}>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Latest Dhyan Video</h3>
+        <section className={`rounded-lg border border-border bg-card shadow-lg shadow-black/5 overflow-hidden ${extraClassName}`}>
+            <div className="px-4 pt-4">
+                <h3 className="text-sm font-semibold text-foreground">Latest Dhyan Video</h3>
+            </div>
 
             <a
                 href={meditationVideoUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 block rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 hover:opacity-95 transition-opacity"
+                className="mt-3 block w-full overflow-hidden hover:opacity-95 transition-opacity"
             >
                 <img
                     loading="lazy"
                     src={videoThumbnailSrc}
                     alt="Latest Dhyan YouTube video thumbnail"
-                    className="w-full h-40 object-cover"
+                    className="w-full h-48 object-cover"
                     onError={() => {
                         if (videoThumbnailSrc !== fallbackVideoThumbnail) {
                             setVideoThumbnailSrc(fallbackVideoThumbnail);
@@ -463,11 +465,11 @@ export default function Meditation() {
                 />
             </a>
 
-            <p className="mt-2 text-xs italic text-slate-500 dark:text-slate-400">Click to visit the video</p>
+            <p className="px-4 py-3 text-xs text-muted-foreground">Click to visit the video</p>
 
             {isMeditationAdmin && (
-                <div className="mt-4 space-y-2">
-                    <label htmlFor={inputId} className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <div className="px-4 pb-4 space-y-2">
+                    <label htmlFor={inputId} className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         Admin video link
                     </label>
                     <input
@@ -476,7 +478,7 @@ export default function Meditation() {
                         value={videoDraftUrl}
                         onChange={(event) => setVideoDraftUrl(event.target.value)}
                         placeholder="Paste YouTube video URL"
-                        className="w-full rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                        className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                     <Button
                         type="button"
@@ -534,54 +536,26 @@ export default function Meditation() {
     // We will inject the slider into that center piece.
 
     return (
-        <div className="min-h-[100dvh] bg-[#0e0e0f] text-white font-['Manrope',sans-serif] overflow-x-hidden">
+        <div className="min-h-[100dvh] bg-background text-foreground font-['Manrope',sans-serif] overflow-x-hidden transition-colors duration-300">
             <audio ref={audioRef} src="/Dhyan_processed.mp3" loop />
 
             <GlobalSidebar isOpen={isGlobalSidebarOpen} onClose={() => setIsGlobalSidebarOpen(false)} homeRoute="/home" />
 
-            {/* Desktop Navigation Rail */}
-            <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-24 z-40 flex-col items-center py-8 bg-[#131314] border-r border-[#1f2022]">
-                <button onClick={() => navigate("/home")} className="mb-12 text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#94aaff] to-[#9c8fff] font-serif">D</button>
-                <nav className="flex flex-col gap-3">
-                    <button onClick={() => navigate("/home")} className="flex flex-col items-center p-3 text-[#adaaab] hover:text-[#94aaff] hover:bg-[#1a191b] rounded-2xl transition-colors">
-                        <Home className="w-5 h-5" />
-                        <span className="text-[10px] mt-1">Home</span>
-                    </button>
-                    <button className="flex flex-col items-center p-3 bg-[#94aaff]/10 text-[#94aaff] rounded-2xl">
-                        <Wind className="w-5 h-5" />
-                        <span className="text-[10px] mt-1">Meditate</span>
-                    </button>
-                    <button onClick={() => navigate("/study")} className="flex flex-col items-center p-3 text-[#adaaab] hover:text-[#94aaff] hover:bg-[#1a191b] rounded-2xl transition-colors">
-                        <Clock className="w-5 h-5" />
-                        <span className="text-[10px] mt-1">Focus</span>
-                    </button>
-                    <button onClick={() => navigate("/mehfil")} className="flex flex-col items-center p-3 text-[#adaaab] hover:text-[#94aaff] hover:bg-[#1a191b] rounded-2xl transition-colors">
-                        <Music className="w-5 h-5" />
-                        <span className="text-[10px] mt-1">Music</span>
-                    </button>
-                    <button onClick={() => navigate("/profile")} className="flex flex-col items-center p-3 text-[#adaaab] hover:text-[#94aaff] hover:bg-[#1a191b] rounded-2xl transition-colors">
-                        <Heart className="w-5 h-5" />
-                        <span className="text-[10px] mt-1">Profile</span>
-                    </button>
-                </nav>
-            </aside>
-
             {/* Top App Bar */}
-            <header className="fixed top-0 right-0 left-0 lg:left-24 z-50 h-20 px-5 md:px-10 flex items-center justify-between bg-[#0e0e0f]/70 backdrop-blur-xl border-b border-[#1f2022]">
+            <header className="fixed top-0 right-0 left-0 z-50 h-20 px-5 md:px-10 flex items-center justify-between bg-background/70 backdrop-blur-xl border-b border-border/50">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => setIsGlobalSidebarOpen(true)} className="lg:hidden p-2 rounded-xl text-[#adaaab] hover:bg-[#1a191b]">
+                    <button onClick={() => setIsGlobalSidebarOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:bg-muted/50 transition-colors">
                         <Menu className="w-5 h-5" />
                     </button>
                     <div>
-                        <h1 className="text-xl font-black text-[#94aaff] font-serif">Dhyan</h1>
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-[#adaaab]">Ethereal Sanctuary</p>
+                        <h1 className="text-xl font-black text-primary font-serif">Dhyan</h1>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 md:gap-5">
-                    <button onClick={() => setShowResources(true)} className="hidden md:inline-flex text-[#adaaab] hover:text-white transition-colors">
+                    <button onClick={() => setShowResources(true)} className="hidden md:inline-flex text-muted-foreground hover:text-foreground transition-colors">
                         <ExternalLink className="w-5 h-5" />
                     </button>
-                    <button onClick={() => startTour(meditationTour)} className="hidden md:inline-flex text-[#adaaab] hover:text-white transition-colors">
+                    <button onClick={() => startTour(meditationTour)} className="hidden md:inline-flex text-muted-foreground hover:text-foreground transition-colors">
                         <HelpCircle className="w-5 h-5" />
                     </button>
                     <ThemeToggle />
@@ -591,13 +565,13 @@ export default function Meditation() {
                 </div>
             </header>
 
-            <main className="pt-24 pb-28 lg:pb-32 px-4 md:px-8 lg:ml-24 min-h-screen">
+            <main className="pt-24 pb-28 lg:pb-32 px-4 md:px-8 min-h-screen">
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 xl:gap-10">
                     {/* Left Column */}
                     <section className="xl:col-span-3 space-y-6">
-                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-5">
+                        <div className="rounded-lg bg-card border border-border p-5 shadow-sm">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-[11px] uppercase tracking-[0.18em] text-[#adaaab] font-bold">Daily Practice</h3>
+                                <h3 className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold">Daily Practice</h3>
                                 <span className="text-[10px] text-[#81ecff] uppercase tracking-widest">Live</span>
                             </div>
                             <div className="space-y-3">
@@ -605,24 +579,24 @@ export default function Meditation() {
                                     <button
                                         key={session.id}
                                         onClick={() => handleCardClick(session)}
-                                        className={`w-full text-left rounded-2xl p-4 border transition-all ${selectedSession.id === session.id ? "bg-[#94aaff]/10 border-[#94aaff]/40" : "bg-[#1a191b] border-transparent hover:border-[#3b3c3d]"}`}
+                                        className={`w-full text-left rounded-lg p-4 border transition-all ${selectedSession.id === session.id ? "bg-primary/10 border-primary/40" : "bg-muted/30 border-transparent hover:border-border"}`}
                                     >
                                         <div className="flex items-center justify-between mb-2">
-                                            <Wind className={`w-4 h-4 ${selectedSession.id === session.id ? "text-[#81ecff]" : "text-[#adaaab]"}`} />
-                                            <span className="text-[10px] uppercase tracking-wider text-[#adaaab]">{session.duration} min</span>
+                                            <Wind className={`w-4 h-4 ${selectedSession.id === session.id ? "text-primary" : "text-muted-foreground"}`} />
+                                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{session.duration} min</span>
                                         </div>
-                                        <p className="font-semibold text-sm text-white">{session.title}</p>
-                                        <p className="text-xs text-[#adaaab] mt-1 line-clamp-2">{session.description}</p>
+                                        <p className="font-semibold text-sm text-foreground">{session.title}</p>
+                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{session.description}</p>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-5 space-y-4">
-                            <p className="text-[11px] uppercase tracking-[0.18em] text-[#adaaab] font-bold">Atmosphere</p>
-                            <button onClick={() => setIsMuted(!isMuted)} className="w-full flex items-center justify-between rounded-xl bg-[#1f1f20] px-4 py-3 hover:bg-[#242526] transition-colors">
+                        <div className="rounded-lg bg-card border border-border p-5 space-y-4 shadow-sm">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold">Atmosphere</p>
+                            <button onClick={() => setIsMuted(!isMuted)} className="w-full flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3 hover:bg-muted/70 transition-colors">
                                 <div className="flex items-center gap-3 text-sm">
-                                    {isMuted ? <VolumeX className="w-4 h-4 text-[#94aaff]" /> : <Volume2 className="w-4 h-4 text-[#94aaff]" />}
+                                    {isMuted ? <VolumeX className="w-4 h-4 text-primary" /> : <Volume2 className="w-4 h-4 text-primary" />}
                                     <span>{isMuted ? "Sound Muted" : "White Noise"}</span>
                                 </div>
                                 <span className="text-[#adaaab] text-xs uppercase tracking-widest">{isMuted ? "Off" : "On"}</span>
@@ -665,7 +639,7 @@ export default function Meditation() {
                             <p className="text-[#adaaab] text-[11px] uppercase tracking-[0.2em]">{breathPhase === "inhale" ? "Inhale" : breathPhase === "exhale" ? "Exhale" : "Hold"}</p>
 
                             {selectedSession.id === "dhyan-custom" && (
-                                <div className="rounded-2xl border border-[#2c2d2e] bg-[#161618] p-4 mx-auto max-w-sm">
+                                <div className="rounded-lg border border-[#2c2d2e] bg-[#161618] p-4 mx-auto max-w-sm">
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="text-[10px] uppercase tracking-widest text-[#adaaab]">Session Length</span>
                                         <span className="text-xs font-bold text-[#81ecff]">{sliderValue} min</span>
@@ -717,42 +691,21 @@ export default function Meditation() {
 
                     {/* Right Column */}
                     <section className="xl:col-span-3 space-y-6">
-                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-4">
+                        <div className="rounded-lg bg-[#161618] border border-[#262627] p-4">
                             {renderMeditationVideoCard("meditation-video-url-desktop", "bg-transparent border-0 shadow-none p-0")}
                             <button
-                                onClick={() => setShowExercises(true)}
+                                onClick={() => setShowResources(true)}
                                 className="mt-4 w-full py-3 rounded-full bg-[#1f2022] text-xs font-bold uppercase tracking-widest hover:bg-[#292a2d] transition-colors"
                             >
-                                Expand Session
+                                Resources
                             </button>
-                        </div>
-
-                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-5">
-                            <div className="flex items-center justify-between mb-4">
-                                <p className="text-sm font-semibold">Pulse Rate</p>
-                                <Sparkles className="w-4 h-4 text-[#81ecff]" />
-                            </div>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-4xl font-serif">62</span>
-                                <span className="text-[10px] uppercase text-[#adaaab] tracking-widest">BPM</span>
-                            </div>
-                        </div>
-
-                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-5 flex items-center justify-between">
-                            <div>
-                                <p className="font-semibold">Zen Streak</p>
-                                <p className="text-xs text-[#adaaab]">14 Days</p>
-                            </div>
-                            <div className="w-12 h-12 rounded-full bg-[#94aaff]/10 flex items-center justify-center">
-                                <Sparkles className="w-5 h-5 text-[#94aaff]" />
-                            </div>
                         </div>
                     </section>
                 </div>
             </main>
 
             {/* Desktop Mini Player */}
-            <footer className="hidden lg:flex fixed bottom-0 left-24 right-0 z-40 h-20 px-10 items-center justify-between bg-[#060607]/80 backdrop-blur-xl border-t border-[#222325]">
+            <footer className="hidden lg:flex fixed bottom-0 left-0 right-0 z-40 h-20 px-10 items-center justify-between bg-[#060607]/80 backdrop-blur-xl border-t border-[#222325]">
                 <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#2c2d2f]">
                         <img src={meditationBg} alt="Track cover" className="w-full h-full object-cover" />
@@ -807,19 +760,19 @@ export default function Meditation() {
                             </div>
 
                             <div className="flex flex-col items-center gap-5 w-full max-w-md pb-6">
-                                <span className={`inline-block px-7 py-2.5 rounded-full text-lg font-black tracking-[0.15em] ${breathPhase === 'inhale' ? 'bg-indigo-500/20 text-indigo-200' : breathPhase === 'exhale' ? 'bg-blue-500/20 text-blue-200' : 'bg-amber-500/20 text-amber-200'}`}>
+                                <span className={`inline-block px-7 py-2.5 rounded-full text-lg font-black tracking-[0.15em] ${breathPhase === 'inhale' ? 'bg-primary/20 text-primary' : breathPhase === 'exhale' ? 'bg-secondary/20 text-secondary' : 'bg-amber-500/20 text-amber-600 dark:text-amber-200'}`}>
                                     {breathPhase === 'inhale' ? 'INHALE' : breathPhase === 'exhale' ? 'EXHALE' : 'HOLD'}
                                 </span>
-                                <div className="text-5xl md:text-7xl font-light text-white font-mono tracking-widest tabular-nums">{formatTime(timeLeft)}</div>
-                                <div className="w-full max-w-xs h-1.5 bg-[#262627] rounded-full overflow-hidden">
+                                <div className="text-5xl md:text-7xl font-light text-foreground font-mono tracking-widest tabular-nums">{formatTime(timeLeft)}</div>
+                                <div className="w-full max-w-xs h-1.5 bg-muted rounded-full overflow-hidden">
                                     <div className="h-full bg-gradient-to-r from-[#94aaff] to-[#00d4ec]" style={{ width: `${progress}%` }} />
                                 </div>
                                 <div className="flex items-center justify-center gap-8 mt-2">
-                                    <button onClick={handleReset} className="p-4 rounded-full bg-[#1a191b] border border-[#2f2f31]"><RotateCcw className="w-5 h-5 text-[#adaaab]" /></button>
-                                    <button onClick={() => setIsActive(!isActive)} className={`p-7 rounded-full ${isActive ? "bg-amber-500" : "bg-gradient-to-br from-[#94aaff] to-[#9c8fff]"} text-black`}>
+                                    <button onClick={handleReset} className="p-4 rounded-full bg-card border border-border shadow-sm hover:scale-105 transition-transform"><RotateCcw className="w-5 h-5 text-muted-foreground" /></button>
+                                    <button onClick={() => setIsActive(!isActive)} className={`p-7 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95 ${isActive ? "bg-amber-500" : "bg-primary"} text-white dark:text-black`}>
                                         {isActive ? <Pause className="w-9 h-9" /> : <Play className="w-9 h-9 ml-1" />}
                                     </button>
-                                    <button onClick={() => setIsMuted(!isMuted)} className="p-4 rounded-full bg-[#1a191b] border border-[#2f2f31]">{isMuted ? <VolumeX className="w-5 h-5 text-[#adaaab]" /> : <Volume2 className="w-5 h-5 text-[#adaaab]" />}</button>
+                                    <button onClick={() => setIsMuted(!isMuted)} className="p-4 rounded-full bg-card border border-border shadow-sm hover:scale-105 transition-transform">{isMuted ? <VolumeX className="w-5 h-5 text-muted-foreground" /> : <Volume2 className="w-5 h-5 text-muted-foreground" />}</button>
                                 </div>
                             </div>
                         </div>
@@ -829,33 +782,33 @@ export default function Meditation() {
 
             {/* Session Instruction Modal */}
             {showInstructions && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-[#151517] w-full max-w-lg rounded-[2.2rem] shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-[#2b2c2d] overflow-hidden">
-                        <button onClick={() => setShowInstructions(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-[#adaaab] transition-colors z-10">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-card w-full max-w-lg rounded-lg shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-border overflow-hidden">
+                        <button onClick={() => setShowInstructions(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors z-10">
                             <X className="w-5 h-5" />
                         </button>
 
                         <div className="text-center mb-8 relative z-10">
-                            <div className="w-16 h-16 mx-auto bg-[#94aaff]/20 rounded-3xl flex items-center justify-center text-[#94aaff] mb-6 shadow-sm">
+                            <div className="w-16 h-16 mx-auto bg-primary/20 rounded-3xl flex items-center justify-center text-primary mb-6 shadow-sm">
                                 <Wind className="w-8 h-8" />
                             </div>
-                            <h2 className="text-3xl font-serif text-white mb-3">{selectedSession.title}</h2>
-                            <p className="text-[#adaaab] italic font-medium leading-relaxed">{selectedSession.longDescription}</p>
+                            <h2 className="text-3xl font-serif text-foreground mb-3">{selectedSession.title}</h2>
+                            <p className="text-muted-foreground italic font-medium leading-relaxed">{selectedSession.longDescription}</p>
                         </div>
 
-                        <div data-tour="session-info" className="bg-[#1c1d20] rounded-3xl p-6 mb-8 text-left border border-[#2e2f31]">
-                            <h3 className="text-[10px] font-bold text-[#adaaab] uppercase tracking-[0.2em] mb-4">The Ritual</h3>
+                        <div data-tour="session-info" className="bg-muted/50 rounded-3xl p-6 mb-8 text-left border border-border">
+                            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-4">The Ritual</h3>
                             <div className="space-y-4">
                                 {selectedSession.steps.map((step, idx) => (
-                                    <div key={idx} className="flex gap-4 text-[#d2d3d4] text-sm leading-relaxed items-start">
-                                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#94aaff] text-black flex items-center justify-center text-[10px] font-black mt-0.5">{idx + 1}</span>
+                                    <div key={idx} className="flex gap-4 text-foreground/80 text-sm leading-relaxed items-start">
+                                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-black mt-0.5">{idx + 1}</span>
                                         <span className="font-medium">{step}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        <button onClick={startSession} className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#94aaff] to-[#9c8fff] text-black font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
+                        <button onClick={startSession} className="w-full py-4 rounded-lg bg-gradient-to-r from-[#94aaff] to-[#9c8fff] text-black font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
                             Begin Journey
                         </button>
                     </div>
@@ -864,20 +817,41 @@ export default function Meditation() {
 
             {/* Resources Modal */}
             {showResources && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="relative w-full max-w-2xl md:max-w-3xl rounded-[2.2rem] border border-[#2b2c2d] bg-[#151517] p-4 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-2xl md:max-w-3xl rounded-lg border border-border bg-card p-4 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200 font-sans">
                         <button onClick={() => setShowResources(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-[#adaaab] transition-colors z-10">
                             <X className="w-5 h-5" />
                         </button>
 
-                        <div className="mb-8 pr-10">
-                            <h2 className="text-2xl font-serif text-white mb-2">Dhyan Resources</h2>
-                            <p className="text-sm text-[#adaaab] italic font-medium opacity-80">Guided experiences and editorial content to deepen your practice.</p>
+                        <div className="mb-6 pr-10">
+                            <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-2">Dhyan Resources</h2>
+                            <p className="text-sm text-muted-foreground">Guided experiences and editorial content to deepen your practice.</p>
                         </div>
 
-                        <div className="max-h-[60vh] space-y-6 overflow-y-auto pr-2 custom-scrollbar">
-                            <CourseBanner user={user ? { name: user.name, email: user.email } : null} courseId="safar-30" />
-                            {renderMeditationVideoCard("meditation-video-url-modal", "bg-transparent border-none shadow-none")}
+                        <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                            <section className="rounded-lg border border-border bg-muted/30 p-4">
+                                <p className="text-[11px] uppercase tracking-[0.16em] text-primary mb-2">Dhyan Premium Access</p>
+                                <p className="text-sm text-foreground/80 mb-4">Unlock the full 30-day guided meditation path with structured sessions and consistency tools.</p>
+                                <CourseBanner user={user ? { name: user.name, email: user.email } : null} courseId="safar-30" />
+                            </section>
+
+                            <section className="rounded-lg border border-border bg-muted/20 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-semibold text-foreground">Latest Dhyan Video</p>
+                                        <p className="text-xs text-[#9aa7b6] mt-1">Open the latest guidance on YouTube.</p>
+                                    </div>
+                                    <a
+                                        href={meditationVideoUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-2 rounded-xl bg-[#1c2735] border border-[#32455f] px-3 py-2 text-xs font-semibold text-[#d4e6ff] hover:bg-[#223247] transition-colors"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                        Open Video
+                                    </a>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -930,8 +904,8 @@ export default function Meditation() {
             />
 
             {/* Mobile Bottom Nav */}
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex justify-around items-center px-4 py-3 bg-[#131314]/90 backdrop-blur-2xl border-t border-[#2a2b2d]">
-                <button onClick={() => setShowSessionList(true)} className="flex flex-col items-center text-[#00e3fd]">
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex justify-around items-center px-4 py-3 bg-background/90 backdrop-blur-2xl border-t border-border">
+                <button onClick={() => setShowSessionList(true)} className="flex flex-col items-center text-primary">
                     <Wind className="w-5 h-5" />
                     <span className="text-[10px] mt-1 uppercase tracking-widest">Breath</span>
                 </button>

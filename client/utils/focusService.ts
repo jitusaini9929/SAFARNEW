@@ -2,7 +2,8 @@ import { apiFetch } from "@/utils/apiFetch";
 export interface FocusSession {
     id: string;
     userId: string;
-    durationMinutes: number;
+    plannedDurationMinutes: number;
+    actualDurationMinutes: number;
     breakMinutes: number;
     completed: boolean;
     associatedGoalId?: string;
@@ -10,7 +11,8 @@ export interface FocusSession {
     preStudyMood?: string;
     postStudyMood?: string;
     moodScore?: number;
-    completedAt: string; // ISO string
+    startedAt: string;
+    completedAt: string;
 }
 
 export interface FocusStats {
@@ -39,17 +41,19 @@ export interface FocusStats {
 const API_BASE = '/api/focus-sessions';
 
 export const focusService = {
-    // Log a focus session to the backend
-    logSession: async (session: Omit<FocusSession, 'id' | 'userId' | 'completedAt'>): Promise<{ success: boolean; id: string }> => {
+    logSession: async (session: Omit<FocusSession, 'id' | 'userId'>): Promise<{ success: boolean; id: string }> => {
         try {
             const response = await apiFetch(API_BASE, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
-                    durationMinutes: session.durationMinutes,
+                    plannedDurationMinutes: session.plannedDurationMinutes,
+                    actualDurationMinutes: session.actualDurationMinutes,
                     breakMinutes: session.breakMinutes,
                     completed: session.completed,
+                    startedAt: session.startedAt,
+                    completedAt: session.completedAt,
                     associatedGoalId: session.associatedGoalId || null,
                     interrupted: session.interrupted || false,
                     preStudyMood: session.preStudyMood || null,

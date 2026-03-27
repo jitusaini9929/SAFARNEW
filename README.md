@@ -1,149 +1,110 @@
-# SAFAR
+# SAFAR (सफ़र) 🌿
 
-Full-stack React + Express app for wellness, focus, community (Mehfil), and meditation payments.  
-One Node service serves SPA assets, API routes, and Socket.IO.
+**SAFAR** is a holistic wellness and productivity ecosystem designed to help individuals navigate the complexities of student life, mental health, and personal growth. Rooted in the philosophy of **"The Scenic Path,"** SAFAR transforms the digital experience into a continuous landscape of self-discovery, focus, and community support.
 
-## Tech Stack
+---
 
-- Frontend: React 18, React Router, TypeScript, Vite, TailwindCSS
-- Backend: Express 5
-- Realtime: Socket.IO (`/mehfil` namespace)
-- DB: MongoDB (`mongodb`)
-- Sessions/Scale: `express-session` + optional Redis (`connect-redis`, Socket.IO Redis adapter)
-- State/Data: Zustand, TanStack Query
-- i18n: i18next (`en`, `hi`)
-- Payments: Razorpay
+## 🎨 Design Philosophy: "The Scenic Path"
 
-## Project Structure
+Unlike rigid, "boxed-in" corporate interfaces, SAFAR treats the digital viewport as a peaceful, winding journey.
 
-```txt
-client/      SPA pages, UI components, stores, i18n, utils
-server/      Express app, route modules, Socket.IO handlers, DB bootstrap
-shared/      Shared types/contracts (ex: payment types)
-dist/        Build output (generated)
-```
+- **Editorial Aesthetics**: Leveraging tight geometric typography (**Manrope**) for headlines and high-legibility sans-serif (**Inter**) for body text to create a high-end magazine feel.
+- **Tonal Layering**: Depth is achieved through shifts in background tones rather than heavy borders. **1px solid lines are strictly prohibited** for sectioning—boundaries are defined by "islands of content" and physical layer tiers.
+- **Glassmorphism**: Floating elements (navigation, modals) utilize semi-transparent surfaces with backdrop-blur effects to maintain a sense of lightness.
+- **The "Solar" Accent**: A warm sun-yellow is used sparingly as a high-contrast beacon for critical actions, mimicking a guiding light on the horizon.
 
-## Local Development
+---
 
-### Install
+## 🚀 Key Features
 
+### 🏮 Mehfil (The Real-Time Community)
+A safe space for students to share, reflect, and support one another.
+- **Intelligent Silos**: Posts (Thoughts) are automatically classified into rooms:
+    - **ACADEMIC**: Study strategies, exam prep, and career guidance.
+    - **REFLECTIVE**: Deep thoughts, personal stories, and emotional struggles.
+- **AI-Powered Mentorship**: Uses **Groq (Llama 3.1)** for real-time moderation, ensuring the community remains supportive while identifying "BULLSHIT" (toxic content) and applying spam strikes.
+- **Digital Connections**:
+    - **Sandesh**: Meaningful comment threads.
+    - **Connecting**: DM requests with time-limited rooms to encourage genuine, focused interactions.
+
+### 🍃 Nishtha (The Wellness Suite)
+Holistic tools to track and nurture your mental well-being.
+- **Daily Check-In**: Track your mood and intensity to see patterns over time.
+- **Personalized Suggestions**: A dynamic engine that offers:
+    - **SOS Exercises**: Quick 4-7-8 breathing or grounding techniques when you feel low.
+    - **Daily Challenges**: Small, actionable goals (e.g., "Digital Detox Hour").
+    - **Mindful Moments**: Curated wisdom to ground your day.
+- **Journaling**: A private space for uninhibited reflection.
+
+### ⏳ Study (Deep Work & Focus)
+Turn focus into a measurable journey.
+- **Focus Sessions**: Logged sessions with break tracking and associated goals. Includes pre/post study mood tracking to see how work affects your state of mind.
+- **Flow Stats**: Deep analytics on weekly focus hours, hourly distribution, and daily progress.
+- **Focus Overlay**: A persistent UI element that guides you through your deep work blocks.
+
+### 🧘 Meditation
+Immersive experiences to help you find your center.
+- **Interactive Visualizers**: Tools like the Breathing Visualizer to guide your breathwork practice.
+- **Curated Sessions**: Editorial-style meditation experiences designed for peace and clarity.
+- **Seamless Support**: Integrated payments via **Razorpay** for premium content or support.
+
+### 🏆 Gamification & Streaks
+Stay motivated with visual cues for consistency.
+- **Multi-Streaks**: Tracking logins, daily check-ins, and goal completions.
+- **Achievements**: Unlock symbolic badges as you progress on your "Scenic Path."
+
+---
+
+## 🛠️ Tech Stack
+
+### Core Technologies
+- **Frontend**: React 18 (Vite), TypeScript, Tailwind CSS, Zustand, TanStack Query.
+- **Backend**: Express 5 (Runtime: Node.js/Nixpacks).
+- **Real-Time**: Socket.IO with **Redis** for persistence and scalability.
+- **Database**: MongoDB (Storage), Redis (Token management & caching).
+
+### Essential Services
+- **Auth**: JWT (Access + Refresh tokens) with secure middleware.
+- **Payments**: Razorpay Integration.
+- **AI**: Groq (Llama 3.1) for Community Moderation.
+- **i18n**: Multi-language support (**English** & **Hindi**).
+
+---
+
+## 📥 Installation & Setup
+
+### 1. Prerequisites
+Ensure you have **Node.js** and **npm** installed. A running **MongoDB** instance and a **Redis** server are required.
+
+### 2. Implementation
 ```bash
 npm install
 ```
 
-### Environment
+### 3. Environment Configuration
+Copy `.env.example` to `.env` and configure the following:
+- `MONGODB_URI`: Your MongoDB connection string.
+- `REDIS_URL`: Your Redis connection string.
+- `JWT_ACCESS_SECRET` & `JWT_REFRESH_SECRET`: Secure keys for token signing.
+- `GROQ_API_KEY`: For community AI moderation.
+- `RAZORPAY_KEY_ID`: For meditation payments.
 
-Copy `.env.example` to `.env` and set at least:
-
-- `MONGODB_URI` (required)
-- `SESSION_SECRET` (required in production)
-
-Common optional settings:
-
-- `MONGODB_DB_NAME` (default: `safar`)
-- `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` (recommended; falls back to `JWT_SECRET` or `SESSION_SECRET`)
-- `REDIS_URL` / `REDIS_REQUIRED`
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`
-- `GROQ_API_KEY` (Mehfil AI moderation)
-- `GMAIL_USER`, `GMAIL_APP_PASSWORD` (password reset emails)
-- `ADMIN_EMAILS` (admin-only Mehfil actions)
-
-Notes:
-
-- Env loading order is `.env` first, then `.env_open`.
-- If Redis is not configured, server falls back to memory session store.
-
-### Run
-
+### 4. Run Development Server
 ```bash
 npm run dev
 ```
+The app will be available at `http://localhost:8080`.
 
-- App/API on `http://localhost:8080`
-- API base: `http://localhost:8080/api`
-- Socket.IO path: `/socket.io`, namespace: `/mehfil`
+---
 
-## Build and Run (Production)
-
-```bash
-npm run build
-npm run start
+## 🏗️ Project Structure
+```txt
+client/      # React SPA (Pages, Components, Contexts, Stores)
+server/      # Express API & Socket.IO Handlers
+shared/      # Common types and contracts
+dist/        # Production build output
 ```
 
-- Client build output: `dist/spa`
-- Server build output: `dist/server`
-- Runtime entry: `node dist/server/node-build.mjs`
+---
 
-## Frontend Routes (Current)
-
-Public routes:
-
-- `/`
-- `/home`
-- `/login`
-- `/signup`
-- `/forgot-password`
-- `/reset-password`
-
-Protected routes:
-
-- `/dashboard`
-- `/nishtha/check-in`
-- `/nishtha/journal`
-- `/nishtha/goals`
-- `/nishtha/streaks`
-- `/nishtha/suggestions`
-- `/nishtha/analytics`
-- `/study`
-- `/study/analytics`
-- `/achievements`
-- `/profile`
-- `/mehfil`
-- `/meditation`
-
-## API Overview
-
-Registered base routes in `server/index.ts`:
-
-- `/api/auth/*`
-- `/api/moods/*`
-- `/api/journal/*`
-- `/api/goals/*`
-- `/api/streaks/*`
-- `/api/focus-sessions/*`
-- `/api/focus-overlay/*`
-- `/api/achievements/*`
-- `/api/analytics/*`
-- `/api/suggestions/*`
-- `/api/payments/*`
-- `/api/upload/*` and `/api/images/:id`
-- `/api/mehfil/interactions/*`
-- `/api/mehfil/sandesh/*`
-- `/api/mehfil/*` (friends, saved posts, analytics, meditation video setting)
-- `/api/dm/*` (DM status + social handles)
-- `GET /api/ping`
-- `GET /api/demo`
-
-## Realtime (Mehfil + DM)
-
-Socket handlers are in `server/routes/mehfil-socket.ts` and include:
-
-- Mehfil feed rooms (`ACADEMIC`, `REFLECTIVE`, `ALL`)
-- Thought create/edit/delete/react flows
-- Auto moderation + routing + strike/shadow-ban flow
-- DM request/accept/decline, room chat, handle sharing, and leave events
-- Online status tracking and optional Redis-backed multi-instance support
-
-## Scripts
-
-```bash
-npm run dev
-npm run build
-npm run build:client
-npm run build:server
-npm run start
-npm run typecheck
-npm run test
-npm run format.fix
-npm run backfill:mehfil
-```
+*“Safar – It's not about the destination, it's about the Scenic Path.”*

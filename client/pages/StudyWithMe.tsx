@@ -253,9 +253,7 @@ export default function StudyWithMe() {
         });
     }, [user?.id]);
 
-    // Auto-complete task on session end (listening to context state)
-    // Triggers for ALL modes — when any timer reaches 0, mark the current task done
-    // and the next uncompleted task automatically becomes the "current task".
+    // Auto-complete task only when an Ekagra focus timer finishes.
     const prevRemainingRef = useRef(remainingSeconds);
     useEffect(() => {
         const justCompleted = remainingSeconds === 0 && prevRemainingRef.current > 0;
@@ -265,7 +263,7 @@ export default function StudyWithMe() {
             completionHandledRef.current = false;
         }
 
-        if (!justCompleted || completionHandledRef.current) return;
+        if (!justCompleted || completionHandledRef.current || mode !== "Timer") return;
         completionHandledRef.current = true;
 
         const taskToComplete = activeTask;
@@ -279,9 +277,7 @@ export default function StudyWithMe() {
             setAwaitingProceed(true);
             setShowDurationPrompt(false);
         }
-
-
-    }, [remainingSeconds, activeTask, updateTasks]);
+    }, [remainingSeconds, activeTask, updateTasks, mode]);
 
     useEffect(() => {
         const fetchUser = async () => {

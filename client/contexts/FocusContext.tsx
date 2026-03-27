@@ -70,6 +70,15 @@ type FocusSessionSnapshot = {
     remainingSeconds: number;
     isRunning: boolean;
     savedAt: number;
+    sessionStartedAt?: string | null;
+    associatedGoalId?: string | null;
+    associatedGoalTitle?: string | null;
+};
+
+type ActiveFocusSession = {
+    startedAt: string;
+    plannedDurationMinutes: number;
+    associatedGoalId: string | null;
 };
 
 export function FocusProvider({ children }: { children: React.ReactNode }) {
@@ -110,7 +119,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const isRunningRef = useRef(isRunning);
     const modeRef = useRef(mode);
     const lastTickRef = useRef<number>(Date.now());
-    const loggedFocusSecondsRef = useRef(0);
+    const activeFocusSessionRef = useRef<ActiveFocusSession | null>(null);
 
     // PiP
     const [isPiPActive, setIsPiPActive] = useState(false);
@@ -208,6 +217,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 remainingSeconds: recoveredRemaining,
                 isRunning: wasRunning,
                 savedAt: Date.now(),
+                sessionStartedAt: parsed.sessionStartedAt || null,
+                associatedGoalId: parsed.associatedGoalId || null,
+                associatedGoalTitle: parsed.associatedGoalTitle || null,
             });
         } catch {
             // Ignore invalid snapshots
@@ -237,6 +249,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                     remainingSeconds,
                     isRunning,
                     savedAt: Date.now(),
+                    sessionStartedAt: activeFocusSessionRef.current?.startedAt || null,
+                    associatedGoalId,
+                    associatedGoalTitle,
                 };
                 sessionStorage.setItem(FOCUS_SESSION_SNAPSHOT_KEY, JSON.stringify(snapshot));
             } catch {
@@ -245,7 +260,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         }, 350);
 
         return () => window.clearTimeout(timer);
-    }, [mode, totalSeconds, remainingSeconds, isRunning, pendingResumeSnapshot]);
+    }, [mode, totalSeconds, remainingSeconds, isRunning, pendingResumeSnapshot, associatedGoalId, associatedGoalTitle]);
 
     // Sync refs
     useEffect(() => {
@@ -301,6 +316,15 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         if (snapshot.mode === "short") setBreakDuration(modeMinutes);
         if (snapshot.mode === "long") setLongBreakDuration(modeMinutes);
 
+        setAssociatedGoal(snapshot.associatedGoalId || null, snapshot.associatedGoalTitle || null);
+        activeFocusSessionRef.current = snapshot.mode === "Timer"
+            ? {
+                startedAt: snapshot.sessionStartedAt || new Date(Date.now() - Math.max(0, snapshot.totalSeconds - snapshot.remainingSeconds) * 1000).toISOString(),
+                plannedDurationMinutes: Math.max(1, Math.round(snapshot.totalSeconds / 60)),
+                associatedGoalId: snapshot.associatedGoalId || null,
+            }
+            : null;
+
         if (snapshot.isRunning && snapshot.remainingSeconds > 0) {
             isRunningRef.current = true;
             setIsRunning(true);
@@ -311,10 +335,11 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         }
 
         setPendingResumeSnapshot(null);
-    }, [pendingResumeSnapshot]);
+    }, [pendingResumeSnapshot, setAssociatedGoal]);
 
     const discardStoredSession = useCallback(() => {
         setPendingResumeSnapshot(null);
+        activeFocusSessionRef.current = null;
         try {
             sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
         } catch {
@@ -387,32 +412,48 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    const flushFocusProgress = useCallback((opts?: { completed?: boolean; interrupted?: boolean }) => {
+    const ensureActiveFocusSession = useCallback(() => {
+        if (modeRef.current !== "Timer") return;
+        if (activeFocusSessionRef.current) return;
+
+        activeFocusSessionRef.current = {
+            startedAt: new Date(Date.now() - Math.max(0, totalSecondsRef.current - remainingSecondsRef.current) * 1000).toISOString(),
+            plannedDurationMinutes: Math.max(1, Math.round(totalSecondsRef.current / 60)),
+            associatedGoalId: associatedGoalIdRef.current,
+        };
+    }, []);
+
+    const finalizeFocusSession = useCallback((opts?: { completed?: boolean; interrupted?: boolean }) => {
         if (modeRef.current !== "Timer") return;
 
+        const activeSession = activeFocusSessionRef.current;
+        if (!activeSession) return;
+
         const elapsedSeconds = Math.max(0, totalSecondsRef.current - remainingSecondsRef.current);
-        const unloggedSeconds = Math.max(0, elapsedSeconds - loggedFocusSecondsRef.current);
-        const minutesToLog = Math.floor(unloggedSeconds / 60);
+        const actualDurationMinutes = Math.floor(elapsedSeconds / 60);
+        if (actualDurationMinutes <= 0) {
+            activeFocusSessionRef.current = null;
+            return;
+        }
 
-        if (minutesToLog <= 0) return;
+        const payload = {
+            plannedDurationMinutes: activeSession.plannedDurationMinutes,
+            actualDurationMinutes,
+            breakMinutes: 0,
+            completed: Boolean(opts?.completed),
+            interrupted: Boolean(opts?.interrupted),
+            associatedGoalId: activeSession.associatedGoalId || undefined,
+            startedAt: activeSession.startedAt,
+            completedAt: new Date().toISOString(),
+        };
 
-        // Keep second-level remainder so future flushes only send new full minutes.
-        loggedFocusSecondsRef.current += minutesToLog * 60;
+        activeFocusSessionRef.current = null;
 
-        const goalId = associatedGoalIdRef.current;
-        import("@/utils/focusService").then(({ focusService }) => {
-            return focusService.logSession({
-                durationMinutes: minutesToLog,
-                breakMinutes: 0,
-                completed: Boolean(opts?.completed),
-                interrupted: Boolean(opts?.interrupted),
-                associatedGoalId: goalId || undefined,
+        import("@/utils/focusService")
+            .then(({ focusService }) => focusService.logSession(payload))
+            .catch((error) => {
+                console.error("Focus session log failed:", error);
             });
-        }).catch((error) => {
-            console.error("Focus session checkpoint log failed:", error);
-            // Roll back so we can retry on the next flush.
-            loggedFocusSecondsRef.current = Math.max(0, loggedFocusSecondsRef.current - minutesToLog * 60);
-        });
     }, []);
 
     // Timer interval with timestamp catch-up. This is more resilient on iPad/backgrounded tabs.
@@ -450,7 +491,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     // Timer Completion Detection
     useEffect(() => {
         if (remainingSeconds === 0 && isRunning) {
-            flushFocusProgress({ completed: true, interrupted: false });
+            finalizeFocusSession({ completed: true, interrupted: false });
             setIsRunning(false);
 
             // 🔔 Play notification sound for ALL modes (pomodoro, short break, long break)
@@ -471,17 +512,11 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             } catch { /* ignore */ }
 
         }
-    }, [remainingSeconds, isRunning, setMusicPlaying, flushFocusProgress]);
+    }, [remainingSeconds, isRunning, setMusicPlaying, finalizeFocusSession]);
 
     // Visibility Change explicitly for catching up on Mobile
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (document.hidden && isRunningRef.current) {
-                // Persist elapsed minutes immediately when app moves to background.
-                flushFocusProgress({ completed: false, interrupted: false });
-                return;
-            }
-
             if (!document.hidden && isRunningRef.current) {
                 // Instantly catch up timer when tab is visible again
                 handleTick();
@@ -494,25 +529,15 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             }
         };
 
-        const handlePageHide = () => {
-            if (isRunningRef.current) {
-                flushFocusProgress({ completed: false, interrupted: false });
-            }
-        };
-
         document.addEventListener("visibilitychange", handleVisibilityChange);
         window.addEventListener("focus", handleFocus);
         window.addEventListener("pageshow", handleFocus);
-        window.addEventListener("pagehide", handlePageHide);
-        window.addEventListener("beforeunload", handlePageHide);
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
             window.removeEventListener("focus", handleFocus);
             window.removeEventListener("pageshow", handleFocus);
-            window.removeEventListener("pagehide", handlePageHide);
-            window.removeEventListener("beforeunload", handlePageHide);
         };
-    }, [handleTick, flushFocusProgress]);
+    }, [handleTick]);
 
     // PiP Draw Loop
     const drawToCanvas = useCallback(() => {
@@ -741,6 +766,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
     const startTimer = useCallback(() => {
         if (remainingSecondsRef.current <= 0) return;
+        ensureActiveFocusSession();
         isRunningRef.current = true;
         setIsRunning(true);
         setMusicPlaying(true);
@@ -750,15 +776,14 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         if (!isPiPActiveRef.current && document.pictureInPictureEnabled) {
             togglePiPRef.current().catch(() => { /* fallback handlers can retry */ });
         }
-    }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady]);
+    }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady, ensureActiveFocusSession]);
 
     const pauseTimer = useCallback(() => {
-        flushFocusProgress({ completed: false, interrupted: true });
         isRunningRef.current = false;
         setIsRunning(false);
         setMusicPlaying(false);
         syncPiPVideoPlayback(false);
-    }, [setMusicPlaying, syncPiPVideoPlayback, flushFocusProgress]);
+    }, [setMusicPlaying, syncPiPVideoPlayback]);
 
     // PiP Toggle
     const togglePiP = useCallback(async () => {
@@ -1011,16 +1036,21 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, [pauseTimer, startTimer]);
 
     const resetTimer = useCallback(() => {
-        flushFocusProgress({ completed: false, interrupted: true });
+        finalizeFocusSession({ completed: false, interrupted: true });
 
         isRunningRef.current = false;
         setIsRunning(false);
         setMusicPlaying(false);
         setRemainingSeconds(totalSeconds);
-        loggedFocusSecondsRef.current = 0;
-    }, [totalSeconds, setMusicPlaying, flushFocusProgress]);
+    }, [totalSeconds, setMusicPlaying, finalizeFocusSession]);
 
     const handleSetMode = useCallback((newMode: FocusMode) => {
+        if (newMode === modeRef.current) return;
+
+        if (modeRef.current === "Timer" && activeFocusSessionRef.current) {
+            finalizeFocusSession({ completed: false, interrupted: true });
+        }
+
         setMode(newMode);
         let duration = 25;
         if (newMode === "Timer") duration = timerDuration;
@@ -1031,19 +1061,20 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setRemainingSeconds(duration * 60);
         setIsRunning(false);
         setMusicPlaying(false);
-        loggedFocusSecondsRef.current = 0;
-    }, [timerDuration, breakDuration, longBreakDuration, setMusicPlaying]);
+    }, [timerDuration, breakDuration, longBreakDuration, setMusicPlaying, finalizeFocusSession]);
 
     const handleSetTimerDuration = useCallback((mins: number) => {
         setTimerDuration(mins);
         if (mode === "Timer") {
+            if (activeFocusSessionRef.current) {
+                finalizeFocusSession({ completed: false, interrupted: true });
+            }
             setTotalSeconds(mins * 60);
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
             setMusicPlaying(false);
-            loggedFocusSecondsRef.current = 0;
         }
-    }, [mode, setMusicPlaying]);
+    }, [mode, setMusicPlaying, finalizeFocusSession]);
 
     const handleSetBreakDuration = useCallback((mins: number) => {
         setBreakDuration(mins);
@@ -1052,7 +1083,6 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
             setMusicPlaying(false);
-            loggedFocusSecondsRef.current = 0;
         }
     }, [mode, setMusicPlaying]);
 
@@ -1063,7 +1093,6 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
             setMusicPlaying(false);
-            loggedFocusSecondsRef.current = 0;
         }
     }, [mode, setMusicPlaying]);
 

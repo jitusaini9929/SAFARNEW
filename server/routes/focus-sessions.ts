@@ -35,13 +35,19 @@ function invalidateFocusStatsCache(userId: string) {
     focusStatsCache.delete(userId);
 }
 
-// Log a completed focus session
+const ACTUAL_DURATION_EXPR = { $ifNull: ['$actual_duration_minutes', '$duration_minutes'] };
+const BREAK_DURATION_EXPR = { $ifNull: ['$break_minutes', 0] };
+
+// Log a single completed or interrupted focus session.
 router.post('/', requireAuth, async (req: Request, res) => {
     try {
         const {
-            durationMinutes,
+            plannedDurationMinutes,
+            actualDurationMinutes,
             breakMinutes,
             completed,
+            startedAt,
+            completedAt,
             associatedGoalId,
             interrupted,
             preStudyMood,
@@ -50,30 +56,43 @@ router.post('/', requireAuth, async (req: Request, res) => {
         } = req.body;
         const id = uuid();
         const now = new Date();
-        const dateKey = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
+        const startedAtDate = startedAt ? new Date(startedAt) : now;
+        const completedAtDate = completedAt ? new Date(completedAt) : now;
+        const safeStartedAt = Number.isFinite(startedAtDate.getTime()) ? startedAtDate : now;
+        const safeCompletedAt = Number.isFinite(completedAtDate.getTime()) ? completedAtDate : now;
+        const dateKey = new Date(safeCompletedAt.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
         const completedBool = completed ? true : false;
         const interruptedBool = interrupted ? true : false;
+        const plannedMinutes = Math.max(0, Math.round(Number(plannedDurationMinutes || 0)));
+        const actualMinutes = Math.max(0, Math.round(Number(actualDurationMinutes || 0)));
+        const breakMinutesValue = Math.max(0, Math.round(Number(breakMinutes || 0)));
+
+        if (actualMinutes <= 0) {
+            return res.status(400).json({ message: 'actualDurationMinutes must be greater than 0' });
+        }
 
         await collections.focusSessions().insertOne({
             id,
             user_id: req.session.userId,
-            duration_minutes: durationMinutes,
-            break_minutes: breakMinutes || 0,
+            duration_minutes: actualMinutes,
+            actual_duration_minutes: actualMinutes,
+            planned_duration_minutes: plannedMinutes || actualMinutes,
+            break_minutes: breakMinutesValue,
             completed: completedBool,
             associated_goal_id: associatedGoalId || null,
             interrupted: interruptedBool,
-            started_at: now,
-            completed_at: now,
+            started_at: safeStartedAt,
+            completed_at: safeCompletedAt,
         });
 
         await collections.focusSessionLogs().insertOne({
             id: uuid(),
             user_id: req.session.userId,
-            duration_minutes: durationMinutes,
+            duration_minutes: actualMinutes,
             associated_goal_id: associatedGoalId || null,
             interrupted: interruptedBool,
             completed: completedBool,
-            timestamp: now,
+            timestamp: safeCompletedAt,
             date_key: dateKey,
             created_at: new Date(),
         });
@@ -85,7 +104,7 @@ router.post('/', requireAuth, async (req: Request, res) => {
                 mood_score: Number.isFinite(Number(moodScore)) ? Number(moodScore) : null,
                 pre_study_mood: preStudyMood || null,
                 post_study_mood: postStudyMood || null,
-                timestamp: now,
+                timestamp: safeCompletedAt,
                 date_key: dateKey,
                 source: 'focus_session',
                 created_at: new Date(),
@@ -118,8 +137,8 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             {
                 $group: {
                     _id: null,
-                    total_focus_minutes: { $sum: '$duration_minutes' },
-                    total_break_minutes: { $sum: '$break_minutes' },
+                    total_focus_minutes: { $sum: ACTUAL_DURATION_EXPR },
+                    total_break_minutes: { $sum: BREAK_DURATION_EXPR },
                     total_sessions: { $sum: 1 },
                     completed_sessions: {
                         $sum: { $cond: [{ $eq: ['$completed', true] }, 1, 0] }
@@ -136,14 +155,13 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             {
                 $match: {
                     user_id: userId,
-                    completed: true,
                     completed_at: { $gte: sevenDaysAgo }
                 }
             },
             {
                 $group: {
                     _id: { $dayOfWeek: { date: '$completed_at', timezone: '+05:30' } },
-                    minutes: { $sum: '$duration_minutes' }
+                    minutes: { $sum: ACTUAL_DURATION_EXPR }
                 }
             }
         ];
@@ -162,14 +180,13 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             {
                 $match: {
                     user_id: userId,
-                    completed: true,
                     completed_at: { $gte: sevenDaysAgo }
                 }
             },
             {
                 $group: {
                     _id: { $dayOfWeek: { date: '$completed_at', timezone: '+05:30' } },
-                    minutes: { $sum: '$break_minutes' }
+                    minutes: { $sum: BREAK_DURATION_EXPR }
                 }
             }
         ];
@@ -231,11 +248,11 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
         const goals = goalsResult[0] || { total_goals: 0, completed_goals: 0 };
 
         const hourlyPipeline = [
-            { $match: { user_id: userId, completed: true } },
+            { $match: { user_id: userId } },
             {
                 $group: {
                     _id: { $hour: { date: '$completed_at', timezone: '+05:30' } },
-                    minutes: { $sum: '$duration_minutes' }
+                    minutes: { $sum: ACTUAL_DURATION_EXPR }
                 }
             }
         ];
@@ -253,9 +270,9 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             .toArray();
         const recentSessions = recentSessionsRaw.map((session) => ({
             id: session.id,
-            startedAt: session.started_at,
-            durationMinutes: session.duration_minutes || 0,
-            actualMinutes: session.duration_minutes || 0,
+            startedAt: session.started_at || session.completed_at,
+            durationMinutes: session.planned_duration_minutes || session.duration_minutes || 0,
+            actualMinutes: session.actual_duration_minutes || session.duration_minutes || 0,
             completed: Boolean(session.completed),
             taskText: null,
         }));
@@ -305,7 +322,7 @@ router.get('/by-goal/:goalId', requireAuth, async (req: Request, res) => {
             {
                 $group: {
                     _id: null,
-                    totalMinutes: { $sum: '$duration_minutes' },
+                    totalMinutes: { $sum: ACTUAL_DURATION_EXPR },
                     sessionCount: { $sum: 1 },
                 },
             },
@@ -361,7 +378,7 @@ router.post('/by-goals', requireAuth, async (req: Request, res) => {
             {
                 $group: {
                     _id: '$associated_goal_id',
-                    totalMinutes: { $sum: '$duration_minutes' },
+                    totalMinutes: { $sum: ACTUAL_DURATION_EXPR },
                     sessionCount: { $sum: 1 },
                 },
             },
