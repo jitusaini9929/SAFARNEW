@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import BreathingVisualizer from "@/components/meditation/BreathingVisualizer";
 import meditationBg from "@/assets/meditation-bg.jpg";
 import { authService } from "@/utils/authService";
@@ -117,6 +118,22 @@ const sessions: Session[] = [
         ],
         cycle: { inhale: 4, holdIn: 7, exhale: 8, holdOut: 0 }
     },
+    {
+        id: "5",
+        title: "6-7-8 Breathing",
+        duration: 6,
+        description: "A slower inhale variation for deeper calm.",
+        longDescription: "This extended breathing cycle is helpful when you want a gentler, deeper inhale before the long calming exhale.",
+        type: "breathing",
+        steps: [
+            "Sit comfortably with your spine tall and shoulders relaxed.",
+            "Inhale slowly through your nose for 6 seconds.",
+            "Hold your breath for 7 seconds.",
+            "Exhale gently through your mouth for 8 seconds.",
+            "Repeat for several rounds while keeping your breath smooth."
+        ],
+        cycle: { inhale: 6, holdIn: 7, exhale: 8, holdOut: 0 }
+    },
 ];
 
 
@@ -154,6 +171,7 @@ const defaultDhyanSession: Session = {
 };
 
 export default function Meditation() {
+    const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
     const [selectedSession, setSelectedSession] = useState<Session>(defaultDhyanSession);
     const [isActive, setIsActive] = useState(false);
@@ -516,204 +534,141 @@ export default function Meditation() {
     // We will inject the slider into that center piece.
 
     return (
-        <div className="min-h-[100dvh] lg:h-[100dvh] flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-[#0a0a0f] dark:to-[#0f0f17] transition-colors duration-500 font-sans overflow-x-hidden lg:overflow-hidden">
+        <div className="min-h-[100dvh] bg-[#0e0e0f] text-white font-['Manrope',sans-serif] overflow-x-hidden">
             <audio ref={audioRef} src="/Dhyan_processed.mp3" loop />
-            
-            {/* Header */}
-            <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-200/50 dark:border-white/5 relative z-20">
-                <button
-                    onClick={() => setIsGlobalSidebarOpen(true)}
-                    className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
-                >
-                    <Menu className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-                </button>
-                <div className="flex items-center gap-2">
-                    <span className="text-xl font-serif italic tracking-wide text-slate-900 dark:text-white">Meditation</span>
-                </div>
+
+            <GlobalSidebar isOpen={isGlobalSidebarOpen} onClose={() => setIsGlobalSidebarOpen(false)} homeRoute="/home" />
+
+            {/* Desktop Navigation Rail */}
+            <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-24 z-40 flex-col items-center py-8 bg-[#131314] border-r border-[#1f2022]">
+                <button onClick={() => navigate("/home")} className="mb-12 text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#94aaff] to-[#9c8fff] font-serif">D</button>
+                <nav className="flex flex-col gap-3">
+                    <button onClick={() => navigate("/home")} className="flex flex-col items-center p-3 text-[#adaaab] hover:text-[#94aaff] hover:bg-[#1a191b] rounded-2xl transition-colors">
+                        <Home className="w-5 h-5" />
+                        <span className="text-[10px] mt-1">Home</span>
+                    </button>
+                    <button className="flex flex-col items-center p-3 bg-[#94aaff]/10 text-[#94aaff] rounded-2xl">
+                        <Wind className="w-5 h-5" />
+                        <span className="text-[10px] mt-1">Meditate</span>
+                    </button>
+                    <button onClick={() => navigate("/study")} className="flex flex-col items-center p-3 text-[#adaaab] hover:text-[#94aaff] hover:bg-[#1a191b] rounded-2xl transition-colors">
+                        <Clock className="w-5 h-5" />
+                        <span className="text-[10px] mt-1">Focus</span>
+                    </button>
+                    <button onClick={() => navigate("/mehfil")} className="flex flex-col items-center p-3 text-[#adaaab] hover:text-[#94aaff] hover:bg-[#1a191b] rounded-2xl transition-colors">
+                        <Music className="w-5 h-5" />
+                        <span className="text-[10px] mt-1">Music</span>
+                    </button>
+                    <button onClick={() => navigate("/profile")} className="flex flex-col items-center p-3 text-[#adaaab] hover:text-[#94aaff] hover:bg-[#1a191b] rounded-2xl transition-colors">
+                        <Heart className="w-5 h-5" />
+                        <span className="text-[10px] mt-1">Profile</span>
+                    </button>
+                </nav>
+            </aside>
+
+            {/* Top App Bar */}
+            <header className="fixed top-0 right-0 left-0 lg:left-24 z-50 h-20 px-5 md:px-10 flex items-center justify-between bg-[#0e0e0f]/70 backdrop-blur-xl border-b border-[#1f2022]">
                 <div className="flex items-center gap-3">
-                    <ThemeToggle />
-                    <div className="lg:hidden">
-                        {renderResourcesButton()}
+                    <button onClick={() => setIsGlobalSidebarOpen(true)} className="lg:hidden p-2 rounded-xl text-[#adaaab] hover:bg-[#1a191b]">
+                        <Menu className="w-5 h-5" />
+                    </button>
+                    <div>
+                        <h1 className="text-xl font-black text-[#94aaff] font-serif">Dhyan</h1>
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-[#adaaab]">Ethereal Sanctuary</p>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => startTour(meditationTour)}
-                        className="hidden lg:inline-flex gap-2"
-                    >
-                        <HelpCircle className="w-4 h-4" />
-                    </Button>
+                </div>
+                <div className="flex items-center gap-3 md:gap-5">
+                    <button onClick={() => setShowResources(true)} className="hidden md:inline-flex text-[#adaaab] hover:text-white transition-colors">
+                        <ExternalLink className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => startTour(meditationTour)} className="hidden md:inline-flex text-[#adaaab] hover:text-white transition-colors">
+                        <HelpCircle className="w-5 h-5" />
+                    </button>
+                    <ThemeToggle />
+                    <button onClick={() => navigate("/profile")} className="w-10 h-10 rounded-full overflow-hidden border border-[#303133]">
+                        <img src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuB5npty6FP7gsC2CXzNJGKrH5SVc4SAtVS17uc2x1SMxgl0g8_yXJ4DMEdh6jd-w6_sKyxVuKlKCjySSbksyfvsVf9MIO2bjXrQcCYGXxN6YoXvO2E5NlKdU_OpeIbAMb_MFdl3P8AOv-YKGFB2-Ecu1WDVk6EuxYoWrBITQMg3PjZEH1CWrdJHanEP6JynR7l3NYxUq9Lp4mDLGRzKXVOJunPsnLE2pzzRJC3904zD34jCL-PPCrxRH-M12_EvYLrHmPwMj5v9oIw"} alt="User profile avatar" className="w-full h-full object-cover" />
+                    </button>
                 </div>
             </header>
 
-            {/* ═══════════════════════════════════════════════════════ */}
-            {/* 3-COLUMN LAYOUT                                       */}
-            {/* ═══════════════════════════════════════════════════════ */}
-            <main className="flex-1 flex overflow-x-hidden overflow-y-visible lg:overflow-y-auto relative z-10">
-
-                {/* Active Session Modal Overlay - Full Screen Adaptive */}
-                {isModalOpen && (
-                    <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-[#0a0a0f] animate-in fade-in duration-300 flex flex-col h-[100dvh] w-screen overflow-hidden">
-                        {/* Close / Stop Button */}
-                        <button
-                            onClick={() => { setIsModalOpen(false); setIsActive(false); handleReset(); }}
-                            className="absolute top-4 right-4 md:top-6 md:right-6 z-50 p-3 rounded-full bg-white dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-500/20 text-slate-400 hover:text-red-500 transition-all shadow-sm"
-                        >
-                            <X className="w-6 h-6" />
-                        </button>
-
-                        {/* Main Content Container with safe area padding */}
-                        <div className="flex-1 flex flex-col items-center h-full w-full relative pt-12 pb-6 px-4 md:py-8">
-
-                            {/* Background Ambience */}
-                            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                                <div className="absolute top-1/4 left-1/4 w-[40rem] h-[40rem] bg-indigo-500/5 rounded-full blur-3xl opacity-50" />
-                                <div className="absolute bottom-1/4 right-1/4 w-[40rem] h-[40rem] bg-blue-500/5 rounded-full blur-3xl opacity-50" />
+            <main className="pt-24 pb-28 lg:pb-32 px-4 md:px-8 lg:ml-24 min-h-screen">
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 xl:gap-10">
+                    {/* Left Column */}
+                    <section className="xl:col-span-3 space-y-6">
+                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-5">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-[11px] uppercase tracking-[0.18em] text-[#adaaab] font-bold">Daily Practice</h3>
+                                <span className="text-[10px] text-[#81ecff] uppercase tracking-widest">Live</span>
                             </div>
-
-                            {/* 1. Header Section - Always at top */}
-                            <div className="flex-none text-center space-y-1 md:space-y-2 z-10 mb-4 md:mb-8 w-full max-w-4xl mx-auto px-6">
-                                <h2 className="text-2xl md:text-3xl lg:text-4xl font-serif italic text-slate-800 dark:text-white tracking-tight">{selectedSession.title}</h2>
-                                <p className="text-sm md:text-base text-slate-500 dark:text-slate-400 max-w-lg mx-auto line-clamp-2 md:line-clamp-none font-medium italic opacity-80">{selectedSession.description}</p>
+                            <div className="space-y-3">
+                                {sessions.slice(0, 5).map((session) => (
+                                    <button
+                                        key={session.id}
+                                        onClick={() => handleCardClick(session)}
+                                        className={`w-full text-left rounded-2xl p-4 border transition-all ${selectedSession.id === session.id ? "bg-[#94aaff]/10 border-[#94aaff]/40" : "bg-[#1a191b] border-transparent hover:border-[#3b3c3d]"}`}
+                                    >
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Wind className={`w-4 h-4 ${selectedSession.id === session.id ? "text-[#81ecff]" : "text-[#adaaab]"}`} />
+                                            <span className="text-[10px] uppercase tracking-wider text-[#adaaab]">{session.duration} min</span>
+                                        </div>
+                                        <p className="font-semibold text-sm text-white">{session.title}</p>
+                                        <p className="text-xs text-[#adaaab] mt-1 line-clamp-2">{session.description}</p>
+                                    </button>
+                                ))}
                             </div>
+                        </div>
 
-                            <div className="flex-1 w-full flex relative z-10 min-h-0 transition-all duration-500 flex-col items-center justify-between">
-
-                                {/* 2. Visualizer Section */}
-                                <div className="flex items-center justify-center transition-all duration-500 flex-1 w-full order-1">
-                                    {/* Wrapper for scaling */}
-                                    <div className="transform transition-transform duration-500 scale-90 sm:scale-100 md:scale-125 lg:scale-150 origin-center">
-                                        <BreathingVisualizer
-                                            sessionId={selectedSession.id}
-                                            breathPhase={breathPhase}
-                                            isActive={isActive}
-                                            cycle={selectedSession.cycle}
-                                        />
-                                    </div>
+                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-5 space-y-4">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-[#adaaab] font-bold">Atmosphere</p>
+                            <button onClick={() => setIsMuted(!isMuted)} className="w-full flex items-center justify-between rounded-xl bg-[#1f1f20] px-4 py-3 hover:bg-[#242526] transition-colors">
+                                <div className="flex items-center gap-3 text-sm">
+                                    {isMuted ? <VolumeX className="w-4 h-4 text-[#94aaff]" /> : <Volume2 className="w-4 h-4 text-[#94aaff]" />}
+                                    <span>{isMuted ? "Sound Muted" : "White Noise"}</span>
                                 </div>
-
-                                {/* 3. Controls Section */}
-                                <div className="flex flex-col items-center gap-4 md:gap-6 w-full max-w-md transition-all duration-500 flex-none order-2 pb-4 md:pb-8">
-
-                                    {/* Phase Label - Elevated Tonal Shift */}
-                                    <div className="text-center w-full md:w-auto">
-                                        <span className={`inline-block px-7 py-2.5 rounded-full text-lg md:text-xl font-black tracking-[0.15em] transition-all duration-500 shadow-xl backdrop-blur-md
-                                            ${breathPhase === 'inhale' ? 'bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-500/20' :
-                                                breathPhase === 'exhale' ? 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500/20' :
-                                                    'bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/20'}`}
-                                        >
-                                            {breathPhase === 'inhale' ? 'INHALE' : breathPhase === 'exhale' ? 'EXHALE' : 'HOLD'}
-                                        </span>
-                                    </div>
-
-                                    <div className="text-5xl md:text-7xl font-light text-slate-800 dark:text-white font-mono tracking-widest tabular-nums w-full md:w-auto text-center md:text-left">
-                                        {formatTime(timeLeft)}
-                                    </div>
-
-                                    {/* Progress Bar */}
-                                    <div className="w-full max-w-xs h-1.5 bg-slate-200 dark:bg-slate-800/80 rounded-full overflow-hidden backdrop-blur-sm">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000"
-                                            style={{ width: `${progress}%` }}
-                                        />
-                                    </div>
-
-                                    {/* Controls Buttons */}
-                                    <div className="flex items-center justify-center gap-8 md:gap-10 mt-2 w-full md:w-auto">
-                                        <button
-                                            onClick={handleReset}
-                                            className="p-4 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 border border-slate-100 dark:border-white/5"
-                                        >
-                                            <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
-                                        </button>
-                                        <button
-                                            onClick={() => setIsActive(!isActive)}
-                                            className={`p-6 md:p-7 rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95 duration-500
-                                                ${isActive
-                                                    ? "bg-amber-500 text-white shadow-amber-500/40 hover:shadow-amber-500/60"
-                                                    : "bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-blue-500/40 hover:shadow-blue-500/60 ring-2 ring-white/20"
-                                                }`}
-                                        >
-                                            {isActive ? <Pause className="w-8 h-8 md:w-9 md:h-9 fill-current" /> : <Play className="w-8 h-8 md:w-9 md:h-9 fill-current ml-1" />}
-                                        </button>
-                                        <button
-                                            onClick={() => setIsMuted(!isMuted)}
-                                            className="p-4 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 border border-slate-100 dark:border-white/5"
-                                        >
-                                            {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
-                                        </button>
-                                    </div>
+                                <span className="text-[#adaaab] text-xs uppercase tracking-widest">{isMuted ? "Off" : "On"}</span>
+                            </button>
+                            <button onClick={() => setShowResources(true)} className="w-full flex items-center justify-between rounded-xl bg-[#1f1f20] px-4 py-3 hover:bg-[#242526] transition-colors">
+                                <div className="flex items-center gap-3 text-sm">
+                                    <Image className="w-4 h-4 text-[#94aaff]" />
+                                    <span>Visual Guidance</span>
                                 </div>
+                                <ExternalLink className="w-4 h-4 text-[#adaaab]" />
+                            </button>
+                        </div>
+                    </section>
+
+                    {/* Center Column */}
+                    <section className="xl:col-span-6 flex flex-col items-center text-center">
+                        <div className="mt-4 space-y-2">
+                            <p className="text-[#94aaff] font-bold text-xs uppercase tracking-[0.4em]">Current Journey</p>
+                            <h2 className="text-5xl md:text-7xl font-serif font-black tracking-tight">Dhyan</h2>
+                            <p className="text-[#adaaab] italic text-sm md:text-lg">"Silence is the language of God."</p>
+                        </div>
+
+                        <div className="relative mt-8 w-[280px] h-[280px] md:w-[420px] md:h-[420px] flex items-center justify-center">
+                            <div className="absolute inset-0 rounded-full bg-[#94aaff]/10 blur-[80px]" />
+                            <div className="absolute inset-4 rounded-full border border-[#3b3c3d] overflow-hidden">
+                                <img src={meditationBg} alt="Meditation focus" className="w-full h-full object-cover opacity-60" />
                             </div>
-                        </div>
-                    </div>
-                )}
 
-                {/* ═══ LEFT SIDEBAR ═══════ */}
-                <aside className="hidden lg:flex flex-col w-[406px] min-w-[406px] border-r border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0d0d14]/60 backdrop-blur-sm p-5 gap-5">
-                    {/* Course Banner with In-App Payment */}
-                    <CourseBanner
-                        user={user ? { name: user.name, email: user.email } : null}
-                        courseId="safar-30"
-                    />
-
-                    <div className="flex-1 overflow-hidden flex flex-col">
-                        {renderMeditationVideoCard("meditation-video-url-desktop", "flex-1 mb-0 backdrop-blur-xl bg-white/30 dark:bg-white/5 border-none shadow-sm")}
-                    </div>
-                </aside>
-
-                {/* ═══ CENTER CONTENT ═══════ */}
-                <section className="flex-1 flex flex-col items-center justify-start lg:justify-center relative overflow-visible lg:overflow-hidden px-4 md:px-6 py-4 lg:py-0">
-                    {/* Background Image — very subtle */}
-                    <div className="absolute inset-0 opacity-[0.06] dark:opacity-[0.03] pointer-events-none select-none">
-                        <img loading="lazy" src={meditationBg} alt="" className="w-full h-full object-cover scale-110 blur-sm" />
-                    </div>
-
-                    {/* Floating Gradient Orbs */}
-                    <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-400/10 dark:bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-                    <div className="absolute bottom-1/4 right-1/4 w-72 h-72 bg-indigo-400/10 dark:bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-sky-300/5 dark:bg-sky-500/3 rounded-full blur-3xl pointer-events-none" />
-
-                    {/* Center Content */}
-                    <div className="relative z-10 flex flex-col items-center gap-5 md:gap-7 max-w-md md:max-w-2xl w-full pb-24 lg:pb-0">
-                        <div className="lg:hidden w-full">
-                            {renderMeditationVideoCard("meditation-video-url-mobile", "mb-4 backdrop-blur-xl bg-white/30 dark:bg-white/5 border-none")}
+                            <button
+                                data-tour="play-button"
+                                onClick={() => setIsActive(!isActive)}
+                                className="absolute z-20 w-24 h-24 rounded-full bg-gradient-to-br from-[#94aaff] to-[#9c8fff] flex items-center justify-center shadow-[0_0_40px_rgba(148,170,255,0.45)] hover:scale-105 active:scale-95 transition-transform"
+                            >
+                                {isActive ? <Pause className="w-10 h-10 text-black" /> : <Play className="w-10 h-10 text-black ml-1" />}
+                            </button>
                         </div>
 
-                        {/* Meditation Image */}
-                        <div className="relative md:mt-2">
-                            <div className="absolute inset-0 bg-gradient-to-b from-blue-400/20 to-transparent rounded-[3rem] blur-3xl scale-150 opacity-50" />
-                            <img loading="lazy"
-                                src={meditationBg}
-                                alt="Meditation"
-                                className="relative w-56 h-32 md:w-[28rem] md:h-56 object-cover object-top rounded-3xl md:rounded-[2.5rem] shadow-2xl shadow-blue-500/10 dark:shadow-blue-900/20 border border-white/10 animate-[pulse_6s_ease-in-out_infinite]"
-                                style={{ filter: 'contrast(1.05) brightness(1.02)' }}
-                            />
-                        </div>
+                        <div data-tour="timer-display" className="mt-8 space-y-3 w-full max-w-lg">
+                            <div className="text-6xl md:text-8xl font-light font-mono tracking-wider tabular-nums">{formatTime(timeLeft)}</div>
+                            <p className="text-[#adaaab] text-[11px] uppercase tracking-[0.2em]">{breathPhase === "inhale" ? "Inhale" : breathPhase === "exhale" ? "Exhale" : "Hold"}</p>
 
-                        {/* Session Section Description */}
-                        <div className="text-center mt-2 md:mt-3">
-                            <h2 className="text-4xl md:text-6xl font-serif italic font-medium text-slate-800 dark:text-white mb-3 tracking-tight">Dhyan</h2>
-                            <p className="text-sm md:text-lg text-slate-500 dark:text-slate-400 max-w-sm md:max-w-xl leading-relaxed italic font-medium opacity-80">A mindful space to breathe, relax, and restore inner calm through guided breathing techniques.</p>
-                        </div>
-
-                        {/* Timer Display */}
-                        <div data-tour="timer-display" className="text-center w-full">
-                            <div className="text-6xl md:text-8xl font-light text-slate-800 dark:text-white font-mono tracking-wider tabular-nums">
-                                {formatTime(timeLeft)}
-                            </div>
-                            <p className="text-slate-400 dark:text-slate-500 text-sm md:text-base font-medium mt-2 tracking-wide uppercase opacity-60">
-                                Press play to begin
-                            </p>
-
-                            {/* Slider Section - Only show for Dhyan Custom */}
                             {selectedSession.id === "dhyan-custom" && (
-                                <div className="mt-8 w-full max-w-xs md:max-w-sm mx-auto p-4 rounded-3xl bg-slate-100/50 dark:bg-white/5 backdrop-blur-sm">
-                                    <div className="flex items-center justify-between mb-3 px-1">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Session Length</span>
-                                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
-                                            {sliderValue} min
-                                        </span>
+                                <div className="rounded-2xl border border-[#2c2d2e] bg-[#161618] p-4 mx-auto max-w-sm">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-[10px] uppercase tracking-widest text-[#adaaab]">Session Length</span>
+                                        <span className="text-xs font-bold text-[#81ecff]">{sliderValue} min</span>
                                     </div>
                                     <input
                                         type="range"
@@ -722,196 +677,279 @@ export default function Meditation() {
                                         step="1"
                                         value={sliderValue}
                                         onChange={handleSliderChange}
-                                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-600"
+                                        className="w-full accent-[#94aaff]"
                                     />
-                                    <div className="flex justify-between mt-2 px-1 text-[9px] text-slate-400 font-bold uppercase tracking-tighter">
-                                        <span>1 min</span>
-                                        <span>60 min</span>
-                                    </div>
                                 </div>
                             )}
-                        </div>
 
-                        {/* Progress Bar */}
-                        <div className="w-64 md:w-80 h-1 md:h-1.5 bg-slate-200/80 dark:bg-slate-700/50 rounded-full overflow-hidden backdrop-blur-sm">
-                            <div
-                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000"
-                                style={{ width: `${progress}%` }}
-                            />
-                        </div>
-
-                        {/* Playback Controls */}
-                        <div className="flex items-center justify-center gap-8 md:gap-14 mt-2">
-                            <button
-                                data-tour="reset-button"
-                                onClick={handleReset}
-                                className="p-4 md:p-5 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 ring-1 ring-slate-200/50 dark:ring-white/5"
-                            >
-                                <RotateCcw className="w-5 h-5 md:w-6 md:h-6" />
-                            </button>
-                            <button
-                                data-tour="play-button"
-                                onClick={() => setIsActive(!isActive)}
-                                className={`p-8 md:p-10 rounded-full shadow-[0_0_50px_-12px_rgba(37,99,235,0.5)] transition-all hover:scale-110 active:scale-95 duration-500
-                                    ${isActive
-                                        ? "bg-amber-500 text-white shadow-amber-500/40 hover:shadow-amber-500/60"
-                                        : "bg-gradient-to-br from-blue-600 to-indigo-700 text-white hover:shadow-blue-500/60 ring-4 ring-white/10"
-                                    }`}
-                            >
-                                {isActive
-                                    ? <Pause className="w-10 h-10 md:w-12 md:h-12 fill-current" />
-                                    : <Play className="w-10 h-10 md:w-12 md:h-12 fill-current ml-1" />
-                                }
-                            </button>
-                            <button
-                                onClick={() => setIsMuted(!isMuted)}
-                                className="p-4 md:p-5 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all hover:scale-110 active:scale-95 ring-1 ring-slate-200/50 dark:ring-white/5"
-                            >
-                                {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
-                {/* ═══ RIGHT SIDEBAR ═══════ */}
-                <aside className="hidden lg:flex flex-col w-[406px] min-w-[406px] border-l border-slate-200/50 dark:border-white/5 bg-white/40 dark:bg-[#0d0d14]/60 backdrop-blur-sm p-5 overflow-hidden">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-serif italic font-medium text-slate-800 dark:text-white">Breathing Techniques</h3>
-                        <span className="text-[10px] uppercase tracking-widest font-bold text-slate-400">Library</span>
-                    </div>
-
-                    <div data-tour="technique-list" className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-                        {sessions.map((session) => (
-                            <div
-                                key={session.id}
-                                onClick={() => handleCardClick(session)}
-                                className={`group relative p-4 rounded-3xl transition-all duration-500 cursor-pointer overflow-hidden
-                                    ${selectedSession.id === session.id
-                                        ? 'bg-blue-50/70 dark:bg-blue-500/10 shadow-sm'
-                                        : 'bg-white/40 dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 active:bg-slate-100 dark:active:bg-white/20'
-                                    }`}
-                            >
-                                {/* Active Indicator Overlay */}
-                                {selectedSession.id === session.id && (
-                                    <div className="absolute inset-0 bg-blue-500/5 dark:bg-blue-400/5 pointer-events-none" />
-                                )}
-                                
-                                <div className="flex gap-4 items-start relative z-10">
-                                    <div className={`flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm
-                                        ${selectedSession.id === session.id
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-slate-100 dark:bg-white/5 text-slate-400 group-hover:text-blue-500'
-                                        }`}
-                                    >
-                                        <Wind className="w-5 h-5" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className={`font-bold text-sm leading-tight mb-1 transition-colors
-                                            ${selectedSession.id === session.id
-                                                ? 'text-blue-700 dark:text-blue-300'
-                                                : 'text-slate-900 dark:text-white'
-                                            }`}
-                                        >
-                                            {session.title}
-                                        </h4>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">{session.type}</span>
-                                            <span className="text-[10px] text-slate-300 dark:text-slate-600">•</span>
-                                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">{session.duration} min</span>
-                                        </div>
-                                        <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed line-clamp-2 italic font-medium">{session.description}</p>
-                                    </div>
-                                    {selectedSession.id === session.id && (
-                                        <div className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1.5 animate-pulse" />
-                                    )}
-                                </div>
+                            <div className="h-1.5 bg-[#262627] rounded-full overflow-hidden max-w-sm mx-auto">
+                                <div className="h-full bg-gradient-to-r from-[#94aaff] to-[#00d4ec]" style={{ width: `${progress}%` }} />
                             </div>
-                        ))}
-                    </div>
-                </aside>
+
+                            <div className="flex items-center justify-center gap-6 pt-2">
+                                <button data-tour="reset-button" onClick={handleReset} className="p-4 rounded-full bg-[#1a191b] hover:bg-[#242425] transition-colors border border-[#2f2f31]">
+                                    <RotateCcw className="w-5 h-5 text-[#adaaab]" />
+                                </button>
+                                <button onClick={() => setIsMuted(!isMuted)} className="p-4 rounded-full bg-[#1a191b] hover:bg-[#242425] transition-colors border border-[#2f2f31]">
+                                    {isMuted ? <VolumeX className="w-5 h-5 text-[#adaaab]" /> : <Volume2 className="w-5 h-5 text-[#adaaab]" />}
+                                </button>
+                                <button onClick={() => setShowInstructions(true)} className="p-4 rounded-full bg-[#1a191b] hover:bg-[#242425] transition-colors border border-[#2f2f31]">
+                                    <HelpCircle className="w-5 h-5 text-[#adaaab]" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mt-10 grid grid-cols-3 gap-8 text-center">
+                            <div>
+                                <p className="text-[#adaaab] text-[10px] uppercase tracking-widest">Duration</p>
+                                <p className="text-2xl font-serif">{formatTime(timeLeft)}</p>
+                            </div>
+                            <div>
+                                <p className="text-[#adaaab] text-[10px] uppercase tracking-widest">Session</p>
+                                <p className="text-2xl font-serif">{selectedSession.duration}m</p>
+                            </div>
+                            <div>
+                                <p className="text-[#adaaab] text-[10px] uppercase tracking-widest">Intensity</p>
+                                <p className="text-2xl font-serif">Deep</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Right Column */}
+                    <section className="xl:col-span-3 space-y-6">
+                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-4">
+                            {renderMeditationVideoCard("meditation-video-url-desktop", "bg-transparent border-0 shadow-none p-0")}
+                            <button
+                                onClick={() => setShowExercises(true)}
+                                className="mt-4 w-full py-3 rounded-full bg-[#1f2022] text-xs font-bold uppercase tracking-widest hover:bg-[#292a2d] transition-colors"
+                            >
+                                Expand Session
+                            </button>
+                        </div>
+
+                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-5">
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-sm font-semibold">Pulse Rate</p>
+                                <Sparkles className="w-4 h-4 text-[#81ecff]" />
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-4xl font-serif">62</span>
+                                <span className="text-[10px] uppercase text-[#adaaab] tracking-widest">BPM</span>
+                            </div>
+                        </div>
+
+                        <div className="rounded-[2rem] bg-[#161618] border border-[#262627] p-5 flex items-center justify-between">
+                            <div>
+                                <p className="font-semibold">Zen Streak</p>
+                                <p className="text-xs text-[#adaaab]">14 Days</p>
+                            </div>
+                            <div className="w-12 h-12 rounded-full bg-[#94aaff]/10 flex items-center justify-center">
+                                <Sparkles className="w-5 h-5 text-[#94aaff]" />
+                            </div>
+                        </div>
+                    </section>
+                </div>
             </main>
 
-            {/* Instruction Modal */}
+            {/* Desktop Mini Player */}
+            <footer className="hidden lg:flex fixed bottom-0 left-24 right-0 z-40 h-20 px-10 items-center justify-between bg-[#060607]/80 backdrop-blur-xl border-t border-[#222325]">
+                <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#2c2d2f]">
+                        <img src={meditationBg} alt="Track cover" className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold">Transcendental States</p>
+                        <p className="text-[10px] uppercase tracking-widest text-[#adaaab]">Safar Soundscapes</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-6">
+                    <button onClick={handleReset} className="text-[#adaaab] hover:text-white"><RotateCcw className="w-5 h-5" /></button>
+                    <button onClick={() => setIsActive(!isActive)} className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center">
+                        {isActive ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                    </button>
+                    <button onClick={() => setIsMuted(!isMuted)} className="text-[#adaaab] hover:text-white">{isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</button>
+                </div>
+                <div className="flex items-center gap-3 w-64">
+                    <span className="text-[10px] font-bold text-[#adaaab]">{formatTime(Math.max(0, (selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60 - timeLeft))}</span>
+                    <div className="flex-1 h-1 bg-[#262627] rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-[#94aaff] to-[#9c8fff]" style={{ width: `${progress}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold text-[#adaaab]">{formatTime((selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60)}</span>
+                </div>
+            </footer>
+
+            {/* Fullscreen Active Session */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 bg-[#0e0e0f] animate-in fade-in duration-300 flex flex-col h-[100dvh] w-screen overflow-hidden">
+                    <button
+                        onClick={() => { setIsModalOpen(false); setIsActive(false); handleReset(); }}
+                        className="absolute top-4 right-4 z-50 p-3 rounded-full bg-white/5 hover:bg-red-500/20 text-[#adaaab] hover:text-red-400 transition-all"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+
+                    <div className="flex-1 flex flex-col items-center h-full w-full relative pt-14 pb-8 px-4">
+                        <div className="text-center mb-8 w-full max-w-4xl mx-auto">
+                            <h2 className="text-3xl lg:text-4xl font-serif text-white tracking-tight">{selectedSession.title}</h2>
+                            <p className="text-sm md:text-base text-[#adaaab] max-w-xl mx-auto mt-2">{selectedSession.description}</p>
+                        </div>
+
+                        <div className="flex-1 w-full flex flex-col items-center justify-between">
+                            <div className="flex items-center justify-center flex-1 w-full">
+                                <div className="scale-95 md:scale-125 lg:scale-150 origin-center">
+                                    <BreathingVisualizer
+                                        sessionId={selectedSession.id}
+                                        breathPhase={breathPhase}
+                                        isActive={isActive}
+                                        cycle={selectedSession.cycle}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-5 w-full max-w-md pb-6">
+                                <span className={`inline-block px-7 py-2.5 rounded-full text-lg font-black tracking-[0.15em] ${breathPhase === 'inhale' ? 'bg-indigo-500/20 text-indigo-200' : breathPhase === 'exhale' ? 'bg-blue-500/20 text-blue-200' : 'bg-amber-500/20 text-amber-200'}`}>
+                                    {breathPhase === 'inhale' ? 'INHALE' : breathPhase === 'exhale' ? 'EXHALE' : 'HOLD'}
+                                </span>
+                                <div className="text-5xl md:text-7xl font-light text-white font-mono tracking-widest tabular-nums">{formatTime(timeLeft)}</div>
+                                <div className="w-full max-w-xs h-1.5 bg-[#262627] rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-[#94aaff] to-[#00d4ec]" style={{ width: `${progress}%` }} />
+                                </div>
+                                <div className="flex items-center justify-center gap-8 mt-2">
+                                    <button onClick={handleReset} className="p-4 rounded-full bg-[#1a191b] border border-[#2f2f31]"><RotateCcw className="w-5 h-5 text-[#adaaab]" /></button>
+                                    <button onClick={() => setIsActive(!isActive)} className={`p-7 rounded-full ${isActive ? "bg-amber-500" : "bg-gradient-to-br from-[#94aaff] to-[#9c8fff]"} text-black`}>
+                                        {isActive ? <Pause className="w-9 h-9" /> : <Play className="w-9 h-9 ml-1" />}
+                                    </button>
+                                    <button onClick={() => setIsMuted(!isMuted)} className="p-4 rounded-full bg-[#1a191b] border border-[#2f2f31]">{isMuted ? <VolumeX className="w-5 h-5 text-[#adaaab]" /> : <Volume2 className="w-5 h-5 text-[#adaaab]" />}</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Session Instruction Modal */}
             {showInstructions && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-white/10 overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-10 -mt-10 blur-2xl" />
-                        
-                        <button
-                            onClick={() => setShowInstructions(false)}
-                            className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors z-10"
-                        >
-                            <span className="sr-only">Close</span>
+                    <div className="bg-[#151517] w-full max-w-lg rounded-[2.2rem] shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-[#2b2c2d] overflow-hidden">
+                        <button onClick={() => setShowInstructions(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-[#adaaab] transition-colors z-10">
                             <X className="w-5 h-5" />
                         </button>
 
                         <div className="text-center mb-8 relative z-10">
-                            <div className="w-16 h-16 mx-auto bg-blue-600/10 dark:bg-blue-500/20 rounded-3xl flex items-center justify-center text-blue-600 dark:text-blue-400 mb-6 shadow-sm">
+                            <div className="w-16 h-16 mx-auto bg-[#94aaff]/20 rounded-3xl flex items-center justify-center text-[#94aaff] mb-6 shadow-sm">
                                 <Wind className="w-8 h-8" />
                             </div>
-                            <h2 className="text-3xl font-serif italic text-slate-900 dark:text-white mb-3">{selectedSession.title}</h2>
-                            <p className="text-slate-600 dark:text-slate-400 italic font-medium leading-relaxed">
-                                {selectedSession.longDescription}
-                            </p>
+                            <h2 className="text-3xl font-serif text-white mb-3">{selectedSession.title}</h2>
+                            <p className="text-[#adaaab] italic font-medium leading-relaxed">{selectedSession.longDescription}</p>
                         </div>
 
-                        <div data-tour="session-info" className="bg-slate-50 dark:bg-black/20 rounded-3xl p-6 mb-8 text-left border border-slate-100 dark:border-white/5 relative z-10">
-                            <h3 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4">The Ritual</h3>
+                        <div data-tour="session-info" className="bg-[#1c1d20] rounded-3xl p-6 mb-8 text-left border border-[#2e2f31]">
+                            <h3 className="text-[10px] font-bold text-[#adaaab] uppercase tracking-[0.2em] mb-4">The Ritual</h3>
                             <div className="space-y-4">
                                 {selectedSession.steps.map((step, idx) => (
-                                    <div key={idx} className="flex gap-4 text-slate-700 dark:text-slate-300 text-sm leading-relaxed items-start">
-                                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black shadow-sm mt-0.5">
-                                            {idx + 1}
-                                        </span>
+                                    <div key={idx} className="flex gap-4 text-[#d2d3d4] text-sm leading-relaxed items-start">
+                                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#94aaff] text-black flex items-center justify-center text-[10px] font-black mt-0.5">{idx + 1}</span>
                                         <span className="font-medium">{step}</span>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        <button
-                            onClick={startSession}
-                            className="w-full py-4.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold text-lg shadow-xl shadow-blue-600/20 hover:shadow-blue-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all relative z-10"
-                        >
+                        <button onClick={startSession} className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#94aaff] to-[#9c8fff] text-black font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
                             Begin Journey
                         </button>
                     </div>
                 </div>
             )}
 
+            {/* Resources Modal */}
             {showResources && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="relative w-full max-w-2xl md:max-w-3xl rounded-[2.5rem] border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#11131C] p-4 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-                        <button
-                            onClick={() => setShowResources(false)}
-                            className="absolute top-6 right-6 p-2 rounded-full hover:bg-white dark:hover:bg-white/10 text-slate-400 transition-colors z-10"
-                        >
-                            <span className="sr-only">Close</span>
+                    <div className="relative w-full max-w-2xl md:max-w-3xl rounded-[2.2rem] border border-[#2b2c2d] bg-[#151517] p-4 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                        <button onClick={() => setShowResources(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-[#adaaab] transition-colors z-10">
                             <X className="w-5 h-5" />
                         </button>
 
                         <div className="mb-8 pr-10">
-                            <h2 className="text-2xl font-serif italic text-slate-900 dark:text-white mb-2">Dhyan Resources</h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 italic font-medium opacity-80">
-                                Guided experiences and editorial content to deepen your practice.
-                            </p>
+                            <h2 className="text-2xl font-serif text-white mb-2">Dhyan Resources</h2>
+                            <p className="text-sm text-[#adaaab] italic font-medium opacity-80">Guided experiences and editorial content to deepen your practice.</p>
                         </div>
 
                         <div className="max-h-[60vh] space-y-6 overflow-y-auto pr-2 custom-scrollbar">
-                            <CourseBanner
-                                user={user ? { name: user.name, email: user.email } : null}
-                                courseId="safar-30"
-                            />
-                            {renderMeditationVideoCard("meditation-video-url-modal", "bg-white/50 dark:bg-white/5 border-none shadow-none")}
+                            <CourseBanner user={user ? { name: user.name, email: user.email } : null} courseId="safar-30" />
+                            {renderMeditationVideoCard("meditation-video-url-modal", "bg-transparent border-none shadow-none")}
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Mobile FABs for Sidebars */}
+            <BottomSheet isOpen={showSessionList} onClose={() => setShowSessionList(false)} title="Breathing Techniques">
+                <div className="space-y-3">
+                    {sessions.map((session) => (
+                        <button
+                            key={session.id}
+                            onClick={() => {
+                                handleCardClick(session);
+                                setShowSessionList(false);
+                            }}
+                            className={`w-full text-left rounded-xl border p-3 ${selectedSession.id === session.id ? "border-primary bg-primary/10" : "border-border bg-card"}`}
+                        >
+                            <p className="font-semibold text-sm">{session.title}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{session.description}</p>
+                        </button>
+                    ))}
+                </div>
+            </BottomSheet>
 
-        {/* Tour Prompt */}
-        <TourPrompt tour={meditationTour} featureName="Meditation" />
+            <BottomSheet isOpen={showExercises} onClose={() => setShowExercises(false)} title={`${selectedSession.title} Steps`}>
+                <div className="space-y-3">
+                    {selectedSession.steps.length ? selectedSession.steps.map((step, idx) => (
+                        <div key={`${selectedSession.id}-step-${idx}`} className="rounded-xl border border-border bg-card p-3 text-sm">
+                            <span className="text-xs font-bold text-muted-foreground mr-2">{idx + 1}.</span>
+                            {step}
+                        </div>
+                    )) : (
+                        <p className="text-sm text-muted-foreground">This session runs silently. Follow your breath and stay present.</p>
+                    )}
+                </div>
+            </BottomSheet>
+
+            <FloatingActionButton
+                onClick={() => setShowSessionList(true)}
+                icon={<List className="w-6 h-6" />}
+                label="Open techniques"
+                position="bottom-left"
+                className="lg:hidden"
+            />
+            <FloatingActionButton
+                onClick={() => setShowResources(true)}
+                icon={<Image className="w-6 h-6" />}
+                label="Open resources"
+                position="bottom-right"
+                className="lg:hidden"
+            />
+
+            {/* Mobile Bottom Nav */}
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex justify-around items-center px-4 py-3 bg-[#131314]/90 backdrop-blur-2xl border-t border-[#2a2b2d]">
+                <button onClick={() => setShowSessionList(true)} className="flex flex-col items-center text-[#00e3fd]">
+                    <Wind className="w-5 h-5" />
+                    <span className="text-[10px] mt-1 uppercase tracking-widest">Breath</span>
+                </button>
+                <button onClick={() => navigate("/study")} className="flex flex-col items-center text-[#adaaab]">
+                    <Dumbbell className="w-5 h-5" />
+                    <span className="text-[10px] mt-1 uppercase tracking-widest">Focus</span>
+                </button>
+                <button onClick={() => setIsActive(!isActive)} className="flex flex-col items-center text-[#adaaab]">
+                    <Clock className="w-5 h-5" />
+                    <span className="text-[10px] mt-1 uppercase tracking-widest">Timer</span>
+                </button>
+                <button onClick={() => setShowResources(true)} className="flex flex-col items-center text-[#adaaab]">
+                    <ExternalLink className="w-5 h-5" />
+                    <span className="text-[10px] mt-1 uppercase tracking-widest">Journal</span>
+                </button>
+            </nav>
+
+            <TourPrompt tour={meditationTour} featureName="Meditation" />
         </div>
     );
 }

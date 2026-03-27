@@ -1,4 +1,4 @@
-import { apiFetch, resetCsrfToken, setAccessToken, getAccessToken } from "@/utils/apiFetch";
+import { apiFetch, refreshAccessToken, resetCsrfToken, setAccessToken } from "@/utils/apiFetch";
 import { User, Streak } from "@shared/api";
 
 interface AuthResponse {
@@ -7,6 +7,7 @@ interface AuthResponse {
 }
 
 const AUTH_CACHE_KEY = "safar.cached_user";
+let initAuthPromise: Promise<User | null> | null = null;
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -14,11 +15,11 @@ function normalizeEmail(email: string): string {
 
 function readCachedUser(): User | null {
   if (typeof window === "undefined") return null;
+
   try {
-    // Use localStorage so the cache persists across browser restarts/tab closes.
-    // sessionStorage was wiped on tab close, causing unnecessary re-auth on open.
     const raw = window.localStorage.getItem(AUTH_CACHE_KEY);
     if (!raw) return null;
+
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed.id === "string" ? (parsed as User) : null;
   } catch {
@@ -28,11 +29,13 @@ function readCachedUser(): User | null {
 
 function writeCachedUser(user: User | null) {
   if (typeof window === "undefined") return;
+
   try {
     if (!user) {
       window.localStorage.removeItem(AUTH_CACHE_KEY);
       return;
     }
+
     window.localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(user));
   } catch {
     // Non-fatal cache failure
@@ -41,6 +44,7 @@ function writeCachedUser(user: User | null) {
 
 function emitAuthChanged(isAuthenticated: boolean, user?: User | null) {
   if (typeof window === "undefined") return;
+
   window.dispatchEvent(
     new CustomEvent("auth:changed", {
       detail: { isAuthenticated, user: user || null },
@@ -122,30 +126,44 @@ export const authService = {
   },
 
   async initAuth(): Promise<User | null> {
-    const cachedUser = readCachedUser();
-    if (!cachedUser) return null;
+    if (initAuthPromise) return initAuthPromise;
 
-    try {
-      const res = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        credentials: 'include',
-      });
+    initAuthPromise = (async () => {
+      const cachedUser = readCachedUser();
+      const refreshResult = await refreshAccessToken();
 
-      if (!res.ok) {
-        // RT expired — clear stale cache
+      if (refreshResult.status === "auth_failed") {
         writeCachedUser(null);
         emitAuthChanged(false, null);
         return null;
       }
 
-      const { accessToken } = await res.json();
-      setAccessToken(accessToken);
+      if (refreshResult.status !== "ok") {
+        if (cachedUser) {
+          emitAuthChanged(true, cachedUser);
+          return cachedUser;
+        }
 
-      emitAuthChanged(true, cachedUser);
-      return cachedUser;
-    } catch {
+        return null;
+      }
+
+      const authData = await this.getCurrentUser();
+      if (authData?.user) {
+        return authData.user;
+      }
+
+      if (cachedUser) {
+        emitAuthChanged(true, cachedUser);
+        return cachedUser;
+      }
+
+      emitAuthChanged(false, null);
       return null;
-    }
+    })().finally(() => {
+      initAuthPromise = null;
+    });
+
+    return initAuthPromise;
   },
 
   async getCurrentUser(): Promise<AuthResponse | null> {
@@ -155,8 +173,10 @@ export const authService = {
       });
 
       if (response.status === 401 || response.status === 403) {
-        writeCachedUser(null);
-        emitAuthChanged(false, null);
+        const cachedUser = readCachedUser();
+        if (cachedUser) {
+          return { user: cachedUser };
+        }
         return null;
       }
 
@@ -188,7 +208,7 @@ export const authService = {
     examType?: string;
     preparationStage?: string;
     gender?: string;
-    avatar?: string;  // Now expects a URL path like "/uploads/avatars/abc.webp", not base64
+    avatar?: string;
   }): Promise<User> {
     const response = await apiFetch("/api/auth/profile", {
       method: "PATCH",
@@ -205,10 +225,6 @@ export const authService = {
     return response.json();
   },
 
-  /**
-   * Upload avatar image via multipart/form-data.
-   * Returns the URL path (e.g. "/uploads/avatars/abc.webp").
-   */
   async uploadAvatar(file: File): Promise<string> {
     const formData = new FormData();
     formData.append("avatar", file);
@@ -217,7 +233,6 @@ export const authService = {
       method: "POST",
       body: formData,
       credentials: "include",
-      // Do NOT set Content-Type header — browser sets it with boundary for multipart
     });
 
     if (!response.ok) {
@@ -226,7 +241,7 @@ export const authService = {
     }
 
     const result = await response.json();
-    return result.url;  // e.g. "/uploads/avatars/550e8400.webp"
+    return result.url;
   },
 
   async getLoginHistory(): Promise<{ timestamp: string }[]> {
@@ -248,10 +263,12 @@ export const authService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: normalizedEmail }),
     });
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || "Failed to request password reset");
     }
+
     const data = await response.json();
     return data.message || "Reset link sent. Please check your email inbox.";
   },
@@ -262,6 +279,7 @@ export const authService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, newPassword }),
     });
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || "Failed to reset password");

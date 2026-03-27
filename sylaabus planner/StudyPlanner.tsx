@@ -80,11 +80,11 @@ async function plannerRequest<T>(url: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-const STATUS_UI: Record<TopicStatus, { label: string; color: string; bg: string }> = {
-  todo: { label: "Not Started", color: "#a3aac4", bg: "#1c1b1c" },
-  in_progress: { label: "In Progress", color: "#00e5ff", bg: "#00363d" },
-  done: { label: "Done", color: "#0ea5e9", bg: "#001f24" },
-  revision_needed: { label: "Revision", color: "#c180ff", bg: "#25005a" },
+const STATUS_UI: Record<TopicStatus, { label: string; color: string; bg: string; darkColor?: string; darkBg?: string }> = {
+  todo: { label: "Not Started", color: "#64748b", bg: "#f1f5f9", darkColor: "#94a3b8", darkBg: "#1e293b" },
+  in_progress: { label: "In Progress", color: "#00b8d4", bg: "#e0f7fa", darkColor: "#00e5ff", darkBg: "#00363d" },
+  done: { label: "Done", color: "#0284c7", bg: "#e0f2fe", darkColor: "#0ea5e9", darkBg: "#001f24" },
+  revision_needed: { label: "Revision", color: "#9333ea", bg: "#f3e8ff", darkColor: "#c180ff", darkBg: "#25005a" },
 };
 
 const EXAM_TYPE_OPTIONS = ["CGL", "CHSL", "GD", "MTS", "12th Boards", "NTPC", "JEE", "NEET", "UPSC", "CAT"];
@@ -433,6 +433,36 @@ export default function StudyPlanner({ planId }: { planId: string }) {
     setCalendar(calendarData || {});
   }
 
+  async function deleteSubject(subjectId: string) {
+    if (!window.confirm("Delete this subject and all its chapters/topics?")) return;
+    const data = await plannerRequest<Plan>(`${BASE}/${planId}/subjects/${subjectId}`, {
+      method: "DELETE",
+    });
+    setPlan(data);
+    const calendarData = await plannerRequest<Record<string, CalendarItem[]>>(`${BASE}/${planId}/calendar`);
+    setCalendar(calendarData || {});
+  }
+
+  async function deleteChapter(subjectId: string, chapterId: string) {
+    if (!window.confirm("Delete this chapter and all topics inside it?")) return;
+    const data = await plannerRequest<Plan>(`${BASE}/${planId}/subjects/${subjectId}/chapters/${chapterId}`, {
+      method: "DELETE",
+    });
+    setPlan(data);
+    const calendarData = await plannerRequest<Record<string, CalendarItem[]>>(`${BASE}/${planId}/calendar`);
+    setCalendar(calendarData || {});
+  }
+
+  async function deleteTopic(topicId: string) {
+    if (!window.confirm("Delete this topic?")) return;
+    const data = await plannerRequest<Plan>(`${BASE}/${planId}/topics/${topicId}`, {
+      method: "DELETE",
+    });
+    setPlan(data);
+    const calendarData = await plannerRequest<Record<string, CalendarItem[]>>(`${BASE}/${planId}/calendar`);
+    setCalendar(calendarData || {});
+  }
+
   async function autoDistribute() {
     try {
       const data = await plannerRequest<{ plan: Plan }>(
@@ -549,7 +579,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                       transition={{ type: "spring", stiffness: 300, damping: 25 }}
                       className="inline-flex flex-col gap-3 rounded-2xl bg-[#f0f0f5] dark:bg-[#1a1c1e] px-5 py-4 border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]"
                     >
-                      <div className="text-[11px] font-bold text-white uppercase tracking-[0.2em] px-1">
+                      <div className="text-[11px] font-bold text-[#334155] dark:text-[#e2e8f0] uppercase tracking-[0.2em] px-1">
                         Select Exam
                       </div>
                       <div className="flex flex-wrap items-center gap-4">
@@ -558,6 +588,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                         value={examDateDraft}
                         onChange={(e) => setExamDateDraft(e.target.value)}
                         className="text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-[#c0c4d1] dark:border-[#252626] rounded-xl px-4 py-2 text-[#1e293b] dark:text-[#e7e5e5] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)]"
+                        style={{ colorScheme: isDarkMode ? "dark" : "light" }}
                       />
                       <button
                         onClick={() => { void saveExamDate(); }}
@@ -587,7 +618,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
             {/* Completion */}
             <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] group">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Completion</div>
-              <div className="text-4xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] mb-5 drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>{summary.percent}%</div>
+              <div className="text-5xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] mb-5 drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>{summary.percent}%</div>
 
               {/* Recessed Progress Bar Tray */}
               <div className="h-2 w-full bg-[#d9dbe2] dark:bg-[#0e0e0e] rounded-full overflow-hidden shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] mt-auto p-[1.5px]">
@@ -603,23 +634,23 @@ export default function StudyPlanner({ planId }: { planId: string }) {
             {/* Topics Done */}
             <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Topics Done</div>
-              <div className="text-4xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
-                {summary.done} <span className="text-base text-[#8b919e] dark:text-[#767575] font-['Poppins',sans-serif] font-bold">/ {summary.total}</span>
+              <div className="text-5xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
+                {summary.done} <span className="text-xl text-[#8b919e] dark:text-[#767575] font-['Poppins',sans-serif] font-bold">/ {summary.total}</span>
               </div>
             </div>
 
             {/* Daily Goal */}
             <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Daily Target</div>
-              <div className="text-4xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
-                {plan.dailyGoal || 3} <span className="text-base text-[#8b919e] dark:text-[#767575] font-['Poppins',sans-serif] font-bold">topics</span>
+              <div className="text-5xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
+                {plan.dailyGoal || 3} <span className="text-xl text-[#8b919e] dark:text-[#767575] font-['Poppins',sans-serif] font-bold">topics</span>
               </div>
             </div>
 
             {/* Planned This Month */}
             <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Planned (Month)</div>
-              <div className="text-4xl font-extrabold text-blue-600 dark:text-blue-400 mt-auto drop-shadow-[0_2px_4px_rgba(59,130,246,0.2)]" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <div className="text-5xl font-extrabold text-blue-600 dark:text-blue-400 mt-auto drop-shadow-[0_2px_4px_rgba(59,130,246,0.2)]" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {topics.filter((t) => t.plannedDate?.startsWith(toIsoDateOnly(monthDate).slice(0, 7))).length}
               </div>
             </div>
@@ -638,7 +669,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                 <button
                   key={value}
                   onClick={() => setView(value)}
-                  className={`relative px-6 py-2.5 rounded-full text-[11px] font-extrabold uppercase tracking-[0.15em] transition-all duration-300 z-10 flex-1 md:flex-none ${view === value
+                  className={`relative px-6 py-2.5 rounded-full text-[14px] font-extrabold uppercase tracking-[0.15em] transition-all duration-300 z-10 flex-1 md:flex-none ${view === value
                       ? "text-[#2d333b] dark:text-[#e7e5e5]"
                       : "text-[#8b919e] dark:text-[#767575] hover:text-[#4b5563] dark:hover:text-[#acabaa]"
                     }`}
@@ -660,7 +691,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
               whileTap={{ scale: 0.96 }}
               onClick={autoDistribute}
               data-tour="planner-autoplan"
-              className="md:ml-auto w-full md:w-auto rounded-full px-8 py-3.5 font-bold tracking-[0.15em] text-[11px] uppercase transition-all duration-300
+              className="md:ml-auto w-full md:w-auto rounded-full px-8 py-3.5 font-bold tracking-[0.15em] text-[14px] uppercase transition-all duration-300
               bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white
               shadow-[0_4px_10px_rgba(37,99,235,0.4),inset_0_1px_1px_rgba(255,255,255,0.4),inset_0_-4px_8px_rgba(0,0,0,0.2)]
               dark:from-[#1d4ed8] dark:to-[#1e3a8a] dark:shadow-[0_6px_15px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.2),inset_0_-4px_8px_rgba(0,0,0,0.4)]
@@ -684,96 +715,114 @@ export default function StudyPlanner({ planId }: { planId: string }) {
               className="flex flex-col gap-8"
             >
               {/* Configure Setup Tray */}
-              <div data-tour="planner-setup-tray" className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575] flex items-center gap-2 drop-shadow-sm">
-                  <span className="w-2 h-2 bg-[#8b919e] dark:bg-[#565555] rounded-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.8)]" />
-                  Syllabus Planner Array
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <input
-                      list="planner-exam-type-options"
-                      value={examType}
-                      onChange={(e) => setExamType(e.target.value)}
-                      onBlur={() => { void saveExamType(); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void saveExamType(); } }}
-                      placeholder="Exam Engine Protocol (e.g., UPSC, JEE)"
-                      data-tour="planner-exam-input"
-                      className="w-full bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#1e293b] dark:text-[#e7e5e5] placeholder-[#475569] dark:placeholder-[#94a3b8] rounded-xl px-5 py-3.5 focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold transition-all focus:shadow-[inset_4px_4px_8px_rgba(166,171,189,0.7),inset_-4px_-4px_8px_rgba(255,255,255,0.9),0_0_0_2px_rgba(59,130,246,0.3)]"
-                    />
-                    <datalist id="planner-exam-type-options">
-                      {EXAM_TYPE_OPTIONS.map((item) => (
-                        <option key={item} value={item} />
-                      ))}
-                    </datalist>
+                <div data-tour="planner-setup-tray" className={`rounded-3xl p-6 transition-colors duration-500 ${isDarkMode ? "bg-[#0c0c0e] shadow-2xl border border-zinc-800" : "bg-white shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8)] border border-slate-200"}`}>
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-zinc-500 flex items-center gap-2 drop-shadow-sm">
+                    <span className="w-2 h-2 bg-[#8b919e] dark:bg-zinc-600 rounded-full" />
+                    Syllabus Planner Array
                   </div>
 
-                  <input
-                    value={subjectName}
-                    onChange={(e) => setSubjectName(e.target.value)}
-                    placeholder="Initialize New Subject"
-                    data-tour="planner-subject-input"
-                    className="flex-1 bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#1e293b] dark:text-[#e7e5e5] placeholder-[#475569] dark:placeholder-[#94a3b8] rounded-xl px-5 py-3.5 focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold transition-all focus:shadow-[inset_4px_4px_8px_rgba(166,171,189,0.7),inset_-4px_-4px_8px_rgba(255,255,255,0.9),0_0_0_2px_rgba(59,130,246,0.3)]"
-                  />
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="relative flex-1">
+                      <input
+                        list="planner-exam-type-options"
+                        value={examType}
+                        onChange={(e) => setExamType(e.target.value)}
+                        onBlur={() => { void saveExamType(); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void saveExamType(); } }}
+                        placeholder="Exam Engine Protocol (e.g., UPSC, JEE)"
+                        data-tour="planner-exam-input"
+                        className="w-full bg-[#f0f0f5] dark:bg-zinc-950 text-[#2d333b] dark:text-zinc-50 placeholder-[#8b919e] dark:placeholder-zinc-500 rounded-xl px-5 py-3.5 focus:outline-none border border-slate-200 dark:border-zinc-800 text-[18px] font-bold transition-all shadow-inner"
+                      />
+                      <datalist id="planner-exam-type-options">
+                        {EXAM_TYPE_OPTIONS.map((item) => (
+                          <option key={item} value={item} />
+                        ))}
+                      </datalist>
+                    </div>
 
-                  <motion.button
-                    whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.94 }}
-                    onClick={addSubject}
-                    data-tour="planner-add-subject"
-                    className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] font-extrabold uppercase tracking-[0.15em] text-[11px] rounded-xl px-8 py-3.5 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#ffffff] dark:border-[#2b2c2c] active:shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.5)] dark:active:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.02)] transition-all"
-                  >
-                    Add
-                  </motion.button>
+                    <input
+                      value={subjectName}
+                      onChange={(e) => setSubjectName(e.target.value)}
+                      placeholder="Initialize New Subject"
+                      data-tour="planner-subject-input"
+                      className={`flex-1 rounded-xl px-5 py-3.5 focus:outline-none text-[18px] font-bold transition-all shadow-inner ${isDarkMode ? "bg-[#0b0b0d] text-zinc-50 placeholder-zinc-500 border border-zinc-800" : "bg-[#f0f0f5] text-[#2d333b] placeholder-[#8b919e] border border-slate-200"}`}
+                    />
+
+                    <motion.button
+                      whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.94 }}
+                      onClick={addSubject}
+                      data-tour="planner-add-subject"
+                      className={`font-extrabold uppercase tracking-[0.15em] text-[14.5px] rounded-xl px-8 py-3.5 border transition-all ${isDarkMode ? "bg-zinc-800 text-zinc-50 border-zinc-700 shadow-none" : "bg-white text-[#2d333b] border-slate-200 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)]"}`}
+                    >
+                      Add
+                    </motion.button>
+                  </div>
                 </div>
-              </div>
 
-              <div data-tour="planner-subjects-area" className="flex flex-col gap-6">
-                {plan.subjects.map((subject) => (
-                  <div key={subject.id} className="rounded-3xl overflow-hidden transition-colors duration-500 bg-[#e6e7ee] dark:bg-[#131416] shadow-[8px_8px_16px_rgba(166,171,189,0.3),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] mb-6">
-                    {/* Subject Header Tray */}
-                    <div className="p-5 md:p-8 bg-[#f0f0f5] dark:bg-[#1a1c1e] border-b border-[#d9dbe2] dark:border-[#252626] relative z-10 shadow-[0_4px_8px_rgba(0,0,0,0.02)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)]">
-                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 relative z-10">
-                        <strong className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>{subject.name}</strong>
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] uppercase font-black tracking-widest text-[#4b5563] dark:text-[#acabaa] bg-[#d9dbe2] dark:bg-[#0e0e0e] px-4 py-1.5 rounded-full shadow-[inset_1px_1px_3px_rgba(166,171,189,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]">
-                            {subjectPercent(subject)}% SYNCED
-                          </span>
+                <div data-tour="planner-subjects-area" className="flex flex-col gap-6">
+                  {plan.subjects.map((subject) => (
+                    <div key={subject.id} className={`rounded-3xl overflow-hidden transition-colors duration-500 mb-6 ${isDarkMode ? "bg-[#09090b] shadow-2xl border border-zinc-800" : "bg-white shadow-[12px_12px_24px_rgba(166,171,189,0.4),-8px_-8px_24px_rgba(255,255,255,0.8)] border border-slate-200"}`}>
+                      {/* Subject Header Tray */}
+                      <div className={`p-5 md:p-8 border-b relative z-10 shadow-sm transition-colors ${isDarkMode ? "bg-[#101013] border-zinc-800" : "bg-slate-50 border-slate-200"}`}>
+                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 relative z-10">
+                          <strong className={`text-[31px] md:text-[39px] font-extrabold tracking-tight drop-shadow-sm ${isDarkMode ? "text-zinc-50" : "text-[#2d333b]"}`} style={{ fontFamily: "'Playfair Display', serif" }}>{subject.name}</strong>
+                          <div className="flex items-center gap-3">
+                            <span className={`text-[13px] uppercase font-black tracking-widest px-4 py-1.5 rounded-full border ${isDarkMode ? "text-zinc-400 bg-zinc-950 border-zinc-800 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)]" : "text-[#4b5563] bg-[#d9dbe2] border-[#c0c4d1] shadow-[inset_1px_1px_3px_rgba(166,171,189,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.8)]"}`}>
+                              {subjectPercent(subject)}% SYNCED
+                            </span>
+                            <motion.button
+                              whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.94 }}
+                              onClick={() => { void deleteSubject(subject.id); }}
+                              className="text-[13px] font-black uppercase tracking-widest text-red-500 hover:text-red-600 transition-colors border border-red-200 dark:border-red-900/30 px-3 py-1.5 rounded-lg shadow-sm"
+                              title="Delete subject"
+                            >
+                              Delete Subject
+                            </motion.button>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 flex flex-col sm:flex-row gap-4 relative z-10">
+                          <input
+                            value={chapterName[subject.id] || ""}
+                            onChange={(e) => setChapterName((prev) => ({ ...prev, [subject.id]: e.target.value }))}
+                            placeholder="Initialize Chapter Module..."
+                            className={`flex-1 border text-sm font-bold rounded-xl px-5 py-3 focus:outline-none transition-all ${isDarkMode ? "bg-[#0b0b0d] border-zinc-800 text-zinc-100 placeholder-zinc-500 shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)]" : "bg-[#d9dbe2] border-[#e6e7ee] text-[#1e293b] placeholder-[#475569] shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)]"}`}
+                          />
+                          <motion.button
+                            whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.95 }}
+                            onClick={() => addChapter(subject.id)}
+                            className="font-black tracking-[0.15em] uppercase text-[10px] rounded-xl px-6 py-3 shadow-[0_4px_8px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.4)] text-white"
+                            style={{ background: `linear-gradient(135deg, ${subject.color}, #00000050)` }}
+                          >
+                            Add Chapter
+                          </motion.button>
                         </div>
                       </div>
 
-                      <div className="mt-6 flex flex-col sm:flex-row gap-4 relative z-10">
-                        <input
-                          value={chapterName[subject.id] || ""}
-                          onChange={(e) => setChapterName((prev) => ({ ...prev, [subject.id]: e.target.value }))}
-                          placeholder="Initialize Chapter Module..."
-                          className="flex-1 bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-[#e6e7ee] dark:border-[#1a1c1e] text-sm font-bold rounded-xl px-5 py-3 text-[#1e293b] dark:text-[#e7e5e5] placeholder-[#475569] dark:placeholder-[#94a3b8] focus:outline-none shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] transition-all"
-                        />
-                        <motion.button
-                          whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.95 }}
-                          onClick={() => addChapter(subject.id)}
-                          className="font-black tracking-[0.15em] uppercase text-[10px] rounded-xl px-6 py-3 shadow-[0_4px_8px_rgba(0,0,0,0.15),inset_0_1px_1px_rgba(255,255,255,0.4)] text-white"
-                          style={{ background: `linear-gradient(135deg, ${subject.color}, #00000050)` }}
-                        >
-                          Add Chapter
-                        </motion.button>
-                      </div>
-                    </div>
-
-                    {/* Chapters Container List */}
-                    <div className="p-5 md:p-8 flex flex-col gap-8 bg-[#e6e7ee] dark:bg-[#131416]">
-                      {subject.chapters.map((chapter) => {
-                        const key = `${subject.id}:${chapter.id}`;
-                        return (
-                          <div key={chapter.id} className="border border-[#c0c4d1] dark:border-[#2b2c2c] rounded-2xl p-5 md:p-6 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[6px_6px_12px_rgba(166,171,189,0.3),-6px_-6px_12px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[6px_6px_16px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] transition-colors duration-500">
-                            <div className="flex justify-between items-center mb-6 border-b border-[#d9dbe2] dark:border-[#252626] pb-4">
-                              <strong className="text-xl md:text-2xl font-bold text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-sm">{chapter.name}</strong>
-                              <span className="text-[10px] font-black text-[#8b919e] dark:text-[#767575] bg-[#d9dbe2] dark:bg-[#0e0e0e] px-3 py-1 rounded-lg border border-[#c0c4d1] dark:border-[#252626] shadow-[inset_1px_1px_2px_rgba(166,171,189,0.5)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8)] tracking-widest">{chapterPercent(chapter)}% COMPLETED</span>
+                      {/* Chapters Container List */}
+                      <div className={`p-5 md:p-8 flex flex-col gap-8 ${isDarkMode ? "bg-[#09090b]" : "bg-white"}`}>
+                        {subject.chapters.map((chapter) => {
+                          const key = `${subject.id}:${chapter.id}`;
+                          return (
+                            <div key={chapter.id} className={`border rounded-2xl p-5 md:p-6 shadow-xl transition-colors duration-500 ${isDarkMode ? "border-zinc-800 bg-[#111114]" : "border-slate-200 bg-slate-50"}`}>
+                              <div className={`flex justify-between items-center mb-6 border-b pb-4 gap-3 ${isDarkMode ? "border-zinc-800" : "border-slate-200"}`}>
+                                <strong className={`text-[26px] md:text-[31px] font-bold drop-shadow-sm ${isDarkMode ? "text-zinc-50" : "text-[#2d333b]"}`}>{chapter.name}</strong>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[13px] font-black px-3 py-1 rounded-lg border tracking-widest ${isDarkMode ? "text-zinc-500 bg-zinc-950 border-zinc-800 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8)]" : "text-[#8b919e] bg-[#d9dbe2] border-[#c0c4d1] shadow-[inset_1px_1px_2px_rgba(166,171,189,0.5)]"}`}>{chapterPercent(chapter)}% COMPLETED</span>
+                                <motion.button
+                                  whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.94 }}
+                                  onClick={() => { void deleteChapter(subject.id, chapter.id); }}
+                                  className="text-[13px] font-black uppercase tracking-widest text-red-500 hover:text-red-600 transition-colors border border-red-200 dark:border-red-900/30 px-3 py-1 rounded-lg"
+                                  title="Delete chapter"
+                                >
+                                  Delete
+                                </motion.button>
+                              </div>
                             </div>
 
                             <div className="grid gap-4 mb-6">
                               {chapter.topics.map((topic) => (
-                                <div key={topic.id} className="flex flex-col lg:flex-row lg:items-center gap-4 py-3 px-4 rounded-xl bg-[#e6e7ee] dark:bg-[#131416] border border-[#c0c4d1] dark:border-[#252626] shadow-[inset_2px_2px_6px_rgba(166,171,189,0.4),inset_-2px_-2px_6px_rgba(255,255,255,0.6)] dark:shadow-[inset_2px_2px_8px_rgba(0,0,0,0.6),inset_-1px_-1px_3px_rgba(255,255,255,0.03)] transition-colors">
+                                <div key={topic.id} className={`flex flex-col lg:flex-row lg:items-center gap-4 py-3 px-4 rounded-xl border shadow-sm transition-colors ${isDarkMode ? "bg-[#0b0b0d] border-zinc-800" : "bg-white border-slate-200"}`}>
                                   <div className="flex items-center gap-4 flex-1">
                                     <motion.button
                                       whileTap={{ scale: 0.8 }}
@@ -786,58 +835,68 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                                     >
                                       {topic.status === "done" && <span className="text-white text-[10px] font-black leading-none drop-shadow-md">✓</span>}
                                     </motion.button>
-                                    <span className={`text-base font-bold leading-snug drop-shadow-sm transition-opacity duration-300 ${topic.status === "done" ? "line-through text-[#8b919e] dark:text-[#565555] opacity-60" : "text-[#3c4146] dark:text-[#e7e5e5]"}`}>
+                                    <span className={`text-[21.5px] font-bold leading-snug drop-shadow-sm transition-all duration-300 ${topic.status === "done" ? (isDarkMode ? "line-through text-zinc-600" : "line-through text-slate-500/60") : (isDarkMode ? "text-zinc-50" : "text-slate-900")}`}>
                                       {topic.name}
                                     </span>
                                   </div>
 
-                                  <div className="flex items-center gap-4 lg:ml-auto ml-10">
-                                    <input
-                                      type="date"
-                                      value={topic.plannedDate ? toIsoDateOnly(topic.plannedDate) : ""}
-                                      onChange={(e) => patchTopic(topic.id, { plannedDate: e.target.value || "" })}
-                                      className="text-[11px] font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-lg px-3 py-2 text-[#1e293b] dark:text-[#acabaa] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] transition-colors cursor-pointer"
-                                    />
+                                  <div className="flex items-center gap-3 lg:ml-auto ml-10 flex-wrap">
+                                      <input
+                                        type="date"
+                                        value={topic.plannedDate ? toIsoDateOnly(topic.plannedDate) : ""}
+                                        onChange={(e) => patchTopic(topic.id, { plannedDate: e.target.value || "" })}
+                                        className={`text-[19px] font-bold border rounded-lg px-3 py-2 focus:outline-none transition-colors cursor-pointer ${isDarkMode ? "bg-zinc-900 border-zinc-800 text-zinc-200" : "bg-[#f0f0f5] border-slate-200 text-[#2d333b]"}`}
+                                        style={{ colorScheme: isDarkMode ? "dark" : "light" }}
+                                      />
                                     <div className="relative">
                                       <select
                                         value={topic.status}
                                         onChange={(e) => patchTopic(topic.id, { status: e.target.value })}
-                                        className="text-[10px] font-black tracking-widest uppercase border border-white dark:border-[#2b2c2c] rounded-lg px-3 py-2 focus:outline-none transition-colors appearance-none cursor-pointer shadow-[2px_2px_4px_rgba(166,171,189,0.3),-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[2px_2px_6px_rgba(0,0,0,0.6),-1px_-1px_2px_rgba(255,255,255,0.02)] pr-8"
+                                        className="text-[13px] font-black uppercase tracking-widest border border-[#ffffff]/20 dark:border-zinc-800 rounded-lg px-3 py-2 focus:outline-none transition-colors appearance-none cursor-pointer shadow-[2px_2px_4px_rgba(166,171,189,0.3),-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[2px_2px_6px_rgba(0,0,0,0.6),-1px_-1px_2px_rgba(255,255,255,0.02)] pr-8"
                                         style={{
-                                          backgroundColor: STATUS_UI[topic.status].bg,
-                                          color: STATUS_UI[topic.status].color,
+                                          backgroundColor: isDarkMode ? (STATUS_UI[topic.status].darkBg || STATUS_UI[topic.status].bg) : STATUS_UI[topic.status].bg,
+                                          color: isDarkMode ? (STATUS_UI[topic.status].darkColor || STATUS_UI[topic.status].color) : STATUS_UI[topic.status].color,
                                         }}
                                       >
                                         {Object.entries(STATUS_UI).map(([value, ui]) => (
-                                          <option key={value} value={value} style={{ background: isDarkMode ? "#131416" : "#e6e7ee", color: ui.color }}>
+                                          <option key={value} value={value} style={{ background: isDarkMode ? "#09090b" : "#ffffff", color: isDarkMode ? (ui.darkColor || ui.color) : ui.color }}>
                                             {ui.label}
                                           </option>
                                         ))}
                                       </select>
                                       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">▼</div>
                                     </div>
+                                    <motion.button
+                                      whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.94 }}
+                                      onClick={() => { void deleteTopic(topic.id); }}
+                                      className="text-[9px] font-extrabold uppercase tracking-[0.12em] px-3 py-2 rounded-lg border border-red-200 dark:border-red-900/60 bg-[#fff1f2] dark:bg-[#2a1216] text-red-700 dark:text-red-300"
+                                      title="Delete topic"
+                                    >
+                                      Delete
+                                    </motion.button>
                                   </div>
                                 </div>
                               ))}
                             </div>
 
-                            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-[#d9dbe2] dark:border-[#252626]">
+                            <div className={`flex flex-col sm:flex-row gap-4 pt-6 border-t ${isDarkMode ? "border-zinc-800" : "border-slate-200"}`}>
                               <input
                                 value={topicName[key] || ""}
                                 onChange={(e) => setTopicName((prev) => ({ ...prev, [key]: e.target.value }))}
                                 placeholder="Add New Topic Detail..."
-                                className="flex-1 text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-xl px-5 py-3 text-[#1e293b] dark:text-[#e7e5e5] placeholder-[#475569] dark:placeholder-[#94a3b8] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] transition-all"
+                                className={`flex-1 text-[18.2px] font-bold border rounded-xl px-5 py-3 focus:outline-none transition-all shadow-inner ${isDarkMode ? "bg-[#0b0b0d] border-zinc-800 text-zinc-50 placeholder-zinc-600" : "bg-white border-slate-200 text-[#2d333b] placeholder-[#8b919e]"}`}
                               />
                               <input
                                 type="date"
                                 value={topicDate[key] || ""}
                                 onChange={(e) => setTopicDate((prev) => ({ ...prev, [key]: e.target.value }))}
-                                className="text-sm font-bold bg-[#d9dbe2] dark:bg-[#0e0e0e] border border-slate-300 dark:border-[#252626] rounded-xl px-4 py-3 text-[#6b7280] dark:text-[#acabaa] focus:outline-none shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] transition-all cursor-pointer"
+                                className={`text-[18.2px] font-bold border rounded-xl px-4 py-3 focus:outline-none transition-all cursor-pointer shadow-inner ${isDarkMode ? "bg-[#0b0b0d] border-zinc-800 text-zinc-200" : "bg-white border-slate-200 text-[#2d333b]"}`}
+                                style={{ colorScheme: isDarkMode ? "dark" : "light" }}
                               />
-                              <motion.button
+                                <motion.button
                                 whileHover={{ scale: 0.97 }} whileTap={{ scale: 0.95 }}
                                 onClick={() => addTopic(subject.id, chapter.id)}
-                                className="text-[11px] font-extrabold uppercase tracking-widest rounded-xl px-6 py-3 bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] border border-slate-300 dark:border-[#2b2c2c] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] transition-all"
+                                className={`text-[14.5px] font-extrabold uppercase tracking-widest rounded-xl px-6 py-3 border transition-all ${isDarkMode ? "bg-zinc-800 border-zinc-700 text-zinc-50 shadow-none" : "bg-white border-slate-200 text-[#2d333b] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)]"}`}
                               >
                                 Add Topic
                               </motion.button>
@@ -879,17 +938,17 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                       await patchTopic(topicId, { status });
                     }}
                     className="rounded-xl min-h-[700px] p-4 flex flex-col gap-4 transition-colors duration-500
-                bg-[#e6e7ee] dark:bg-[linear-gradient(45deg,#191a1a_0%,#252626_100%)]
+                bg-[#e6e7ee] dark:bg-[#1a1c1e]
                 shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.7)]
                 dark:shadow-[inset_0_4px_12px_rgba(0,0,0,0.6),inset_0_1px_2px_rgba(0,0,0,0.8)]
                 border border-slate-300 dark:border-transparent relative
               "
                   >
                     <div className="flex justify-between items-center mb-4 px-2 pt-2">
-                      <h3 className="font-['Satoshi',sans-serif] text-sm font-bold uppercase tracking-widest text-[#4b5563] dark:text-[#acabaa]">
+                      <h3 className="font-['Satoshi',sans-serif] text-[18.2px] font-bold uppercase tracking-widest text-[#2d333b] dark:text-[#fcf9f8]">
                         {title}
                       </h3>
-                      <span className="text-[10px] font-bold bg-[#ffffff] dark:bg-[#252626] px-2 py-0.5 rounded-full text-[#4b5563] dark:text-[#c3c7cd] shadow-sm dark:shadow-none">
+                      <span className="text-[13px] font-bold bg-[#ffffff] dark:bg-[#252626] px-3 py-1 rounded-full text-[#4b5563] dark:text-[#c3c7cd] shadow-sm dark:shadow-none">
                         {kanban[status].length < 10 && kanban[status].length > 0 ? `0${kanban[status].length}` : kanban[status].length}
                       </span>
                     </div>
@@ -903,10 +962,10 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                             key={topic.id}
                             draggable
                             onDragStart={(e: any) => e.dataTransfer.setData("topic-id", topic.id)}
-                            className={`rounded-lg p-4 cursor-grab active:cursor-grabbing transform transition-all hover:-translate-y-1 bg-[#fcf9f8] dark:bg-[#e7e5e5] shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_4px_10px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.8),0_4px_10px_-2px_rgba(0,0,0,0.6)] ${status === 'done' ? (isDarkMode ? 'grayscale-[0.2] hover:grayscale-0 opacity-80 hover:opacity-100' : 'opacity-80 hover:opacity-100') : ''} border-l-[4px] ${neonClass}`}
+                            className={`rounded-lg p-4 cursor-grab active:cursor-grabbing transform transition-all hover:-translate-y-1 bg-[#fcf9f8] dark:bg-[#1a1c1e] shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_4px_10px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.8),0_4px_10px_-2px_rgba(0,0,0,0.6)] ${status === 'done' ? (isDarkMode ? 'grayscale-[0.2] hover:grayscale-0 opacity-80 hover:opacity-100' : 'opacity-80 hover:opacity-100') : ''} border-l-[4px] ${neonClass}`}
                           >
                             <div className="flex justify-between items-start mb-2">
-                              <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest truncate max-w-[80%]">
+                               <span className="text-[10px] font-bold text-neutral-500 dark:text-slate-500 uppercase tracking-widest truncate max-w-[80%]">
                                 {topic.subject.name}
                               </span>
                               <div className="w-4 h-4 rounded-full border border-neutral-300 flex items-center justify-center -mt-1 -mr-1" style={{ backgroundColor: topic.subject.color + "40" }}>
@@ -914,14 +973,14 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                               </div>
                             </div>
 
-                            <h4 className="text-neutral-900 font-bold text-sm mb-2 leading-snug drop-shadow-sm">{topic.name}</h4>
+                            <h4 className="text-neutral-900 dark:text-slate-50 font-extrabold text-[18.2px] mb-2 leading-snug drop-shadow-sm">{topic.name}</h4>
 
-                            <p className="text-[11px] text-neutral-600 mb-4 line-clamp-2 font-medium">{topic.chapter.name}</p>
+                            <p className="text-[14.5px] text-neutral-600 dark:text-slate-400 mb-4 line-clamp-2 font-black">{topic.chapter.name}</p>
 
                             <div className="flex items-center justify-between mt-auto">
                               <div className="flex items-center gap-4 text-[10px] text-neutral-500 font-bold">
                                 {topic.plannedDate ? (
-                                  <span className="flex items-center gap-1 bg-neutral-200/60 px-2 py-1 rounded-md">
+                                  <span className="flex items-center gap-1 bg-neutral-200/60 px-2 py-1 rounded-md text-[13px]">
                                     📅 {formatDate(topic.plannedDate)}
                                   </span>
                                 ) : (
@@ -930,7 +989,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                                   </span>
                                 )}
                               </div>
-                              <span className={`text-[9px] font-black uppercase tracking-widest ${textClass} px-2 py-1 bg-neutral-200/50 rounded-md`}>
+                              <span className={`text-[12px] font-black uppercase tracking-widest ${textClass} px-2 py-1 bg-neutral-200/50 rounded-md`}>
                                 {STATUS_UI[topic.status].label}
                               </span>
                             </div>
@@ -940,7 +999,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
 
                       {kanban[status].length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-12">
-                          <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#4b5563]/60 dark:text-[#acabaa]/60 text-center leading-relaxed max-w-[80%]">
+                          <div className="text-[15.6px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-300 text-center leading-relaxed max-w-[80%]">
                             {COLUMN_DESCRIPTIONS[status]}
                           </div>
                         </div>
@@ -968,7 +1027,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                     ◀
                   </motion.button>
 
-                  <strong className="text-2xl font-extrabold text-[#2d333b] dark:text-[#fcf9f8] tracking-widest uppercase drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  <strong className="text-[31px] font-extrabold text-[#2d333b] dark:text-[#fcf9f8] tracking-widest uppercase drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
                     {monthDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
                   </strong>
 
@@ -987,8 +1046,8 @@ export default function StudyPlanner({ planId }: { planId: string }) {
 
               <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] h-fit flex flex-col gap-6 sticky top-8">
                 <div className="border-b border-[#d9dbe2] dark:border-[#252626] pb-5 text-center">
-                  <strong className="block text-xl font-extrabold text-[#2d333b] dark:text-[#fcf9f8] mb-2 drop-shadow-sm uppercase tracking-widest">Selected Log</strong>
-                  <div className="text-[11px] font-black tracking-widest text-blue-600 dark:text-blue-400 bg-[#e6e7ee] dark:bg-[#131416] inline-block px-4 py-2 rounded-lg border border-[#c0c4d1] dark:border-[#252626] shadow-[inset_1px_1px_3px_rgba(166,171,189,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)]">
+                  <strong className="block text-[26px] font-extrabold text-[#2d333b] dark:text-[#fcf9f8] mb-2 drop-shadow-sm uppercase tracking-widest">Selected Log</strong>
+                  <div className="text-[14.5px] font-black tracking-widest text-blue-600 dark:text-blue-400 bg-[#e6e7ee] dark:bg-[#131416] inline-block px-4 py-2 rounded-lg border border-[#c0c4d1] dark:border-[#252626] shadow-[inset_1px_1px_3px_rgba(166,171,189,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)]">
                     {pickedDay ? new Date(pickedDay).toLocaleDateString("en-US", { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }) : "AWAITING SELECTION"}
                   </div>
                 </div>
@@ -997,9 +1056,9 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                   {selectedDayItems.map((item) => (
                     <div key={item.topicId} className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#c0c4d1] dark:border-[#252626] shadow-[inset_2px_2px_6px_rgba(166,171,189,0.4),inset_-2px_-2px_6px_rgba(255,255,255,0.6)] dark:shadow-[inset_2px_2px_8px_rgba(0,0,0,0.6),inset_-1px_-1px_3px_rgba(255,255,255,0.03)] transition-colors">
                       <div className="flex justify-between items-start gap-3 mb-3">
-                        <strong className="text-[13px] font-bold text-[#3c4146] dark:text-[#e7e5e5] leading-snug drop-shadow-sm">{item.topicName}</strong>
+                        <strong className="text-[17px] font-bold text-[#3c4146] dark:text-[#e7e5e5] leading-snug drop-shadow-sm">{item.topicName}</strong>
                         <span
-                          className="text-[9px] whitespace-nowrap px-2.5 py-1 rounded-md font-black tracking-widest shadow-[0_2px_3px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.3)]"
+                          className="text-[12px] whitespace-nowrap px-2.5 py-1 rounded-md font-black tracking-widest shadow-[0_2px_3px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.3)]"
                           style={{
                             color: STATUS_UI[item.status].color,
                             background: isDarkMode ? STATUS_UI[item.status].bg : "#d9dbe2",

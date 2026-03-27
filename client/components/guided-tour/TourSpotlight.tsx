@@ -91,8 +91,8 @@ export default function TourSpotlight({
                             y={targetRect.top}
                             width={targetRect.width}
                             height={targetRect.height}
-                            rx="12"
-                            ry="12"
+                            rx="0"
+                            ry="0"
                             fill="black"
                         />
                     </mask>
@@ -102,25 +102,25 @@ export default function TourSpotlight({
                     y="0"
                     width="100%"
                     height="100%"
-                    fill="rgba(0, 0, 0, 0.75)"
+                    fill="rgba(0, 0, 0, 0.85)"
                     mask="url(#spotlight-mask)"
                 />
             </svg>
 
-            {/* Spotlight glow ring */}
+            {/* Spotlight glow ring - Sharp technical border */}
             <div
-                className="absolute rounded-xl transition-all duration-300 ease-out"
+                className="absolute rounded-none transition-all duration-300 ease-out border border-white/20"
                 style={{
                     top: targetRect.top,
                     left: targetRect.left,
                     width: targetRect.width,
                     height: targetRect.height,
-                    boxShadow: "0 0 0 4px rgba(99, 102, 241, 0.5), 0 0 30px 8px rgba(99, 102, 241, 0.3)",
+                    boxShadow: "0 0 40px 10px rgba(255, 255, 255, 0.05)",
                     pointerEvents: "none",
                 }}
             />
 
-            {/* Pulsing pointer indicator */}
+            {/* Technical block indicator */}
             <div
                 className="absolute pointer-events-none"
                 style={{
@@ -130,20 +130,20 @@ export default function TourSpotlight({
                 }}
             >
                 <div className="relative">
-                    {/* Arrow pointing to element */}
+                    {/* Industrial Arrow Pointer */}
                     <div
                         className="absolute -left-4 top-1/2 -translate-y-1/2 w-0 h-0"
                         style={{
-                            borderTop: "8px solid transparent",
-                            borderBottom: "8px solid transparent",
-                            borderRight: "12px solid rgba(99, 102, 241, 0.9)",
+                            borderTop: "6px solid transparent",
+                            borderBottom: "6px solid transparent",
+                            borderRight: "10px solid white",
                         }}
                     />
-                    {/* Pulsing circle */}
-                    <div className="w-4 h-4 rounded-full bg-indigo-500 animate-pulse" style={{ animationDuration: '8s' }} />
+                    {/* Pulsing Square Indicator */}
+                    <div className="w-3 h-3 rounded-none bg-white opacity-40 animate-pulse" style={{ animationDuration: '4s' }} />
                     <div
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-indigo-500/30 animate-ping"
-                        style={{ animationDuration: '4s' }}
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-none border border-white/20 animate-ping"
+                        style={{ animationDuration: '3s' }}
                     />
                 </div>
             </div>

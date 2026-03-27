@@ -79,7 +79,7 @@ export const focusTimerTour: TourConfig = {
         {
             target: "[data-tour='add-task']",
             title: "Track Tasks",
-            content: "Add tasks to work on during your focus session. Stay organized and check them off as you complete them.",
+            content: "View your task history that you have added Throught the Ekagra mode",
             placement: "right",
         },
         {

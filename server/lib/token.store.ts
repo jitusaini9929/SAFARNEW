@@ -182,7 +182,7 @@ export async function validateAndRotateRefreshToken(
       const userId = await client.get(key);
 
       if (!userId) {
-        await revokeFamilyTokens(familyId);
+        // A missing token can happen after a legitimate concurrent refresh.
         return null;
       }
 
@@ -200,7 +200,7 @@ export async function validateAndRotateRefreshToken(
 
   const userId = getMemoryRefreshToken(key);
   if (!userId) {
-    await revokeFamilyTokens(familyId);
+    // A missing token can happen after a legitimate concurrent refresh.
     return null;
   }
 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useGuidedTour, TourConfig } from "@/contexts/GuidedTourContext";
 import { tourDescriptions } from "@/components/guided-tour/tourSteps";
-import { Sparkles, X, Play } from "lucide-react";
+import { X, Play, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface TourPromptProps {
     tour: TourConfig;
@@ -16,7 +17,7 @@ export default function TourPrompt({ tour, featureName }: TourPromptProps) {
     useEffect(() => {
         // Show prompt after a short delay if tour hasn't been seen
         if (!hasSeenTour(tour.id)) {
-            const timer = setTimeout(() => setIsVisible(true), 800);
+            const timer = setTimeout(() => setIsVisible(true), 1200);
             return () => clearTimeout(timer);
         }
     }, [tour.id, hasSeenTour]);
@@ -35,80 +36,83 @@ export default function TourPrompt({ tour, featureName }: TourPromptProps) {
 
     const description = tourDescriptions[tour.id] || `Learn how to use ${featureName} effectively.`;
 
-    // If tour has been seen, show a persistent small helper button
+    // If tour has been seen, show a persistent minimalist helper button
     if (hasSeenTour(tour.id)) {
         return (
-            <Button
-                variant="ghost"
-                size="sm"
+            <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => startTour(tour)}
-                className="fixed bottom-6 right-6 z-40 rounded-full w-10 h-10 p-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 shadow-lg hover:shadow-xl hover:scale-105 transition-all text-indigo-500 dark:text-indigo-400"
+                className="fixed bottom-6 right-6 z-40 rounded-none w-12 h-12 flex items-center justify-center bg-[#1a1c1e] border border-white/10 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all text-white"
                 title={`Start ${featureName} Tour`}
             >
-                <Sparkles className="w-5 h-5" />
-            </Button>
+                <HelpCircle className="w-6 h-6" />
+            </motion.button>
         );
     }
 
-    if (!isVisible) return null;
-
     return (
-        /* Full-screen modal overlay */
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-8 max-w-md w-[90vw] animate-in slide-in-from-bottom-4 zoom-in-95 duration-500">
+        <AnimatePresence>
+            {isVisible && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.02 }}
+                        className="relative bg-[#1a1c1e] rounded-none border border-white/5 p-10 max-w-lg w-[90vw] shadow-[24px_24px_60px_rgba(0,0,0,0.8)]"
+                    >
+                        {/* Technical Grid Background Overlay (Subtle) */}
+                        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
+                             style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
-                {/* Close button */}
-                <button
-                    onClick={handleSkip}
-                    className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                    aria-label="Close"
-                >
-                    <X className="w-5 h-5 text-slate-400" />
-                </button>
+                        {/* Close button */}
+                        <button
+                            onClick={handleSkip}
+                            className="absolute top-6 right-6 p-2 rounded-none hover:bg-white/10 transition-colors"
+                            aria-label="Close"
+                        >
+                            <X className="w-5 h-5 text-white/40 hover:text-white" />
+                        </button>
 
-                {/* Icon + Badge */}
-                <div className="flex flex-col items-center text-center mb-6">
-                    {/* Pulsing icon */}
-                    <div className="relative mb-4">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-                            <Sparkles className="w-8 h-8" />
+                        {/* Content Hierarchy */}
+                        <div className="flex flex-col mb-10 relative z-10">
+                            {/* Headline */}
+                            <h2 className="text-3xl font-bold text-white mb-4 leading-tight tracking-tight uppercase" style={{ fontFamily: 'Satoshi, sans-serif' }}>
+                                ABOUT <br /> {featureName}
+                            </h2>
+
+                            {/* Description with Satoshi Regular */}
+                            <p className="text-lg text-white/60 leading-relaxed font-normal" style={{ fontFamily: 'Satoshi, sans-serif' }}>
+                                {description}
+                            </p>
                         </div>
-                        <div className="absolute inset-0 rounded-2xl bg-indigo-500/30 animate-ping" style={{ animationDuration: '4s' }} />
-                    </div>
 
-                    {/* About badge */}
-                    <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1 rounded-full mb-3">
-                        About {featureName}
-                    </span>
+                        {/* Tactical Buttons */}
+                        <div className="flex flex-col gap-4 relative z-10">
+                            <motion.button
+                                whileHover={{ scale: 1.01, backgroundColor: '#ffffff', color: '#000000' }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={handleStartTour}
+                                className="w-full h-16 bg-white text-black text-lg font-bold uppercase tracking-widest flex items-center justify-center transition-colors rounded-none shadow-[8px_8px_0px_rgba(255,255,255,0.1)] hover:shadow-none"
+                                style={{ fontFamily: 'Satoshi, sans-serif' }}
+                            >
+                                <Play className="w-5 h-5 mr-3 fill-current" />
+                                Start Tutorial
+                            </motion.button>
 
-                    {/* Feature description */}
-                    <p className="text-base text-slate-700 dark:text-slate-300 leading-relaxed">
-                        {description}
-                    </p>
+                            <button
+                                onClick={handleSkip}
+                                className="w-full py-4 text-white/30 hover:text-white text-xs font-bold uppercase tracking-[0.2em] transition-colors rounded-none"
+                                style={{ fontFamily: 'Satoshi, sans-serif' }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </motion.div>
                 </div>
-
-                {/* Divider */}
-                <div className="h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent mb-5" />
-
-                {/* Buttons */}
-                <div className="flex flex-col items-center gap-3">
-                    <Button
-                        onClick={handleStartTour}
-                        className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all animate-pulse py-3 text-base font-semibold rounded-xl"
-                        style={{ animationDuration: '8s' }}
-                    >
-                        <Play className="w-4 h-4 mr-2 fill-white" />
-                        Start Tour
-                    </Button>
-                    <Button
-                        onClick={handleSkip}
-                        variant="ghost"
-                        className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-sm"
-                    >
-                        Skip
-                    </Button>
-                </div>
-            </div>
-        </div>
+            )}
+        </AnimatePresence>
     );
 }

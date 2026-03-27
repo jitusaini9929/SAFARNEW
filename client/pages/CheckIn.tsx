@@ -214,7 +214,7 @@ export default function CheckIn() {
                 </div>
                 <textarea
                   className="w-full h-48 bg-muted/40 border-2 border-transparent focus:border-primary/20 focus:bg-background rounded-[28px] p-8 text-lg font-medium outline-none transition-all resize-none shadow-inner"
-                  placeholder={selectedMood ? t('checkin.why_feel_placeholder_selected', { mood: t(`moods.${selectedMood}`).toLowerCase() }) : t('checkin.why_feel_placeholder_hint')}
+                  placeholder={selectedMood ? t('checkin.why_feel_selected_placeholder', { mood: t(`moods.${selectedMood}`).toLowerCase() }) : t('checkin.why_feel_hint_placeholder')}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                 />

@@ -1,13 +1,18 @@
 /**
  * API Fetch Wrapper
  *
- * Automatically handles JWT access token injection and silent 
+ * Automatically handles JWT access token injection and silent
  * refresh for 401 Unauthorized responses.
  */
 
-// Access token lives in module scope — survives re-renders, dies on page refresh
+// Access token lives in module scope and is restored via refresh on boot.
 let _accessToken: string | null = null;
-let _refreshPromise: Promise<string | null> | null = null;
+let _refreshPromise: Promise<RefreshResult> | null = null;
+
+export type RefreshResult =
+  | { status: "ok"; accessToken: string }
+  | { status: "auth_failed" }
+  | { status: "transient_failed" };
 
 export function setAccessToken(token: string | null): void {
   _accessToken = token;
@@ -17,69 +22,102 @@ export function getAccessToken(): string | null {
   return _accessToken;
 }
 
-async function doRefresh(): Promise<string | null> {
+function clearClientAuthState(): void {
+  setAccessToken(null);
+
   try {
-    const res = await fetch('/api/auth/refresh', {
-      method: 'POST',
-      credentials: 'include', // sends the httpOnly RT cookie automatically
+    localStorage.removeItem("safar.cached_user");
+  } catch {
+    // Ignore storage failures while clearing auth state.
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("auth:changed", {
+      detail: { isAuthenticated: false, user: null },
+    }),
+  );
+}
+
+function isTerminalRefreshFailure(status: number, errorCode: unknown): boolean {
+  if (status !== 401) return false;
+
+  return (
+    errorCode === "no_refresh_token" ||
+    errorCode === "refresh_token_invalid" ||
+    errorCode === "reuse_detected"
+  );
+}
+
+async function doRefresh(): Promise<RefreshResult> {
+  try {
+    const res = await fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "include",
     });
 
     if (!res.ok) {
-      // Refresh failed (expired, reuse detected) — force sign-out
-      setAccessToken(null);
-      localStorage.removeItem('safar.cached_user');
-      window.dispatchEvent(new CustomEvent('auth:changed', { detail: null }));
-      return null;
+      let errorCode: unknown = null;
+
+      try {
+        const data = await res.json();
+        errorCode = data?.error;
+      } catch {
+        // Non-JSON failures are treated as transient.
+      }
+
+      if (isTerminalRefreshFailure(res.status, errorCode)) {
+        clearClientAuthState();
+        return { status: "auth_failed" };
+      }
+
+      return { status: "transient_failed" };
     }
 
     const { accessToken } = await res.json();
     setAccessToken(accessToken);
-    return accessToken;
+
+    return { status: "ok", accessToken };
   } catch {
-    return null;
+    return { status: "transient_failed" };
   }
 }
 
-// apiFetch is a drop-in replacement for your current wrapper.
-// Signature is identical — all existing call sites work unchanged.
-export async function apiFetch(
-  url: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  const makeRequest = (token: string | null) =>
-    fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers ?? {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      // Keep credentials: include for any non-JWT cookie needs (e.g. CSRF)
-      credentials: 'include',
-    });
-
-  // First attempt
-  let res = await makeRequest(_accessToken);
-
-  if (res.status !== 401) return res;
-
-  // AT expired or missing — attempt silent refresh.
-  // Queue concurrent 401s: if 3 calls fire at once, only ONE refresh request goes out.
+export async function refreshAccessToken(): Promise<RefreshResult> {
   if (!_refreshPromise) {
     _refreshPromise = doRefresh().finally(() => {
       _refreshPromise = null;
     });
   }
 
-  const newToken = await _refreshPromise;
+  return _refreshPromise;
+}
 
-  if (!newToken) {
-    // Refresh failed — return the 401 as-is so callers can react
+// apiFetch is a drop-in replacement for your current wrapper.
+export async function apiFetch(
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const makeRequest = (token: string | null) =>
+    fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: "include",
+    });
+
+  let res = await makeRequest(_accessToken);
+
+  if (res.status !== 401) return res;
+
+  const refreshResult = await refreshAccessToken();
+  if (refreshResult.status !== "ok") {
     return res;
   }
 
-  // Retry original request with new token
-  res = await makeRequest(newToken);
+  res = await makeRequest(refreshResult.accessToken);
   return res;
 }
 

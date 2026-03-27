@@ -611,9 +611,11 @@ const BreathingVisualizer: React.FC<BreathingVisualizerProps> = ({ sessionId, br
         case '4':
             return <ArcRingViz breathPhase={breathPhase} isActive={isActive} cycle={cycle} />;
         case '5':
-            return <NostrilViz breathPhase={breathPhase} isActive={isActive} />;
+            return <ArcRingViz breathPhase={breathPhase} isActive={isActive} cycle={cycle} />;
+        case 'dhyan-custom':
+            return null;
         default:
-            return <GoldenOrbViz breathPhase={breathPhase} isActive={isActive} />;
+            return null;
     }
 };
 

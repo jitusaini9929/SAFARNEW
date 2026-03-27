@@ -145,8 +145,6 @@ export default function StudyWithMe() {
         setLongBreakDuration,
         longBreakDuration,
         setAssociatedGoal,
-        associatedGoalId,
-        associatedGoalTitle,
         hasPendingResume,
         resumeStoredSession,
         discardStoredSession,
@@ -795,24 +793,7 @@ export default function StudyWithMe() {
                             );
                             setCompletedTask(currentTask);
 
-                            // 2) Calculate elapsed time and log partial session if it's the focus timer
-                            const elapsedMinutes = Math.floor((timerState.totalSeconds - timerState.remainingSeconds) / 60);
-                            if (timerState.mode === 'Timer' && elapsedMinutes > 0) {
-                                try {
-                                    // Use dynamic import like context does to avoid strict dependency coupling issues
-                                    const { focusService: fs } = await import("@/utils/focusService");
-                                    await fs.logSession({
-                                        durationMinutes: elapsedMinutes,
-                                        breakMinutes: 0,
-                                        completed: true, // Counted as completed for the task's sake
-                                        associatedGoalId: associatedGoalId || undefined,
-                                    });
-                                } catch (e) {
-                                    console.error("Failed to log partial session on early completion", e);
-                                }
-                            }
-
-                            // 3) Automatically pause the timer or just show the proceed prompt
+                            // 2) Automatically pause the timer or just show the proceed prompt
                             setAwaitingProceed(true);
                             setShowDurationPrompt(false);
                             // Optionally, we could stop the timer here

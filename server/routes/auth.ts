@@ -19,13 +19,26 @@ const router = Router();
 const ADMIN_EMAILS = new Set(
   (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase())
 );
-const COOKIE_NAME = '__Host-rt';
+const isProduction = process.env.NODE_ENV === "production";
+const cookieNamePrefix = isProduction ? "__Host-" : "";
+const configuredSameSite = String(process.env.AUTH_COOKIE_SAMESITE || (isProduction ? "lax" : "lax")).toLowerCase();
+const COOKIE_SAME_SITE =
+  configuredSameSite === "strict" || configuredSameSite === "none"
+    ? configuredSameSite
+    : "lax";
+const COOKIE_NAME = `${cookieNamePrefix}rt`;
 const COOKIE_OPTS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: 'strict' as const,
+  secure: isProduction || COOKIE_SAME_SITE === "none",
+  sameSite: COOKIE_SAME_SITE as "lax" | "strict" | "none",
   path: '/',
   maxAge: 30 * 24 * 60 * 60 * 1000,
+};
+const COOKIE_CLEAR_OPTS = {
+  httpOnly: true,
+  secure: COOKIE_OPTS.secure,
+  sameSite: COOKIE_OPTS.sameSite,
+  path: COOKIE_OPTS.path,
 };
 const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const PASSWORD_RESET_MIN_PASSWORD_LENGTH = 8;
@@ -512,15 +525,14 @@ router.post('/refresh', async (req, res) => {
   try {
     payload = verifyRefreshToken(token);
   } catch {
-    res.clearCookie(COOKIE_NAME, { path: '/' });
+    res.clearCookie(COOKIE_NAME, COOKIE_CLEAR_OPTS);
     return res.status(401).json({ error: 'refresh_token_invalid' });
   }
 
   const result = await validateAndRotateRefreshToken(payload.familyId, payload.tokenId);
 
   if (!result) {
-    res.clearCookie(COOKIE_NAME, { path: '/' });
-    return res.status(401).json({ error: 'reuse_detected' });
+    return res.status(409).json({ error: 'refresh_token_stale' });
   }
 
   const user = await collections.users().findOne({ id: result.userId }, { projection: { email: 1 } });
@@ -553,7 +565,7 @@ router.post('/logout', requireAuth, async (req: Request, res) => {
         await blocklistAccessToken(req.user!.jti, ttl);
     }
   
-    res.clearCookie(COOKIE_NAME, { path: '/' });
+    res.clearCookie(COOKIE_NAME, COOKIE_CLEAR_OPTS);
     return res.json({ ok: true });
 });
 
