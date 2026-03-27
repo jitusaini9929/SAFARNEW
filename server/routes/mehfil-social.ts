@@ -3,6 +3,7 @@ import { collections } from "../db";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middleware/auth";
 import { getMehfilNamespace } from "./mehfil-socket";
+import { cacheGet, cacheSet, cacheInvalidate } from "../lib/redis-cache";
 
 export const mehfilSocialRouter = Router();
 
@@ -98,17 +99,28 @@ mehfilSocialRouter.post("/meditation-video", async (req: any, res: Response) => 
 mehfilSocialRouter.get("/saved-posts", async (req: any, res: Response) => {
   try {
     const userId = req.session.userId;
+    const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+    const limit = Math.min(50, Math.max(1, Math.floor(Number(req.query.limit) || 20)));
+    const skip = (page - 1) * limit;
+    const cacheKey = `mehfil:saved:${userId}:p${page}:l${limit}`;
 
-    // Get saved thought IDs
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    // Get saved thought IDs (paginated)
     const saves = await collections.mehfilSaves()
       .find({ user_id: userId })
       .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(limit)
       .toArray();
 
     const thoughtIds = saves.map(s => s.thought_id);
 
     if (thoughtIds.length === 0) {
-      return res.json({ posts: [], reactedThoughtIds: [] });
+      const payload = { posts: [], reactedThoughtIds: [], page, hasMore: false };
+      await cacheSet(cacheKey, payload, 60);
+      return res.json(payload);
     }
 
     // Get thoughts
@@ -152,7 +164,9 @@ mehfilSocialRouter.get("/saved-posts", async (req: any, res: Response) => {
       .toArray();
     const reactedThoughtIds = reactions.map(r => r.thought_id);
 
-    res.json({ posts, reactedThoughtIds });
+    const payload = { posts, reactedThoughtIds, page, hasMore: saves.length === limit };
+    await cacheSet(cacheKey, payload, 60);
+    res.json(payload);
   } catch (error) {
     console.error("Error fetching saved posts:", error);
     res.status(500).json({ error: "Failed to fetch saved posts" });
@@ -166,6 +180,13 @@ mehfilSocialRouter.get("/saved-posts", async (req: any, res: Response) => {
 mehfilSocialRouter.get("/friends", async (req: any, res: Response) => {
   try {
     const userId = req.session.userId;
+    const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+    const limit = Math.min(50, Math.max(1, Math.floor(Number(req.query.limit) || 30)));
+    const skip = (page - 1) * limit;
+    const cacheKey = `mehfil:friends:${userId}:p${page}:l${limit}`;
+
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
 
     const friendships = await collections.mehfilFriendships()
       .find({
@@ -173,6 +194,8 @@ mehfilSocialRouter.get("/friends", async (req: any, res: Response) => {
         status: { $ne: 'rejected' }
       })
       .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(limit)
       .toArray();
 
     // Get friend user IDs
@@ -180,10 +203,12 @@ mehfilSocialRouter.get("/friends", async (req: any, res: Response) => {
       f.user_id === userId ? f.friend_id : f.user_id
     );
 
-    const users = await collections.users()
-      .find({ id: { $in: friendUserIds } })
-      .project({ id: 1, name: 1, avatar: 1 })
-      .toArray();
+    const users = friendUserIds.length > 0
+      ? await collections.users()
+          .find({ id: { $in: friendUserIds } })
+          .project({ id: 1, name: 1, avatar: 1 })
+          .toArray()
+      : [];
     const userMap = new Map(users.map(u => [u.id, u]));
 
     const friends = friendships.map(f => {
@@ -207,7 +232,9 @@ mehfilSocialRouter.get("/friends", async (req: any, res: Response) => {
       return order(a.status) - order(b.status);
     });
 
-    res.json(friends);
+    const payload = { friends, page, hasMore: friendships.length === limit };
+    await cacheSet(cacheKey, payload, 60);
+    res.json(payload);
   } catch (error) {
     console.error("Error fetching friends:", error);
     res.status(500).json({ error: "Failed to fetch friends" });
@@ -282,6 +309,13 @@ mehfilSocialRouter.post("/friends/:friendshipId/accept", async (req: any, res: R
       return res.status(404).json({ error: "Friend request not found or already processed" });
     }
 
+    // Invalidate friends cache for both users
+    const friendship = await collections.mehfilFriendships().findOne({ id: friendshipId });
+    if (friendship) {
+      await cacheInvalidate(`mehfil:friends:${friendship.user_id}:*`);
+      await cacheInvalidate(`mehfil:friends:${friendship.friend_id}:*`);
+    }
+
     res.json({ message: "Friend request accepted" });
   } catch (error) {
     console.error("Error accepting friend request:", error);
@@ -295,14 +329,21 @@ mehfilSocialRouter.delete("/friends/:friendshipId", async (req: any, res: Respon
     const userId = req.session.userId;
     const { friendshipId } = req.params;
 
-    const result = await collections.mehfilFriendships().deleteOne({
+    // Look up friendship first for cache invalidation
+    const friendship = await collections.mehfilFriendships().findOne({
       id: friendshipId,
       $or: [{ user_id: userId }, { friend_id: userId }]
     });
 
-    if (result.deletedCount === 0) {
+    if (!friendship) {
       return res.status(404).json({ error: "Friendship not found" });
     }
+
+    await collections.mehfilFriendships().deleteOne({ _id: friendship._id });
+
+    // Invalidate friends cache for both users
+    await cacheInvalidate(`mehfil:friends:${friendship.user_id}:*`);
+    await cacheInvalidate(`mehfil:friends:${friendship.friend_id}:*`);
 
     res.json({ message: "Connection removed" });
   } catch (error) {
@@ -347,6 +388,10 @@ mehfilSocialRouter.get("/friends/status/:targetUserId", async (req: any, res: Re
 mehfilSocialRouter.get("/analytics", async (req: any, res: Response) => {
   try {
     const userId = req.session.userId;
+    const cacheKey = `mehfil:analytics:${userId}`;
+
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
 
     const [
       totalThoughts,
@@ -369,7 +414,7 @@ mehfilSocialRouter.get("/analytics", async (req: any, res: Response) => {
       collections.users().findOne({ id: userId }, { projection: { created_at: 1 } }),
     ]);
 
-    res.json({
+    const payload = {
       totalThoughts,
       totalReactions,
       totalComments,
@@ -377,7 +422,10 @@ mehfilSocialRouter.get("/analytics", async (req: any, res: Response) => {
       totalShares,
       friendsCount,
       joinedDate: user?.created_at || new Date().toISOString(),
-    });
+    };
+
+    await cacheSet(cacheKey, payload, 120); // 2 min TTL
+    res.json(payload);
   } catch (error) {
     console.error("Error fetching analytics:", error);
     res.status(500).json({ error: "Failed to fetch analytics" });
@@ -388,6 +436,11 @@ mehfilSocialRouter.get("/analytics", async (req: any, res: Response) => {
 mehfilSocialRouter.get("/activity", async (req: any, res: Response) => {
   try {
     const userId = req.session.userId;
+    const cacheKey = `mehfil:activity:${userId}`;
+
+    const cached = await cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
     const [thoughts, comments, reactions] = await Promise.all([
       collections.mehfilThoughts().find({ user_id: userId }).sort({ created_at: -1 }).limit(30).toArray(),
       collections.mehfilComments().find({ user_id: userId }).sort({ created_at: -1 }).limit(30).toArray(),
@@ -452,7 +505,9 @@ mehfilSocialRouter.get("/activity", async (req: any, res: Response) => {
       }),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    res.json({ items: items.slice(0, 60) });
+    const payload = { items: items.slice(0, 60) };
+    await cacheSet(cacheKey, payload, 60); // 1 min TTL
+    res.json(payload);
   } catch (error) {
     console.error("Error fetching activity:", error);
     res.status(500).json({ error: "Failed to fetch activity" });

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middleware/auth";
 import { getMehfilNamespace } from "./mehfil-socket";
 import { validateBlockedWords } from "../utils/contentFilter";
+import { cacheGet, cacheSet, cacheInvalidate } from "../lib/redis-cache";
 
 export const mehfilInteractionRoutes = Router();
 
@@ -154,22 +155,33 @@ async function getOrApplyReportBan(userId: string): Promise<MehfilBanState> {
 // COMMENTS
 // ═══════════════════════════════════════════════════════════
 
-// Get comments for a thought
+// Get comments for a thought (paginated + cached)
 mehfilInteractionRoutes.get("/comments/:thoughtId", async (req: any, res: Response) => {
     try {
         const { thoughtId } = req.params;
+        const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+        const limit = Math.min(100, Math.max(1, Math.floor(Number(req.query.limit) || 30)));
+        const skip = (page - 1) * limit;
+        const cacheKey = `mehfil:comments:${thoughtId}:p${page}:l${limit}`;
+
+        const cached = await cacheGet(cacheKey);
+        if (cached) return res.json(cached);
 
         const comments = await collections.mehfilComments()
             .find({ thought_id: thoughtId })
             .sort({ created_at: 1 })
+            .skip(skip)
+            .limit(limit)
             .toArray();
 
         // Fetch user info for each comment
         const userIds = [...new Set(comments.map(c => c.user_id))];
-        const users = await collections.users()
-            .find({ id: { $in: userIds } })
-            .project({ id: 1, name: 1, avatar: 1 })
-            .toArray();
+        const users = userIds.length > 0
+            ? await collections.users()
+                .find({ id: { $in: userIds } })
+                .project({ id: 1, name: 1, avatar: 1 })
+                .toArray()
+            : [];
         const userMap = new Map(users.map(u => [u.id, u]));
 
         const result = comments.map(c => {
@@ -185,7 +197,9 @@ mehfilInteractionRoutes.get("/comments/:thoughtId", async (req: any, res: Respon
             };
         });
 
-        res.json({ comments: result });
+        const payload = { comments: result, page, hasMore: comments.length === limit };
+        await cacheSet(cacheKey, payload, 30); // 30s TTL
+        res.json(payload);
     } catch (error) {
         console.error("Error fetching comments:", error);
         res.status(500).json({ error: "Failed to fetch comments" });
@@ -222,6 +236,9 @@ mehfilInteractionRoutes.post("/comments", async (req: any, res: Response) => {
             { id: thoughtId },
             { $inc: { comments_count: 1 } }
         );
+
+        // Invalidate comment cache for this thought
+        await cacheInvalidate(`mehfil:comments:${thoughtId}:*`);
 
         // Get user info
         const user = await collections.users().findOne(
@@ -271,6 +288,9 @@ mehfilInteractionRoutes.delete("/comments/:commentId", async (req: any, res: Res
             { id: comment.thought_id },
             { $inc: { comments_count: -1 } }
         );
+
+        // Invalidate comment cache for this thought
+        await cacheInvalidate(`mehfil:comments:${comment.thought_id}:*`);
 
         res.json({ success: true });
     } catch (error) {

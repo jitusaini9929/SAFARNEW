@@ -309,7 +309,21 @@ router.get('/monthly-report', requireAuth, async (req: any, res) => {
     try {
         const userId = req.session.userId!;
         const monthInput = req.query.month ? String(req.query.month) : undefined;
+        const { monthKey } = getMonthWindow(monthInput);
+
+        // Check for a recently-generated cached report (within 5 min) to avoid expensive re-generation
+        const cached = await collections.monthlyReports().findOne(
+            { user_id: userId, month: monthKey },
+            { projection: { report_json: 1, updated_at: 1 } },
+        );
+        const CACHE_TTL_MS = 5 * 60 * 1000;
+        if (cached?.report_json && cached.updated_at && (Date.now() - new Date(cached.updated_at).getTime()) < CACHE_TTL_MS) {
+            res.set('Cache-Control', 'private, max-age=300');
+            return res.json(cached.report_json);
+        }
+
         const report = await generateMonthlyReport(userId, monthInput);
+        res.set('Cache-Control', 'private, max-age=300');
         res.json(report);
     } catch (error) {
         console.error('Get monthly report error:', error);

@@ -425,14 +425,19 @@ router.get('/:id/reactions', async (req: Request, res: Response) => {
 // COMMENTS
 // ═══════════════════════════════════════════════════════════
 
-// Get comments for a sandesh
+// Get comments for a sandesh (paginated)
 router.get('/:id/comments', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
+        const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+        const limit = Math.min(100, Math.max(1, Math.floor(Number(req.query.limit) || 30)));
+        const skip = (page - 1) * limit;
 
         const comments = await collections.sandeshComments()
             .find({ sandesh_id: id })
             .sort({ created_at: 1 })
+            .skip(skip)
+            .limit(limit)
             .toArray();
 
         // Fetch user info for comment authors
@@ -459,7 +464,7 @@ router.get('/:id/comments', async (req: Request, res: Response) => {
             };
         });
 
-        res.json({ comments: result });
+        res.json({ comments: result, page, hasMore: comments.length === limit });
     } catch (error) {
         console.error('Error fetching comments:', error);
         res.status(500).json({ message: 'Failed to fetch comments' });

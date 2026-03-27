@@ -18,17 +18,33 @@ async function startServer() {
   // IMPORTANT: Static files and catch-all route must come AFTER API routes
   // API routes are already registered in createServer()
 
-  // Serve static files
-  app.use(express.static(distPath));
+  // ── Static Asset Caching (biggest bandwidth reduction) ──
+  // Vite hashed assets (e.g. /assets/index-a1b2c3.js) — safe to cache forever
+  // because the hash changes when the file changes.
+  app.use('/assets', express.static(path.join(distPath, 'assets'), {
+    maxAge: '365d',
+    immutable: true,
+    etag: true,
+    lastModified: true,
+  }));
 
-  // Handle React Router - serve index.html for all non-API routes
-  // This MUST be the last route registered
+  // All other static files (favicon, manifest, etc.) — 1 day cache
+  app.use(express.static(distPath, {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+    index: false, // Don't auto-serve index.html from here — handled below with custom headers
+  }));
+
+  // Handle React Router — serve index.html for all non-API routes
+  // Must use no-cache so browsers always revalidate, but ETag gives efficient 304s
   // Express 5 requires named param or regex, not bare *
   app.get("/{*splat}", (req, res, next) => {
     // Don't serve index.html for API routes
     if (req.path.startsWith("/api/") || req.path.startsWith("/health") || req.path.startsWith("/socket.io")) {
       return res.status(404).json({ error: "API endpoint not found" });
     }
+    res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(distPath, "index.html"));
   });
 

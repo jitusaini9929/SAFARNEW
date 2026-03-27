@@ -5,7 +5,6 @@ dotenv.config();
 import { defineConfig, Plugin, searchForWorkspaceRoot } from "vite"; // 1. Add searchForWorkspaceRoot here
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { createServer } from "./server";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -45,6 +44,7 @@ function expressPlugin(): Plugin {
     name: "express-plugin",
     apply: "serve",
     async configureServer(server) {
+      const { createServer } = await import("./server");
       const { app, io, httpServer } = await createServer();
 
       // Attach Socket.IO to Vite's HTTP server
