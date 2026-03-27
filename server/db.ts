@@ -116,6 +116,7 @@ export async function initDatabase(): Promise<void> {
         await db.collection('password_reset_tokens').createIndex({ user_id: 1 });
         await db.collection('password_reset_tokens').createIndex({ expires_at: 1 });
         await db.collection('login_history').createIndex({ user_id: 1 });
+        await db.collection('login_history').createIndex({ user_id: 1, timestamp: -1 });
         await db.collection('moods').createIndex({ user_id: 1, timestamp: -1 });
         await db.collection('mood_snapshots').createIndex({ user_id: 1, timestamp: -1 });
         await db.collection('mood_snapshots').createIndex({ user_id: 1, date_key: 1 });
@@ -163,6 +164,7 @@ export async function initDatabase(): Promise<void> {
         await db.collection('transaction_logs').createIndex({ order_id: 1 });
         await db.collection('uploaded_images').createIndex({ user_id: 1 });
         await db.collection('app_settings').createIndex({ key: 1 }, { unique: true });
+        await db.collection('sandesh_messages').createIndex({ created_at: -1 });
         await db.collection('sandesh_reactions').createIndex({ sandesh_id: 1, user_id: 1 }, { unique: true });
         await db.collection('sandesh_comments').createIndex({ sandesh_id: 1, created_at: 1 });
         await db.collection('user_social_handles').createIndex({ user_id: 1 }, { unique: true });

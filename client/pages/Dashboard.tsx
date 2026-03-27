@@ -352,15 +352,15 @@ export default function Dashboard() {
                                 <p className="text-muted-foreground text-sm mb-6">{t('dashboard.how_feeling')}</p>
 
                                 {todayMood ? (
-                                    <div className="m-auto text-center flex flex-col items-center justify-center h-full">
-                                        <span className="text-7xl mb-4">{getMoodEmoji(todayMood.mood)}</span>
-                                        <p className="text-2xl font-semibold capitalize text-foreground">{todayMood.mood}</p>
-                                        <p className="text-muted-foreground">{t('dashboard.mood_intensity')}: {todayMood.intensity}/10</p>
-                                    </div>
-                                ) : (
-                                    <div className="m-auto text-center flex flex-col items-center justify-center h-full">
-                                        <p className="text-muted-foreground mb-4">{t('dashboard.no_checkin')}</p>
-                                        <button
+                                     <div className="m-auto text-center flex flex-col items-center justify-center h-full">
+                                         <span className="text-7xl mb-4">{getMoodEmoji(todayMood.mood)}</span>
+                                         <p className="text-2xl font-semibold capitalize text-foreground">{todayMood.mood}</p>
+                                        <p className="text-muted-foreground">{t('dashboard.mood_intensity')}: {todayMood.intensity}/5</p>
+                                     </div>
+                                 ) : (
+                                     <div className="m-auto text-center flex flex-col items-center justify-center h-full">
+                                         <p className="text-muted-foreground mb-4">{t('dashboard.no_checkin')}</p>
+                                         <button
                                             onClick={() => navigate('/nishtha/check-in')}
                                             className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 group"
                                         >
@@ -544,15 +544,15 @@ export default function Dashboard() {
                                             tickLine={false}
                                             axisLine={false}
                                             tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                                        />
-                                        <YAxis
-                                            domain={[0, 10]}
+                                         />
+                                         <YAxis
+                                            domain={[0, 5]}
                                             allowDecimals={false}
                                             tickLine={false}
                                             axisLine={false}
                                             width={30}
                                             tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                                        />
+                                         />
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: 'hsl(var(--background))',

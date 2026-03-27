@@ -282,10 +282,12 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
   const { setMode, setTimerDuration, setBreakDuration, setLongBreakDuration, startTimer } = useFocus();
   const [stats, setStats] = useState<FocusStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const POLL_MS = 5 * 60 * 1000;
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
       const data = await focusService.getStats();
       if (!mounted) return;
       setStats(data);
@@ -293,7 +295,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
     };
     load();
 
-    const id = window.setInterval(load, 60000);
+    const id = window.setInterval(load, POLL_MS);
     return () => {
       mounted = false;
       window.clearInterval(id);

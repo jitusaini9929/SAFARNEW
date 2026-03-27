@@ -1,22 +1,105 @@
 
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
+import { getRedisClient } from '../lib/redis.client';
+import { redisRateLimit } from '../middleware/redis-rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 import { validateBlockedWords } from '../utils/contentFilter';
 
 const router = Router();
+const SANDESH_CACHE_TTL_MS = Number(process.env.SANDESH_CACHE_TTL_MS || 30000);
+
+type SandeshCacheEntry = {
+    expiresAt: number;
+    payload: any;
+};
+
+const sandeshCache = new Map<string, SandeshCacheEntry>();
+
+function getSandeshCache(cacheKey: string) {
+    const entry = sandeshCache.get(cacheKey);
+    if (!entry) return null;
+    if (Date.now() >= entry.expiresAt) {
+        sandeshCache.delete(cacheKey);
+        return null;
+    }
+    return entry.payload;
+}
+
+function setSandeshCache(cacheKey: string, payload: any) {
+    sandeshCache.set(cacheKey, {
+        payload,
+        expiresAt: Date.now() + Math.max(1000, SANDESH_CACHE_TTL_MS),
+    });
+}
+
+async function getRedisCache(cacheKey: string) {
+    const client = getRedisClient();
+    if (!client) return null;
+    try {
+        const cached = await client.get(cacheKey);
+        if (!cached) return null;
+        return JSON.parse(cached);
+    } catch (error) {
+        return null;
+    }
+}
+
+async function setRedisCache(cacheKey: string, payload: any) {
+    const client = getRedisClient();
+    if (!client) return;
+    try {
+        await client.set(cacheKey, JSON.stringify(payload), 'PX', SANDESH_CACHE_TTL_MS);
+    } catch (error) {
+        // Ignore cache write failures.
+    }
+}
+
+async function clearRedisCache(prefix: string) {
+    const client = getRedisClient();
+    if (!client) return;
+    let cursor = '0';
+    do {
+        const [nextCursor, keys] = await client.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', '100');
+        if (keys.length > 0) {
+            await client.del(keys);
+        }
+        cursor = nextCursor;
+    } while (cursor !== '0');
+}
+
+async function invalidateSandeshCache() {
+    sandeshCache.clear();
+    await clearRedisCache('sandesh:list:');
+}
+
+const previewLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many preview requests, please try again later.' },
+});
+
+const sandeshListLimiter = redisRateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    keyPrefix: 'sandesh:list',
+});
 
 // Get Sandesh list (admin: all, users: latest 5)
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', sandeshListLimiter, async (req: Request, res: Response) => {
     try {
         let isAdmin = false;
+        const userId = (req as any).session?.userId as string | undefined;
+        let user: any = null;
 
         // Check if user is logged in and is admin (even for public GET route if we want to show admin controls)
         // Note: requireAuth isn't middleware here, so we check session manually if present
-        if ((req as any).session && (req as any).session.userId) {
-            const userId = (req as any).session.userId;
-            const user = await collections.users().findOne({ id: userId });
+        if (userId) {
+            user = await collections.users().findOne({ id: userId });
             const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
                 .split(',')
                 .map(e => e.trim().toLowerCase())
@@ -25,6 +108,20 @@ router.get('/', async (req: Request, res: Response) => {
             if (user && user.email && adminEmails.includes(user.email.toLowerCase())) {
                 isAdmin = true;
             }
+        }
+
+        const cacheKey = `sandesh:list:${userId ?? 'public'}`;
+        const redisCached = await getRedisCache(cacheKey);
+        if (redisCached) {
+            setSandeshCache(cacheKey, redisCached);
+            res.set('Cache-Control', `private, max-age=${Math.floor(SANDESH_CACHE_TTL_MS / 1000)}`);
+            return res.json(redisCached);
+        }
+
+        const cached = getSandeshCache(cacheKey);
+        if (cached) {
+            res.set('Cache-Control', `private, max-age=${Math.floor(SANDESH_CACHE_TTL_MS / 1000)}`);
+            return res.json(cached);
         }
 
         const sandeshQuery = collections.sandeshMessages()
@@ -37,14 +134,55 @@ router.get('/', async (req: Request, res: Response) => {
 
         // If no sandesh, return empty list
         if (!sandeshes || sandeshes.length === 0) {
-            return res.json({ sandesh: null, sandeshes: [], isAdmin });
+            const payload = { sandesh: null, sandeshes: [], isAdmin };
+            setSandeshCache(cacheKey, payload);
+            await setRedisCache(cacheKey, payload);
+            res.set('Cache-Control', `private, max-age=${Math.floor(SANDESH_CACHE_TTL_MS / 1000)}`);
+            return res.json(payload);
         }
 
-        res.json({
-            sandesh: sandeshes[0],
-            sandeshes,
-            isAdmin
-        });
+        const sandeshIds = sandeshes.map((item) => item.id);
+        const [reactionRows, commentRows, likedRows] = await Promise.all([
+            collections.sandeshReactions()
+                .aggregate([
+                    { $match: { sandesh_id: { $in: sandeshIds } } },
+                    { $group: { _id: '$sandesh_id', count: { $sum: 1 } } },
+                ])
+                .toArray(),
+            collections.sandeshComments()
+                .aggregate([
+                    { $match: { sandesh_id: { $in: sandeshIds } } },
+                    { $group: { _id: '$sandesh_id', count: { $sum: 1 } } },
+                ])
+                .toArray(),
+            userId
+                ? collections.sandeshReactions()
+                    .find({ sandesh_id: { $in: sandeshIds }, user_id: userId })
+                    .project({ _id: 0, sandesh_id: 1 })
+                    .toArray()
+                : Promise.resolve([]),
+        ]);
+
+        const reactionCountById = new Map(reactionRows.map((row: any) => [row._id, row.count]));
+        const commentCountById = new Map(commentRows.map((row: any) => [row._id, row.count]));
+        const likedSet = new Set((likedRows || []).map((row: any) => row.sandesh_id));
+
+        const enrichedSandeshes = sandeshes.map((item: any) => ({
+            ...item,
+            reactionCount: reactionCountById.get(item.id) || 0,
+            commentCount: commentCountById.get(item.id) || 0,
+            userLiked: userId ? likedSet.has(item.id) : false,
+        }));
+
+        const payload = {
+            sandesh: enrichedSandeshes[0],
+            sandeshes: enrichedSandeshes,
+            isAdmin,
+        };
+        setSandeshCache(cacheKey, payload);
+        await setRedisCache(cacheKey, payload);
+        res.set('Cache-Control', `private, max-age=${Math.floor(SANDESH_CACHE_TTL_MS / 1000)}`);
+        res.json(payload);
     } catch (error) {
         console.error('Error fetching sandesh:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -86,7 +224,7 @@ const fetchUrlMetadata = async (url: string) => {
 };
 
 // Preview Route
-router.post('/preview', requireAuth, async (req: Request, res: Response) => {
+router.post('/preview', requireAuth, previewLimiter, async (req: Request, res: Response) => {
     try {
         const { url } = req.body;
         if (!url) return res.status(400).json({ message: 'URL is required' });
@@ -138,6 +276,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
         };
 
         await collections.sandeshMessages().insertOne(newSandesh);
+        await invalidateSandeshCache();
 
         res.status(201).json({
             message: 'Sandesh posted successfully',
@@ -189,6 +328,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Sandesh not found' });
         }
 
+        await invalidateSandeshCache();
         res.json({ message: 'Sandesh updated successfully' });
     } catch (error) {
         console.error('Error updating sandesh:', error);
@@ -219,6 +359,7 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Sandesh not found' });
         }
 
+        await invalidateSandeshCache();
         res.json({ message: 'Sandesh deleted successfully' });
     } catch (error) {
         console.error('Error deleting sandesh:', error);

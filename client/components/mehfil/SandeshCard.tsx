@@ -11,7 +11,7 @@ import { apiFetch } from '@/utils/apiFetch';
 import './SandeshCard.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
-const SANDESH_POLL_MS = 60000;
+const SANDESH_POLL_MS = 5 * 60 * 1000;
 
 interface LinkMeta {
     url: string;
@@ -38,6 +38,9 @@ interface Sandesh {
     link_meta?: LinkMeta;
     image_url?: string;
     audio_url?: string;
+    reactionCount?: number;
+    commentCount?: number;
+    userLiked?: boolean;
 }
 
 const SandeshCard = () => {
@@ -85,14 +88,21 @@ const SandeshCard = () => {
                     : (data.sandesh ? [data.sandesh] : []);
                 setSandeshes(incomingSandeshes);
                 if (typeof data.isAdmin === 'boolean') setIsAdmin(data.isAdmin);
+                const nextLikeCounts: Record<string, number> = {};
+                const nextCommentCounts: Record<string, number> = {};
+                const nextUserLiked: Record<string, boolean> = {};
+                for (const item of incomingSandeshes) {
+                    nextLikeCounts[item.id] = item.reactionCount ?? 0;
+                    nextCommentCounts[item.id] = item.commentCount ?? 0;
+                    nextUserLiked[item.id] = !!item.userLiked;
+                }
+                setLikeCountById(nextLikeCounts);
+                setCommentCountById(nextCommentCounts);
+                setUserLikedById(nextUserLiked);
                 if (incomingSandeshes.length > 0) {
                     const latestSandesh = incomingSandeshes[0];
                     const lastReadId = localStorage.getItem('mehfil_last_read_sandesh_id');
                     if (lastReadId !== latestSandesh.id) setHasUnread(true);
-                    for (const item of incomingSandeshes) {
-                        fetchReactions(item.id);
-                        fetchCommentCount(item.id);
-                    }
                 }
             }
         } catch (err) {
@@ -100,17 +110,6 @@ const SandeshCard = () => {
         } finally {
             setLoading(false);
         }
-    };
-
-    const fetchReactions = async (sandeshId: string) => {
-        try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/reactions`, { credentials: 'include' });
-            if (res.ok) {
-                const data = await res.json();
-                setLikeCountById(prev => ({ ...prev, [sandeshId]: data.count }));
-                setUserLikedById(prev => ({ ...prev, [sandeshId]: data.userLiked }));
-            }
-        } catch (err) { console.error('Failed to fetch reactions', err); }
     };
 
     const fetchCommentCount = async (sandeshId: string) => {
@@ -661,7 +660,9 @@ const SandeshCard = () => {
                                         e.stopPropagation();
                                         const shouldShow = !showCommentsById[sandesh.id];
                                         setShowCommentsById(prev => ({ ...prev, [sandesh.id]: shouldShow }));
-                                        if (shouldShow) fetchCommentCount(sandesh.id);
+                                        if (shouldShow && !(commentsById[sandesh.id] || []).length) {
+                                            fetchCommentCount(sandesh.id);
+                                        }
                                     }}>
                                     <MessageCircle size={13} />
                                     <span>{commentCountById[sandesh.id] || 0}</span>

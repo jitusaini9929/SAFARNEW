@@ -25,6 +25,7 @@ import { uploadRoutes, imageServeRouter } from "./routes/uploads";
 import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
 import mehfilSocialRouter from "./routes/mehfil-social";
 import { dmRoutes } from "./routes/dm";
+import { getRedisClient } from "./lib/redis.client";
 
 // Setup Mehfil Socket.IO Config Constants
 // Redis adapter logic moved down
@@ -67,7 +68,6 @@ export async function createServer() {
   const achievementsModule = await loadStartupModule("achievement routes", () => import("./routes/achievements"));
   const perksModule = await loadStartupModule("perk routes", () => import("./routes/perks"));
   const authModule = await loadStartupModule("auth routes", () => import("./routes/auth"));
-  const liveCounterModule = await loadStartupModule("live counter routes", () => import("./routes/live-counter"));
   const planModule = await loadStartupModule("study planner routes", () => import("../sylaabus planner/plan.routes"));
   const sandeshModule = await loadStartupModule("sandesh routes", () => import("./routes/sandesh"));
   const suggestionsModule = await loadStartupModule("suggestions routes", () => import("./routes/suggestions"));
@@ -96,13 +96,13 @@ export async function createServer() {
   }));
   app.use(
     express.json({
-      limit: "50mb",
+      limit: "10mb",
       verify: (req: any, _res, buf) => {
         req.rawBody = Buffer.from(buf);
       },
     }),
   );
-  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(cookieParser());
 
   // ── Serve uploaded files from disk with cache headers ──
@@ -180,13 +180,26 @@ export async function createServer() {
   app.use("/api/mehfil/sandesh", sandeshModule.sandeshRoutes);
   app.use("/api/mehfil", mehfilSocialRouter);
   app.use("/api/dm", dmRoutes);
-  app.use("/api/live", liveCounterModule.liveCounterRoutes);
   app.use("/api/plans", planModule.default);
   app.use("/api/suggestions", suggestionsModule.suggestionsRoutes);
 
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";
     res.json({ message: ping });
+  });
+
+  app.get("/health/redis", async (_req, res) => {
+    const client = getRedisClient();
+    if (!client) {
+      return res.status(200).json({ redis: "disabled" });
+    }
+
+    try {
+      const pong = await client.ping();
+      return res.json({ redis: pong });
+    } catch (error) {
+      return res.status(500).json({ redis: "down" });
+    }
   });
 
   app.get("/api/demo", handleDemo);

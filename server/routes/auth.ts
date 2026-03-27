@@ -813,7 +813,15 @@ router.patch('/profile', requireAuth, async (req: Request, res) => {
         if (examType !== undefined) updates.exam_type = examType;
         if (preparationStage !== undefined) updates.preparation_stage = preparationStage;
         if (gender !== undefined) updates.gender = gender;
-        if (avatar !== undefined) updates.avatar = avatar;
+        if (avatar !== undefined) {
+            if (avatar === null || avatar === '') {
+                updates.avatar = null;
+            } else if (isHostedAvatarUrl(avatar)) {
+                updates.avatar = avatar.trim();
+            } else {
+                return res.status(400).json({ message: 'Invalid avatar URL. Please upload an image instead.' });
+            }
+        }
 
         if (Object.keys(updates).length === 0) {
             return res.status(400).json({ message: 'No fields to update' });

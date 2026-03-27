@@ -107,6 +107,13 @@ const getDailyCompletionMetrics = (
 
 // ─── COMPONENTS ───────────────────────────────────────────────
 
+const formatTimeInputFromISTDate = (date: Date) => {
+  const totalMinutes = getISTMinutesSinceMidnight(date);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+};
+
 const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
   const todayKey = getISTDateKey(new Date());
   const base = dateKeyToUtcDate(todayKey);
@@ -235,7 +242,13 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   const [title, setTitle] = useState(goal?.title || "");
   const [desc, setDesc] = useState(goal?.description || "");
   const [date, setDate] = useState(goal?.scheduledDate ? getISTDateKey(new Date(goal.scheduledDate)) : todayKey);
-  const [startTime, setStartTime] = useState("");
+  const [startTime, setStartTime] = useState(() => {
+    const rawStartedAt = goal?.startedAt;
+    if (!rawStartedAt) return "";
+    const startedAtDate = new Date(rawStartedAt);
+    if (!Number.isFinite(startedAtDate.getTime())) return "";
+    return formatTimeInputFromISTDate(startedAtDate);
+  });
   const [newSubtaskText, setNewSubtaskText] = useState("");
   const [subtasks, setSubtasks] = useState<GoalSubtask[]>(() => {
     const initial = Array.isArray(goal?.subtasks) ? goal.subtasks : [];
@@ -436,13 +449,8 @@ export default function Goals() {
         focusService.getGoalsFocusTimes(allIds).then(times => {
           setGoalFocusTimes(times);
         }).catch(() => {});
-
-        focusService.getGoalsFocusTimes(allIds, { dayKey: todayKey }).then(times => {
-          setTodayGoalFocusTimes(times);
-        }).catch(() => {});
       } else {
         setGoalFocusTimes({});
-        setTodayGoalFocusTimes({});
       }
     } catch (error) {
       console.error(error);
@@ -455,6 +463,18 @@ export default function Goals() {
     const interval = setInterval(() => setTodayKey(getISTDateKey(new Date())), 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Refresh "today" goal focus totals whenever the IST day changes (and when goals load).
+  useEffect(() => {
+    const allIds = goals.map(g => g.id).filter(Boolean);
+    if (allIds.length === 0) {
+      setTodayGoalFocusTimes({});
+      return;
+    }
+    focusService.getGoalsFocusTimes(allIds, { dayKey: todayKey })
+      .then(times => setTodayGoalFocusTimes(times))
+      .catch(() => {});
+  }, [goals, todayKey]);
 
   const toggleGoal = async (id: string, currentCompleted: boolean) => {
     if (currentCompleted) {
@@ -496,6 +516,7 @@ export default function Goals() {
         if (oldKey !== data.scheduledDate) {
           await dataService.rescheduleGoal(modal.goal.id, new Date(data.scheduledDate));
         }
+        await dataService.updateGoalStartTime(modal.goal.id, data.startedAt ?? null);
         toast.success(t("goals.toast.updated"));
       } else {
         await dataService.addGoal({
@@ -523,6 +544,15 @@ export default function Goals() {
     () => getDailyCompletionMetrics(goals.filter(g => g.completed), todayKey, todayGoalFocusTimes),
     [goals, todayKey, todayGoalFocusTimes],
   );
+
+  const completedLast7DaysCount = useMemo(() => {
+    const completed = goals.filter(g => g.completed && g.completedAt);
+    return completed.filter(g => {
+      const completedKey = getISTDateKey(new Date(g.completedAt!));
+      const diff = diffISTDays(completedKey, todayKey);
+      return diff <= 0 && diff >= -6;
+    }).length;
+  }, [goals, todayKey]);
 
   return (
     <NishthaLayout>
@@ -572,10 +602,10 @@ export default function Goals() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-500">
               <div className="lg:col-span-2 space-y-6">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-6 bg-card border rounded-3xl shadow-sm">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">{t("goals.analytics.completed_7d")}</h4>
-                       <span className="text-4xl font-black text-emerald-500">{goals.filter(g => g.completed).length}</span>
-                    </div>
+                     <div className="p-6 bg-card border rounded-3xl shadow-sm">
+                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">{t("goals.analytics.completed_7d")}</h4>
+                        <span className="text-4xl font-black text-emerald-500">{completedLast7DaysCount}</span>
+                     </div>
                     <div className="p-6 bg-card border rounded-3xl shadow-sm">
                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">{t("goals.analytics.total_focus_time")}</h4>
                        <span className="text-4xl font-black text-amber-500">

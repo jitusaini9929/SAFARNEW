@@ -96,9 +96,11 @@ const CONFIGS: Record<string, {
   },
 };
 
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
 const multerUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
     const allowedImage = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     const allowedAudio = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/aac'];
