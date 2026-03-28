@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { lazy, Suspense, useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,15 +6,6 @@ import { authService } from "@/utils/authService";
 import { dataService } from "@/utils/dataService";
 import { TourPrompt } from "@/components/guided-tour";
 import { streaksTour } from "@/components/guided-tour/tourSteps";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import {
   Flame,
   Heart,
@@ -33,6 +24,8 @@ import {
   dateKeyToUtcDate
 } from "@/utils/dateUtils";
 
+const StreaksConsistencyChart = lazy(() => import("@/components/charts/StreaksConsistencyChart"));
+
 export default function Streaks() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -44,8 +37,13 @@ export default function Streaks() {
   const [journalData, setJournalData] = useState<any[]>([]);
   const [loginData, setLoginData] = useState<any[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isClient, setIsClient] = useState(false);
 
   const todayKey = getISTDateKey(new Date());
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -244,54 +242,13 @@ export default function Streaks() {
                  <p className="text-sm font-medium text-muted-foreground mt-2">Your goal completion over the last 7 days</p>
                </div>
                <div className="h-[250px] w-full">
-                 <ResponsiveContainer width="100%" height="100%">
-                   <LineChart data={consistencyData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
-                     <defs>
-                       <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                         <feGaussianBlur stdDeviation="6" result="blur" />
-                         <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                       </filter>
-                     </defs>
-                     <CartesianGrid strokeDasharray="5 5" vertical={true} horizontal={true} stroke="hsl(var(--muted)/0.2)" />
-                     <XAxis 
-                        dataKey="day" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 13, fontWeight: 700, fill: 'hsl(var(--muted-foreground))' }} 
-                        dy={15}
-                     />
-                     <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fontSize: 12, fontWeight: 700, fill: 'hsl(var(--muted-foreground))' }} 
-                        domain={[0, 100]} 
-                        tickFormatter={(val) => `${val}%`}
-                        dx={-10}
-                     />
-                     <Tooltip 
-                        contentStyle={{ 
-                          borderRadius: '24px', 
-                          border: '2px border-primary/10', 
-                          backgroundColor: 'hsl(var(--background)/0.9)', 
-                          backdropFilter: 'blur(8px)',
-                          boxShadow: '0 20px 40px -10px rgba(0,0,0,0.1)', 
-                          fontWeight: '800', 
-                          padding: '16px' 
-                        }} 
-                        itemStyle={{ color: 'hsl(var(--primary))' }}
-                     />
-                     <Line 
-                        type="monotone" 
-                        dataKey="score" 
-                        stroke="hsl(var(--primary))" 
-                        strokeWidth={5} 
-                        dot={{ r: 6, fill: 'hsl(var(--primary))', strokeWidth: 3, stroke: '#fff' }} 
-                        activeDot={{ r: 9, fill: 'hsl(var(--primary))', strokeWidth: 4, stroke: '#fff' }}
-                        filter="url(#glow)"
-                        animationDuration={2000}
-                     />
-                   </LineChart>
-                 </ResponsiveContainer>
+                 {isClient ? (
+                   <Suspense fallback={<div className="h-full w-full" />}>
+                     <StreaksConsistencyChart data={consistencyData} />
+                   </Suspense>
+                 ) : (
+                   <div className="h-full w-full" />
+                 )}
                </div>
             </div>
           </div>

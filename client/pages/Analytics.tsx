@@ -1,17 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { dataService } from "@/utils/dataService";
 import { MonthlyReport } from "@shared/api";
-import {
-    RadarChart,
-    PolarGrid,
-    PolarAngleAxis,
-    PolarRadiusAxis,
-    Radar,
-    ResponsiveContainer,
-} from "recharts";
 import { 
     BarChart3, 
     RefreshCw, 
@@ -66,6 +58,8 @@ const achievementImages: Record<string, string> = {
     'T009': '/Achievments/svgviewer-output.svg',
 };
 
+const AnalyticsRadarChart = lazy(() => import("@/components/charts/AnalyticsRadarChart"));
+
 export default function Analytics() {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -76,6 +70,11 @@ export default function Analytics() {
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [notGenerated, setNotGenerated] = useState(false);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const monthLabel = useMemo(() => {
         const source = month || report?.month;
@@ -235,20 +234,13 @@ export default function Analytics() {
                                         <span className="text-[10px] font-black text-muted-foreground uppercase opacity-50">Multidimensional Performance</span>
                                     </div>
                                     <div className="flex-1 min-h-[400px]">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart data={report.radar}>
-                                                <PolarGrid stroke="hsl(var(--muted))" />
-                                                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fontWeight: 700 }} />
-                                                <PolarRadiusAxis angle={30} domain={[0, 100]} axisLine={false} tick={false} />
-                                                <Radar
-                                                    dataKey="score"
-                                                    stroke="hsl(var(--primary))"
-                                                    strokeWidth={3}
-                                                    fill="hsl(var(--primary))"
-                                                    fillOpacity={0.2}
-                                                />
-                                            </RadarChart>
-                                        </ResponsiveContainer>
+                                        {isClient ? (
+                                            <Suspense fallback={<div className="h-full w-full" />}>
+                                                <AnalyticsRadarChart data={report.radar} />
+                                            </Suspense>
+                                        ) : (
+                                            <div className="h-full w-full" />
+                                        )}
                                     </div>
                                 </div>
 

@@ -1,21 +1,10 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "@/components/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { dataService } from "@/utils/dataService";
 import { runGoalRolloverPromptFlow } from "@/utils/goalRolloverPrompt";
 import PerkTitle from "@/components/PerkTitle";
-import {
-    Area,
-    CartesianGrid,
-    ComposedChart,
-    Legend,
-    Line,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from "recharts";
 import {
     Heart,
     RotateCw,
@@ -43,6 +32,8 @@ import youtubeImg from "@/assets/youtube-thumbnail.webp";
 import courseImg from "@/assets/course-thumbnail.webp";
 import GlobalSidebar from "@/components/GlobalSidebar";
 import { useTranslation } from "react-i18next";
+
+const DashboardMoodChart = lazy(() => import("@/components/charts/DashboardMoodChart"));
 
 
 const getMoodEmoji = (mood: string): string => {
@@ -117,6 +108,11 @@ export default function Dashboard() {
     const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
     const [monthlySummary, setMonthlySummary] = useState<{ month: string; consistencyScore: number; completionRate: number; focusDepth: number } | null>(null);
     const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const nowIST = new Date(Date.now() + (5.5 * 60 * 60 * 1000));
     const todayISTStr = nowIST.toISOString().split('T')[0];
@@ -532,71 +528,17 @@ export default function Dashboard() {
                             </div>
                             <p className="text-muted-foreground text-sm mb-6">{t('dashboard.weekly_mood_desc')}</p>
                             <div className="w-full">
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <ComposedChart
-                                        data={weeklyMoods}
-                                        margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
-                                    >
-                                        <defs>
-                                            <linearGradient id="colorIntensity" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                                                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" />
-                                        <XAxis
-                                            dataKey="day"
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                                         />
-                                         <YAxis
-                                            domain={[0, 5]}
-                                            allowDecimals={false}
-                                            tickLine={false}
-                                            axisLine={false}
-                                            width={30}
-                                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                                         />
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: 'hsl(var(--background))',
-                                                borderColor: 'hsl(var(--border))',
-                                                borderRadius: '0.75rem',
-                                                color: 'hsl(var(--foreground))'
-                                            }}
-                                            labelStyle={{ fontWeight: 'bold' }}
-                                            formatter={(value: number, name: string) => {
-                                                if (name === 'mood') return [value, t('dashboard.mood_label')];
-                                                if (name === 'intensity') return [value, t('dashboard.mood_intensity')];
-                                                return [value, name];
-                                            }}
-                                            itemSorter={(item) => (item.dataKey === 'mood' ? -1 : 1)}
-                                            cursor={{ fill: 'hsl(var(--primary) / 0.1)' }}
+                                {isClient ? (
+                                    <Suspense fallback={<div className="h-[250px] w-full" />}>
+                                        <DashboardMoodChart
+                                            data={weeklyMoods}
+                                            moodIntensityLabel={t('dashboard.mood_intensity')}
+                                            moodLabel={t('dashboard.mood_label')}
                                         />
-                                        <Legend wrapperStyle={{ fontSize: '0.8rem', paddingTop: '1rem' }} />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="intensity"
-                                            stroke="hsl(var(--primary))"
-                                            strokeWidth={2}
-                                            fillOpacity={1}
-                                            fill="url(#colorIntensity)"
-                                            name={t('dashboard.mood_intensity')}
-                                        />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="mood"
-                                            stroke="hsl(var(--secondary))"
-                                            strokeWidth={2}
-                                            dot={false}
-                                            activeDot={{ r: 6 }}
-                                            name={t('dashboard.mood_label')}
-                                            // This is a trick to show mood text in tooltip. The line itself is not visible.
-                                            strokeOpacity={0}
-                                        />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
+                                    </Suspense>
+                                ) : (
+                                    <div className="h-[250px] w-full" />
+                                )}
                             </div>
                         </div>
 
