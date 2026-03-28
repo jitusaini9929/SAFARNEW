@@ -58,6 +58,7 @@ const achievementImages: Record<string, string> = {
     'T009': '/Achievments/svgviewer-output.svg',
 };
 
+import ChartErrorBoundary from "@/components/charts/ChartErrorBoundary";
 const AnalyticsRadarChart = lazy(() => import("@/components/charts/AnalyticsRadarChart"));
 
 export default function Analytics() {
@@ -235,9 +236,11 @@ export default function Analytics() {
                                     </div>
                                     <div className="flex-1 min-h-[400px]">
                                         {isClient ? (
+                                            <ChartErrorBoundary>
                                             <Suspense fallback={<div className="h-full w-full" />}>
                                                 <AnalyticsRadarChart data={report.radar} />
                                             </Suspense>
+                                            </ChartErrorBoundary>
                                         ) : (
                                             <div className="h-full w-full" />
                                         )}

@@ -35,9 +35,25 @@ export default defineConfig(({ mode }) => ({
             return "vendor";
           }
 
-          if (id.includes("recharts/")) {
-            // Avoid runtime TDZ/circular-init issues from splitting Recharts internals
-            // across multiple manual chunks.
+          // Group ALL recharts ecosystem packages into a single chunk to avoid
+          // runtime TDZ / circular-init errors (ReferenceError: Cannot access
+          // 'X' before initialization) that occur when Rollup splits recharts
+          // internals and their d3 dependencies across multiple chunks.
+          if (
+            id.includes("recharts/") ||
+            id.includes("recharts-scale/") ||
+            id.includes("react-smooth/") ||
+            id.includes("victory-vendor/") ||
+            id.includes("/d3-interpolate/") ||
+            id.includes("/d3-color/") ||
+            id.includes("/d3-shape/") ||
+            id.includes("/d3-path/") ||
+            id.includes("/d3-scale/") ||
+            id.includes("/d3-array/") ||
+            id.includes("/d3-format/") ||
+            id.includes("/d3-time/") ||
+            id.includes("/d3-time-format/")
+          ) {
             return "charts";
           }
 

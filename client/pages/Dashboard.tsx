@@ -33,6 +33,7 @@ import courseImg from "@/assets/course-thumbnail.webp";
 import GlobalSidebar from "@/components/GlobalSidebar";
 import { useTranslation } from "react-i18next";
 
+import ChartErrorBoundary from "@/components/charts/ChartErrorBoundary";
 const DashboardMoodChart = lazy(() => import("@/components/charts/DashboardMoodChart"));
 
 
@@ -529,6 +530,7 @@ export default function Dashboard() {
                             <p className="text-muted-foreground text-sm mb-6">{t('dashboard.weekly_mood_desc')}</p>
                             <div className="w-full">
                                 {isClient ? (
+                                    <ChartErrorBoundary>
                                     <Suspense fallback={<div className="h-[250px] w-full" />}>
                                         <DashboardMoodChart
                                             data={weeklyMoods}
@@ -536,6 +538,7 @@ export default function Dashboard() {
                                             moodLabel={t('dashboard.mood_label')}
                                         />
                                     </Suspense>
+                                    </ChartErrorBoundary>
                                 ) : (
                                     <div className="h-[250px] w-full" />
                                 )}

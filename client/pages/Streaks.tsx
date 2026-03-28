@@ -24,6 +24,7 @@ import {
   dateKeyToUtcDate
 } from "@/utils/dateUtils";
 
+import ChartErrorBoundary from "@/components/charts/ChartErrorBoundary";
 const StreaksConsistencyChart = lazy(() => import("@/components/charts/StreaksConsistencyChart"));
 
 export default function Streaks() {
@@ -243,9 +244,11 @@ export default function Streaks() {
                </div>
                <div className="h-[250px] w-full">
                  {isClient ? (
+                   <ChartErrorBoundary>
                    <Suspense fallback={<div className="h-full w-full" />}>
                      <StreaksConsistencyChart data={consistencyData} />
                    </Suspense>
+                   </ChartErrorBoundary>
                  ) : (
                    <div className="h-full w-full" />
                  )}
