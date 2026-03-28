@@ -22,8 +22,20 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: "dist/spa",
+    commonjsOptions: {
+      // victory-vendor (used by recharts) mixes CJS and ESM syntax.
+      // Without this, Rollup's CJS→ESM transform can generate code where a
+      // `const` is referenced before its initializer runs (TDZ error).
+      transformMixedEsModules: true,
+    },
     rollupOptions: {
       output: {
+        // Rollup 4 defaults constBindings to `true` (uses `const` for
+        // generated re-export wrappers). Recharts/victory-vendor have circular
+        // ESM imports, so Rollup can place a `const` wrapper BEFORE the value
+        // it wraps is initialized → TDZ crash in production.
+        // Using `var` (hoisted) eliminates the TDZ entirely.
+        generatedCode: { constBindings: false },
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
 
@@ -35,10 +47,6 @@ export default defineConfig(({ mode }) => ({
             return "vendor";
           }
 
-          // DO NOT manually chunk recharts or its dependencies (d3-*, react-smooth, etc).
-          // Recharts has circular internal dependencies. Rollup's default algorithm
-          // resolves the initialization order correctly, but manualChunks breaks it,
-          // causing: "ReferenceError: Cannot access 'X' before initialization"
 
           if (id.includes("@emoji-mart/")) {
             return "emoji";

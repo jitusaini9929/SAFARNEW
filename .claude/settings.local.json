@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/Owner/OneDrive/Desktop/SAFAR/SAFARNEW -type f -name *chart* -o -name *Chart*)",
+      "Bash(grep -r \"^import\\\\|^export\" /c/Users/Owner/OneDrive/Desktop/SAFAR/SAFARNEW/client/components/charts/*.tsx)",
+      "Bash(npm run:*)"
+    ]
+  }
+}
