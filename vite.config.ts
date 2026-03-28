@@ -35,27 +35,10 @@ export default defineConfig(({ mode }) => ({
             return "vendor";
           }
 
-          // Group ALL recharts ecosystem packages into a single chunk to avoid
-          // runtime TDZ / circular-init errors (ReferenceError: Cannot access
-          // 'X' before initialization) that occur when Rollup splits recharts
-          // internals and their d3 dependencies across multiple chunks.
-          if (
-            id.includes("recharts/") ||
-            id.includes("recharts-scale/") ||
-            id.includes("react-smooth/") ||
-            id.includes("victory-vendor/") ||
-            id.includes("/d3-interpolate/") ||
-            id.includes("/d3-color/") ||
-            id.includes("/d3-shape/") ||
-            id.includes("/d3-path/") ||
-            id.includes("/d3-scale/") ||
-            id.includes("/d3-array/") ||
-            id.includes("/d3-format/") ||
-            id.includes("/d3-time/") ||
-            id.includes("/d3-time-format/")
-          ) {
-            return "charts";
-          }
+          // DO NOT manually chunk recharts or its dependencies (d3-*, react-smooth, etc).
+          // Recharts has circular internal dependencies. Rollup's default algorithm
+          // resolves the initialization order correctly, but manualChunks breaks it,
+          // causing: "ReferenceError: Cannot access 'X' before initialization"
 
           if (id.includes("@emoji-mart/")) {
             return "emoji";
