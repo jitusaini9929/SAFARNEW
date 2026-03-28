@@ -47,21 +47,6 @@ export default defineConfig(({ mode }) => ({
             return "vendor";
           }
 
-          // Group ALL recharts ecosystem packages into a single chunk to avoid
-          // runtime TDZ / circular-init errors (ReferenceError: Cannot access
-          // 'X' before initialization) that occur when Rollup splits recharts
-          // internals and their d3 dependencies across multiple chunks.
-          if (
-            id.includes("/recharts/") ||
-            id.includes("/recharts-scale/") ||
-            id.includes("/react-smooth/") ||
-            id.includes("/victory-vendor/") ||
-            id.includes("/d3-") ||
-            id.includes("/internmap/") ||
-            id.includes("/robust-predicates/")
-          ) {
-            return "charts";
-          }
 
           if (id.includes("@emoji-mart/")) {
             return "emoji";
@@ -74,7 +59,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  plugins: [react(), expressPlugin()],
+  plugins: [react(), cfAsyncPlugin(), expressPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./client"),
@@ -82,6 +67,25 @@ export default defineConfig(({ mode }) => ({
     },
   },
 }));
+
+/**
+ * Injects data-cfasync="false" into every <script> and <link rel="modulepreload">
+ * tag in the built HTML.  This tells Cloudflare Rocket Loader to leave our ES
+ * modules alone — Rocket Loader breaks the execution order of dynamic imports,
+ * causing "Cannot access 'X' before initialization" errors at runtime.
+ */
+function cfAsyncPlugin(): Plugin {
+  return {
+    name: "cloudflare-no-rocket-loader",
+    apply: "build",
+    enforce: "post",
+    transformIndexHtml(html) {
+      return html
+        .replace(/<script /g, '<script data-cfasync="false" ')
+        .replace(/<link rel="modulepreload"/g, '<link data-cfasync="false" rel="modulepreload"');
+    },
+  };
+}
 
 function expressPlugin(): Plugin {
   return {
