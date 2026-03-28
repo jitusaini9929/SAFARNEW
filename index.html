@@ -52,7 +52,9 @@
 <body>
   <div id="root"></div>
 
-  <script type="module" src="/client/main.tsx"></script>
+  <!-- data-cfasync="false" prevents Cloudflare Rocket Loader from reordering
+       this ES module and its dynamic imports, which breaks React initialization -->
+  <script data-cfasync="false" type="module" src="/client/main.tsx"></script>
 </body>
 
 </html>

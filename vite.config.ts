@@ -51,7 +51,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  plugins: [react(), expressPlugin()],
+  plugins: [react(), cfAsyncPlugin(), expressPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./client"),
@@ -59,6 +59,25 @@ export default defineConfig(({ mode }) => ({
     },
   },
 }));
+
+/**
+ * Injects data-cfasync="false" into every <script> and <link rel="modulepreload">
+ * tag in the built HTML.  This tells Cloudflare Rocket Loader to leave our ES
+ * modules alone — Rocket Loader breaks the execution order of dynamic imports,
+ * causing "Cannot access 'X' before initialization" errors at runtime.
+ */
+function cfAsyncPlugin(): Plugin {
+  return {
+    name: "cloudflare-no-rocket-loader",
+    apply: "build",
+    enforce: "post",
+    transformIndexHtml(html) {
+      return html
+        .replace(/<script /g, '<script data-cfasync="false" ')
+        .replace(/<link rel="modulepreload"/g, '<link data-cfasync="false" rel="modulepreload"');
+    },
+  };
+}
 
 function expressPlugin(): Plugin {
   return {
