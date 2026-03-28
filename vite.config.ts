@@ -22,8 +22,20 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: "dist/spa",
+    commonjsOptions: {
+      // victory-vendor (used by recharts) mixes CJS and ESM syntax.
+      // Without this, Rollup's CJS→ESM transform can generate code where a
+      // `const` is referenced before its initializer runs (TDZ error).
+      transformMixedEsModules: true,
+    },
     rollupOptions: {
       output: {
+        // Rollup 4 defaults constBindings to `true` (uses `const` for
+        // generated re-export wrappers). Recharts/victory-vendor have circular
+        // ESM imports, so Rollup can place a `const` wrapper BEFORE the value
+        // it wraps is initialized → TDZ crash in production.
+        // Using `var` (hoisted) eliminates the TDZ entirely.
+        generatedCode: { constBindings: false },
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
 
@@ -40,19 +52,13 @@ export default defineConfig(({ mode }) => ({
           // 'X' before initialization) that occur when Rollup splits recharts
           // internals and their d3 dependencies across multiple chunks.
           if (
-            id.includes("recharts/") ||
-            id.includes("recharts-scale/") ||
-            id.includes("react-smooth/") ||
-            id.includes("victory-vendor/") ||
-            id.includes("/d3-interpolate/") ||
-            id.includes("/d3-color/") ||
-            id.includes("/d3-shape/") ||
-            id.includes("/d3-path/") ||
-            id.includes("/d3-scale/") ||
-            id.includes("/d3-array/") ||
-            id.includes("/d3-format/") ||
-            id.includes("/d3-time/") ||
-            id.includes("/d3-time-format/")
+            id.includes("/recharts/") ||
+            id.includes("/recharts-scale/") ||
+            id.includes("/react-smooth/") ||
+            id.includes("/victory-vendor/") ||
+            id.includes("/d3-") ||
+            id.includes("/internmap/") ||
+            id.includes("/robust-predicates/")
           ) {
             return "charts";
           }
