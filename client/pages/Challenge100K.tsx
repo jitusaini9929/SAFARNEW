@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Lock, Sparkles, Trophy } from 'lucide-react';
-import { authService } from '@/utils/authService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CHALLENGE_STORAGE_KEY = 'challenge100k.guestProgress';
 
@@ -16,18 +16,12 @@ const challengeDays = [
 ];
 
 const Challenge100K = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, status } = useAuth();
   const [completedDays, setCompletedDays] = useState<number[]>([]);
+  const isLoggedIn = status === 'authenticated' && Boolean(user?.id);
 
   useEffect(() => {
     const hydrate = async () => {
-      try {
-        const me = await authService.getCurrentUser();
-        setIsLoggedIn(Boolean(me?.user));
-      } catch {
-        setIsLoggedIn(false);
-      }
-
       try {
         const raw = window.localStorage.getItem(CHALLENGE_STORAGE_KEY);
         if (!raw) return;

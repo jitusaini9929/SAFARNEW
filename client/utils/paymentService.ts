@@ -1,5 +1,10 @@
 import { apiFetch } from "@/utils/apiFetch";
-import type { Course, CreateOrderResponse, VerifyPaymentResponse } from "@shared/payments";
+import type {
+  Course,
+  CreateOrderResponse,
+  PaymentConfigResponse,
+  VerifyPaymentResponse,
+} from "@shared/payments";
 
 // ═══════════════════════════════════════════════════════
 // Razorpay Service - Client-side payment handler
@@ -48,6 +53,18 @@ export async function createOrder(courseId: string): Promise<CreateOrderResponse
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.message || "Failed to create order");
+  }
+
+  return response.json();
+}
+
+export async function getPaymentConfig(): Promise<PaymentConfigResponse> {
+  const response = await apiFetch("/api/payments/config", {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load payment configuration");
   }
 
   return response.json();

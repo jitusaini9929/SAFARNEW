@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import BreathingVisualizer from "@/components/meditation/BreathingVisualizer";
 import meditationBg from "@/assets/meditation-bg.webp";
-import { authService } from "@/utils/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import ThemeToggle from "@/components/ui/theme-toggle";
 
 import {
@@ -34,7 +34,6 @@ import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { Button } from "@/components/ui/button";
 import BottomSheet from '@/components/ui/bottom-sheet';
 import FloatingActionButton from '@/components/ui/floating-action-button';
-import CourseBanner from '@/components/meditation/CourseBanner';
 import GlobalSidebar from "@/components/GlobalSidebar";
 
 interface Session {
@@ -141,6 +140,7 @@ const sessions: Session[] = [
 const ADMIN_EMAIL = "steve123@gmail.com";
 const DEFAULT_MEDITATION_VIDEO_URL = "https://www.youtube.com/watch?v=yhTEuOdTq1M";
 const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.webp";
+const DEFAULT_DHYAN_AUDIO_URL = "/Dhyan_processed.mp3";
 
 const getYoutubeVideoId = (url: string) => {
     const match = String(url || "").match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -172,7 +172,7 @@ const defaultDhyanSession: Session = {
 
 export default function Meditation() {
     const navigate = useNavigate();
-    const [user, setUser] = useState<any>(null);
+    const { user, status } = useAuth();
     const [selectedSession, setSelectedSession] = useState<Session>(defaultDhyanSession);
     const [isActive, setIsActive] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -203,18 +203,18 @@ export default function Meditation() {
     const breathTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const response = await authService.getCurrentUser();
-                if (response?.user) {
-                    setUser(response.user);
-                }
-            } catch (error) {
-                console.error("Failed to fetch user", error);
-            }
-        };
-        fetchUser();
-    }, []);
+        if (status === "unauthenticated") {
+            navigate("/login");
+        }
+    }, [navigate, status]);
+
+    const ensureDhyanAudioLoaded = () => {
+        if (!audioRef.current) return;
+        if (!audioRef.current.src) {
+            audioRef.current.src = DEFAULT_DHYAN_AUDIO_URL;
+            audioRef.current.load();
+        }
+    };
 
     useEffect(() => {
         let isCancelled = false;
@@ -284,6 +284,7 @@ export default function Meditation() {
 
             // Play Audio if Dhyan Custom
             if (selectedSession.id === "dhyan-custom" && audioRef.current && audioRef.current.paused) {
+                ensureDhyanAudioLoaded();
                 audioRef.current.play().catch(e => console.error("Audio play error:", e));
             }
 
@@ -394,6 +395,9 @@ export default function Meditation() {
     };
 
     const startSession = () => {
+        if (selectedSession.id === "dhyan-custom") {
+            ensureDhyanAudioLoaded();
+        }
         setShowInstructions(false);
         setIsModalOpen(true);
         setIsActive(true);
@@ -444,12 +448,7 @@ export default function Meditation() {
                 <h3 className="text-sm font-semibold text-foreground">Latest Dhyan Video</h3>
             </div>
 
-            <a
-                href={meditationVideoUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 block w-full overflow-hidden hover:opacity-95 transition-opacity"
-            >
+            <div className="mt-3 block w-full overflow-hidden">
                 <img
                     loading="lazy"
                     src={videoThumbnailSrc}
@@ -463,9 +462,9 @@ export default function Meditation() {
                         setVideoThumbnailSrc(DEFAULT_VIDEO_THUMBNAIL);
                     }}
                 />
-            </a>
+            </div>
 
-            <p className="px-4 py-3 text-xs text-muted-foreground">Click to visit the video</p>
+            <p className="px-4 py-3 text-xs text-muted-foreground">Latest Dhyan video preview</p>
 
             {isMeditationAdmin && (
                 <div className="px-4 pb-4 space-y-2">
@@ -537,7 +536,7 @@ export default function Meditation() {
 
     return (
         <div className="min-h-[100dvh] bg-background text-foreground font-['Manrope',sans-serif] overflow-x-hidden transition-colors duration-300">
-            <audio ref={audioRef} src="/Dhyan_processed.mp3" loop />
+            <audio ref={audioRef} loop preload="none" />
 
             <GlobalSidebar isOpen={isGlobalSidebarOpen} onClose={() => setIsGlobalSidebarOpen(false)} homeRoute="/home" />
 
@@ -829,12 +828,6 @@ export default function Meditation() {
                         </div>
 
                         <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-                            <section className="rounded-lg border border-border bg-muted/30 p-4">
-                                <p className="text-[11px] uppercase tracking-[0.16em] text-primary mb-2">Dhyan Premium Access</p>
-                                <p className="text-sm text-foreground/80 mb-4">Unlock the full 30-day guided meditation path with structured sessions and consistency tools.</p>
-                                <CourseBanner user={user ? { name: user.name, email: user.email } : null} courseId="safar-30" />
-                            </section>
-
                             <section className="rounded-lg border border-border bg-muted/20 p-4">
                                 <div className="flex items-center justify-between gap-3">
                                     <div>

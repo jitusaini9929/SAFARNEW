@@ -1,11 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { Suspense, useRef, useState } from 'react';
 import { Send, Loader2, Smile } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { MehfilRoom } from '@/store/mehfilStore';
-import { EmojiPicker } from '@/components/ui/EmojiPicker';
 import './Composer.css';
 
 type MehfilFeedRoom = MehfilRoom | 'ALL';
+
+const LazyEmojiPicker = React.lazy(async () => {
+  const module = await import('@/components/ui/EmojiPicker');
+  return { default: module.EmojiPicker };
+});
 
 interface ComposerProps {
   onSendThought: (content: string, isAnonymous: boolean, room: MehfilFeedRoom) => Promise<void> | void;
@@ -104,13 +108,17 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, activeRoom, placehol
 
         {/* Emoji picker — floats above the emoji button */}
         <div style={{ position: 'absolute', bottom: 44, left: 14, zIndex: 50 }}>
-          <EmojiPicker
-            open={showEmojiPicker}
-            onClose={() => setShowEmojiPicker(false)}
-            onSelect={handleEmojiSelect}
-            position="top"
-            align="left"
-          />
+          {showEmojiPicker ? (
+            <Suspense fallback={null}>
+              <LazyEmojiPicker
+                open={showEmojiPicker}
+                onClose={() => setShowEmojiPicker(false)}
+                onSelect={handleEmojiSelect}
+                position="top"
+                align="left"
+              />
+            </Suspense>
+          ) : null}
         </div>
       </div>
 

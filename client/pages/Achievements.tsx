@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/MainLayout';
-import { authService } from '@/utils/authService';
+import { useAuth } from '@/contexts/AuthContext';
 import { dataService } from '@/utils/dataService';
 import { Award, Clock, Heart, Target, Users, CheckCircle2, Lock, Check, Sparkles, RefreshCw, Medal } from 'lucide-react';
 import { toast } from 'sonner';
@@ -89,9 +88,8 @@ const achievementImages: Record<string, string> = {
 };
 
 export default function Achievements() {
-    const navigate = useNavigate();
+    const { user } = useAuth();
     const { t } = useTranslation();
-    const [user, setUser] = useState<any>(null);
     const [achievements, setAchievements] = useState<Achievement[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'mood' | 'consistency' | 'productivity'>('all');
@@ -108,14 +106,9 @@ export default function Achievements() {
 
     useEffect(() => {
         const fetchData = async () => {
-            try {
-                const userData = await authService.getCurrentUser();
-                if (!userData?.user) {
-                    navigate('/login');
-                    return;
-                }
-                setUser(userData.user);
+            if (!user?.id) return;
 
+            try {
                 const [allData, titleData] = await Promise.all([
                     dataService.getAllAchievements(),
                     dataService.getActiveTitle(),
@@ -149,7 +142,7 @@ export default function Achievements() {
             }
         };
         fetchData();
-    }, [navigate]);
+    }, [user?.id]);
 
     const handleSelect = async (achievementId: string) => {
         if (selecting) return;

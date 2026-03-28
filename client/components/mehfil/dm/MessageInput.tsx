@@ -1,6 +1,10 @@
-import { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { Send, Smile } from "lucide-react";
-import { EmojiPicker } from "@/components/ui/EmojiPicker";
+
+const LazyEmojiPicker = React.lazy(async () => {
+  const module = await import("@/components/ui/EmojiPicker");
+  return { default: module.EmojiPicker };
+});
 
 interface MessageInputProps {
   onSend: (text: string) => void;
@@ -45,12 +49,16 @@ export function MessageInput({ onSend }: MessageInputProps) {
             >
               <Smile className="h-5 w-5" />
             </button>
-            <EmojiPicker
-              open={showEmojiPicker}
-              onClose={() => setShowEmojiPicker(false)}
-              onSelect={handleEmojiSelect}
-              position="top"
-            />
+            {showEmojiPicker ? (
+              <Suspense fallback={null}>
+                <LazyEmojiPicker
+                  open={showEmojiPicker}
+                  onClose={() => setShowEmojiPicker(false)}
+                  onSelect={handleEmojiSelect}
+                  position="top"
+                />
+              </Suspense>
+            ) : null}
           </div>
         </div>
         <button

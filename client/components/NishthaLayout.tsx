@@ -3,7 +3,7 @@ import WelcomeDialog from "./WelcomeDialog";
 import TopNavbar from "./TopNavbar";
 import LeftSidebar from "./LeftSidebar";
 import GlobalPageFooter from "./GlobalPageFooter";
-import { authService } from "@/utils/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import { runGoalRolloverPromptFlow } from "@/utils/goalRolloverPrompt";
 
 
@@ -20,6 +20,7 @@ export default function NishthaLayout({
     userAvatar = "",
     onLogout,
 }: NishthaLayoutProps) {
+    const { user } = useAuth();
     const [showWelcome, setShowWelcome] = useState(false);
 
     useEffect(() => {
@@ -32,15 +33,16 @@ export default function NishthaLayout({
 
     useEffect(() => {
         const checkMissedGoals = async () => {
+            if (!user?.id) return;
+
             try {
-                const authData = await authService.getCurrentUser();
-                await runGoalRolloverPromptFlow(authData?.user?.id || null);
+                await runGoalRolloverPromptFlow(user.id);
             } catch (error) {
                 console.error("Failed to run rollover prompt flow:", error);
             }
         };
         checkMissedGoals();
-    }, []);
+    }, [user?.id]);
 
     const handleCloseWelcome = () => {
         setShowWelcome(false);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "@/utils/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import { User } from "@shared/api";
 import { toast } from "sonner";
 import GlobalPageFooter from "@/components/GlobalPageFooter";
@@ -9,8 +10,8 @@ import { useTranslation } from "react-i18next";
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { user, refreshUser } = useAuth();
   const { t } = useTranslation();
-  const [user, setUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -35,28 +36,19 @@ export default function Profile() {
   useEffect(() => {
     // Check if dark mode is enabled
     setIsDark(document.documentElement.classList.contains('dark'));
+  }, []);
 
-    const fetchUser = async () => {
-      try {
-        const data = await authService.getCurrentUser();
-        if (!data || !data.user) {
-          navigate("/login");
-          return;
-        }
-        setUser(data.user);
-        setFormData({
-          name: data.user.name || "",
-          email: data.user.email || "",
-          examType: data.user.examType || "CHSL",
-          preparationStage: data.user.preparationStage || "Intermediate",
-          gender: data.user.gender || "Male",
-        });
-      } catch (error) {
-        navigate("/login");
-      }
-    };
-    fetchUser();
-  }, [navigate]);
+  useEffect(() => {
+    if (!user) return;
+
+    setFormData({
+      name: user.name || "",
+      email: user.email || "",
+      examType: user.examType || "CHSL",
+      preparationStage: user.preparationStage || "Intermediate",
+      gender: user.gender || "Male",
+    });
+  }, [user]);
 
   // Cleanup object URL on unmount
   useEffect(() => {
@@ -98,7 +90,7 @@ export default function Profile() {
         gender: formData.gender,
         avatar: avatarUrl,  // URL path like "/uploads/avatars/abc.webp" or undefined
       });
-      setUser(updatedUser);
+      await refreshUser(true);
       setFormData({
         name: updatedUser.name || "",
         email: updatedUser.email || "",

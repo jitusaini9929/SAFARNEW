@@ -60,6 +60,7 @@ export const collections = {
     courseEnrollments: () => getDb().collection('course_enrollments'),
     transactionLogs: () => getDb().collection('transaction_logs'),
     uploadedImages: () => getDb().collection('uploaded_images'),
+    legacyUploadUsageDaily: () => getDb().collection('legacy_upload_usage_daily'),
     appSettings: () => getDb().collection('app_settings'),
     sandeshMessages: () => getDb().collection('sandesh_messages'),
     sandeshReactions: () => getDb().collection('sandesh_reactions'),
@@ -163,6 +164,9 @@ export async function initDatabase(): Promise<void> {
         await db.collection('course_enrollments').createIndex({ user_id: 1, course_id: 1 }, { unique: true });
         await db.collection('transaction_logs').createIndex({ order_id: 1 });
         await db.collection('uploaded_images').createIndex({ user_id: 1 });
+        await db.collection('legacy_upload_usage_daily').createIndex({ event: 1, day: 1 }, { unique: true });
+        await db.collection('legacy_upload_usage_daily').createIndex({ day: 1 });
+        await db.collection('legacy_upload_usage_daily').createIndex({ updatedAt: -1 });
         await db.collection('app_settings').createIndex({ key: 1 }, { unique: true });
         await db.collection('sandesh_messages').createIndex({ created_at: -1 });
         await db.collection('sandesh_reactions').createIndex({ sandesh_id: 1, user_id: 1 }, { unique: true });

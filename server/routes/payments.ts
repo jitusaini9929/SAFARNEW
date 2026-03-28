@@ -45,6 +45,12 @@ if (razorpayInstance) {
   console.warn("Razorpay credentials not found. Payment features are disabled.");
 }
 
+function getPaymentAvailabilityMessage(): string {
+  return razorpayReady
+    ? "Payments are available."
+    : "Payments are temporarily unavailable because Razorpay is not configured on the server.";
+}
+
 function verifyRazorpaySignature(
   orderId: string,
   paymentId: string,
@@ -73,10 +79,19 @@ router.get("/courses", (_req, res) => {
   res.json({ courses: Object.values(COURSES) });
 });
 
+// GET /api/payments/config
+router.get("/config", (_req, res) => {
+  res.json({
+    available: razorpayReady,
+    provider: "razorpay",
+    message: getPaymentAvailabilityMessage(),
+  });
+});
+
 // POST /api/payments/create-order
 router.post("/create-order", requireAuth, async (req: any, res: Response) => {
   if (!razorpayInstance) {
-    return res.status(503).json({ message: "Payment service unavailable" });
+    return res.status(503).json({ message: getPaymentAvailabilityMessage() });
   }
 
   try {

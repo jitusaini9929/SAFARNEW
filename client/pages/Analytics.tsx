@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
-import { authService } from "@/utils/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import { dataService } from "@/utils/dataService";
 import { MonthlyReport } from "@shared/api";
 import {
@@ -68,7 +68,7 @@ const achievementImages: Record<string, string> = {
 
 export default function Analytics() {
     const navigate = useNavigate();
-    const [user, setUser] = useState<any>(null);
+    const { user } = useAuth();
     const { t } = useTranslation();
     const [report, setReport] = useState<MonthlyReport | null>(null);
     const [achievements, setAchievements] = useState<any[]>([]);
@@ -114,15 +114,11 @@ export default function Analytics() {
     };
 
     useEffect(() => {
-        const init = async () => {
-            const authData = await authService.getCurrentUser();
-            if (!authData?.user) return;
-            setUser(authData.user);
-            loadReport();
-            fetchAchievements();
-        };
-        init();
-    }, []);
+        if (!user?.id) return;
+
+        loadReport();
+        fetchAchievements();
+    }, [user?.id]);
 
     const handleGenerate = async () => {
         try {

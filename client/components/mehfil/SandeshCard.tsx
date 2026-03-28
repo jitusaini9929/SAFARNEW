@@ -288,22 +288,18 @@ const SandeshCard = () => {
         if (!file.type.startsWith('audio/')) { toast.error(t('sandesh.toast.audio_error')); return; }
         setIsUploadingAudio(true);
         try {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                const base64Data = reader.result?.toString().split(',')[1];
-                if (!base64Data) { toast.error('Failed to process audio file'); setIsUploadingAudio(false); return; }
-                const res = await fetch(`${API_URL}/upload`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ data: base64Data, mimeType: file.type }),
-                    credentials: 'include'
-                });
-                const data = await res.json();
-                if (data.success) { setAudioUrl(data.url); toast.success(t('sandesh.toast.audio_success')); }
-                else { toast.error(data.message || t('sandesh.toast.audio_error')); }
-                setIsUploadingAudio(false);
-            };
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch(`${API_URL}/upload`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            });
+            const data = await res.json();
+            if (data.success) { setAudioUrl(data.url); toast.success(t('sandesh.toast.audio_success')); }
+            else { toast.error(data.message || t('sandesh.toast.audio_error')); }
+            setIsUploadingAudio(false);
         } catch { toast.error(t('sandesh.toast.audio_error')); setIsUploadingAudio(false); }
     };
 

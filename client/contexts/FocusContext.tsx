@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
-import { authService } from "@/utils/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import { FocusOverlayStats } from "@/utils/focusOverlayService";
 import { clearPiPNudgeSessionDismissal, dismissPiPNudgeSession, shouldShowPiPNudge } from "@/utils/pipNudge";
 
@@ -82,6 +82,7 @@ type ActiveFocusSession = {
 };
 
 export function FocusProvider({ children }: { children: React.ReactNode }) {
+    const { user } = useAuth();
     const [userId, setUserId] = useState<string | null>(null);
     const userIdRef = useRef<string | null>(null);
 
@@ -184,12 +185,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const musicShouldPlayRef = useRef(isMusicPlaying);
     const suppressMusicPauseRef = useRef(false);
 
-    // Check Auth
     useEffect(() => {
-        authService.getCurrentUser().then(u => {
-            setUserId(u?.user?.id || null);
-        });
-    }, []);
+        setUserId(user?.id || null);
+    }, [user?.id]);
 
     useEffect(() => {
         try {

@@ -20,7 +20,8 @@
     "format.fix": "prettier --write .",
     "typecheck": "tsc",
     "backfill:mehfil": "tsx scripts/backfill-mehfil-moderation.ts",
-    "migrate:uploads:vultr": "tsx server/scripts/migrate-local-uploads-to-vultr.ts"
+    "migrate:uploads:vultr": "tsx server/scripts/migrate-local-uploads-to-vultr.ts",
+    "backfill:legacy-images:vultr": "tsx server/scripts/backfill-legacy-image-urls-to-vultr.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1010.0",

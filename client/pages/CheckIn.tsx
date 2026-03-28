@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
-import { authService } from "@/utils/authService";
 import { dataService } from "@/utils/dataService";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { checkInTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
 import { Button } from "@/components/ui/button";
@@ -57,8 +57,8 @@ export default function CheckIn() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { startTour } = useGuidedTour();
+  const { user, status } = useAuth();
 
-  const [user, setUser] = useState<any>(null);
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
   const [intensity, setIntensity] = useState<number>(3);
   const [note, setNote] = useState("");
@@ -67,14 +67,13 @@ export default function CheckIn() {
   const [moodHistory, setMoodHistory] = useState<any[]>([]);
 
   useEffect(() => {
-    const init = async () => {
-      const data = await authService.getCurrentUser();
-      if (!data?.user) return navigate("/login");
-      setUser(data.user);
-      fetchMoods();
-    };
-    init();
-  }, [navigate]);
+    if (status === "loading") return;
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    fetchMoods();
+  }, [navigate, status, user]);
 
   const fetchMoods = async () => {
     try {

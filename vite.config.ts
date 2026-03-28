@@ -24,8 +24,40 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist/spa",
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+
+          if (
+            id.includes("react/") ||
+            id.includes("react-dom/") ||
+            id.includes("react-router-dom/")
+          ) {
+            return "vendor";
+          }
+
+          if (id.includes("recharts/")) {
+            if (id.includes("/polar/")) {
+              return "charts-polar";
+            }
+
+            if (id.includes("/cartesian/")) {
+              return "charts-cartesian";
+            }
+
+            if (id.includes("/chart/")) {
+              return "charts-engine";
+            }
+
+            return "charts-core";
+          }
+
+          if (id.includes("@emoji-mart/")) {
+            return "emoji";
+          }
+
+          if (id.includes("socket.io-client/")) {
+            return "socket";
+          }
         },
       },
     },

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { authService } from '../utils/authService';
+import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '../components/AuthModal';
 import ThemeToggle from '../components/ui/theme-toggle';
 import { Trophy } from 'lucide-react';
@@ -17,7 +17,7 @@ import { triggerFireworks, triggerSideCannons } from '../components/ui/confetti'
 let hasAutoOpenedMilestoneThisPageLoad = false;
 
 const Landing = () => {
-  const [user, setUser] = useState<any>(null);
+  const { user, refreshUser } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [suppressMilestoneAutoOpen, setSuppressMilestoneAutoOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,20 +37,6 @@ const Landing = () => {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams]);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const userData = await authService.getCurrentUser();
-        if (userData && userData.user) {
-          setUser(userData.user);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user", error);
-      }
-    };
-    fetchUser();
-  }, []);
 
   useEffect(() => {
     // Auto-open only once per full page load, not on every client-side return to home.
@@ -116,12 +102,7 @@ const Landing = () => {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={() => {
-          // Refresh user state
-          authService.getCurrentUser().then((userData) => {
-            if (userData && userData.user) {
-              setUser(userData.user);
-            }
-          });
+          void refreshUser(true);
         }}
       />
 

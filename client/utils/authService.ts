@@ -6,8 +6,35 @@ interface AuthResponse {
   streaks?: Streak;
 }
 
+type GetCurrentUserOptions = {
+  force?: boolean;
+};
+
 const AUTH_CACHE_KEY = "safar.cached_user";
+const CURRENT_USER_CACHE_TTL_MS = 60 * 1000;
 let initAuthPromise: Promise<User | null> | null = null;
+let currentUserPromise: Promise<AuthResponse | null> | null = null;
+let lastCurrentUserResult: AuthResponse | null = null;
+let lastCurrentUserFetchedAt = 0;
+
+function setCurrentUserCache(result: AuthResponse | null) {
+  lastCurrentUserResult = result;
+  lastCurrentUserFetchedAt = Date.now();
+}
+
+function clearCurrentUserCache() {
+  lastCurrentUserResult = null;
+  lastCurrentUserFetchedAt = 0;
+  currentUserPromise = null;
+}
+
+function getFreshCurrentUserCache(): AuthResponse | null | undefined {
+  if (!lastCurrentUserFetchedAt) return undefined;
+  if (Date.now() - lastCurrentUserFetchedAt > CURRENT_USER_CACHE_TTL_MS) {
+    return undefined;
+  }
+  return lastCurrentUserResult;
+}
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -70,6 +97,7 @@ export const authService = {
     const { accessToken, user } = await response.json();
     setAccessToken(accessToken);
     writeCachedUser(user);
+    setCurrentUserCache({ user });
     emitAuthChanged(true, user);
     return user;
   },
@@ -107,6 +135,7 @@ export const authService = {
     const { accessToken, user } = await response.json();
     setAccessToken(accessToken);
     writeCachedUser(user);
+    setCurrentUserCache({ user });
     emitAuthChanged(true, user);
     return user;
   },
@@ -120,6 +149,7 @@ export const authService = {
     } finally {
       setAccessToken(null);
       writeCachedUser(null);
+      clearCurrentUserCache();
       emitAuthChanged(false, null);
       resetCsrfToken();
     }
@@ -134,16 +164,19 @@ export const authService = {
 
       if (refreshResult.status === "auth_failed") {
         writeCachedUser(null);
+        setCurrentUserCache(null);
         emitAuthChanged(false, null);
         return null;
       }
 
       if (refreshResult.status !== "ok") {
         if (cachedUser) {
+          setCurrentUserCache({ user: cachedUser });
           emitAuthChanged(true, cachedUser);
           return cachedUser;
         }
 
+        setCurrentUserCache(null);
         return null;
       }
 
@@ -153,10 +186,12 @@ export const authService = {
       }
 
       if (cachedUser) {
+        setCurrentUserCache({ user: cachedUser });
         emitAuthChanged(true, cachedUser);
         return cachedUser;
       }
 
+      setCurrentUserCache(null);
       emitAuthChanged(false, null);
       return null;
     })().finally(() => {
@@ -166,41 +201,63 @@ export const authService = {
     return initAuthPromise;
   },
 
-  async getCurrentUser(): Promise<AuthResponse | null> {
-    try {
-      const response = await apiFetch("/api/auth/me", {
-        credentials: "include",
-      });
+  async getCurrentUser(options: GetCurrentUserOptions = {}): Promise<AuthResponse | null> {
+    if (currentUserPromise) {
+      return currentUserPromise;
+    }
 
-      if (response.status === 401 || response.status === 403) {
+    if (!options.force) {
+      const cached = getFreshCurrentUserCache();
+      if (cached !== undefined) {
+        return cached;
+      }
+    }
+
+    currentUserPromise = (async () => {
+      try {
+        const response = await apiFetch("/api/auth/me", {
+          credentials: "include",
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          const cachedUser = readCachedUser();
+          if (cachedUser) {
+            return { user: cachedUser };
+          }
+          return null;
+        }
+
+        if (!response.ok) {
+          const cachedUser = readCachedUser();
+          if (cachedUser) {
+            return { user: cachedUser };
+          }
+          throw new Error(`Auth check failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data?.user) {
+          writeCachedUser(data.user);
+          emitAuthChanged(true, data.user);
+        }
+        return data;
+      } catch {
         const cachedUser = readCachedUser();
         if (cachedUser) {
           return { user: cachedUser };
         }
         return null;
       }
+    })()
+      .then((result) => {
+        setCurrentUserCache(result);
+        return result;
+      })
+      .finally(() => {
+        currentUserPromise = null;
+      });
 
-      if (!response.ok) {
-        const cachedUser = readCachedUser();
-        if (cachedUser) {
-          return { user: cachedUser };
-        }
-        throw new Error(`Auth check failed with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (data?.user) {
-        writeCachedUser(data.user);
-        emitAuthChanged(true, data.user);
-      }
-      return data;
-    } catch {
-      const cachedUser = readCachedUser();
-      if (cachedUser) {
-        return { user: cachedUser };
-      }
-      return null;
-    }
+    return currentUserPromise;
   },
 
   async updateProfile(data: {
@@ -222,7 +279,15 @@ export const authService = {
       throw new Error(error.message || "Failed to update profile");
     }
 
-    return response.json();
+    const updatedUser = await response.json();
+    writeCachedUser(updatedUser);
+    setCurrentUserCache({ user: updatedUser });
+    emitAuthChanged(true, updatedUser);
+    return updatedUser;
+  },
+
+  getCachedUser(): User | null {
+    return readCachedUser();
   },
 
   async uploadAvatar(file: File): Promise<string> {

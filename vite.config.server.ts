@@ -2,6 +2,10 @@ import { defineConfig } from "vite";
 import path from "path";
 
 // Server build configuration
+const buildEnv = (process.env.BUILD_ENV || process.env.NODE_ENV || "production").toLowerCase();
+const isProductionBuild = buildEnv === "production";
+const nodeEnvForDefine = process.env.NODE_ENV === "development" ? "development" : "production";
+
 export default defineConfig({
   build: {
     lib: {
@@ -38,8 +42,8 @@ export default defineConfig({
         entryFileNames: "[name].mjs",
       },
     },
-    minify: false, // Keep readable for debugging
-    sourcemap: true,
+    minify: isProductionBuild ? "esbuild" : false,
+    sourcemap: !isProductionBuild,
   },
   resolve: {
     alias: {
@@ -48,6 +52,6 @@ export default defineConfig({
     },
   },
   define: {
-    "process.env.NODE_ENV": '"production"',
+    "process.env.NODE_ENV": JSON.stringify(nodeEnvForDefine),
   },
 });

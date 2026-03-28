@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
-import { authService } from "@/utils/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import { dataService } from "@/utils/dataService";
 import { toast } from "sonner";
 import { User } from "@shared/api";
@@ -80,11 +79,9 @@ const getEntryBody = (html: string) => {
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────
 export default function Journal() {
-  const navigate = useNavigate();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const editorRef = useRef<HTMLDivElement>(null);
-
-  const [user, setUser] = useState<User | null>(null);
   const [title, setTitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [journalEntries, setJournalEntries] = useState<any[]>([]);
@@ -106,14 +103,9 @@ export default function Journal() {
   const dateDisplay = formatISTDate(new Date(), { weekday: 'long', month: 'long', day: 'numeric' });
 
   useEffect(() => {
-    const init = async () => {
-      const data = await authService.getCurrentUser();
-      if (!data?.user) return navigate("/login");
-      setUser(data.user);
-      fetchEntries();
-    };
-    init();
-  }, [navigate]);
+    if (!user?.id) return;
+    fetchEntries();
+  }, [user?.id]);
 
   const fetchEntries = async () => {
     try {

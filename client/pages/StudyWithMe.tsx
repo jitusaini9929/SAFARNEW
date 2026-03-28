@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/utils/authService";
 import FocusAnalytics from "@/pages/FocusAnalytics";
 import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
@@ -125,7 +126,7 @@ const saveTasks = (tasks: Task[], userId?: string) => {
 
 export default function StudyWithMe() {
     const navigate = useNavigate();
-    const [user, setUser] = useState<any>(null);
+    const { user } = useAuth();
     const {
         timerState,
         toggleTimer,
@@ -278,20 +279,6 @@ export default function StudyWithMe() {
             setShowDurationPrompt(false);
         }
     }, [remainingSeconds, activeTask, updateTasks, mode]);
-
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const userData = await authService.getCurrentUser();
-                if (userData?.user) {
-                    setUser(userData.user);
-                }
-            } catch (error) {
-                console.error('Failed to fetch user:', error);
-            }
-        };
-        fetchUser();
-    }, []);
 
     useEffect(() => {
         setTasks(loadTasks(user?.id));

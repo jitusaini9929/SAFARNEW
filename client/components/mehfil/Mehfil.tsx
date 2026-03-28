@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { useMehfilStore, MehfilRoom } from '@/store/mehfilStore';
 import { useDMStore } from '@/store/dmStore';
+import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/utils/authService';
 import LanguageToggle from '../LanguageToggle';
 import ThoughtCard from './ThoughtCard';
@@ -80,8 +81,8 @@ const ROOM_CONFIG: Record<MehfilFeedRoom, {
 const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [user, setUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [mehfilSidebarInitialView, setMehfilSidebarInitialView] = useState<MehfilSidebarView>('connections');
@@ -125,21 +126,6 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const handleProfile = () => {
     navigate("/profile");
   };
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const userData = await authService.getCurrentUser();
-        if (userData?.user) {
-          setUser(userData.user);
-          userIdRef.current = userData.user.id;
-        }
-      } catch (error) {
-        console.error('Failed to fetch user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
 
   useEffect(() => {
     userIdRef.current = user?.id;

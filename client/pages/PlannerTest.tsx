@@ -1,25 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { authService } from "@/utils/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import { motion } from "framer-motion";
 import PlannerSidebar from "@/components/PlannerSidebar";
 
 export default function PlannerTest() {
   const navigate = useNavigate();
-  const [checking, setChecking] = useState(true);
-  const [isAuthed, setIsAuthed] = useState(false);
-
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const current = await authService.getCurrentUser();
-        setIsAuthed(Boolean(current?.user));
-      } finally {
-        setChecking(false);
-      }
-    };
-    void run();
-  }, []);
+  const { user, status } = useAuth();
+  const checking = status === "loading";
+  const isAuthed = Boolean(user?.id);
 
   return (
     <>

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
+import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/utils/authService";
 import { dataService } from "@/utils/dataService";
 import { TourPrompt } from "@/components/guided-tour";
@@ -35,7 +36,7 @@ import {
 export default function Streaks() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const [user, setUser] = useState<any>(null);
+  const { user } = useAuth();
   const [streakData, setStreakData] = useState<any>(null);
   const [consistencyData, setConsistencyData] = useState<any[]>([]);
   const [goalsData, setGoalsData] = useState<any[]>([]);
@@ -48,11 +49,9 @@ export default function Streaks() {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user?.id) return;
+
       try {
-        const response = await authService.getCurrentUser();
-        if (!response?.user) return navigate("/login");
-        setUser(response.user);
-        
         const [streaks, goals, moods, journal, logins] = await Promise.all([
           dataService.getStreaks().catch(() => ({})),
           dataService.getGoals().catch(() => []),
@@ -84,11 +83,11 @@ export default function Streaks() {
         });
         setConsistencyData(last7);
       } catch (error) {
-        navigate("/login");
+        console.error("Failed to load streak data:", error);
       }
     };
     fetchData();
-  }, [navigate, todayKey]);
+  }, [user?.id, todayKey]);
 
   const calendarDays = useMemo(() => {
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);

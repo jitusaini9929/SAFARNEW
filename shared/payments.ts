@@ -29,6 +29,12 @@ export interface CreateOrderResponse {
   course: Course;
 }
 
+export interface PaymentConfigResponse {
+  available: boolean;
+  provider: "razorpay";
+  message?: string;
+}
+
 export interface VerifyPaymentRequest {
   razorpay_order_id: string;
   razorpay_payment_id: string;

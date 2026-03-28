@@ -86,6 +86,13 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
                             <Wind className="w-5 h-5 text-teal-500" />
                             <span className="font-medium">{t('apps.dhyan_name')}</span>
                         </button>
+                        <button
+                            onClick={() => handleNavigation("/courses")}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-left text-slate-700 dark:text-slate-300"
+                        >
+                            <Shield className="w-5 h-5 text-emerald-500" />
+                            <span className="font-medium">Courses</span>
+                        </button>
                     </div>
 
                     {isMehfilPath && onOpenMehfilSidebar && (

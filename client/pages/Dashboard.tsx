@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "@/components/MainLayout";
-import { authService } from "@/utils/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import { dataService } from "@/utils/dataService";
 import { runGoalRolloverPromptFlow } from "@/utils/goalRolloverPrompt";
 import PerkTitle from "@/components/PerkTitle";
@@ -102,6 +102,7 @@ const achievementImages: Record<string, string> = {
 export default function Dashboard() {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const { user: authUser, status } = useAuth();
     const [user, setUser] = useState<any>(null);
     const [streaks, setStreaks] = useState({ checkInStreak: 0, loginStreak: 0, goalCompletionStreak: 0 });
     const [todayMood, setTodayMood] = useState<{ mood: string; intensity: number } | null>(null);
@@ -128,13 +129,17 @@ export default function Dashboard() {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const data = await authService.getCurrentUser();
-                if (!data || !data.user) {
+                if (status === "loading") {
+                    return;
+                }
+
+                if (!authUser) {
                     navigate("/login");
                     return;
                 }
-                setUser(data.user);
-                await runGoalRolloverPromptFlow(data.user.id);
+
+                setUser(authUser);
+                await runGoalRolloverPromptFlow(authUser.id);
                 // Fetch streaks
                 try {
                     const streakData = await dataService.getStreaks();
@@ -236,7 +241,7 @@ export default function Dashboard() {
             }
         };
         checkAuth();
-    }, [navigate]);
+    }, [authUser, navigate, status]);
 
 
 

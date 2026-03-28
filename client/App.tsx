@@ -6,8 +6,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import React, { Suspense, useEffect, useState } from "react";
-import { authService } from "./utils/authService";
+import React, { Suspense, useEffect } from "react";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { GuidedTourProvider } from "@/contexts/GuidedTourContext";
 import { GuidedTour } from "@/components/guided-tour";
 import { FocusProvider } from "@/contexts/FocusContext";
@@ -34,6 +34,7 @@ const Challenge100K = React.lazy(() => import("./pages/Challenge100K"));
 const Mehfil = React.lazy(() => import("./pages/Mehfil"));
 const Meditation = React.lazy(() => import("./pages/Meditation"));
 const StudyPlannerPage = React.lazy(() => import("./pages/StudyPlannerPage"));
+const Courses = React.lazy(() => import("./pages/Courses"));
 
 const queryClient = new QueryClient();
 const GA_MEASUREMENT_ID = "G-JGR9ENZ8W0";
@@ -89,56 +90,28 @@ function PageLoadingFallback() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { status, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    console.log("🔵 [PROTECTED ROUTE] Checking authentication...");
-    const checkAuth = async () => {
-      try {
-        const user = await authService.getCurrentUser();
-        console.log("🔵 [PROTECTED ROUTE] getCurrentUser result:", user);
-        setIsAuthenticated(!!user);
-        console.log("🟢 [PROTECTED ROUTE] isAuthenticated set to:", !!user);
-      } catch (error) {
-        console.error("🔴 [PROTECTED ROUTE] Error checking auth:", error);
-        setIsAuthenticated(false);
-      }
-    };
-    checkAuth();
-  }, []);
-
-  if (isAuthenticated === null) {
-    console.log("🟡 [PROTECTED ROUTE] Still checking auth, showing loading...");
+  if (status === "loading") {
     return <PageLoadingFallback />;
-  }
-
-  if (!isAuthenticated) {
-    console.log(
-      "🔴 [PROTECTED ROUTE] Not authenticated, redirecting to Landing with signin modal",
-    );
-  } else {
-    console.log("🟢 [PROTECTED ROUTE] Authenticated, rendering children");
   }
 
   return isAuthenticated ? <>{children}</> : <Navigate to="/?signin=true" replace />;
 }
 
 const App = () => {
-  useEffect(() => {
-    authService.initAuth();
-  }, []);
-
   return (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AnalyticsTracker />
-        <FocusProvider>
-          <GuidedTourProvider>
-            <Suspense fallback={<PageLoadingFallback />}>
-              <Routes>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <AnalyticsTracker />
+            <FocusProvider>
+              <GuidedTourProvider>
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <Routes>
                 {/* Auth Routes */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
@@ -261,6 +234,14 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/courses"
+                  element={
+                    <ProtectedRoute>
+                      <Courses />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Landing page - Public Home */}
                 <Route path="/home" element={<Landing />} />
@@ -271,14 +252,15 @@ const App = () => {
 
                 {/* 404 */}
                 <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-            <GuidedTour />
-          </GuidedTourProvider>
-        </FocusProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+                  </Routes>
+                </Suspense>
+                <GuidedTour />
+              </GuidedTourProvider>
+            </FocusProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 
