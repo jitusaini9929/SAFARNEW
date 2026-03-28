@@ -36,19 +36,9 @@ export default defineConfig(({ mode }) => ({
           }
 
           if (id.includes("recharts/")) {
-            if (id.includes("/polar/")) {
-              return "charts-polar";
-            }
-
-            if (id.includes("/cartesian/")) {
-              return "charts-cartesian";
-            }
-
-            if (id.includes("/chart/")) {
-              return "charts-engine";
-            }
-
-            return "charts-core";
+            // Avoid runtime TDZ/circular-init issues from splitting Recharts internals
+            // across multiple manual chunks.
+            return "charts";
           }
 
           if (id.includes("@emoji-mart/")) {
