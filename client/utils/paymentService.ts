@@ -1,4 +1,4 @@
-import { apiFetch } from "@/utils/apiFetch";
+import { apiFetch, API_BASE } from "@/utils/apiFetch";
 import type {
   Course,
   CreateOrderResponse,
@@ -43,7 +43,7 @@ export function loadRazorpayScript(): Promise<boolean> {
 
 // Create an order on the server
 export async function createOrder(courseId: string): Promise<CreateOrderResponse> {
-  const response = await apiFetch("/api/payments/create-order", {
+  const response = await apiFetch(`${API_BASE}/payments/create-order`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ courseId }),
@@ -59,7 +59,7 @@ export async function createOrder(courseId: string): Promise<CreateOrderResponse
 }
 
 export async function getPaymentConfig(): Promise<PaymentConfigResponse> {
-  const response = await apiFetch("/api/payments/config", {
+  const response = await apiFetch(`${API_BASE}/payments/config`, {
     credentials: "include",
   });
 
@@ -77,7 +77,7 @@ export async function verifyPayment(
   razorpay_signature: string,
   courseId: string
 ): Promise<VerifyPaymentResponse> {
-  const response = await apiFetch("/api/payments/verify", {
+  const response = await apiFetch(`${API_BASE}/payments/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -101,7 +101,7 @@ export async function verifyPayment(
 export async function checkPurchaseStatus(
   courseId: string
 ): Promise<{ purchased: boolean; payment?: any }> {
-  const response = await apiFetch(`/api/payments/status/${courseId}`, {
+  const response = await apiFetch(`${API_BASE}/payments/status/${courseId}`, {
     credentials: "include",
   });
 

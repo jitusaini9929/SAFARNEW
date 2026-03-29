@@ -1,4 +1,4 @@
-import { apiFetch, refreshAccessToken, resetCsrfToken, setAccessToken } from "@/utils/apiFetch";
+import { apiFetch, API_BASE, refreshAccessToken, resetCsrfToken, setAccessToken } from "@/utils/apiFetch";
 import { User, Streak } from "@shared/api";
 
 interface AuthResponse {
@@ -82,7 +82,7 @@ function emitAuthChanged(isAuthenticated: boolean, user?: User | null) {
 export const authService = {
   async login(email: string, password: string, rememberMe?: boolean): Promise<User> {
     const normalizedEmail = normalizeEmail(email);
-    const response = await apiFetch("/api/auth/login", {
+    const response = await apiFetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: normalizedEmail, password, rememberMe }),
@@ -112,7 +112,7 @@ export const authService = {
     profileImage?: string,
   ): Promise<User> {
     const normalizedEmail = normalizeEmail(email);
-    const response = await apiFetch("/api/auth/signup", {
+    const response = await apiFetch(`${API_BASE}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -142,7 +142,7 @@ export const authService = {
 
   async logout(): Promise<void> {
     try {
-      await apiFetch("/api/auth/logout", {
+      await apiFetch(`${API_BASE}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -215,7 +215,7 @@ export const authService = {
 
     currentUserPromise = (async () => {
       try {
-        const response = await apiFetch("/api/auth/me", {
+        const response = await apiFetch(`${API_BASE}/auth/me`, {
           credentials: "include",
         });
 
@@ -267,7 +267,7 @@ export const authService = {
     gender?: string;
     avatar?: string;
   }): Promise<User> {
-    const response = await apiFetch("/api/auth/profile", {
+    const response = await apiFetch(`${API_BASE}/auth/profile`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -294,7 +294,7 @@ export const authService = {
     const formData = new FormData();
     formData.append("avatar", file);
 
-    const response = await apiFetch("/api/upload/avatar", {
+    const response = await apiFetch(`${API_BASE}/upload/avatar`, {
       method: "POST",
       body: formData,
       credentials: "include",
@@ -311,7 +311,7 @@ export const authService = {
 
   async getLoginHistory(): Promise<{ timestamp: string }[]> {
     try {
-      const response = await apiFetch("/api/auth/login-history", {
+      const response = await apiFetch(`${API_BASE}/auth/login-history`, {
         credentials: "include",
       });
       if (!response.ok) return [];
@@ -323,7 +323,7 @@ export const authService = {
 
   async requestPasswordReset(email: string): Promise<string> {
     const normalizedEmail = normalizeEmail(email);
-    const response = await apiFetch("/api/auth/forgot-password", {
+    const response = await apiFetch(`${API_BASE}/auth/forgot-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: normalizedEmail }),
@@ -339,7 +339,7 @@ export const authService = {
   },
 
   async confirmPasswordReset(token: string, newPassword: string): Promise<void> {
-    const response = await apiFetch("/api/auth/reset-password/confirm", {
+    const response = await apiFetch(`${API_BASE}/auth/reset-password/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, newPassword }),

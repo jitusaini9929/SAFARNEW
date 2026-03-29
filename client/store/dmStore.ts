@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Socket } from "socket.io-client";
-import { apiFetch } from "@/utils/apiFetch";
+import { apiFetch, API_BASE } from "@/utils/apiFetch";
 
 export type DMRequestState = "idle" | "pending" | "accepted" | "declined";
 export type DMContextType = "post" | "comment";
@@ -340,7 +340,7 @@ export const useDMStore = create<DMStore>((set, get) => ({
 
   loadSavedHandles: async () => {
     try {
-      const response = await apiFetch("/api/dm/handles/me", { credentials: "include" });
+      const response = await apiFetch(`${API_BASE}/dm/handles/me`, { credentials: "include" });
       if (!response.ok) return;
       const data = await response.json();
       set({
@@ -363,7 +363,7 @@ export const useDMStore = create<DMStore>((set, get) => ({
       discord: handles.discord ?? current.discord,
     };
 
-    const response = await apiFetch("/api/dm/handles", {
+    const response = await apiFetch(`${API_BASE}/dm/handles`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

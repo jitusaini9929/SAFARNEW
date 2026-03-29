@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { apiFetch } from "@/utils/apiFetch";
+import { apiFetch, API_BASE } from "@/utils/apiFetch";
 import StudyPlanner from "../../sylaabus planner/StudyPlanner";
 
 interface PlanSummary {
@@ -22,7 +22,7 @@ export default function StudyPlannerPage() {
       try {
         setLoading(true);
 
-        const listRes = await apiFetch("/api/plans", { method: "GET" });
+        const listRes = await apiFetch(`${API_BASE}/plans`, { method: "GET" });
         if (!listRes.ok) {
           const payload = await listRes.json().catch(() => ({}));
           throw new Error(payload?.message || "Failed to fetch plans");
@@ -34,7 +34,7 @@ export default function StudyPlannerPage() {
           return;
         }
 
-        const createRes = await apiFetch("/api/plans", {
+        const createRes = await apiFetch(`${API_BASE}/plans`, {
           method: "POST",
           body: JSON.stringify({
             title: "My Study Plan",

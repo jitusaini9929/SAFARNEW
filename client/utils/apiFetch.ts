@@ -9,6 +9,8 @@
 let _accessToken: string | null = null;
 let _refreshPromise: Promise<RefreshResult> | null = null;
 
+export const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+
 export type RefreshResult =
   | { status: "ok"; accessToken: string }
   | { status: "auth_failed" }
@@ -50,7 +52,7 @@ function isTerminalRefreshFailure(status: number, errorCode: unknown): boolean {
 
 async function doRefresh(): Promise<RefreshResult> {
   try {
-    const res = await fetch("/api/auth/refresh", {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
       credentials: "include",
     });
