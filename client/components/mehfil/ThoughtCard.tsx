@@ -75,24 +75,25 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const [commentText, setCommentText] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [hasLoadedComments, setHasLoadedComments] = useState(false);
 
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(Boolean(thought.isSaved));
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState("spam");
-
-
-  // Check save + friendship status on mount
-  useEffect(() => {
-    checkSaveStatus();
-  }, [thought.id, thought.userId, thought.isAnonymous]);
 
   useEffect(() => {
     setEditText(thought.content);
   }, [thought.content]);
 
-  // Fetch comments on mount
   useEffect(() => {
-    fetchComments();
+    setIsSaved(Boolean(thought.isSaved));
+  }, [thought.isSaved]);
+
+  useEffect(() => {
+    setComments([]);
+    setHasLoadedComments(false);
+    setCommentText("");
+    setIsCommentsOpen(false);
   }, [thought.id]);
 
   // ── helpers ──────────────────────────────────────────
@@ -105,29 +106,16 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     user_id: comment.userId ?? comment.user_id,
   });
 
-  const checkSaveStatus = async () => {
-    try {
-      if (!currentUserId) return;
-
-      const response = await apiFetch(`${API_URL}/mehfil/interactions/save/${thought.id}`, { credentials: "include" });
-      if (response.ok) {
-        const data = await response.json();
-        setIsSaved(data.saved);
-      }
-    } catch (error) {
-      console.error("Error checking save status:", error);
-    }
-  };
-
-
-
   const fetchComments = async () => {
+    if (hasLoadedComments || isLoadingComments) return;
+
     setIsLoadingComments(true);
     try {
       const response = await apiFetch(`${API_URL}/mehfil/interactions/comments/${thought.id}`, { credentials: "include" });
       if (response.ok) {
         const data = await response.json();
         setComments(Array.isArray(data?.comments) ? data.comments.map(toComment) : []);
+        setHasLoadedComments(true);
       }
     } catch (error) {
       console.error("Error fetching comments:", error);
@@ -206,6 +194,15 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     } catch (error) {
       console.error("Error saving post:", error);
       toast.error(t('mehfil.toasts.save_error'));
+    }
+  };
+
+  const handleToggleComments = () => {
+    const nextOpen = !isCommentsOpen;
+    setIsCommentsOpen(nextOpen);
+
+    if (nextOpen && !hasLoadedComments) {
+      void fetchComments();
     }
   };
 
@@ -454,7 +451,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               </button>
 
               <button
-                onClick={() => setIsCommentsOpen(!isCommentsOpen)}
+                onClick={handleToggleComments}
                 className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${isCommentsOpen
                   ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-200 dark:ring-teal-500/20"
                   : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-500"

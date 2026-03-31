@@ -7,8 +7,6 @@ import { cacheGet, cacheSet, cacheInvalidate } from "../lib/redis-cache";
 
 export const mehfilSocialRouter = Router();
 
-mehfilSocialRouter.use(requireAuth);
-
 const sanitizeSnippet = (input: unknown, maxLength = 180) => {
   const text = String(input ?? "").replace(/<[^>]*>/g, " ");
   return text.replace(/\s+/g, " ").trim().slice(0, maxLength);
@@ -17,6 +15,10 @@ const sanitizeSnippet = (input: unknown, maxLength = 180) => {
 const MEDITATION_VIDEO_SETTING_KEY = "meditation_latest_video";
 const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/vWWrcQA6JdU";
 const FALLBACK_ADMIN_EMAILS = ["steve123@gmail.com"];
+const MEHFIL_PAUSED = process.env.MEHFIL_PAUSED === "true";
+const MEHFIL_PAUSED_MESSAGE =
+  process.env.MEHFIL_PAUSED_MESSAGE ||
+  "Due to irrelevant and spam posts . Mehfil is currently not accessible . We are working on it and notify shortly";
 
 const getAdminEmailSet = () => {
   const configured = String(process.env.ADMIN_EMAILS || "")
@@ -52,6 +54,16 @@ mehfilSocialRouter.get("/meditation-video", async (_req: any, res: Response) => 
     res.status(500).json({ error: "Failed to fetch meditation video setting" });
   }
 });
+
+mehfilSocialRouter.get("/", async (_req: Request, res: Response) => {
+  if (MEHFIL_PAUSED) {
+    return res.status(503).json({ message: MEHFIL_PAUSED_MESSAGE });
+  }
+
+  return res.json({ paused: false });
+});
+
+mehfilSocialRouter.use(requireAuth);
 
 mehfilSocialRouter.post("/meditation-video", async (req: any, res: Response) => {
   try {

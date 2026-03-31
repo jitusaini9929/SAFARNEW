@@ -943,18 +943,27 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const userId = socketToUser.get(socket.id);
         const thoughtIds = thoughts.map((t) => t.id);
         let userReactions: string[] = [];
+        let savedThoughtIds = new Set<string>();
 
         if (userId && thoughtIds.length > 0) {
-          const reactions = await collections.mehfilReactions()
-            .find({ user_id: userId, thought_id: { $in: thoughtIds } })
-            .toArray();
+          const [reactions, saves] = await Promise.all([
+            collections.mehfilReactions()
+              .find({ user_id: userId, thought_id: { $in: thoughtIds } })
+              .toArray(),
+            collections.mehfilSaves()
+              .find({ user_id: userId, thought_id: { $in: thoughtIds } })
+              .project({ thought_id: 1 })
+              .toArray(),
+          ]);
           userReactions = reactions.map((r) => r.thought_id);
+          savedThoughtIds = new Set(saves.map((entry) => String(entry.thought_id)));
         }
 
         const formattedThoughts = thoughts.map((t) => ({
           isAnonymous: Boolean(t.is_anonymous),
           id: t.id,
           userId: t.is_anonymous ? '' : t.user_id,
+          isSaved: savedThoughtIds.has(String(t.id)),
           authorName: t.is_anonymous ? 'Anonymous User' : t.author_name,
           authorAvatar: t.is_anonymous ? null : t.author_avatar,
           content: t.content,
@@ -1078,6 +1087,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           isAnonymous,
           id,
           userId: isAnonymous ? '' : userId,
+          isSaved: false,
           authorName: isAnonymous ? 'Anonymous User' : authorName,
           authorAvatar: isAnonymous ? null : authorAvatar,
           content,

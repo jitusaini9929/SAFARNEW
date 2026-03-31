@@ -41,6 +41,7 @@ const BREAK_DURATION_EXPR = { $ifNull: ['$break_minutes', 0] };
 // Log a single completed or interrupted focus session.
 router.post('/', requireAuth, async (req: Request, res) => {
     try {
+        const userId = req.session.userId!;
         const {
             plannedDurationMinutes,
             actualDurationMinutes,
@@ -71,9 +72,23 @@ router.post('/', requireAuth, async (req: Request, res) => {
             return res.status(400).json({ message: 'actualDurationMinutes must be greater than 0' });
         }
 
+        const existingSession = await collections.focusSessions().findOne({
+            user_id: userId,
+            started_at: safeStartedAt,
+            completed_at: safeCompletedAt,
+            actual_duration_minutes: actualMinutes,
+            associated_goal_id: associatedGoalId || null,
+        }, {
+            projection: { id: 1 },
+        });
+
+        if (existingSession?.id) {
+            return res.json({ success: true, id: existingSession.id });
+        }
+
         await collections.focusSessions().insertOne({
             id,
-            user_id: req.session.userId,
+            user_id: userId,
             duration_minutes: actualMinutes,
             actual_duration_minutes: actualMinutes,
             planned_duration_minutes: plannedMinutes || actualMinutes,
@@ -87,7 +102,7 @@ router.post('/', requireAuth, async (req: Request, res) => {
 
         await collections.focusSessionLogs().insertOne({
             id: uuid(),
-            user_id: req.session.userId,
+            user_id: userId,
             duration_minutes: actualMinutes,
             associated_goal_id: associatedGoalId || null,
             interrupted: interruptedBool,
@@ -112,7 +127,7 @@ router.post('/', requireAuth, async (req: Request, res) => {
         }
 
         // Session write changed user analytics; invalidate short-lived stats cache.
-        invalidateFocusStatsCache(req.session.userId!);
+        invalidateFocusStatsCache(userId);
 
         res.json({ success: true, id });
     } catch (error) {
@@ -268,13 +283,26 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             .sort({ completed_at: -1 })
             .limit(6)
             .toArray();
+        const linkedGoalIds = Array.from(new Set(
+            recentSessionsRaw
+                .map((session) => session.associated_goal_id)
+                .filter((goalId): goalId is string => typeof goalId === 'string' && goalId.length > 0),
+        ));
+        const linkedGoals = linkedGoalIds.length > 0
+            ? await collections.goals()
+                .find({ user_id: userId, id: { $in: linkedGoalIds } }, { projection: { id: 1, title: 1, text: 1 } })
+                .toArray()
+            : [];
+        const linkedGoalTitleMap = new Map(
+            linkedGoals.map((goal) => [goal.id, goal.title || goal.text || null]),
+        );
         const recentSessions = recentSessionsRaw.map((session) => ({
             id: session.id,
             startedAt: session.started_at || session.completed_at,
             durationMinutes: session.planned_duration_minutes || session.duration_minutes || 0,
             actualMinutes: session.actual_duration_minutes || session.duration_minutes || 0,
             completed: Boolean(session.completed),
-            taskText: null,
+            taskText: session.associated_goal_id ? linkedGoalTitleMap.get(session.associated_goal_id) || null : null,
         }));
 
         if (FOCUS_STATS_DEBUG_LOGS) {

@@ -138,7 +138,7 @@ const sessions: Session[] = [
 
 
 const ADMIN_EMAIL = "steve123@gmail.com";
-const DEFAULT_MEDITATION_VIDEO_URL = "https://www.youtube.com/watch?v=yhTEuOdTq1M";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/rXGlSKg_IOE";
 const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.webp";
 const DEFAULT_DHYAN_AUDIO_URL = "/Dhyan_processed.mp3";
 
@@ -448,7 +448,13 @@ export default function Meditation() {
                 <h3 className="text-sm font-semibold text-foreground">Latest Dhyan Video</h3>
             </div>
 
-            <div className="mt-3 block w-full overflow-hidden">
+            <a
+                href={meditationVideoUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open latest Dhyan video"
+                className="mt-3 block w-full overflow-hidden rounded-xl transition hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
+            >
                 <img
                     loading="lazy"
                     src={videoThumbnailSrc}
@@ -462,7 +468,7 @@ export default function Meditation() {
                         setVideoThumbnailSrc(DEFAULT_VIDEO_THUMBNAIL);
                     }}
                 />
-            </div>
+            </a>
 
             <p className="px-4 py-3 text-xs text-muted-foreground">Latest Dhyan video preview</p>
 

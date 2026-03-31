@@ -7,6 +7,7 @@ export interface Thought {
     id: string;
     userId: string;
     isAnonymous?: boolean;
+    isSaved?: boolean;
     authorName: string;
     authorAvatar?: string | null;
     content: string;

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { useAuth } from "@/contexts/AuthContext";
 import { FocusOverlayStats } from "@/utils/focusOverlayService";
 import { clearPiPNudgeSessionDismissal, dismissPiPNudgeSession, shouldShowPiPNudge } from "@/utils/pipNudge";
+import { toast } from "sonner";
 
 // Types
 type FocusMode = "Timer" | "short" | "long";
@@ -229,6 +230,16 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, [userId]);
 
     useEffect(() => {
+        if (!userId) return;
+
+        void import("@/utils/focusService")
+            .then(({ focusService }) => focusService.flushQueuedSessions())
+            .catch(() => {
+                // Ignore retry failures here; the active session flow will surface its own errors.
+            });
+    }, [userId]);
+
+    useEffect(() => {
         if (pendingResumeSnapshot) return;
 
         const hasProgress = remainingSeconds > 0 && remainingSeconds < totalSeconds;
@@ -449,6 +460,11 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
         import("@/utils/focusService")
             .then(({ focusService }) => focusService.logSession(payload))
+            .then((result) => {
+                if (!result.success && result.queued) {
+                    toast.error("Session sync was delayed. We'll retry automatically.");
+                }
+            })
             .catch((error) => {
                 console.error("Focus session log failed:", error);
             });
@@ -1040,7 +1056,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setIsRunning(false);
         setMusicPlaying(false);
         setRemainingSeconds(totalSeconds);
-    }, [totalSeconds, setMusicPlaying, finalizeFocusSession]);
+        setAssociatedGoal(null, null);
+    }, [totalSeconds, setMusicPlaying, finalizeFocusSession, setAssociatedGoal]);
 
     const handleSetMode = useCallback((newMode: FocusMode) => {
         if (newMode === modeRef.current) return;

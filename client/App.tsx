@@ -244,6 +244,7 @@ const App = () => {
                 />
 
                 {/* Landing page - Public Home */}
+                <Route path="/landing" element={<Navigate to="/home" replace />} />
                 <Route path="/home" element={<Landing />} />
                 <Route path="/challenge-100k" element={<Challenge100K />} />
 

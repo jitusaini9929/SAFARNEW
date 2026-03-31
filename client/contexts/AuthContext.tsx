@@ -20,9 +20,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => authService.getCachedUser());
-  const [status, setStatus] = useState<AuthStatus>(() =>
-    authService.getCachedUser() ? "authenticated" : "loading",
-  );
+  const [status, setStatus] = useState<AuthStatus>("loading");
 
   const refreshUser = useCallback(async (force = false) => {
     const authData = await authService.getCurrentUser({ force });
@@ -44,7 +42,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cachedUser = authService.getCachedUser();
       if (cachedUser) {
         setUser(cachedUser);
-        setStatus("authenticated");
       }
 
       const initializedUser = await authService.initAuth();

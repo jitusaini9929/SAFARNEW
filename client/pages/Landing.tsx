@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '../components/AuthModal';
@@ -14,7 +14,7 @@ import Footer from '../components/landing/Footer';
 import Milestone100KModal from '../components/landing/Milestone100KModal';
 import { triggerFireworks, triggerSideCannons } from '../components/ui/confetti';
 
-let hasAutoOpenedMilestoneThisPageLoad = false;
+const MILESTONE_MODAL_SESSION_KEY_PREFIX = 'milestone100k:auto-open-dismissed';
 
 const Landing = () => {
   const { user, refreshUser } = useAuth();
@@ -22,10 +22,34 @@ const Landing = () => {
   const [suppressMilestoneAutoOpen, setSuppressMilestoneAutoOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [is100KModalOpen, setIs100KModalOpen] = useState(false);
+  const milestoneSessionKey = useMemo(
+    () => `${MILESTONE_MODAL_SESSION_KEY_PREFIX}:${user?.id ?? 'guest'}`,
+    [user?.id],
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const wasDismissedForSession = window.sessionStorage.getItem(milestoneSessionKey) === '1';
+    setSuppressMilestoneAutoOpen(wasDismissedForSession);
+  }, [milestoneSessionKey]);
 
   const handleOpenAuthModal = () => {
     setSuppressMilestoneAutoOpen(true);
     setIsAuthModalOpen(true);
+  };
+
+  const handleMilestoneOpenChange = (nextOpen: boolean) => {
+    setIs100KModalOpen(nextOpen);
+
+    if (typeof window === 'undefined') return;
+
+    if (nextOpen) {
+      return;
+    }
+
+    window.sessionStorage.setItem(milestoneSessionKey, '1');
+    setSuppressMilestoneAutoOpen(true);
   };
 
   // Auto-open AuthModal if signin=true query param is present
@@ -39,10 +63,7 @@ const Landing = () => {
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
-    // Auto-open only once per full page load, not on every client-side return to home.
-    if (suppressMilestoneAutoOpen || isAuthModalOpen || hasAutoOpenedMilestoneThisPageLoad) return;
-
-    hasAutoOpenedMilestoneThisPageLoad = true;
+    if (suppressMilestoneAutoOpen || isAuthModalOpen) return;
 
     const timer = window.setTimeout(() => {
       setIs100KModalOpen(true);
@@ -108,7 +129,7 @@ const Landing = () => {
 
       <Milestone100KModal 
         open={is100KModalOpen} 
-        onOpenChange={setIs100KModalOpen} 
+        onOpenChange={handleMilestoneOpenChange} 
       />
     </div>
   );

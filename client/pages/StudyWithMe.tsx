@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/utils/authService";
+import { focusService } from "@/utils/focusService";
 import FocusAnalytics from "@/pages/FocusAnalytics";
 import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
 import TasksSidebar, { type Task } from "./TasksSidebar";
@@ -146,6 +147,8 @@ export default function StudyWithMe() {
         setLongBreakDuration,
         longBreakDuration,
         setAssociatedGoal,
+        associatedGoalId,
+        associatedGoalTitle,
         hasPendingResume,
         resumeStoredSession,
         discardStoredSession,
@@ -206,6 +209,14 @@ export default function StudyWithMe() {
         }
     }, [searchParams]);
 
+    useEffect(() => {
+        if (!user?.id) return;
+
+        void focusService.flushQueuedSessions().catch(() => {
+            // Keep retry silent here; current-session failures are surfaced when they happen.
+        });
+    }, [user?.id]);
+
     // Goal linking via URL params (from Goals page "▶ Focus" button)
     useEffect(() => {
         const goalId = searchParams.get('goalId');
@@ -225,9 +236,15 @@ export default function StudyWithMe() {
         if (!pendingLinkedGoal?.goalTitle) return;
 
         setTasks(prev => {
-            const alreadyExists = prev.some(task => !task.completed && task.text === pendingLinkedGoal.goalTitle);
-            if (alreadyExists) {
-                return prev;
+            const existingIndex = prev.findIndex(task => !task.completed && task.text === pendingLinkedGoal.goalTitle);
+            if (existingIndex >= 0) {
+                const existingTask = prev[existingIndex];
+                const next = [
+                    existingTask,
+                    ...prev.filter((_, index) => index !== existingIndex),
+                ];
+                saveTasks(next, user?.id);
+                return next;
             }
 
             const linkedTask: Task = { id: Date.now(), text: pendingLinkedGoal.goalTitle, completed: false };
@@ -407,6 +424,22 @@ export default function StudyWithMe() {
         setCurrentTheme(newTheme);
         setShowThemeSelector(false);
         try { localStorage.setItem('focus-theme-id', newTheme.id); } catch { }
+    };
+
+    const handleResetTimer = () => {
+        resetTimer();
+    };
+
+    const handleUnlinkGoal = () => {
+        setAssociatedGoal(null, null);
+    };
+
+    const handleManualTaskAdd = (text: string) => {
+        const newTask = { id: Date.now(), text, completed: false };
+        if (associatedGoalId) {
+            setAssociatedGoal(null, null);
+        }
+        persistTasks([...tasks, newTask]);
     };
 
     const handleVolumeChange = (newVolume: number) => {
@@ -735,6 +768,26 @@ export default function StudyWithMe() {
                 </div>
             ) : (
                 <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 pt-24 sm:pt-4 min-h-full pb-32 landscape:pb-24">
+                    {associatedGoalId && associatedGoalTitle && (
+                        <div className="w-full max-w-2xl mb-4 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 text-white backdrop-blur-md shadow-lg">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Linked Goal</div>
+                                    <div className="mt-1 flex items-center gap-2 text-sm font-semibold">
+                                        <Target className="h-4 w-4 shrink-0" />
+                                        <span className="truncate">{associatedGoalTitle}</span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleUnlinkGoal}
+                                    className="shrink-0 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+                                >
+                                    Unlink
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Timer Card */}
                     <TimerCard
                         minutes={minutes}
@@ -747,14 +800,11 @@ export default function StudyWithMe() {
                         nextTask={nextTask}
                         onProceed={handleProceedToNext}
                         onToggle={toggleTimer}
-                        onReset={resetTimer}
+                        onReset={handleResetTimer}
                         onTogglePiP={togglePiP}
                         onSetMode={handleModeChange}
                         isPiPActive={isPiPActive}
-                        onAddTask={(text) => {
-                            const newTask = { id: Date.now(), text, completed: false };
-                            persistTasks([...tasks, newTask]);
-                        }}
+                        onAddTask={handleManualTaskAdd}
                         onEditTask={(newText) => {
                             if (currentTask) {
                                 persistTasks(tasks.map(t => t.id === currentTask.id ? { ...t, text: newText } : t));
@@ -874,7 +924,7 @@ export default function StudyWithMe() {
                             Add Task
                         </button>
                         <button
-                            onClick={() => navigate("/landing")}
+                            onClick={() => navigate("/home")}
                             className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all font-medium"
                         >
                             <Home className="w-5 h-5" style={{ color: currentTheme.accent }} />
