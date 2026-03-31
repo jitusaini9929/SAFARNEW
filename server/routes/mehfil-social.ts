@@ -13,7 +13,8 @@ const sanitizeSnippet = (input: unknown, maxLength = 180) => {
 };
 
 const MEDITATION_VIDEO_SETTING_KEY = "meditation_latest_video";
-const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/vWWrcQA6JdU";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/rXGlSKg_IOE?si=JR0M731OqUcejS3U";
+const LEGACY_MEDITATION_VIDEO_IDS = new Set(["vWWrcQA6JdU"]);
 const FALLBACK_ADMIN_EMAILS = ["steve123@gmail.com"];
 const MEHFIL_PAUSED = process.env.MEHFIL_PAUSED === "true";
 const MEHFIL_PAUSED_MESSAGE =
@@ -44,9 +45,16 @@ mehfilSocialRouter.get("/meditation-video", async (_req: any, res: Response) => 
   try {
     const setting = await collections.appSettings().findOne({ key: MEDITATION_VIDEO_SETTING_KEY });
     const configuredUrl = typeof setting?.value === "string" ? setting.value : "";
-    const videoUrl = getYoutubeVideoId(configuredUrl)
-      ? configuredUrl
-      : DEFAULT_MEDITATION_VIDEO_URL;
+    const configuredId = getYoutubeVideoId(configuredUrl);
+    const defaultId = getYoutubeVideoId(DEFAULT_MEDITATION_VIDEO_URL);
+
+    // Canonicalize legacy/default-equivalent values to the new public URL.
+    const shouldUseDefault =
+      !configuredId ||
+      configuredId === defaultId ||
+      LEGACY_MEDITATION_VIDEO_IDS.has(configuredId);
+
+    const videoUrl = shouldUseDefault ? DEFAULT_MEDITATION_VIDEO_URL : configuredUrl;
 
     res.json({ videoUrl });
   } catch (error) {

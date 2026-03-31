@@ -32,7 +32,7 @@ import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { focusTimerTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
 import MobileDrawer from "@/components/ui/mobile-drawer";
-import { Heart, MessageSquare, Wind, Menu } from "lucide-react";
+import { Heart, MessageSquare, Wind, Menu, Shield } from "lucide-react";
 
 // Theme configuration
 interface FocusTheme {
@@ -567,6 +567,13 @@ export default function StudyWithMe() {
                                             <Wind className="w-4 h-4 text-teal-500" />
                                             <span className="text-sm font-medium">Dhyan</span>
                                         </button>
+                                        <button
+                                            onClick={() => navigate("/courses")}
+                                            className="flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-muted/50 transition-all group"
+                                        >
+                                            <Shield className="w-4 h-4 text-emerald-500" />
+                                            <span className="text-sm font-medium">Courses</span>
+                                        </button>
                                     </div>
                                 </div>
                             )}
@@ -961,6 +968,13 @@ export default function StudyWithMe() {
                                 >
                                     <Wind className="w-6 h-6 text-teal-500" />
                                     <span className="text-xs font-bold">Dhyan</span>
+                                </button>
+                                <button
+                                    onClick={() => navigate("/courses")}
+                                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-muted/30 hover:bg-muted/50 transition-all"
+                                >
+                                    <Shield className="w-6 h-6 text-emerald-500" />
+                                    <span className="text-xs font-bold">Courses</span>
                                 </button>
                             </div>
                         </div>
