@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { formatDistanceToNow } from 'date-fns';
 import { hi, enUS } from 'date-fns/locale';
 import { apiFetch } from '@/utils/apiFetch';
+import { useAuth } from '@/contexts/AuthContext';
 import './SandeshCard.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
@@ -45,6 +46,7 @@ interface Sandesh {
 
 const SandeshCard = () => {
     const { t, i18n } = useTranslation();
+    const { user, status } = useAuth();
     const [sandeshes, setSandeshes] = useState<Sandesh[]>([]);
     const [loading, setLoading] = useState(true);
     const [isPosting, setIsPosting] = useState(false);
@@ -203,17 +205,15 @@ const SandeshCard = () => {
     }, []);
 
     useEffect(() => {
-        const fetchCurrentUser = async () => {
-            try {
-                const res = await apiFetch(`${API_URL}/auth/me`, { credentials: 'include' });
-                if (res.ok) {
-                    const data = await res.json();
-                    setCurrentUserId(data?.user?.id || data?.id || null);
-                }
-            } catch { }
-        };
-        fetchCurrentUser();
-    }, []);
+        if (status === 'authenticated') {
+            setCurrentUserId(user?.id || null);
+            return;
+        }
+
+        if (status === 'unauthenticated') {
+            setCurrentUserId(null);
+        }
+    }, [status, user?.id]);
 
     const markAsRead = () => {
         if (sandeshes.length > 0 && hasUnread) {

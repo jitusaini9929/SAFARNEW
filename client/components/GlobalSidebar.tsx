@@ -6,7 +6,7 @@ interface GlobalSidebarProps {
     isOpen: boolean;
     onClose: () => void;
     homeRoute?: string;
-    onOpenMehfilSidebar?: (view?: 'connections' | 'saved' | 'activity' | 'analytics' | 'privacy') => void;
+    onOpenMehfilSidebar?: (view?: 'connections' | 'saved' | 'activity' | 'privacy') => void;
 }
 
 export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", onOpenMehfilSidebar }: GlobalSidebarProps) {

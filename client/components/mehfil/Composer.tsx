@@ -140,7 +140,7 @@ const Composer: React.FC<ComposerProps> = ({ onSendThought, activeRoom, placehol
           </div>
           {isUnderMin && (
             <span className="composer-min-hint">
-              {t('mehfil.composer.min_chars', { count: MIN_CHARS })}
+              {t('mehfil.composer.min_chars', { min: MIN_CHARS })}
             </span>
           )}
         </div>

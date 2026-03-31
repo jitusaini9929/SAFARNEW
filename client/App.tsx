@@ -202,6 +202,14 @@ const App = () => {
                   }
                 />
                 <Route
+                  path="/study/planner/:planId/:section"
+                  element={
+                    <ProtectedRoute>
+                      <StudyPlannerPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/study/analytics"
                   element={
                     <ProtectedRoute>

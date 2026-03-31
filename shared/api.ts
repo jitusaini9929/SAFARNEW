@@ -33,6 +33,7 @@ export interface Goal {
   text: string;
   title?: string;
   description?: string | null;
+  source?: "manual" | "ekagra";
   type: "daily" | "weekly";
   completed: boolean;
   createdAt: string;

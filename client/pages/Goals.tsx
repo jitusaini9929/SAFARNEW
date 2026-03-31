@@ -151,7 +151,7 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
   );
 };
 
-const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, focusMinutes, hideActions = false, createdMeta }: any) => {
+const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, focusMinutes, hideActions = false, hideMeta = false, createdMeta }: any) => {
   const { t } = useTranslation();
   const durationMs = getGoalDurationMs(goal);
   const completedAt = goal.completedAt ? new Date(goal.completedAt) : null;
@@ -183,6 +183,13 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, focusMi
       </div>
 
       <div className="flex-1 min-w-0">
+        {goal.source === "ekagra" && (
+          <div className="mb-2">
+            <span className="inline-flex items-center rounded-full bg-[#800020]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#800020] dark:bg-[#800020]/20 dark:text-[#ff85a2]">
+              Ekagra mode task
+            </span>
+          </div>
+        )}
         <h4 className={`text-sm font-bold truncate ${goal.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
           {goal.title}
         </h4>
@@ -191,7 +198,7 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, focusMi
             {goal.description}
           </p>
         )}
-        {metaPieces.length > 0 && (
+        {!hideMeta && metaPieces.length > 0 && (
           <div className="flex items-center gap-2 mt-2">
             <Clock size={12} className="text-muted-foreground" />
             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -535,10 +542,12 @@ export default function Goals() {
     }
   };
 
-  const pendingGoals = useMemo(() => goals.filter(g => !g.completed).sort((a,b) => (a.scheduledDate || "") > (b.scheduledDate || "") ? 1 : -1), [goals]);
-  const completedRecent = useMemo(() => goals.filter(g => g.completed).sort((a,b) => (b.completedAt || "") > (a.completedAt || "") ? 1 : -1).slice(0, MAX_COMPLETED_DISPLAY), [goals]);
-  const historyDateKeys = useMemo(() => Array.from(new Set(goals.map(getGoalCreatedDateKey).filter(Boolean))).sort() as string[], [goals]);
-  const filteredHistory = useMemo(() => historyDateFilter ? goals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter) : goals, [goals, historyDateFilter]);
+  const standardGoals = useMemo(() => goals.filter(g => g.source !== "ekagra"), [goals]);
+  const historyGoals = useMemo(() => goals.filter(g => g.completed || g.source === "ekagra"), [goals]);
+  const pendingGoals = useMemo(() => standardGoals.filter(g => !g.completed).sort((a,b) => (a.scheduledDate || "") > (b.scheduledDate || "") ? 1 : -1), [standardGoals]);
+  const completedRecent = useMemo(() => standardGoals.filter(g => g.completed).sort((a,b) => (b.completedAt || "") > (a.completedAt || "") ? 1 : -1).slice(0, MAX_COMPLETED_DISPLAY), [standardGoals]);
+  const historyDateKeys = useMemo(() => Array.from(new Set(historyGoals.map(getGoalCreatedDateKey).filter(Boolean))).sort() as string[], [historyGoals]);
+  const filteredHistory = useMemo(() => historyDateFilter ? historyGoals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter) : historyGoals, [historyGoals, historyDateFilter]);
 
   const todayMetrics = useMemo(
     () => getDailyCompletionMetrics(goals.filter(g => g.completed), todayKey, todayGoalFocusTimes),

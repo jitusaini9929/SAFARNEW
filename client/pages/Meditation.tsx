@@ -29,7 +29,6 @@ import {
     X,
 } from "lucide-react";
 import { meditationTour } from "@/components/guided-tour/tourSteps";
-import { TourPrompt } from "@/components/guided-tour";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { Button } from "@/components/ui/button";
 import BottomSheet from '@/components/ui/bottom-sheet';
@@ -561,8 +560,12 @@ export default function Meditation() {
                     <button onClick={() => setShowResources(true)} className="hidden md:inline-flex text-muted-foreground hover:text-foreground transition-colors">
                         <ExternalLink className="w-5 h-5" />
                     </button>
-                    <button onClick={() => startTour(meditationTour)} className="hidden md:inline-flex text-muted-foreground hover:text-foreground transition-colors">
-                        <HelpCircle className="w-5 h-5" />
+                    <button
+                        onClick={() => startTour(meditationTour)}
+                        className="hidden md:inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-4 py-2 text-sm font-semibold text-muted-foreground shadow-sm transition-colors hover:text-foreground hover:bg-card"
+                    >
+                        <HelpCircle className="w-4 h-4" />
+                        Guided Tour
                     </button>
                     <ThemeToggle />
                     <button onClick={() => navigate("/profile")} className="w-10 h-10 rounded-full overflow-hidden border border-[#303133]">
@@ -926,7 +929,6 @@ export default function Meditation() {
                 </button>
             </nav>
 
-            <TourPrompt tour={meditationTour} featureName="Meditation" />
         </div>
     );
 }

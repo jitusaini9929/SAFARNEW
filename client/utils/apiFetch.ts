@@ -41,11 +41,12 @@ function clearClientAuthState(): void {
 }
 
 function isTerminalRefreshFailure(status: number, errorCode: unknown): boolean {
-  if (status !== 401) return false;
+  if (status !== 401 && status !== 409) return false;
 
   return (
     errorCode === "no_refresh_token" ||
     errorCode === "refresh_token_invalid" ||
+    errorCode === "refresh_token_stale" ||
     errorCode === "reuse_detected"
   );
 }

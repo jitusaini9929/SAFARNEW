@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, CheckCircle, Circle } from 'lucide-react';
+import { X, Trash2, CheckCircle, Circle } from 'lucide-react';
 
 interface Task {
-    id: number;
+    id: string;
     text: string;
     completed: boolean;
+    createdAt: string;
+    completedAt: string | null;
 }
 
 interface TasksSidebarProps {
@@ -34,14 +36,16 @@ const getDateGroupLabel = (date: Date) => {
 const formatTaskCreatedLabel = (date: Date) =>
     date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 
+const getTaskHistoryDate = (task: Task) => new Date(task.completedAt || task.createdAt);
+
 const TasksSidebar: React.FC<TasksSidebarProps> = ({ isOpen, onClose, onTasksChange, tasks }) => {
     const [historyDateFilter, setHistoryDateFilter] = useState(() => getLocalDateKey(new Date()));
 
-    const toggleTask = (id: number) => {
-        onTasksChange(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    const toggleTask = (id: string) => {
+        onTasksChange(tasks.map(t => t.id === id ? { ...t, completed: !t.completed, completedAt: !t.completed ? new Date().toISOString() : null } : t));
     };
 
-    const deleteTask = (id: number) => {
+    const deleteTask = (id: string) => {
         onTasksChange(tasks.filter(t => t.id !== id));
     };
 
@@ -49,12 +53,12 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({ isOpen, onClose, onTasksCha
 
     const completedTasks = tasks.filter(t => t.completed);
     const historyDateKeys = Array.from(
-        new Set(completedTasks.map(task => getLocalDateKey(new Date(task.id))))
+        new Set(completedTasks.map(task => getLocalDateKey(getTaskHistoryDate(task))))
     ).sort();
     const historyMinKey = historyDateKeys[0];
     const historyMaxKey = historyDateKeys[historyDateKeys.length - 1];
     const filteredTasks = historyDateFilter
-        ? completedTasks.filter(task => getLocalDateKey(new Date(task.id)) === historyDateFilter)
+        ? completedTasks.filter(task => getLocalDateKey(getTaskHistoryDate(task)) === historyDateFilter)
         : completedTasks;
 
     return (
@@ -100,7 +104,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({ isOpen, onClose, onTasksCha
                 <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2 pb-20 mt-4">
                     {Object.entries(
                         filteredTasks.reduce((groups, task) => {
-                            const date = new Date(task.id);
+                            const date = getTaskHistoryDate(task);
                             const dateGroup = getDateGroupLabel(date);
 
                             if (!groups[dateGroup]) {
@@ -124,7 +128,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({ isOpen, onClose, onTasksCha
                                             {task.text}
                                         </div>
                                         <div className="text-[11px] text-muted-foreground mt-0.5">
-                                            {`Created ${formatTaskCreatedLabel(new Date(task.id))}`}
+                                            {`Created ${formatTaskCreatedLabel(new Date(task.createdAt))}`}
                                         </div>
                                     </div>
                                     <button

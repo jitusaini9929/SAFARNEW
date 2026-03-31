@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/utils/authService";
+import { dataService } from "@/utils/dataService";
 import { focusService } from "@/utils/focusService";
 import FocusAnalytics from "@/pages/FocusAnalytics";
 import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
@@ -145,6 +146,11 @@ const BREAK_MINUTES_MIN = 5;
 const BREAK_STEP_MINUTES = 5;
 const BREAK_MAX_MINUTES = 60;
 
+const createTaskId = () =>
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 const normalizeMinutes = (value: number, min = TIMER_MINUTES_MIN, step = TIMER_STEP_MINUTES) => {
     if (!Number.isFinite(value)) return min;
     const rounded = Math.round(value / step) * step;
@@ -153,11 +159,52 @@ const normalizeMinutes = (value: number, min = TIMER_MINUTES_MIN, step = TIMER_S
 
 const getTasksStorageKey = (userId?: string) => (userId ? `focus-tasks-${userId}` : "focus-tasks");
 
+const normalizeStoredTask = (raw: any): Task | null => {
+    if (!raw || typeof raw !== "object") return null;
+
+    const text = String(raw.text || "").trim();
+    if (!text) return null;
+
+    const legacyTimestamp =
+        typeof raw.id === "number" && Number.isFinite(raw.id) ? raw.id : Date.now();
+    const createdAtCandidate =
+        typeof raw.createdAt === "string" && raw.createdAt.trim()
+            ? raw.createdAt
+            : new Date(legacyTimestamp).toISOString();
+    const createdAtDate = new Date(createdAtCandidate);
+    const safeCreatedAt = Number.isFinite(createdAtDate.getTime())
+        ? createdAtDate.toISOString()
+        : new Date().toISOString();
+
+    const completedAtDate =
+        typeof raw.completedAt === "string" && raw.completedAt.trim()
+            ? new Date(raw.completedAt)
+            : raw.completed
+                ? new Date(legacyTimestamp)
+                : null;
+
+    return {
+        id: typeof raw.id === "string" && raw.id.trim() ? raw.id.trim() : `legacy-${legacyTimestamp}`,
+        text,
+        completed: Boolean(raw.completed),
+        createdAt: safeCreatedAt,
+        completedAt:
+            completedAtDate && Number.isFinite(completedAtDate.getTime())
+                ? completedAtDate.toISOString()
+                : null,
+    };
+};
+
 const loadTasks = (userId?: string): Task[] => {
     try {
         const key = getTasksStorageKey(userId);
         const saved = localStorage.getItem(key);
-        return saved ? JSON.parse(saved) : [];
+        const parsed = saved ? JSON.parse(saved) : [];
+        return Array.isArray(parsed)
+            ? parsed
+                .map((task) => normalizeStoredTask(task))
+                .filter((task): task is Task => Boolean(task))
+            : [];
     } catch {
         return [];
     }
@@ -172,9 +219,39 @@ const saveTasks = (tasks: Task[], userId?: string) => {
     }
 };
 
+const clearTasks = (userId?: string) => {
+    try {
+        localStorage.removeItem(getTasksStorageKey(userId));
+    } catch {
+        // Ignore storage failures.
+    }
+};
+
+const sortTasks = (items: Task[]) =>
+    [...items].sort((a, b) => {
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+const mapGoalToTask = (goal: any): Task => ({
+    id: String(goal.id),
+    text: String(goal.title || goal.text || "").trim(),
+    completed: Boolean(goal.completed),
+    createdAt: String(goal.createdAt || goal.created_at || new Date().toISOString()),
+    completedAt: goal.completedAt || goal.completed_at || null,
+});
+
+const extractEkagraTasks = (goals: any[]) =>
+    sortTasks(
+        goals
+            .filter((goal) => goal?.source === "ekagra")
+            .map((goal) => mapGoalToTask(goal))
+            .filter((task) => task.text.length > 0),
+    );
+
 export default function StudyWithMe() {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, status } = useAuth();
     const {
         timerState,
         toggleTimer,
@@ -283,42 +360,102 @@ export default function StudyWithMe() {
 
     useEffect(() => {
         if (!pendingLinkedGoal?.goalTitle) return;
+        let cancelled = false;
 
-        setTasks(prev => {
-            const existingIndex = prev.findIndex(task => !task.completed && task.text === pendingLinkedGoal.goalTitle);
-            if (existingIndex >= 0) {
-                const existingTask = prev[existingIndex];
-                const next = [
-                    existingTask,
-                    ...prev.filter((_, index) => index !== existingIndex),
-                ];
-                saveTasks(next, user?.id);
-                return next;
+        const ensureLinkedTask = async () => {
+            const title = pendingLinkedGoal.goalTitle?.trim();
+            if (!title) return;
+
+            const existingTask = tasks.find((task) => !task.completed && task.text === title);
+            if (existingTask) {
+                setPendingLinkedGoal(null);
+                return;
             }
 
-            const linkedTask: Task = { id: Date.now(), text: pendingLinkedGoal.goalTitle, completed: false };
-            const next = [linkedTask, ...prev];
-            saveTasks(next, user?.id);
-            return next;
-        });
+            if (status !== "authenticated" || !user?.id) {
+                const linkedTask: Task = {
+                    id: createTaskId(),
+                    text: title,
+                    completed: false,
+                    createdAt: new Date().toISOString(),
+                    completedAt: null,
+                };
+                const next = sortTasks([...tasks, linkedTask]);
+                saveTasks(next, user?.id);
+                if (!cancelled) setTasks(next);
+                setPendingLinkedGoal(null);
+                return;
+            }
 
-        setPendingLinkedGoal(null);
-    }, [pendingLinkedGoal, user?.id]);
+            try {
+                const createdGoal = await dataService.addGoal({
+                    title,
+                    startedAt: null,
+                    source: "ekagra",
+                });
+                if (!cancelled) {
+                    setTasks((prev) => sortTasks([...prev, mapGoalToTask(createdGoal)]));
+                }
+            } catch (error) {
+                console.error("Create linked Ekagra task error:", error);
+            } finally {
+                if (!cancelled) setPendingLinkedGoal(null);
+            }
+        };
 
+        void ensureLinkedTask();
 
+        return () => {
+            cancelled = true;
+        };
+    }, [pendingLinkedGoal, status, tasks, user?.id]);
 
-    const persistTasks = useCallback((nextTasks: Task[]) => {
-        setTasks(nextTasks);
-        saveTasks(nextTasks, user?.id);
-    }, [user?.id]);
+    const persistTasks = useCallback(async (nextTasks: Task[]) => {
+        const sortedTasks = sortTasks(nextTasks);
+
+        if (status !== "authenticated" || !user?.id) {
+            setTasks(sortedTasks);
+            saveTasks(sortedTasks, user?.id);
+            return;
+        }
+
+        const currentMap = new Map(tasks.map((task) => [task.id, task]));
+        const nextMap = new Map(sortedTasks.map((task) => [task.id, task]));
+
+        try {
+            setTasks(sortedTasks);
+
+            const deletions = tasks
+                .filter((task) => !nextMap.has(task.id))
+                .map((task) => dataService.deleteGoal(task.id));
+
+            const updates = sortedTasks.flatMap((task) => {
+                const previous = currentMap.get(task.id);
+                if (!previous) return [];
+
+                const operations: Promise<unknown>[] = [];
+                if (previous.text !== task.text) {
+                    operations.push(dataService.updateGoalDetails(task.id, { title: task.text }));
+                }
+
+                if (previous.completed !== task.completed || previous.completedAt !== task.completedAt) {
+                    operations.push(dataService.updateGoal(task.id, task.completed, task.completedAt || undefined));
+                }
+
+                return operations;
+            });
+
+            await Promise.all([...deletions, ...updates]);
+        } catch (error) {
+            console.error("Persist Ekagra tasks error:", error);
+            setTasks(tasks);
+        }
+    }, [status, tasks, user?.id]);
 
     const updateTasks = useCallback((updater: (prev: Task[]) => Task[]) => {
-        setTasks((prev) => {
-            const next = updater(prev);
-            saveTasks(next, user?.id);
-            return next;
-        });
-    }, [user?.id]);
+        const next = updater(tasks);
+        void persistTasks(next);
+    }, [persistTasks, tasks]);
 
     // Auto-complete task only when an Ekagra focus timer finishes.
     const prevRemainingRef = useRef(remainingSeconds);
@@ -335,22 +472,83 @@ export default function StudyWithMe() {
 
         const taskToComplete = activeTask;
         if (taskToComplete) {
+            const completedAt = new Date().toISOString();
             updateTasks((prev) =>
                 prev.map(task =>
-                    task.id === taskToComplete.id ? { ...task, completed: true } : task
+                    task.id === taskToComplete.id ? { ...task, completed: true, completedAt } : task
                 )
             );
-            setCompletedTask(taskToComplete);
+            setCompletedTask({ ...taskToComplete, completed: true, completedAt });
             setAwaitingProceed(true);
             setShowDurationPrompt(false);
         }
     }, [remainingSeconds, activeTask, updateTasks, mode]);
 
     useEffect(() => {
-        setTasks(loadTasks(user?.id));
-        setCompletedTask(null);
-        setAwaitingProceed(false);
-    }, [user?.id]);
+        let cancelled = false;
+
+        const bootstrapTasks = async () => {
+            const localTasks = loadTasks(user?.id);
+
+            if (status !== "authenticated" || !user?.id) {
+                if (!cancelled) {
+                    setTasks(sortTasks(localTasks));
+                    setCompletedTask(null);
+                    setAwaitingProceed(false);
+                }
+                return;
+            }
+
+            try {
+                const goals = await dataService.getGoals();
+                if (cancelled) return;
+
+                let ekagraTasks = extractEkagraTasks(goals);
+
+                if (ekagraTasks.length === 0 && localTasks.length > 0) {
+                    for (const task of localTasks) {
+                        const createdGoal = await dataService.addGoal({
+                            title: task.text,
+                            startedAt: task.createdAt,
+                            source: "ekagra",
+                        });
+
+                        if (task.completed) {
+                            await dataService.updateGoal(
+                                createdGoal.id,
+                                true,
+                                task.completedAt || task.createdAt,
+                            );
+                        }
+                    }
+
+                    clearTasks(user.id);
+
+                    const refreshedGoals = await dataService.getGoals();
+                    if (cancelled) return;
+                    ekagraTasks = extractEkagraTasks(refreshedGoals);
+                }
+
+                setTasks(ekagraTasks);
+            } catch (error) {
+                console.error("Bootstrap Ekagra tasks error:", error);
+                if (!cancelled) {
+                    setTasks(sortTasks(localTasks));
+                }
+            }
+
+            if (!cancelled) {
+                setCompletedTask(null);
+                setAwaitingProceed(false);
+            }
+        };
+
+        void bootstrapTasks();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [status, user?.id]);
 
     // Guided tour integration
     const { startTour } = useGuidedTour();
@@ -483,12 +681,38 @@ export default function StudyWithMe() {
         setAssociatedGoal(null, null);
     };
 
-    const handleManualTaskAdd = (text: string) => {
-        const newTask = { id: Date.now(), text, completed: false };
+    const handleManualTaskAdd = async (text: string) => {
+        const trimmedText = text.trim();
+        if (!trimmedText) return;
+
         if (associatedGoalId) {
             setAssociatedGoal(null, null);
         }
-        persistTasks([...tasks, newTask]);
+
+        if (status !== "authenticated" || !user?.id) {
+            const newTask: Task = {
+                id: createTaskId(),
+                text: trimmedText,
+                completed: false,
+                createdAt: new Date().toISOString(),
+                completedAt: null,
+            };
+            const nextTasks = sortTasks([...tasks, newTask]);
+            setTasks(nextTasks);
+            saveTasks(nextTasks, user?.id);
+            return;
+        }
+
+        try {
+            const createdGoal = await dataService.addGoal({
+                title: trimmedText,
+                startedAt: new Date().toISOString(),
+                source: "ekagra",
+            });
+            setTasks((prev) => sortTasks([...prev, mapGoalToTask(createdGoal)]));
+        } catch (error) {
+            console.error("Add Ekagra task error:", error);
+        }
     };
 
     const handleVolumeChange = (newVolume: number) => {
@@ -890,32 +1114,66 @@ export default function StudyWithMe() {
                         onSetMode={handleModeChange}
                         isPiPActive={isPiPActive}
                         onAddTask={handleManualTaskAdd}
-                        onEditTask={(newText) => {
+                        onEditTask={async (newText) => {
                             if (currentTask) {
-                                persistTasks(tasks.map(t => t.id === currentTask.id ? { ...t, text: newText } : t));
+                                const updatedText = newText.trim() || currentTask.text;
+                                if (status === "authenticated" && user?.id) {
+                                    try {
+                                        await dataService.updateGoalDetails(currentTask.id, { title: updatedText });
+                                        setTasks((prev) => sortTasks(prev.map((task) => (
+                                            task.id === currentTask.id ? { ...task, text: updatedText } : task
+                                        ))));
+                                    } catch (error) {
+                                        console.error("Edit Ekagra task error:", error);
+                                    }
+                                } else {
+                                    const nextTasks = sortTasks(tasks.map(t => t.id === currentTask.id ? { ...t, text: updatedText } : t));
+                                    setTasks(nextTasks);
+                                    saveTasks(nextTasks, user?.id);
+                                }
                             }
                         }}
-                        onDeleteTask={() => {
+                        onDeleteTask={async () => {
                             if (currentTask) {
-                                persistTasks(tasks.filter(t => t.id !== currentTask.id));
+                                if (status === "authenticated" && user?.id) {
+                                    try {
+                                        await dataService.deleteGoal(currentTask.id);
+                                        setTasks((prev) => prev.filter((task) => task.id !== currentTask.id));
+                                    } catch (error) {
+                                        console.error("Delete Ekagra task error:", error);
+                                    }
+                                } else {
+                                    const nextTasks = tasks.filter(t => t.id !== currentTask.id);
+                                    setTasks(nextTasks);
+                                    saveTasks(nextTasks, user?.id);
+                                }
                             }
                         }}
                         onCompleteTask={async () => {
                             if (!currentTask) return;
 
-                            // 1) Mark task as completed
-                            updateTasks((prev) =>
-                                prev.map(task =>
-                                    task.id === currentTask.id ? { ...task, completed: true } : task
-                                )
-                            );
+                            const completedAt = new Date().toISOString();
+                            if (status === "authenticated" && user?.id) {
+                                try {
+                                    await dataService.updateGoal(currentTask.id, true, completedAt);
+                                    setTasks((prev) => sortTasks(prev.map((task) =>
+                                        task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
+                                    )));
+                                } catch (error) {
+                                    console.error("Complete Ekagra task error:", error);
+                                    return;
+                                }
+                            } else {
+                                const nextTasks = sortTasks(tasks.map((task) =>
+                                    task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
+                                ));
+                                setTasks(nextTasks);
+                                saveTasks(nextTasks, user?.id);
+                            }
                             setCompletedTask(currentTask);
 
-                            // 2) Automatically pause the timer or just show the proceed prompt
                             setAwaitingProceed(true);
                             setShowDurationPrompt(false);
-                            // Optionally, we could stop the timer here
-                            // if (timerState.isRunning) toggleTimer();
                         }}
                     />
 

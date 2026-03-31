@@ -83,6 +83,7 @@ export const dataService = {
         description?: string;
         subtasks?: GoalSubtask[];
         startedAt?: string | null;
+        source?: "manual" | "ekagra";
     }): Promise<Goal> {
         const res = await apiFetch(`${API_URL}/goals`, {
             method: "POST",
@@ -95,6 +96,7 @@ export const dataService = {
                 type: "daily",
                 scheduledDate: payload.scheduledDate,
                 startedAt: payload.startedAt ?? null,
+                source: payload.source ?? "manual",
             }),
             credentials: 'include',
         });

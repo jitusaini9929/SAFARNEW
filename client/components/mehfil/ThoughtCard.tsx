@@ -27,6 +27,7 @@ import { apiFetch } from "@/utils/apiFetch";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -564,6 +565,9 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('mehfil.card.report_post')}</DialogTitle>
+            <DialogDescription>
+              Select the reason for reporting this post so the moderation flow has the right context.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <RadioGroup value={reportReason} onValueChange={setReportReason}>
@@ -605,6 +609,9 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('mehfil.card.delete_confirm_title')}</DialogTitle>
+            <DialogDescription>
+              {t('mehfil.card.delete_confirm_desc')}
+            </DialogDescription>
           </DialogHeader>
           <p className="py-4 text-slate-600 dark:text-slate-300">
             {t('mehfil.card.delete_confirm_desc')}
@@ -633,6 +640,9 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('mehfil.card.edit_post')}</DialogTitle>
+            <DialogDescription>
+              Update your post content and save the revised version.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-2">
             <textarea

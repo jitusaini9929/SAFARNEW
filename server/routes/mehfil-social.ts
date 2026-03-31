@@ -405,53 +405,6 @@ mehfilSocialRouter.get("/friends/status/:targetUserId", async (req: any, res: Re
 // USER ANALYTICS
 // ═══════════════════════════════════════════════════════════
 
-mehfilSocialRouter.get("/analytics", async (req: any, res: Response) => {
-  try {
-    const userId = req.session.userId;
-    const cacheKey = `mehfil:analytics:${userId}`;
-
-    const cached = await cacheGet(cacheKey);
-    if (cached) return res.json(cached);
-
-    const [
-      totalThoughts,
-      totalReactions,
-      totalComments,
-      totalSaves,
-      totalShares,
-      friendsCount,
-      user
-    ] = await Promise.all([
-      collections.mehfilThoughts().countDocuments({ user_id: userId }),
-      collections.mehfilReactions().countDocuments({ user_id: userId }),
-      collections.mehfilComments().countDocuments({ user_id: userId }),
-      collections.mehfilSaves().countDocuments({ user_id: userId }),
-      collections.mehfilShares().countDocuments({ user_id: userId }),
-      collections.mehfilFriendships().countDocuments({
-        $or: [{ user_id: userId }, { friend_id: userId }],
-        status: 'accepted'
-      }),
-      collections.users().findOne({ id: userId }, { projection: { created_at: 1 } }),
-    ]);
-
-    const payload = {
-      totalThoughts,
-      totalReactions,
-      totalComments,
-      totalSaves,
-      totalShares,
-      friendsCount,
-      joinedDate: user?.created_at || new Date().toISOString(),
-    };
-
-    await cacheSet(cacheKey, payload, 120); // 2 min TTL
-    res.json(payload);
-  } catch (error) {
-    console.error("Error fetching analytics:", error);
-    res.status(500).json({ error: "Failed to fetch analytics" });
-  }
-});
-
 // USER ACTIVITY
 mehfilSocialRouter.get("/activity", async (req: any, res: Response) => {
   try {

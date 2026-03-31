@@ -2,7 +2,7 @@
 import { Router, Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { endOfDay, endOfWeek } from 'date-fns';
-import { collections } from '../db';
+import { collections, getDb } from '../db';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -16,9 +16,11 @@ type GoalLifecycleStatus = 'active' | 'missed' | 'rolled_over' | 'abandoned';
 type GoalCategory = 'academic' | 'health' | 'personal' | 'other';
 type GoalPriority = 'high' | 'medium' | 'low';
 type GoalSubtask = { id: string; text: string; done: boolean };
+type GoalSource = 'manual' | 'ekagra';
 
 const ALLOWED_CATEGORIES = new Set<GoalCategory>(['academic', 'health', 'personal', 'other']);
 const ALLOWED_PRIORITIES = new Set<GoalPriority>(['high', 'medium', 'low']);
+const ALLOWED_SOURCES = new Set<GoalSource>(['manual', 'ekagra']);
 
 const toISTDate = (date: Date) => new Date(date.getTime() + IST_OFFSET_MS);
 
@@ -93,6 +95,12 @@ const normalizeGoalPriority = (raw: unknown): GoalPriority | null => {
     return null;
 };
 
+const normalizeGoalSource = (raw: unknown): GoalSource | null => {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (ALLOWED_SOURCES.has(value as GoalSource)) return value as GoalSource;
+    return null;
+};
+
 const normalizeGoalSubtasks = (raw: unknown): GoalSubtask[] | null => {
     if (raw === undefined || raw === null) return [];
     if (!Array.isArray(raw)) return null;
@@ -124,6 +132,7 @@ const normalizeGoalResponse = (goal: any) => {
     const description = normalizeGoalDescription(goal.description);
     const category = normalizeGoalCategory(goal.category) || 'other';
     const priority = normalizeGoalPriority(goal.priority) || 'medium';
+    const source = normalizeGoalSource(goal.source) || 'manual';
     const subtasks = normalizeGoalSubtasks(goal.subtasks) || [];
     return {
         ...goal,
@@ -132,6 +141,7 @@ const normalizeGoalResponse = (goal: any) => {
         description,
         category,
         priority,
+        source,
         subtasks,
         createdAt: createdAt.toISOString(),
         completedAt: completedAt ? completedAt.toISOString() : null,
@@ -140,6 +150,83 @@ const normalizeGoalResponse = (goal: any) => {
         scheduledDate: goal.scheduled_date ? new Date(goal.scheduled_date).toISOString() : null,
         lifecycleStatus: (goal.lifecycle_status || 'active') as GoalLifecycleStatus,
     };
+};
+
+const migrateLegacyEkagraTasks = async (userId: string) => {
+    const legacyTasks = await getGoalLegacyTasks(userId);
+    if (legacyTasks.length === 0) return;
+
+    const existingGoals = await collections.goals().find(
+        { user_id: userId, source: 'ekagra' },
+        { projection: { id: 1, title: 1, text: 1, created_at: 1 } },
+    ).toArray();
+    const existingIds = new Set(existingGoals.map((goal: any) => String(goal.id)));
+
+    const migratedGoals = legacyTasks
+        .map((task: any, index: number) => {
+            const legacyId = typeof task.id === 'string' && task.id.trim() ? task.id.trim() : uuidv4();
+            if (existingIds.has(legacyId)) return null;
+
+            const title = normalizeGoalTitle(task.title, task.text);
+            if (!title) return null;
+
+            const createdAt = task.created_at instanceof Date ? task.created_at : new Date(task.created_at || Date.now());
+            const completedAt = task.completed_at ? new Date(task.completed_at) : null;
+            const safeCreatedAt = Number.isFinite(createdAt.getTime()) ? createdAt : new Date();
+            const safeCompletedAt = completedAt && Number.isFinite(completedAt.getTime()) ? completedAt : null;
+            const scheduledDate = new Date(`${getISTDateKey(safeCreatedAt)}T00:00:00.000Z`);
+            const completed = Boolean(task.completed);
+
+            return {
+                id: legacyId,
+                user_id: userId,
+                text: title,
+                title,
+                description: normalizeGoalDescription(task.description),
+                category: 'other' as GoalCategory,
+                priority: 'medium' as GoalPriority,
+                source: 'ekagra' as GoalSource,
+                subtasks: [],
+                type: 'daily' as GoalType,
+                completed,
+                created_at: safeCreatedAt,
+                completed_at: completed ? safeCompletedAt || safeCreatedAt : null,
+                started_at: safeCreatedAt,
+                expires_at: calculateExpiryUTC('daily', safeCreatedAt, scheduledDate),
+                lifecycle_status: 'active' as GoalLifecycleStatus,
+                rollover_prompt_pending: false,
+                source_goal_id: null as string | null,
+                scheduled_date: scheduledDate,
+                missed_at: null as Date | null,
+                rolled_over_at: null as Date | null,
+                abandoned_at: null as Date | null,
+                updated_at: new Date(safeCreatedAt.getTime() + index),
+            };
+        })
+        .filter((goal): goal is NonNullable<typeof goal> => Boolean(goal));
+
+    if (migratedGoals.length > 0) {
+        await collections.goals().insertMany(migratedGoals);
+        for (const goal of migratedGoals) {
+            await logGoalActivity(userId, goal.id, 'daily', 'CREATED', goal.created_at);
+            if (goal.completed && goal.completed_at) {
+                await logGoalActivity(userId, goal.id, 'daily', 'COMPLETED', goal.completed_at);
+            }
+        }
+    }
+
+    await dropGoalLegacyTasks(userId);
+};
+
+const getGoalLegacyTasks = async (userId: string) => {
+    return await getDb().collection('focus_tasks')
+        .find({ user_id: userId })
+        .sort({ position: 1, created_at: 1 })
+        .toArray();
+};
+
+const dropGoalLegacyTasks = async (userId: string) => {
+    await getDb().collection('focus_tasks').deleteMany({ user_id: userId });
 };
 
 // isDailyCreationBlockedNow removed — users can create goals at any time.
@@ -211,6 +298,7 @@ const syncExpiredGoalsToMissed = async (userId: string) => {
 router.get('/', requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
+        await migrateLegacyEkagraTasks(userId);
         await syncExpiredGoalsToMissed(userId);
 
         const rows = await collections.goals()
@@ -229,6 +317,7 @@ router.get('/', requireAuth, async (req: Request, res) => {
 router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
+        await migrateLegacyEkagraTasks(userId);
         await syncExpiredGoalsToMissed(userId);
 
         const rows = await collections.goals()
@@ -250,12 +339,13 @@ router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
 
 // Create goal
 router.post('/', requireAuth, async (req: Request, res) => {
-    const { text, title, description, scheduledDate, category, priority, subtasks, startedAt } = req.body;
+    const { text, title, description, scheduledDate, category, priority, subtasks, startedAt, source } = req.body;
     const type: GoalType = 'daily';
     const normalizedTitle = normalizeGoalTitle(title, text);
     const normalizedDescription = normalizeGoalDescription(description);
     const normalizedCategory = normalizeGoalCategory(category) || 'other';
     const normalizedPriority = normalizeGoalPriority(priority) || 'medium';
+    const normalizedSource = normalizeGoalSource(source) || 'manual';
     const normalizedSubtasks = normalizeGoalSubtasks(subtasks) || [];
 
     if (!normalizedTitle) {
@@ -305,6 +395,7 @@ router.post('/', requireAuth, async (req: Request, res) => {
             description: normalizedDescription,
             category: normalizedCategory,
             priority: normalizedPriority,
+            source: normalizedSource,
             subtasks: normalizedSubtasks,
             type,
             completed: false,
@@ -368,6 +459,7 @@ router.post('/:id/rollover-action', requireAuth, async (req: Request, res) => {
                 description: normalizeGoalDescription(goal.description),
                 category: normalizeGoalCategory(goal.category) || 'other',
                 priority: normalizeGoalPriority(goal.priority) || 'medium',
+                source: normalizeGoalSource(goal.source) || 'manual',
                 subtasks: normalizeGoalSubtasks(goal.subtasks) || [],
                 type: goalType,
                 completed: false,
@@ -690,6 +782,7 @@ router.delete('/:id', requireAuth, async (req: Request, res) => {
 router.get('/previous-goals', requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
+        await migrateLegacyEkagraTasks(userId);
         const period = (req.query.period as string) || 'daily';
         const days = req.query.days ? parseInt(req.query.days as string) : 1;
         const now = new Date();
@@ -767,6 +860,7 @@ router.post('/repeat-plan', requireAuth, async (req: Request, res) => {
                 description: goal.description || '',
                 category: normalizeGoalCategory(goal.category) || 'other',
                 priority: normalizeGoalPriority(goal.priority) || 'medium',
+                source: normalizeGoalSource(goal.source) || 'manual',
                 subtasks: normalizeGoalSubtasks(goal.subtasks) || [],
                 type: goalType,
                 completed: false,
@@ -831,6 +925,7 @@ router.post('/:id/repeat', requireAuth, async (req: Request, res) => {
             description: sourceGoal.description || '',
             category: normalizeGoalCategory(sourceGoal.category) || 'other',
             priority: normalizeGoalPriority(sourceGoal.priority) || 'medium',
+            source: normalizeGoalSource(sourceGoal.source) || 'manual',
             subtasks: normalizeGoalSubtasks(sourceGoal.subtasks) || [],
             type: goalType,
             completed: false,
