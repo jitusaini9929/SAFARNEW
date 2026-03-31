@@ -43,7 +43,12 @@ interface FocusTheme {
     gradient: string;
     icon: React.ReactNode;
     videoUrl: string;
-    musicUrl: string;
+}
+
+interface FocusMusicTrack {
+    id: string;
+    name: string;
+    url: string;
 }
 
 const focusThemes: FocusTheme[] = [
@@ -56,8 +61,7 @@ const focusThemes: FocusTheme[] = [
         accentRgb: "27, 142, 195",
         gradient: "linear-gradient(135deg, #0a4d68 0%, #1b8ec3 50%, #88d4f5 100%)",
         icon: <Waves className="w-4 h-4" />,
-        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_2.mp4",
-        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/music_1.mp3"
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_2.mp4"
     },
     {
         id: "nostalgia",
@@ -66,8 +70,7 @@ const focusThemes: FocusTheme[] = [
         accentRgb: "28, 188, 49",
         gradient: "linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%)",
         icon: <Sunset className="w-4 h-4" />,
-        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_3.mp4",
-        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/relaxingtime-sleep-music-vol16-195422.mp3"
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_3.mp4"
     },
     {
         id: "amber",
@@ -76,8 +79,7 @@ const focusThemes: FocusTheme[] = [
         accentRgb: "46, 113, 68",
         gradient: "linear-gradient(135deg, #1e3a5f 0%, #2e7144 50%, #4ade80 100%)",
         icon: <MoonStar className="w-4 h-4" />,
-        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_4.mp4",
-        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/WhatsApp_Audio_2026-02-18_at_10.05.04_AM.mpeg"
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_4.mp4"
     },
     {
         id: "solitude",
@@ -86,10 +88,55 @@ const focusThemes: FocusTheme[] = [
         accentRgb: "28, 82, 124",
         gradient: "linear-gradient(135deg, #1c527c 0%, #7c3aed 50%, #ec4899 100%)",
         icon: <Sparkle className="w-4 h-4" />,
-        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_1.mp4",
-        musicUrl: "https://del1.vultrobjects.com/qms-images/Safar/music_3.mp3"
+        videoUrl: "https://del1.vultrobjects.com/qms-images/Safar/theme_1.mp4"
     },
 ];
+
+const MUSIC_TRACK_STORAGE_KEY = "focus-music-track-id";
+
+const focusMusicTracks: FocusMusicTrack[] = [
+    {
+        id: "serene-flow",
+        name: "Serene Flow",
+        url: "https://del1.vultrobjects.com/qms-images/Safar/music_1.mp3",
+    },
+    {
+        id: "nostalgia-breeze",
+        name: "Nostalgia Breeze",
+        url: "https://del1.vultrobjects.com/qms-images/Safar/relaxingtime-sleep-music-vol16-195422.mp3",
+    },
+    {
+        id: "amber-pulse",
+        name: "Amber Pulse",
+        url: "https://del1.vultrobjects.com/qms-images/Safar/WhatsApp_Audio_2026-02-18_at_10.05.04_AM.mpeg",
+    },
+    {
+        id: "solitude-deep",
+        name: "Solitude Deep",
+        url: "https://del1.vultrobjects.com/qms-images/Safar/music_3.mp3",
+    },
+];
+
+const getInitialMusicTrackId = () => {
+    try {
+        const savedTrackId = localStorage.getItem(MUSIC_TRACK_STORAGE_KEY);
+        if (savedTrackId && focusMusicTracks.some((track) => track.id === savedTrackId)) {
+            return savedTrackId;
+        }
+
+        const savedMusicUrl = String(localStorage.getItem("focus_music_source") || "").trim();
+        if (savedMusicUrl) {
+            const matchedTrack = focusMusicTracks.find((track) => track.url === savedMusicUrl);
+            if (matchedTrack) {
+                return matchedTrack.id;
+            }
+        }
+    } catch {
+        // Fall back to first track.
+    }
+
+    return focusMusicTracks[0].id;
+};
 
 const TIMER_MINUTES_MIN = 5;
 const TIMER_STEP_MINUTES = 5;
@@ -184,6 +231,7 @@ export default function StudyWithMe() {
     });
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
+    const [selectedMusicTrackId, setSelectedMusicTrackId] = useState<string>(getInitialMusicTrackId);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [completedTask, setCompletedTask] = useState<Task | null>(null);
@@ -201,6 +249,7 @@ export default function StudyWithMe() {
     const [customTimerInput, setCustomTimerInput] = useState("");
     const completionSoundRef = useRef<HTMLAudioElement | null>(null);
     const completionHandledRef = useRef(false);
+    const selectedMusicTrack = focusMusicTracks.find((track) => track.id === selectedMusicTrackId) || focusMusicTracks[0];
 
     // Deep link handling for analytics
     useEffect(() => {
@@ -446,10 +495,19 @@ export default function StudyWithMe() {
         setMusicVolume(newVolume);
     };
 
-    // Keep global music source aligned with currently selected focus theme.
+    const handleMusicTrackChange = (nextTrackId: string) => {
+        setSelectedMusicTrackId(nextTrackId);
+        try {
+            localStorage.setItem(MUSIC_TRACK_STORAGE_KEY, nextTrackId);
+        } catch {
+            // Ignore storage failures.
+        }
+    };
+
+    // Keep global music source aligned with the user's selected music track.
     useEffect(() => {
-        setMusicSource(currentTheme.musicUrl);
-    }, [currentTheme.musicUrl, setMusicSource]);
+        setMusicSource(selectedMusicTrack.url);
+    }, [selectedMusicTrack.url, setMusicSource]);
 
     // Update video source when theme changes
     useEffect(() => {
@@ -588,6 +646,26 @@ export default function StudyWithMe() {
                                 <Palette className="w-5 h-5 group-hover:scale-110 transition-transform" style={{ color: currentTheme.accent }} />
                                 {!isSidebarCollapsed && <span className="font-medium">Theme</span>}
                             </button>
+
+                            {!isSidebarCollapsed && (
+                                <div className="rounded-xl border border-border/60 bg-muted/25 p-3 space-y-2">
+                                    <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                        <Music className="w-4 h-4" style={{ color: currentTheme.accent }} />
+                                        Music Track
+                                    </label>
+                                    <select
+                                        value={selectedMusicTrackId}
+                                        onChange={(event) => handleMusicTrackChange(event.target.value)}
+                                        className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
+                                    >
+                                        {focusMusicTracks.map((track) => (
+                                            <option key={track.id} value={track.id}>
+                                                {track.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
 
                         {/* Timer Duration Slider */}
@@ -988,6 +1066,23 @@ export default function StudyWithMe() {
                             <Palette className="w-5 h-5" style={{ color: currentTheme.accent }} />
                             Change Theme
                         </button>
+                        <div className="space-y-2">
+                            <label className="px-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                <Music className="w-4 h-4" style={{ color: currentTheme.accent }} />
+                                Music Track
+                            </label>
+                            <select
+                                value={selectedMusicTrackId}
+                                onChange={(event) => handleMusicTrackChange(event.target.value)}
+                                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
+                            >
+                                {focusMusicTracks.map((track) => (
+                                    <option key={track.id} value={track.id}>
+                                        {track.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     {/* Timer Settings */}

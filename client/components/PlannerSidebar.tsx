@@ -81,7 +81,7 @@ export default function PlannerSidebar() {
                       key={link.path}
                       to={link.path}
                       onClick={() => setIsOpen(false)}
-                      className={`relative px-4 py-3 rounded-xl font-['Poppins',sans-serif] font-bold text-sm transition-all duration-300 flex items-center justify-between group ${
+                      className={`relative px-4 py-3 rounded-xl font-['Satoshi',sans-serif] font-bold text-sm transition-all duration-300 flex items-center justify-between group ${
                         isActive
                           ? "bg-[#d9dbe2] dark:bg-[#0e0e0e] text-blue-600 dark:text-blue-400 shadow-[inset_3px_3px_6px_rgba(166,171,189,0.6),inset_-3px_-3px_6px_rgba(255,255,255,0.8)] dark:shadow-[inset_3px_3px_8px_rgba(0,0,0,0.8),inset_-1px_-1px_3px_rgba(255,255,255,0.05)] border border-[#e6e7ee] dark:border-[#1a1c1e]"
                           : "bg-[#f3f4f7] dark:bg-[#202225] text-[#4b5563] dark:text-[#d1d5db] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] hover:text-[#2d333b] hover:dark:text-[#fcf9f8]"
@@ -98,7 +98,7 @@ export default function PlannerSidebar() {
 
               <div className="mt-auto pt-8">
                 <div className="rounded-2xl p-4 bg-[#d9dbe2] dark:bg-[#0e0e0e] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#ffffff] dark:border-[#252626]">
-                  <h4 style={{ fontFamily: "'Playfair Display', serif" }} className="text-[10px] font-black uppercase tracking-widest text-[#6b7280] dark:text-[#767575] mb-2">Session Uplink</h4>
+                  <h4 style={{ fontFamily: "'Satoshi', sans-serif" }} className="text-[10px] font-black uppercase tracking-widest text-[#6b7280] dark:text-[#767575] mb-2">Session Uplink</h4>
                   <p className="text-xs font-bold text-[#8b919e] dark:text-[#acabaa]">Tactile Environment Active.</p>
                 </div>
               </div>

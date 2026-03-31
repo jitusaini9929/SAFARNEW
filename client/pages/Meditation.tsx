@@ -139,6 +139,7 @@ const sessions: Session[] = [
 
 const ADMIN_EMAIL = "steve123@gmail.com";
 const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/rXGlSKg_IOE?si=JR0M731OqUcejS3U";
+const VISUAL_GUIDANCE_PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLriBGSFKTHVY1YKUDRrQiSjXE2-XE31u8";
 const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.webp";
 const DEFAULT_DHYAN_AUDIO_URL = "/Dhyan_processed.mp3";
 
@@ -606,7 +607,10 @@ export default function Meditation() {
                                 </div>
                                 <span className="text-[#adaaab] text-xs uppercase tracking-widest">{isMuted ? "Off" : "On"}</span>
                             </button>
-                            <button onClick={() => setShowResources(true)} className="w-full flex items-center justify-between rounded-xl bg-[#1f1f20] px-4 py-3 hover:bg-[#242526] transition-colors">
+                            <button
+                                onClick={() => window.open(VISUAL_GUIDANCE_PLAYLIST_URL, "_blank", "noopener,noreferrer")}
+                                className="w-full flex items-center justify-between rounded-xl bg-[#1f1f20] px-4 py-3 hover:bg-[#242526] transition-colors"
+                            >
                                 <div className="flex items-center gap-3 text-sm">
                                     <Image className="w-4 h-4 text-[#94aaff]" />
                                     <span>Visual Guidance</span>

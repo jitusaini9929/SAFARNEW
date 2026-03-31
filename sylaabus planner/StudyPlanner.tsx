@@ -529,7 +529,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
           <ThemeToggle />
         </div>
       </div>
-      <div className="min-h-[100dvh] bg-gradient-to-br from-[#E0F2FE] via-[#F5F3FF] to-[#FFF1F2] dark:from-[#131416] dark:via-[#131416] dark:to-[#131416] text-[#3c4146] dark:text-[#e7e5e5] font-['Poppins',sans-serif] overflow-x-hidden selection:bg-blue-500/30 transition-colors duration-500">
+      <div className="min-h-[100dvh] bg-gradient-to-br from-[#E0F2FE] via-[#F5F3FF] to-[#FFF1F2] dark:from-[#131416] dark:via-[#131416] dark:to-[#131416] text-[#3c4146] dark:text-[#e7e5e5] font-['Satoshi',sans-serif] overflow-x-hidden selection:bg-blue-500/30 transition-colors duration-500">
 
         {/* Noise Texture */}
         <div className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.02] z-0" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg viewBox=\"0 0 200 200\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cfilter id=\"noiseFilter\"%3E%3CfeTurbulence type=\"fractalNoise\" baseFrequency=\"0.85\" numOctaves=\"3\" stitchTiles=\"stitch\"/%3E%3C/filter%3E%3Crect width=\"100%25\" height=\"100%25\" filter=\"url(%23noiseFilter)\"/%3E%3C/svg%3E')" }} />
@@ -539,7 +539,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
           {/* Header Section */}
           <div data-tour="planner-header" className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 relative">
             <div>
-              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]" style={{ fontFamily: "'Satoshi', sans-serif" }}>
                 {plan.title}.
               </h1>
               <motion.div layout className="flex flex-wrap items-center gap-6">
@@ -618,7 +618,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
             {/* Completion */}
             <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] group">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Completion</div>
-              <div className="text-5xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] mb-5 drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>{summary.percent}%</div>
+              <div className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-5 drop-shadow-sm" style={{ fontFamily: "'Satoshi', sans-serif" }}>{summary.percent}%</div>
 
               {/* Recessed Progress Bar Tray */}
               <div className="h-2 w-full bg-[#d9dbe2] dark:bg-[#0e0e0e] rounded-full overflow-hidden shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] mt-auto p-[1.5px]">
@@ -634,23 +634,23 @@ export default function StudyPlanner({ planId }: { planId: string }) {
             {/* Topics Done */}
             <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Topics Done</div>
-              <div className="text-5xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
-                {summary.done} <span className="text-xl text-[#8b919e] dark:text-[#767575] font-['Poppins',sans-serif] font-bold">/ {summary.total}</span>
+              <div className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                {summary.done} <span className="text-xl text-[#8b919e] dark:text-[#767575] font-['Satoshi',sans-serif] font-bold">/ {summary.total}</span>
               </div>
             </div>
 
             {/* Daily Goal */}
             <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Daily Target</div>
-              <div className="text-5xl font-extrabold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
-                {plan.dailyGoal || 3} <span className="text-xl text-[#8b919e] dark:text-[#767575] font-['Poppins',sans-serif] font-bold">topics</span>
+              <div className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                {plan.dailyGoal || 3} <span className="text-xl text-[#8b919e] dark:text-[#767575] font-['Satoshi',sans-serif] font-bold">topics</span>
               </div>
             </div>
 
             {/* Planned This Month */}
             <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
               <div className="text-[10px] font-bold text-[#8b919e] dark:text-[#767575] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">Planned (Month)</div>
-              <div className="text-5xl font-extrabold text-blue-600 dark:text-blue-400 mt-auto drop-shadow-[0_2px_4px_rgba(59,130,246,0.2)]" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <div className="text-5xl font-bold text-blue-600 dark:text-blue-400 mt-auto drop-shadow-[0_2px_4px_rgba(59,130,246,0.2)]" style={{ fontFamily: "'Satoshi', sans-serif" }}>
                 {topics.filter((t) => t.plannedDate?.startsWith(toIsoDateOnly(monthDate).slice(0, 7))).length}
               </div>
             </div>
@@ -765,7 +765,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                       {/* Subject Header Tray */}
                       <div className={`p-5 md:p-8 border-b relative z-10 shadow-sm transition-colors ${isDarkMode ? "bg-[#101013] border-zinc-800" : "bg-slate-50 border-slate-200"}`}>
                         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 relative z-10">
-                          <strong className={`text-[31px] md:text-[39px] font-extrabold tracking-tight drop-shadow-sm ${isDarkMode ? "text-zinc-50" : "text-[#2d333b]"}`} style={{ fontFamily: "'Playfair Display', serif" }}>{subject.name}</strong>
+                          <strong className={`text-[31px] md:text-[39px] font-bold tracking-tight drop-shadow-sm ${isDarkMode ? "text-zinc-50" : "text-[#2d333b]"}`} style={{ fontFamily: "'Satoshi', sans-serif" }}>{subject.name}</strong>
                           <div className="flex items-center gap-3">
                             <span className={`text-[13px] uppercase font-black tracking-widest px-4 py-1.5 rounded-full border ${isDarkMode ? "text-zinc-400 bg-zinc-950 border-zinc-800 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)]" : "text-[#4b5563] bg-[#d9dbe2] border-[#c0c4d1] shadow-[inset_1px_1px_3px_rgba(166,171,189,0.5),inset_-1px_-1px_3px_rgba(255,255,255,0.8)]"}`}>
                               {subjectPercent(subject)}% SYNCED
@@ -1027,7 +1027,7 @@ export default function StudyPlanner({ planId }: { planId: string }) {
                     ◀
                   </motion.button>
 
-                  <strong className="text-[31px] font-extrabold text-[#2d333b] dark:text-[#fcf9f8] tracking-widest uppercase drop-shadow-sm" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  <strong className="text-[31px] font-bold text-[#2d333b] dark:text-[#fcf9f8] tracking-widest uppercase drop-shadow-sm" style={{ fontFamily: "'Satoshi', sans-serif" }}>
                     {monthDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}
                   </strong>
 
