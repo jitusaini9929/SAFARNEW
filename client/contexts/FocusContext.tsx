@@ -409,6 +409,19 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
         if (elapsedSeconds <= 0) return;
 
+        // Detect system sleep/suspension (e.g., > 10 minutes of missed ticks)
+        if (deltaMs > 10 * 60 * 1000) {
+            lastTickRef.current = now;
+            isRunningRef.current = false;
+            setIsRunning(false);
+            try {
+                const audioEl = document.querySelector('audio');
+                if (audioEl) audioEl.pause();
+                sessionStorage.setItem("focus_music_playing", "0");
+            } catch (e) { /* ignore */ }
+            return;
+        }
+
         // Keep sub-second remainder so delayed/throttled ticks catch up correctly.
         lastTickRef.current = now - (deltaMs % 1000);
 

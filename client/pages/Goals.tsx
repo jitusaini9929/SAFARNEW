@@ -60,6 +60,17 @@ const getGoalDurationMs = (goal: UIGoal) => {
   return end.getTime() - start.getTime();
 };
 
+const getGoalLifecycleDurationMs = (goal: UIGoal) => {
+  const rawCreatedAt = (goal as any).createdAt || (goal as any).created_at;
+  const rawCompletedAt = goal.completedAt || (goal as any).completed_at;
+  if (!rawCreatedAt || !rawCompletedAt) return null;
+  const createdAt = new Date(rawCreatedAt);
+  const completedAt = new Date(rawCompletedAt);
+  if (!Number.isFinite(createdAt.getTime()) || !Number.isFinite(completedAt.getTime())) return null;
+  if (completedAt.getTime() < createdAt.getTime()) return null;
+  return completedAt.getTime() - createdAt.getTime();
+};
+
 const getGoalCreatedTime = (goal: UIGoal) => {
   const raw = (goal as any).createdAt || (goal as any).created_at || goal.scheduledDate;
   const created = raw ? new Date(raw) : null;
@@ -75,23 +86,10 @@ const getGoalCreatedDateKey = (goal: UIGoal) => {
 const getDailyCompletionMetrics = (
   completedGoals: UIGoal[],
   dayKey: string,
-  goalFocusTimes: Record<string, { totalMinutes: number }> = {},
 ) => {
   const dayGoals = completedGoals.filter(g => g.completedAt && getISTDateKey(new Date(g.completedAt)) === dayKey);
   const durations = dayGoals
-    .map((goal) => {
-      const trackedDuration = getGoalDurationMs(goal);
-      if (typeof trackedDuration === "number" && Number.isFinite(trackedDuration) && trackedDuration > 0) {
-        return trackedDuration;
-      }
-
-      const focusMinutes = goalFocusTimes[goal.id]?.totalMinutes;
-      if (typeof focusMinutes === "number" && Number.isFinite(focusMinutes) && focusMinutes > 0) {
-        return focusMinutes * 60000;
-      }
-
-      return null;
-    })
+    .map((goal) => getGoalLifecycleDurationMs(goal))
     .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
   const totalDuration = durations.reduce((sum, v) => sum + v, 0);
   const avgDuration = durations.length ? totalDuration / durations.length : 0;
@@ -434,7 +432,6 @@ export default function Goals() {
   const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
   const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
   const [goalFocusTimes, setGoalFocusTimes] = useState<GoalFocusSummaryMap>({});
-  const [todayGoalFocusTimes, setTodayGoalFocusTimes] = useState<GoalFocusSummaryMap>({});
 
   const maxDateKey = useMemo(() => {
     const base = dateKeyToUtcDate(todayKey);
@@ -521,53 +518,53 @@ export default function Goals() {
   };
 
   const standardGoals = useMemo(() => goals.filter(g => g.source !== "ekagra"), [goals]);
+  const manualCompletedGoals = useMemo(
+    () => standardGoals.filter(g => g.completed && Boolean(g.completedAt)),
+    [standardGoals],
+  );
   const historyGoals = useMemo(() => goals.filter(g => g.completed || g.source === "ekagra"), [goals]);
   const pendingGoals = useMemo(() => standardGoals.filter(g => !g.completed).sort((a,b) => (a.scheduledDate || "") > (b.scheduledDate || "") ? 1 : -1), [standardGoals]);
   const completedRecent = useMemo(() => standardGoals.filter(g => g.completed).sort((a,b) => (b.completedAt || "") > (a.completedAt || "") ? 1 : -1).slice(0, MAX_COMPLETED_DISPLAY), [standardGoals]);
   const historyDateKeys = useMemo(() => Array.from(new Set(historyGoals.map(getGoalCreatedDateKey).filter(Boolean))).sort() as string[], [historyGoals]);
   const filteredHistory = useMemo(() => historyDateFilter ? historyGoals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter) : historyGoals, [historyGoals, historyDateFilter]);
 
-  // Refresh focus totals whenever visible manual goals change or the IST day rolls over.
+  // Refresh focus totals whenever visible manual goals change.
   useEffect(() => {
     const visibleIds = standardGoals.map(g => g.id).filter(Boolean);
     if (visibleIds.length === 0) {
       setGoalFocusTimes({});
-      setTodayGoalFocusTimes({});
       return;
     }
 
     let cancelled = false;
 
-    dataService.getGoalFocusSummary(visibleIds, todayKey)
+    dataService.getGoalFocusSummary(visibleIds)
       .then((summary) => {
         if (cancelled) return;
         setGoalFocusTimes(summary.allTime);
-        setTodayGoalFocusTimes(summary.forDay);
       })
       .catch(() => {
         if (cancelled) return;
         setGoalFocusTimes({});
-        setTodayGoalFocusTimes({});
       });
 
     return () => {
       cancelled = true;
     };
-  }, [standardGoals, todayKey]);
+  }, [standardGoals]);
 
   const todayMetrics = useMemo(
-    () => getDailyCompletionMetrics(goals.filter(g => g.completed), todayKey, todayGoalFocusTimes),
-    [goals, todayKey, todayGoalFocusTimes],
+    () => getDailyCompletionMetrics(manualCompletedGoals, todayKey),
+    [manualCompletedGoals, todayKey],
   );
 
   const completedLast7DaysCount = useMemo(() => {
-    const completed = goals.filter(g => g.completed && g.completedAt);
-    return completed.filter(g => {
+    return manualCompletedGoals.filter(g => {
       const completedKey = getISTDateKey(new Date(g.completedAt!));
       const diff = diffISTDays(completedKey, todayKey);
       return diff <= 0 && diff >= -6;
     }).length;
-  }, [goals, todayKey]);
+  }, [manualCompletedGoals, todayKey]);
 
   return (
     <NishthaLayout>
@@ -633,7 +630,7 @@ export default function Goals() {
                         <h3 className="font-bold flex items-center gap-2"><Calendar className="text-primary w-4 h-4" /> {t("goals.analytics.weekly_pulse")}</h3>
                         <span className="text-xs text-muted-foreground">{t("goals.analytics.completion_velocity")}</span>
                     </div>
-                    <WeekChart goals={goals} />
+                    <WeekChart goals={standardGoals} />
                  </div>
               </div>
               <div className="p-8 bg-card border rounded-[32px] shadow-sm">
@@ -642,7 +639,7 @@ export default function Goals() {
                   {Array.from({length: 7}, (_, i) => {
                     const d = new Date(dateKeyToUtcDate(todayKey).getTime() - (6-i) * (24*60*60*1000));
                     const key = getISTDateKey(d);
-                    const metrics = getDailyCompletionMetrics(goals.filter(g => g.completed), key);
+                    const metrics = getDailyCompletionMetrics(manualCompletedGoals, key);
                     return (
                       <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
                         <span className="text-xs font-bold w-12">{formatISTDate(d, { weekday: "short" })}</span>
