@@ -3,6 +3,8 @@ import { MoodEntry, JournalEntry, Goal, GoalSubtask, MonthlyReport } from "@shar
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
+export type GoalFocusSummaryMap = Record<string, { totalMinutes: number; sessionCount: number }>;
+
 async function getApiErrorMessage(res: Response, fallback: string): Promise<string> {
     try {
         const data = await res.json();
@@ -75,6 +77,25 @@ export const dataService = {
         });
         if (!res.ok) throw new Error("Failed to fetch goals");
         return res.json();
+    },
+
+    async getGoalFocusSummary(goalIds: string[], dayKey?: string): Promise<{ allTime: GoalFocusSummaryMap; forDay: GoalFocusSummaryMap }> {
+        if (!goalIds.length) {
+            return { allTime: {}, forDay: {} };
+        }
+
+        const res = await apiFetch(`${API_URL}/goals/focus-summary`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ goalIds, ...(dayKey ? { dayKey } : {}) }),
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch goal focus summary"));
+        const data = await res.json();
+        return {
+            allTime: data?.allTime && typeof data.allTime === "object" ? data.allTime : {},
+            forDay: data?.forDay && typeof data.forDay === "object" ? data.forDay : {},
+        };
     },
 
     async addGoal(payload: {

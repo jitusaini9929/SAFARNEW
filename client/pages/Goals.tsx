@@ -2,8 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { useTheme } from "@/contexts/ThemeContext";
-import { dataService } from "@/utils/dataService";
-import { focusService } from "@/utils/focusService";
+import { dataService, type GoalFocusSummaryMap } from "@/utils/dataService";
 import { Goal, GoalSubtask } from "@shared/api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -434,8 +433,8 @@ export default function Goals() {
   const [tab, setTab] = useState("goals");
   const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
   const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
-  const [goalFocusTimes, setGoalFocusTimes] = useState<Record<string, { totalMinutes: number }>>({});
-  const [todayGoalFocusTimes, setTodayGoalFocusTimes] = useState<Record<string, { totalMinutes: number }>>({});
+  const [goalFocusTimes, setGoalFocusTimes] = useState<GoalFocusSummaryMap>({});
+  const [todayGoalFocusTimes, setTodayGoalFocusTimes] = useState<GoalFocusSummaryMap>({});
 
   const maxDateKey = useMemo(() => {
     const base = dateKeyToUtcDate(todayKey);
@@ -450,15 +449,6 @@ export default function Goals() {
         title: g.title || g.text || '',
       }));
       setGoals(data);
-
-      const allIds = data.map(g => g.id).filter(Boolean);
-      if (allIds.length > 0) {
-        focusService.getGoalsFocusTimes(allIds).then(times => {
-          setGoalFocusTimes(times);
-        }).catch(() => {});
-      } else {
-        setGoalFocusTimes({});
-      }
     } catch (error) {
       console.error(error);
       toast.error(t("goals.toast.load_failed"));
@@ -470,18 +460,6 @@ export default function Goals() {
     const interval = setInterval(() => setTodayKey(getISTDateKey(new Date())), 60000);
     return () => clearInterval(interval);
   }, []);
-
-  // Refresh "today" goal focus totals whenever the IST day changes (and when goals load).
-  useEffect(() => {
-    const allIds = goals.map(g => g.id).filter(Boolean);
-    if (allIds.length === 0) {
-      setTodayGoalFocusTimes({});
-      return;
-    }
-    focusService.getGoalsFocusTimes(allIds, { dayKey: todayKey })
-      .then(times => setTodayGoalFocusTimes(times))
-      .catch(() => {});
-  }, [goals, todayKey]);
 
   const toggleGoal = async (id: string, currentCompleted: boolean) => {
     if (currentCompleted) {
@@ -548,6 +526,34 @@ export default function Goals() {
   const completedRecent = useMemo(() => standardGoals.filter(g => g.completed).sort((a,b) => (b.completedAt || "") > (a.completedAt || "") ? 1 : -1).slice(0, MAX_COMPLETED_DISPLAY), [standardGoals]);
   const historyDateKeys = useMemo(() => Array.from(new Set(historyGoals.map(getGoalCreatedDateKey).filter(Boolean))).sort() as string[], [historyGoals]);
   const filteredHistory = useMemo(() => historyDateFilter ? historyGoals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter) : historyGoals, [historyGoals, historyDateFilter]);
+
+  // Refresh focus totals whenever visible manual goals change or the IST day rolls over.
+  useEffect(() => {
+    const visibleIds = standardGoals.map(g => g.id).filter(Boolean);
+    if (visibleIds.length === 0) {
+      setGoalFocusTimes({});
+      setTodayGoalFocusTimes({});
+      return;
+    }
+
+    let cancelled = false;
+
+    dataService.getGoalFocusSummary(visibleIds, todayKey)
+      .then((summary) => {
+        if (cancelled) return;
+        setGoalFocusTimes(summary.allTime);
+        setTodayGoalFocusTimes(summary.forDay);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setGoalFocusTimes({});
+        setTodayGoalFocusTimes({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [standardGoals, todayKey]);
 
   const todayMetrics = useMemo(
     () => getDailyCompletionMetrics(goals.filter(g => g.completed), todayKey, todayGoalFocusTimes),

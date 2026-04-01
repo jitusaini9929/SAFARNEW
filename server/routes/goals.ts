@@ -9,6 +9,7 @@ const router = Router();
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const ACTUAL_DURATION_EXPR = { $ifNull: ['$actual_duration_minutes', '$duration_minutes'] };
 
 type GoalType = 'daily' | 'weekly';
 type GoalEventType = 'CREATED' | 'COMPLETED' | 'ABANDONED' | 'ROLLED_OVER';
@@ -229,6 +230,87 @@ const dropGoalLegacyTasks = async (userId: string) => {
     await getDb().collection('focus_tasks').deleteMany({ user_id: userId });
 };
 
+const normalizeGoalIdsInput = (raw: unknown) => {
+    if (!Array.isArray(raw)) return [];
+    return Array.from(new Set(
+        raw
+            .slice(0, 100)
+            .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+            .map((id) => id.trim()),
+    ));
+};
+
+const aggregateFocusSummary = async (userId: string, goalIds: string[], dayKey?: string | null) => {
+    if (goalIds.length === 0) {
+        return {
+            allTime: {} as Record<string, { totalMinutes: number; sessionCount: number }>,
+            forDay: {} as Record<string, { totalMinutes: number; sessionCount: number }>,
+        };
+    }
+
+    const buildMap = (rows: any[]) => {
+        const summary: Record<string, { totalMinutes: number; sessionCount: number }> = {};
+        for (const row of rows) {
+            if (typeof row?._id !== 'string') continue;
+            summary[row._id] = {
+                totalMinutes: row.totalMinutes || 0,
+                sessionCount: row.sessionCount || 0,
+            };
+        }
+        return summary;
+    };
+
+    const baseMatch = {
+        user_id: userId,
+        associated_goal_id: { $in: goalIds },
+    };
+
+    const allTimePipeline = [
+        { $match: baseMatch },
+        {
+            $group: {
+                _id: '$associated_goal_id',
+                totalMinutes: { $sum: ACTUAL_DURATION_EXPR },
+                sessionCount: { $sum: 1 },
+            },
+        },
+    ];
+
+    const forDayPipeline = typeof dayKey === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dayKey)
+        ? [
+            {
+                $match: {
+                    ...baseMatch,
+                    completed: true,
+                    $expr: {
+                        $eq: [
+                            { $dateToString: { format: '%Y-%m-%d', date: '$completed_at', timezone: '+05:30' } },
+                            dayKey,
+                        ],
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id: '$associated_goal_id',
+                    totalMinutes: { $sum: ACTUAL_DURATION_EXPR },
+                    sessionCount: { $sum: 1 },
+                },
+            },
+        ]
+        : null;
+
+    const [allTimeRows, forDayRows] = await Promise.all([
+        collections.focusSessions().aggregate(allTimePipeline).toArray(),
+        forDayPipeline ? collections.focusSessions().aggregate(forDayPipeline).toArray() : Promise.resolve([]),
+    ]);
+
+    return {
+        allTime: buildMap(allTimeRows),
+        forDay: buildMap(forDayRows),
+    };
+};
+
 // isDailyCreationBlockedNow removed — users can create goals at any time.
 
 const logGoalActivity = async (
@@ -334,6 +416,38 @@ router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
     } catch (error) {
         console.error('Get rollover prompts error:', error);
         res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+router.post('/focus-summary', requireAuth, async (req: Request, res) => {
+    try {
+        const userId = req.session.userId!;
+        const goalIds = normalizeGoalIdsInput(req.body?.goalIds);
+        const dayKey = typeof req.body?.dayKey === 'string' ? req.body.dayKey.trim() : null;
+
+        if (goalIds.length === 0) {
+            return res.json({ allTime: {}, forDay: {} });
+        }
+
+        const ownedGoals = await collections.goals()
+            .find(
+                { user_id: userId, id: { $in: goalIds } },
+                { projection: { id: 1 } },
+            )
+            .toArray();
+        const ownedGoalIds = ownedGoals
+            .map((goal) => String(goal.id || '').trim())
+            .filter((id) => id.length > 0);
+
+        if (ownedGoalIds.length === 0) {
+            return res.json({ allTime: {}, forDay: {} });
+        }
+
+        const summary = await aggregateFocusSummary(userId, ownedGoalIds, dayKey);
+        return res.json(summary);
+    } catch (error) {
+        console.error('Get goal focus summary error:', error);
+        return res.status(500).json({ message: 'Internal server error' });
     }
 });
 
