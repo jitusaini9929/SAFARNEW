@@ -371,15 +371,31 @@ export default function StudyWithMe() {
     }, [searchParams]);
 
     useEffect(() => {
-        void refreshRuntimeSessions();
-    }, [refreshRuntimeSessions]);
-
-    useEffect(() => {
         if (status !== "authenticated" || !user?.id) return;
-        const id = window.setInterval(() => {
+
+        const isVisible = () =>
+            typeof document === "undefined" || document.visibilityState === "visible";
+
+        const poll = () => {
+            if (!isVisible()) return;
             void refreshRuntimeSessions();
+        };
+
+        poll();
+
+        const onVisibilityChange = () => {
+            if (isVisible()) {
+                void refreshRuntimeSessions();
+            }
+        };
+
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        const id = window.setInterval(() => {
+            poll();
         }, 20000);
+
         return () => {
+            document.removeEventListener("visibilitychange", onVisibilityChange);
             window.clearInterval(id);
         };
     }, [refreshRuntimeSessions, status, user?.id]);

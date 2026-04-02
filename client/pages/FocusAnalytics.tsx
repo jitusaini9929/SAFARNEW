@@ -63,6 +63,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
 
     useEffect(() => {
         let mounted = true;
+        const isVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
 
         const load = async () => {
             const result = await ekagraAnalyticsService.getEkagraAnalytics();
@@ -71,13 +72,27 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
             setLoading(false);
         };
 
-        void load();
-        const interval = window.setInterval(() => {
+        const poll = () => {
+            if (!isVisible()) return;
             void load();
+        };
+
+        poll();
+
+        const onVisibilityChange = () => {
+            if (isVisible()) {
+                void load();
+            }
+        };
+
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        const interval = window.setInterval(() => {
+            poll();
         }, 5 * 60 * 1000);
 
         return () => {
             mounted = false;
+            document.removeEventListener("visibilitychange", onVisibilityChange);
             window.clearInterval(interval);
         };
     }, []);

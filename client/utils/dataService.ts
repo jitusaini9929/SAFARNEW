@@ -21,6 +21,56 @@ const API_URL = import.meta.env.VITE_API_URL || "/api";
 export type GoalFocusSummaryMap = Record<string, { totalMinutes: number; sessionCount: number }>;
 type EkagraSessionListResponse = { sessions?: EkagraModeSession[] };
 
+const readCache = new Map<string, { expiresAt: number; value: unknown }>();
+const inFlightReads = new Map<string, Promise<unknown>>();
+
+const EKAGRA_SESSIONS_CACHE_KEY = "ekagra:sessions";
+const EKAGRA_ACTIVE_CACHE_KEY = "ekagra:active";
+const EKAGRA_ANALYTICS_CACHE_KEY = "ekagra:analytics";
+
+const withReadCache = async <T>(
+    key: string,
+    ttlMs: number,
+    forceFresh: boolean,
+    loader: () => Promise<T>,
+): Promise<T> => {
+    const now = Date.now();
+    if (!forceFresh) {
+        const cached = readCache.get(key);
+        if (cached && cached.expiresAt > now) {
+            return cached.value as T;
+        }
+    }
+
+    const pending = inFlightReads.get(key);
+    if (pending) {
+        return pending as Promise<T>;
+    }
+
+    const request = loader()
+        .then((value) => {
+            readCache.set(key, { expiresAt: Date.now() + ttlMs, value });
+            return value;
+        })
+        .finally(() => {
+            inFlightReads.delete(key);
+        });
+
+    inFlightReads.set(key, request);
+    return request;
+};
+
+const invalidateReadCache = (...keys: string[]) => {
+    keys.forEach((key) => {
+        readCache.delete(key);
+        inFlightReads.delete(key);
+    });
+};
+
+const invalidateEkagraReadCache = () => {
+    invalidateReadCache(EKAGRA_SESSIONS_CACHE_KEY, EKAGRA_ACTIVE_CACHE_KEY, EKAGRA_ANALYTICS_CACHE_KEY);
+};
+
 const emptyEkagraAnalytics = (): EkagraAnalyticsStats => ({
     totalFocusMinutes: 0,
     totalBreakMinutes: 0,
@@ -160,64 +210,70 @@ export const dataService = {
         return data.goal as Goal;
     },
 
-    async getEkagraSessions(): Promise<EkagraModeSession[]> {
-        const res = await apiFetch(`${API_URL}/ekagra-sessions`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
+    async getEkagraSessions(options?: { forceFresh?: boolean }): Promise<EkagraModeSession[]> {
+        return withReadCache(EKAGRA_SESSIONS_CACHE_KEY, 8000, Boolean(options?.forceFresh), async () => {
+            const res = await apiFetch(`${API_URL}/ekagra-sessions`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+            });
+            if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch Ekagra sessions"));
+            const data = (await res.json()) as EkagraSessionListResponse;
+            return Array.isArray(data?.sessions) ? data.sessions : [];
         });
-        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch Ekagra sessions"));
-        const data = (await res.json()) as EkagraSessionListResponse;
-        return Array.isArray(data?.sessions) ? data.sessions : [];
     },
 
-    async getActiveEkagraSession(): Promise<EkagraModeSession | null> {
-        const res = await apiFetch(`${API_URL}/ekagra-sessions/active`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
+    async getActiveEkagraSession(options?: { forceFresh?: boolean }): Promise<EkagraModeSession | null> {
+        return withReadCache(EKAGRA_ACTIVE_CACHE_KEY, 8000, Boolean(options?.forceFresh), async () => {
+            const res = await apiFetch(`${API_URL}/ekagra-sessions/active`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+            });
+            if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch active Ekagra session"));
+            const data = await res.json();
+            return data?.session ? (data.session as EkagraModeSession) : null;
         });
-        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch active Ekagra session"));
-        const data = await res.json();
-        return data?.session ? (data.session as EkagraModeSession) : null;
     },
 
-    async getEkagraAnalytics(): Promise<EkagraAnalyticsStats> {
-        const res = await apiFetch(`${API_URL}/ekagra-sessions/analytics`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-        });
-        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch Ekagra analytics"));
-        const data = await res.json();
+    async getEkagraAnalytics(options?: { forceFresh?: boolean }): Promise<EkagraAnalyticsStats> {
+        return withReadCache(EKAGRA_ANALYTICS_CACHE_KEY, 15000, Boolean(options?.forceFresh), async () => {
+            const res = await apiFetch(`${API_URL}/ekagra-sessions/analytics`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+            });
+            if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch Ekagra analytics"));
+            const data = await res.json();
 
-        const fallback = emptyEkagraAnalytics();
-        return {
-            totalFocusMinutes: Number(data?.totalFocusMinutes || 0),
-            totalBreakMinutes: Number(data?.totalBreakMinutes || 0),
-            timerUsageCount: Number(data?.timerUsageCount || 0),
-            breakSessionsCount: Number(data?.breakSessionsCount || 0),
-            shortBreakSessionsCount: Number(data?.shortBreakSessionsCount || 0),
-            longBreakSessionsCount: Number(data?.longBreakSessionsCount || 0),
-            longDurationSessionCount: Number(data?.longDurationSessionCount || 0),
-            averageTimerMinutes: Number(data?.averageTimerMinutes || 0),
-            mostUsedTimerDurationMinutes:
-                data?.mostUsedTimerDurationMinutes === null || data?.mostUsedTimerDurationMinutes === undefined
-                    ? null
-                    : Number(data?.mostUsedTimerDurationMinutes || 0),
-            totalSessions: Number(data?.totalSessions || 0),
-            completedSessions: Number(data?.completedSessions || 0),
-            endedEarlySessions: Number(data?.endedEarlySessions || 0),
-            weeklyData: Array.isArray(data?.weeklyData) && data.weeklyData.length === 7 ? data.weeklyData : fallback.weeklyData,
-            weeklyBreaks: Array.isArray(data?.weeklyBreaks) && data.weeklyBreaks.length === 7 ? data.weeklyBreaks : fallback.weeklyBreaks,
-            focusStreak: Number(data?.focusStreak || 0),
-            hourlyDistribution: Array.isArray(data?.hourlyDistribution) && data.hourlyDistribution.length === 24
-                ? data.hourlyDistribution
-                : fallback.hourlyDistribution,
-            recentSessions: Array.isArray(data?.recentSessions) ? data.recentSessions : fallback.recentSessions,
-            topTasks: Array.isArray(data?.topTasks) ? data.topTasks : fallback.topTasks,
-            timerDurationUsage: Array.isArray(data?.timerDurationUsage) ? data.timerDurationUsage : fallback.timerDurationUsage,
-        };
+            const fallback = emptyEkagraAnalytics();
+            return {
+                totalFocusMinutes: Number(data?.totalFocusMinutes || 0),
+                totalBreakMinutes: Number(data?.totalBreakMinutes || 0),
+                timerUsageCount: Number(data?.timerUsageCount || 0),
+                breakSessionsCount: Number(data?.breakSessionsCount || 0),
+                shortBreakSessionsCount: Number(data?.shortBreakSessionsCount || 0),
+                longBreakSessionsCount: Number(data?.longBreakSessionsCount || 0),
+                longDurationSessionCount: Number(data?.longDurationSessionCount || 0),
+                averageTimerMinutes: Number(data?.averageTimerMinutes || 0),
+                mostUsedTimerDurationMinutes:
+                    data?.mostUsedTimerDurationMinutes === null || data?.mostUsedTimerDurationMinutes === undefined
+                        ? null
+                        : Number(data?.mostUsedTimerDurationMinutes || 0),
+                totalSessions: Number(data?.totalSessions || 0),
+                completedSessions: Number(data?.completedSessions || 0),
+                endedEarlySessions: Number(data?.endedEarlySessions || 0),
+                weeklyData: Array.isArray(data?.weeklyData) && data.weeklyData.length === 7 ? data.weeklyData : fallback.weeklyData,
+                weeklyBreaks: Array.isArray(data?.weeklyBreaks) && data.weeklyBreaks.length === 7 ? data.weeklyBreaks : fallback.weeklyBreaks,
+                focusStreak: Number(data?.focusStreak || 0),
+                hourlyDistribution: Array.isArray(data?.hourlyDistribution) && data.hourlyDistribution.length === 24
+                    ? data.hourlyDistribution
+                    : fallback.hourlyDistribution,
+                recentSessions: Array.isArray(data?.recentSessions) ? data.recentSessions : fallback.recentSessions,
+                topTasks: Array.isArray(data?.topTasks) ? data.topTasks : fallback.topTasks,
+                timerDurationUsage: Array.isArray(data?.timerDurationUsage) ? data.timerDurationUsage : fallback.timerDurationUsage,
+            };
+        });
     },
 
     async activateEkagraSession(payload: {
@@ -241,6 +297,7 @@ export const dataService = {
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to activate Ekagra session"));
         const data = await res.json();
         if (!data?.session) throw new Error("Missing Ekagra session in activate response");
+        invalidateEkagraReadCache();
         return data.session as EkagraModeSession;
     },
 
@@ -267,6 +324,7 @@ export const dataService = {
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update Ekagra session"));
         const data = await res.json();
         if (!data?.session) throw new Error("Missing Ekagra session in update response");
+        invalidateEkagraReadCache();
         return data.session as EkagraModeSession;
     },
 
@@ -283,6 +341,7 @@ export const dataService = {
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to complete Ekagra session"));
         const data = await res.json();
         if (!data?.session) throw new Error("Missing Ekagra session in complete response");
+        invalidateEkagraReadCache();
         return data.session as EkagraModeSession;
     },
 
@@ -296,6 +355,7 @@ export const dataService = {
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to discard Ekagra session"));
         const data = await res.json();
         if (!data?.session) throw new Error("Missing Ekagra session in discard response");
+        invalidateEkagraReadCache();
         return data.session as EkagraModeSession;
     },
 
@@ -305,6 +365,7 @@ export const dataService = {
             credentials: "include",
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to delete Ekagra session"));
+        invalidateEkagraReadCache();
     },
 
     async addGoal(payload: {

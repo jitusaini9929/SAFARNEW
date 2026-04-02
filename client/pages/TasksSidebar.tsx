@@ -51,8 +51,13 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     const [localSessions, setLocalSessions] = useState<EkagraModeSession[]>([]);
     const [localActiveSessionId, setLocalActiveSessionId] = useState<string | null>(null);
 
-    const mergedSessions = sessions.length > 0 ? sessions : localSessions;
-    const mergedActiveSessionId = activeSessionId || localActiveSessionId;
+    const hasExternalSessionController = Boolean(
+        onResumeSession || onDiscardSession || onPauseLiveSession || onCompleteLiveSession || onSwitchLiveSession,
+    );
+    const shouldUseLocalFetch = !hasExternalSessionController && sessions.length === 0;
+
+    const mergedSessions = shouldUseLocalFetch ? localSessions : sessions;
+    const mergedActiveSessionId = shouldUseLocalFetch ? localActiveSessionId : activeSessionId;
     const hasServerActiveSession = mergedSessions.some(
         (session) => String(session.status || "").toLowerCase() === "active",
     );
@@ -92,15 +97,35 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     };
 
     useEffect(() => {
-        if ((!isOpen && !showSessionOverlay) || sessions.length > 0) return;
-        void refreshLocalSessions();
-        const id = window.setInterval(() => {
+        if ((!isOpen && !showSessionOverlay) || !shouldUseLocalFetch) return;
+
+        const isVisible = () =>
+            typeof document === "undefined" || document.visibilityState === "visible";
+
+        const poll = () => {
+            if (!isVisible()) return;
+            if (!isOpen && !showSessionOverlay) return;
             void refreshLocalSessions();
+        };
+
+        poll();
+
+        const onVisibilityChange = () => {
+            if (isVisible() && (isOpen || showSessionOverlay)) {
+                void refreshLocalSessions();
+            }
+        };
+
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        const id = window.setInterval(() => {
+            poll();
         }, 20000);
+
         return () => {
+            document.removeEventListener("visibilitychange", onVisibilityChange);
             window.clearInterval(id);
         };
-    }, [isOpen, showSessionOverlay, sessions.length]);
+    }, [isOpen, shouldUseLocalFetch, showSessionOverlay]);
 
     useEffect(() => {
         if (sessionOverlayTrigger > 0) {
