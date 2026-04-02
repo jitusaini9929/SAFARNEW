@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
-import { useTheme } from "@/contexts/ThemeContext";
-import { dataService, type GoalFocusSummaryMap } from "@/utils/dataService";
+import { dataService } from "@/utils/dataService";
 import { Goal, GoalSubtask } from "@shared/api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -49,15 +48,6 @@ const formatDuration = (ms?: number | null) => {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
-};
-
-const getGoalDurationMs = (goal: UIGoal) => {
-  if (!goal.completedAt || !(goal as any).startedAt) return null;
-  const end = new Date(goal.completedAt);
-  const start = new Date((goal as any).startedAt);
-  if (!Number.isFinite(end.getTime()) || !Number.isFinite(start.getTime())) return null;
-  if (end.getTime() < start.getTime()) return null;
-  return end.getTime() - start.getTime();
 };
 
 const getGoalLifecycleDurationMs = (goal: UIGoal) => {
@@ -148,9 +138,9 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
   );
 };
 
-const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, focusMinutes, hideActions = false, hideMeta = false, createdMeta }: any) => {
+const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideActions = false, hideMeta = false, createdMeta }: any) => {
   const { t } = useTranslation();
-  const durationMs = getGoalDurationMs(goal);
+  const durationMs = goal.source !== "ekagra" ? getGoalLifecycleDurationMs(goal) : null;
   const completedAt = goal.completedAt ? new Date(goal.completedAt) : null;
   const completedDateLabel = completedAt ? formatDateLabel(completedAt.toISOString()) : "";
   const completedTimeLabel = completedAt ? formatTime(completedAt) : "";
@@ -160,15 +150,11 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, focusMi
       ? t("goals.meta.completed_with_time", { date: completedDateLabel, time: completedTimeLabel })
       : t("goals.meta.completed", { date: completedDateLabel })
     : (goal.scheduledDate ? t("goals.meta.due", { date: formatDateLabel(goal.scheduledDate) }) : "");
-    
-  const focusDurationLabel = typeof focusMinutes === 'number' && focusMinutes > 0
-    ? t("goals.meta.focused", { duration: formatDuration(focusMinutes * 60000) })
-    : null;
-    
-  const secondaryMeta = goal.completed && durationMs && !focusDurationLabel
+
+  const secondaryMeta = goal.completed && durationMs
     ? t("goals.meta.took", { duration: formatDuration(durationMs) })
     : "";
-  const metaPieces = [primaryMeta, focusDurationLabel || secondaryMeta, createdMeta].filter(Boolean);
+  const metaPieces = [primaryMeta, secondaryMeta, createdMeta].filter(Boolean);
 
   return (
     <div className={`p-4 rounded-xl transition-all duration-200 group flex items-start gap-4 
@@ -431,7 +417,6 @@ export default function Goals() {
   const [tab, setTab] = useState("goals");
   const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
   const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
-  const [goalFocusTimes, setGoalFocusTimes] = useState<GoalFocusSummaryMap>({});
 
   const maxDateKey = useMemo(() => {
     const base = dateKeyToUtcDate(todayKey);
@@ -525,33 +510,32 @@ export default function Goals() {
   const historyGoals = useMemo(() => goals.filter(g => g.completed || g.source === "ekagra"), [goals]);
   const pendingGoals = useMemo(() => standardGoals.filter(g => !g.completed).sort((a,b) => (a.scheduledDate || "") > (b.scheduledDate || "") ? 1 : -1), [standardGoals]);
   const completedRecent = useMemo(() => standardGoals.filter(g => g.completed).sort((a,b) => (b.completedAt || "") > (a.completedAt || "") ? 1 : -1).slice(0, MAX_COMPLETED_DISPLAY), [standardGoals]);
-  const historyDateKeys = useMemo(() => Array.from(new Set(historyGoals.map(getGoalCreatedDateKey).filter(Boolean))).sort() as string[], [historyGoals]);
   const filteredHistory = useMemo(() => historyDateFilter ? historyGoals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter) : historyGoals, [historyGoals, historyDateFilter]);
+  const manualTotalLifecycleDurationMs = useMemo(
+    () => manualCompletedGoals
+      .map((goal) => getGoalLifecycleDurationMs(goal))
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0)
+      .reduce((sum, value) => sum + value, 0),
+    [manualCompletedGoals],
+  );
 
-  // Refresh focus totals whenever visible manual goals change.
-  useEffect(() => {
-    const visibleIds = standardGoals.map(g => g.id).filter(Boolean);
-    if (visibleIds.length === 0) {
-      setGoalFocusTimes({});
-      return;
+  const handleFocusGoal = async (goal: UIGoal) => {
+    try {
+      const transferredGoal = await dataService.transferGoalToEkagra(goal.id);
+      setGoals((prev) => prev.map((entry) => entry.id === goal.id
+        ? {
+            ...entry,
+            source: "ekagra",
+            importedFromGoal: Boolean((transferredGoal as any).importedFromGoal ?? (transferredGoal as any).imported_from_goal),
+          }
+        : entry));
+      const transferTitle = transferredGoal.title || transferredGoal.text || goal.title;
+      navigate(`/study?goalId=${encodeURIComponent(transferredGoal.id)}&goalTitle=${encodeURIComponent(transferTitle)}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t("goals.toast.operation_failed");
+      toast.error(message);
     }
-
-    let cancelled = false;
-
-    dataService.getGoalFocusSummary(visibleIds)
-      .then((summary) => {
-        if (cancelled) return;
-        setGoalFocusTimes(summary.allTime);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setGoalFocusTimes({});
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [standardGoals]);
+  };
 
   const todayMetrics = useMemo(
     () => getDailyCompletionMetrics(manualCompletedGoals, todayKey),
@@ -621,7 +605,7 @@ export default function Goals() {
                     <div className="p-6 bg-card border rounded-3xl shadow-sm">
                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">{t("goals.analytics.total_focus_time")}</h4>
                        <span className="text-4xl font-black text-amber-500">
-                         {formatDuration(Object.values(goalFocusTimes).reduce((acc, curr) => acc + (curr.totalMinutes * 60000), 0)) || "0m"}
+                         {formatDuration(manualTotalLifecycleDurationMs) || "0m"}
                        </span>
                     </div>
                  </div>
@@ -678,7 +662,7 @@ export default function Goals() {
                     ) : (
                       <div className="divide-y divide-muted/50">
                         {pendingGoals.map(g => (
-                          <GoalCard key={g.id} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} onFocus={() => navigate(`/study?goalId=${g.id}&goalTitle=${g.title}`)} focusMinutes={goalFocusTimes[g.id]?.totalMinutes} />
+                          <GoalCard key={g.id} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} onFocus={() => handleFocusGoal(g)} />
                         ))}
                       </div>
                     )}

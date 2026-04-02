@@ -345,10 +345,10 @@
 
 :root:not(.dark) .composer-glow-card::before {
     background: linear-gradient(135deg,
-            rgba(148, 163, 184, 0.35) 0%,
-            rgba(148, 163, 184, 0.10) 40%,
-            rgba(148, 163, 184, 0.05) 70%,
-            rgba(148, 163, 184, 0.20) 100%);
+            rgba(148, 163, 184, 0.65) 0%,
+            rgba(148, 163, 184, 0.40) 40%,
+            rgba(148, 163, 184, 0.15) 70%,
+            rgba(148, 163, 184, 0.45) 100%);
 }
 
 :root:not(.dark) .composer-glow-card::after {
@@ -364,10 +364,10 @@
 
 :root:not(.dark) .composer-inner-card::before {
     background: linear-gradient(135deg,
-            rgba(100, 116, 139, 0.20) 0%,
-            rgba(100, 116, 139, 0.06) 40%,
-            rgba(100, 116, 139, 0.02) 70%,
-            rgba(100, 116, 139, 0.10) 100%);
+            rgba(100, 116, 139, 0.45) 0%,
+            rgba(100, 116, 139, 0.20) 40%,
+            rgba(100, 116, 139, 0.10) 70%,
+            rgba(100, 116, 139, 0.25) 100%);
 }
 
 :root:not(.dark) .composer-inner-card:focus-within::before {

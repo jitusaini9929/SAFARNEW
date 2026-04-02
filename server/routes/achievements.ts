@@ -2,6 +2,7 @@ import { Router, Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
+import { QUERY_TIMEOUT_MS, QUERY_FAST_TIMEOUT_MS } from '../utils/queryDefaults';
 
 const router = Router();
 
@@ -73,7 +74,7 @@ async function getUserStats(userId: string) {
     const goalsCompleted = await collections.goals().countDocuments({ user_id: userId, completed: true });
 
     // Get streaks
-    const streak = await collections.streaks().findOne({ user_id: userId });
+    const streak = await collections.streaks().findOne({ user_id: userId }, { maxTimeMS: QUERY_FAST_TIMEOUT_MS } as any);
     const checkInStreak = streak?.check_in_streak || 0;
     const loginStreak = streak?.login_streak || 0;
 
@@ -93,6 +94,7 @@ async function getWeeklyMoodData(userId: string) {
     const moods = await collections.moods()
         .find({ user_id: userId, timestamp: { $gte: sevenDaysAgo } })
         .sort({ timestamp: 1 })
+        .maxTimeMS(QUERY_TIMEOUT_MS)
         .toArray();
 
     const avgMood = moods.length > 0
@@ -128,6 +130,7 @@ async function getWeeklyMoodData(userId: string) {
     // ── CONSECUTIVE DAILY GOAL COMPLETION STREAK ──
     const recentGoals = await collections.goals()
         .find({ user_id: userId, completed: true, completed_at: { $gte: fourteenDaysAgo } })
+        .maxTimeMS(QUERY_TIMEOUT_MS)
         .toArray();
     const goalDays = new Set(recentGoals.map(g => new Date(g.completed_at).toISOString().split('T')[0]));
     // Count consecutive days with at least 1 goal completion (going backwards from today)
@@ -147,6 +150,7 @@ async function getWeeklyMoodData(userId: string) {
     // ── PREVIOUS WEEK AVG MOOD (for recovery detection) ──
     const prevWeekMoods = await collections.moods()
         .find({ user_id: userId, timestamp: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo } })
+        .maxTimeMS(QUERY_TIMEOUT_MS)
         .toArray();
     const prevWeekAvgMood = prevWeekMoods.length > 0
         ? prevWeekMoods.reduce((sum, m) => sum + m.intensity, 0) / prevWeekMoods.length
@@ -163,6 +167,7 @@ async function getWeeklyMoodData(userId: string) {
     // ── NIGHT FOCUS SESSIONS (10 PM - 4 AM) ──
     const weekFocusSessions = await collections.focusSessions()
         .find({ user_id: userId, completed: true, completed_at: { $gte: sevenDaysAgo } })
+        .maxTimeMS(QUERY_TIMEOUT_MS)
         .toArray();
     const nightSessions = weekFocusSessions.filter(s => {
         const hour = new Date(s.completed_at).getHours();
@@ -177,6 +182,7 @@ async function getWeeklyMoodData(userId: string) {
     // ── JOURNAL STRUGGLE KEYWORDS ──
     const journalEntries = await collections.journal()
         .find({ user_id: userId, timestamp: { $gte: sevenDaysAgo } })
+        .maxTimeMS(QUERY_TIMEOUT_MS)
         .toArray();
     const struggleKeywords = ['stress', 'overwhelm', 'tired', 'exhausted', 'burnout', 'sad', 'anxious', 'difficult'];
     const hasStruggleJournal = journalEntries.some(j =>
@@ -225,6 +231,7 @@ export async function checkAchievements(userId: string): Promise<{ awarded: stri
     // Get user's current achievements
     const currentRows = await collections.userAchievements()
         .find({ user_id: userId })
+        .maxTimeMS(QUERY_TIMEOUT_MS)
         .toArray();
     const currentAchievements = new Map(currentRows.map(a => [a.achievement_id, a.is_active]));
 
@@ -324,11 +331,13 @@ router.get('/', requireAuth, async (req: any, res) => {
         // Get user achievements with definitions via application-level join
         const userAchievements = await collections.userAchievements()
             .find({ user_id: userId, is_active: true })
+            .maxTimeMS(QUERY_TIMEOUT_MS)
             .toArray();
 
         const achievementIds = userAchievements.map(a => a.achievement_id);
         const definitions = await collections.achievementDefinitions()
             .find({ id: { $in: achievementIds } })
+            .maxTimeMS(QUERY_FAST_TIMEOUT_MS)
             .toArray();
 
         const defMap = new Map(definitions.map(d => [d.id, d]));

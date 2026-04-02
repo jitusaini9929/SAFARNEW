@@ -102,6 +102,8 @@ const normalizeGoalSource = (raw: unknown): GoalSource | null => {
     return null;
 };
 
+const normalizeGoalImportedFromGoal = (raw: unknown) => Boolean(raw);
+
 const normalizeGoalSubtasks = (raw: unknown): GoalSubtask[] | null => {
     if (raw === undefined || raw === null) return [];
     if (!Array.isArray(raw)) return null;
@@ -134,6 +136,7 @@ const normalizeGoalResponse = (goal: any) => {
     const category = normalizeGoalCategory(goal.category) || 'other';
     const priority = normalizeGoalPriority(goal.priority) || 'medium';
     const source = normalizeGoalSource(goal.source) || 'manual';
+    const importedFromGoal = normalizeGoalImportedFromGoal(goal.imported_from_goal ?? goal.importedFromGoal);
     const subtasks = normalizeGoalSubtasks(goal.subtasks) || [];
     return {
         ...goal,
@@ -143,6 +146,7 @@ const normalizeGoalResponse = (goal: any) => {
         category,
         priority,
         source,
+        importedFromGoal,
         subtasks,
         createdAt: createdAt.toISOString(),
         completedAt: completedAt ? completedAt.toISOString() : null,
@@ -150,6 +154,7 @@ const normalizeGoalResponse = (goal: any) => {
         expiresAt: expiresAt.toISOString(),
         scheduledDate: goal.scheduled_date ? new Date(goal.scheduled_date).toISOString() : null,
         lifecycleStatus: (goal.lifecycle_status || 'active') as GoalLifecycleStatus,
+        imported_from_goal: importedFromGoal,
     };
 };
 
@@ -196,6 +201,7 @@ const migrateLegacyEkagraTasks = async (userId: string) => {
                 expires_at: calculateExpiryUTC('daily', safeCreatedAt, scheduledDate),
                 lifecycle_status: 'active' as GoalLifecycleStatus,
                 rollover_prompt_pending: false,
+                imported_from_goal: false,
                 source_goal_id: null as string | null,
                 scheduled_date: scheduledDate,
                 missed_at: null as Date | null,
@@ -451,6 +457,55 @@ router.post('/focus-summary', requireAuth, async (req: Request, res) => {
     }
 });
 
+router.post('/:id/transfer-to-ekagra', requireAuth, async (req: Request, res) => {
+    try {
+        const userId = req.session.userId!;
+        const { id } = req.params;
+
+        const goal = await collections.goals().findOne({ id, user_id: userId });
+        if (!goal) {
+            return res.status(404).json({ message: 'Goal not found or unauthorized' });
+        }
+
+        const currentSource = normalizeGoalSource(goal.source) || 'manual';
+        if (currentSource === 'ekagra') {
+            return res.json({
+                message: 'Goal already linked to Ekagra',
+                goal: normalizeGoalResponse(goal),
+            });
+        }
+
+        const lifecycleStatus = String(goal.lifecycle_status || 'active').toLowerCase();
+        const isArchivedState = lifecycleStatus !== 'active';
+        if (goal.completed || isArchivedState) {
+            return res.status(409).json({ message: 'Completed or archived goals cannot be transferred to Ekagra' });
+        }
+
+        await collections.goals().updateOne(
+            { id, user_id: userId },
+            {
+                $set: {
+                    source: 'ekagra',
+                    imported_from_goal: true,
+                },
+            },
+        );
+
+        const updatedGoal = await collections.goals().findOne({ id, user_id: userId });
+        if (!updatedGoal) {
+            return res.status(500).json({ message: 'Failed to transfer goal to Ekagra' });
+        }
+
+        return res.json({
+            message: 'Goal transferred to Ekagra',
+            goal: normalizeGoalResponse(updatedGoal),
+        });
+    } catch (error) {
+        console.error('Transfer goal to Ekagra error:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 // Create goal
 router.post('/', requireAuth, async (req: Request, res) => {
     const { text, title, description, scheduledDate, category, priority, subtasks, startedAt, source } = req.body;
@@ -519,6 +574,7 @@ router.post('/', requireAuth, async (req: Request, res) => {
             expires_at: expiresAt,
             lifecycle_status: 'active' as GoalLifecycleStatus,
             rollover_prompt_pending: false,
+            imported_from_goal: false,
             source_goal_id: null as string | null,
             scheduled_date: scheduledDateObj,
             missed_at: null as Date | null,
@@ -582,6 +638,7 @@ router.post('/:id/rollover-action', requireAuth, async (req: Request, res) => {
                 expires_at: expiresAt,
                 lifecycle_status: 'active' as GoalLifecycleStatus,
                 rollover_prompt_pending: false,
+                imported_from_goal: normalizeGoalImportedFromGoal(goal.imported_from_goal),
                 source_goal_id: id,
                 scheduled_date: scheduledDateObj,
                 missed_at: null as Date | null,
@@ -984,6 +1041,7 @@ router.post('/repeat-plan', requireAuth, async (req: Request, res) => {
                 updated_at: now,
                 lifecycle_status: 'active' as GoalLifecycleStatus,
                 rollover_prompt_pending: false,
+                imported_from_goal: normalizeGoalImportedFromGoal(goal.imported_from_goal),
                 repeated_from: goal.id, // track origin
             };
         });
@@ -1048,6 +1106,7 @@ router.post('/:id/repeat', requireAuth, async (req: Request, res) => {
             expires_at: expiresAt,
             lifecycle_status: 'active' as GoalLifecycleStatus,
             rollover_prompt_pending: false,
+            imported_from_goal: normalizeGoalImportedFromGoal(sourceGoal.imported_from_goal),
             source_goal_id: sourceGoal.id,
             scheduled_date: scheduledDateObj,
             missed_at: null as Date | null,

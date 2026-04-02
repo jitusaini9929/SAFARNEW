@@ -1,17 +1,19 @@
 import { MongoClient, Db, Collection } from 'mongodb';
 import { loadEnv } from './load-env';
+import { createInMemoryDb, MemoryDb } from './db-memory';
 
 loadEnv();
 
+const IS_DEV_MODE = process.env.DEV_MODE === 'true';
 const MONGODB_URI = process.env.MONGODB_URI || '';
 const DB_NAME = process.env.MONGODB_DB_NAME || 'safar';
 
-if (!MONGODB_URI) {
+if (!IS_DEV_MODE && !MONGODB_URI) {
     console.warn('⚠️  MONGODB_URI not set. Database operations will fail.');
 }
 
 let client: MongoClient;
-let database: Db;
+let database: Db | MemoryDb;
 
 export function getMongoClient(): MongoClient {
     return client;
@@ -21,7 +23,8 @@ export function getDb(): Db {
     if (!database) {
         throw new Error('Database not initialized. Call connectMongo() first.');
     }
-    return database;
+    // In DEV_MODE the MemoryDb duck-types the Db interface
+    return database as Db;
 }
 
 // Collection accessors
@@ -70,6 +73,14 @@ export const collections = {
 
 export async function connectMongo(): Promise<void> {
     if (client) return;
+
+    // ── DEV_MODE: use in-memory stub, no real MongoDB needed ──
+    if (IS_DEV_MODE) {
+        database = createInMemoryDb();
+        console.log('📁 Database: DEV MODE (in-memory stub — data resets on restart)');
+        return;
+    }
+
     if (!MONGODB_URI) {
         throw new Error('MONGODB_URI is required for server startup.');
     }
@@ -104,47 +115,82 @@ export async function connectMongo(): Promise<void> {
 }
 
 export async function initDatabase(): Promise<void> {
+    if (IS_DEV_MODE) {
+        console.log('✅ DEV MODE — skipping index creation');
+        return;
+    }
+
     const db = getDb();
 
-    // Create unique indexes to enforce constraints
+    // Create indexes — idempotent (no-ops if they already exist)
     try {
+        // ── Users ──
         await db.collection('users').createIndex({ email: 1 }, { unique: true });
         await db.collection('users').createIndex({ id: 1 }, { unique: true });
         await db.collection('users').createIndex({ is_shadow_banned: 1, spam_strike_count: 1 });
         await db.collection('users').createIndex({ mehfil_banned_forever: 1, mehfil_banned_until: 1, mehfil_ban_level: 1 });
+
+        // ── Streaks ──
         await db.collection('streaks').createIndex({ user_id: 1 }, { unique: true });
+
+        // ── Password reset ──
         await db.collection('password_reset_tokens').createIndex({ token_hash: 1 }, { unique: true });
         await db.collection('password_reset_tokens').createIndex({ user_id: 1 });
         await db.collection('password_reset_tokens').createIndex({ expires_at: 1 });
+
+        // ── Login history ──
         await db.collection('login_history').createIndex({ user_id: 1 });
         await db.collection('login_history').createIndex({ user_id: 1, timestamp: -1 });
+
+        // ── Moods ──
         await db.collection('moods').createIndex({ user_id: 1, timestamp: -1 });
         await db.collection('mood_snapshots').createIndex({ user_id: 1, timestamp: -1 });
         await db.collection('mood_snapshots').createIndex({ user_id: 1, date_key: 1 });
+
+        // ── Goals ──
         await db.collection('goals').createIndex({ user_id: 1, created_at: -1 });
         await db.collection('goals').createIndex({ user_id: 1, lifecycle_status: 1, expires_at: 1 });
         await db.collection('goal_activity_logs').createIndex({ user_id: 1, timestamp: -1 });
         await db.collection('goal_activity_logs').createIndex({ user_id: 1, event_type: 1, timestamp: -1 });
         await db.collection('goal_activity_logs').createIndex({ goal_id: 1, timestamp: -1 });
+
+        // ── Journal ──
         await db.collection('journal').createIndex({ user_id: 1, timestamp: -1 });
+
+        // ── Focus sessions ──
         await db.collection('focus_sessions').createIndex({ user_id: 1, completed_at: -1 });
+        // Partial index: most analytics only query completed sessions — smaller & faster
+        await db.collection('focus_sessions').createIndex(
+            { user_id: 1, completed_at: -1 },
+            { partialFilterExpression: { completed: true }, name: 'focus_sessions_completed_partial' }
+        );
         await db.collection('focus_session_logs').createIndex({ user_id: 1, timestamp: -1 });
         await db.collection('focus_session_logs').createIndex({ user_id: 1, date_key: 1 });
         await db.collection('focus_overlay_state').createIndex({ user_id: 1 }, { unique: true });
         await db.collection('focus_overlay_state').createIndex({ updated_at: -1 });
         await db.collection('focus_overlay_sessions').createIndex({ user_id: 1, updated_at: -1 });
         await db.collection('focus_overlay_sessions').createIndex({ user_id: 1, session_id: 1 }, { unique: true });
+
+        // ── Section activity & aggregates ──
         await db.collection('section_activity').createIndex({ chunk_key: 1 }, { unique: true });
         await db.collection('section_activity').createIndex({ user_id: 1, date: 1 });
         await db.collection('daily_aggregates').createIndex({ user_id: 1, date: 1 }, { unique: true });
         await db.collection('monthly_reports').createIndex({ user_id: 1, month: 1 }, { unique: true });
+
+        // ── Perks & Achievements ──
         await db.collection('perk_definitions').createIndex({ id: 1 }, { unique: true });
         await db.collection('user_perks').createIndex({ user_id: 1, perk_id: 1 }, { unique: true });
         await db.collection('achievement_definitions').createIndex({ id: 1 }, { unique: true });
         await db.collection('user_achievements').createIndex({ user_id: 1, achievement_id: 1 }, { unique: true });
+
+        // ── Mehfil ──
         await db.collection('mehfil_thoughts').createIndex({ user_id: 1 });
         await db.collection('mehfil_thoughts').createIndex({ created_at: -1 });
-        await db.collection('mehfil_thoughts').createIndex({ category: 1, status: 1, created_at: -1 });
+        // Partial index: only covers approved/pending posts — smaller & faster for feed queries
+        await db.collection('mehfil_thoughts').createIndex(
+            { category: 1, status: 1, created_at: -1 },
+            { partialFilterExpression: { status: { $in: ['approved', 'pending'] } }, name: 'mehfil_thoughts_feed_partial' }
+        );
         await db.collection('mehfil_thoughts').createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
         await db.collection('mehfil_reactions').createIndex({ thought_id: 1, user_id: 1 }, { unique: true });
         await db.collection('mehfil_comments').createIndex({ thought_id: 1, created_at: -1 });
@@ -154,6 +200,8 @@ export async function initDatabase(): Promise<void> {
         await db.collection('mehfil_shares').createIndex({ thought_id: 1 });
         await db.collection('mehfil_friendships').createIndex({ user_id: 1, friend_id: 1 }, { unique: true });
         await db.collection('mehfil_friendships').createIndex({ friend_id: 1 });
+
+        // ── Payments ──
         await db.collection('orders').createIndex({ razorpay_order_id: 1 }, { unique: true });
         await db.collection('orders').createIndex({ user_id: 1 });
         await db.collection('payments').createIndex({ razorpay_payment_id: 1 }, { unique: true });
@@ -163,28 +211,23 @@ export async function initDatabase(): Promise<void> {
         await db.collection('refunds').createIndex({ razorpay_payment_id: 1 });
         await db.collection('course_enrollments').createIndex({ user_id: 1, course_id: 1 }, { unique: true });
         await db.collection('transaction_logs').createIndex({ order_id: 1 });
+
+        // ── Uploads ──
         await db.collection('uploaded_images').createIndex({ user_id: 1 });
         await db.collection('legacy_upload_usage_daily').createIndex({ event: 1, day: 1 }, { unique: true });
         await db.collection('legacy_upload_usage_daily').createIndex({ day: 1 });
         await db.collection('legacy_upload_usage_daily').createIndex({ updatedAt: -1 });
+
+        // ── App settings ──
         await db.collection('app_settings').createIndex({ key: 1 }, { unique: true });
+
+        // ── Sandesh ──
         await db.collection('sandesh_messages').createIndex({ created_at: -1 });
         await db.collection('sandesh_reactions').createIndex({ sandesh_id: 1, user_id: 1 }, { unique: true });
         await db.collection('sandesh_comments').createIndex({ sandesh_id: 1, created_at: 1 });
-        await db.collection('user_social_handles').createIndex({ user_id: 1 }, { unique: true });
 
-        // Note: mehfil_reactions, comments, saves, reports, shares, friendships indexes
-        // are already defined above — removed duplicate createIndex calls here.
-        await db.collection('orders').createIndex({ razorpay_order_id: 1 }, { unique: true });
-        await db.collection('orders').createIndex({ user_id: 1 });
-        await db.collection('payments').createIndex({ razorpay_payment_id: 1 }, { unique: true });
-        await db.collection('payments').createIndex({ razorpay_order_id: 1 });
-        await db.collection('payments').createIndex({ user_id: 1 });
-        await db.collection('refunds').createIndex({ razorpay_refund_id: 1 }, { unique: true });
-        await db.collection('refunds').createIndex({ razorpay_payment_id: 1 });
-        await db.collection('course_enrollments').createIndex({ user_id: 1, course_id: 1 }, { unique: true });
-        await db.collection('transaction_logs').createIndex({ order_id: 1 });
-        await db.collection('uploaded_images').createIndex({ user_id: 1 });
+        // ── Social handles ──
+        await db.collection('user_social_handles').createIndex({ user_id: 1 }, { unique: true });
 
         console.log('✅ MongoDB indexes created');
     } catch (err: any) {

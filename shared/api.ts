@@ -34,6 +34,7 @@ export interface Goal {
   title?: string;
   description?: string | null;
   source?: "manual" | "ekagra";
+  importedFromGoal?: boolean;
   type: "daily" | "weekly";
   completed: boolean;
   createdAt: string;
@@ -52,6 +53,7 @@ export interface Goal {
   expires_at?: string;
   lifecycle_status?: "active" | "missed" | "rolled_over" | "abandoned";
   scheduled_date?: string;
+  imported_from_goal?: boolean;
 }
 
 export interface JournalEntry {

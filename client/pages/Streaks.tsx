@@ -113,13 +113,13 @@ export default function Streaks() {
 
   return (
     <NishthaLayout userName={user.name} userAvatar={user.avatar}>
-      <div className="flex-1 bg-background p-6 md:p-10 animate-in fade-in duration-700 font-sans">
-        <div className="max-w-7xl mx-auto space-y-8">
+      <div className="flex-1 bg-background p-4 sm:p-6 md:p-10 animate-in fade-in duration-700 font-sans">
+        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
           
           <header className="space-y-1">
-            <h1 className="text-4xl font-black flex items-center gap-3 tracking-tight">
+            <h1 className="text-3xl md:text-4xl font-black flex items-center gap-3 tracking-tight">
               <div className="p-2.5 bg-orange-500 rounded-2xl shadow-lg shadow-orange-500/20">
-                <Flame className="text-white w-6 h-6 animate-pulse" />
+                <Flame className="text-white w-5 h-5 md:w-6 md:h-6 animate-pulse" />
               </div>
               {t('streaks.title')}
             </h1>
@@ -178,7 +178,7 @@ export default function Streaks() {
 
           <div className="space-y-6">
             {/* Redesigned Full Width Calendar */}
-            <div data-tour="activity-calendar" className="bg-card border-2 rounded-[40px] p-10 shadow-sm relative overflow-hidden group">
+            <div data-tour="activity-calendar" className="bg-card border-2 rounded-[28px] md:rounded-[40px] p-5 sm:p-8 md:p-10 shadow-sm relative overflow-hidden group">
               <div className="flex items-center justify-between mb-12 relative z-10">
                 <button 
                   onClick={() => setCurrentDate(new Date())} 
@@ -204,7 +204,7 @@ export default function Streaks() {
                 <div className="bg-emerald-500/10 text-emerald-600 px-4 py-1.5 rounded-xl text-xs font-black tracking-widest border border-emerald-500/20">{currentDate.getFullYear()}</div>
               </div>
 
-              <div className="grid grid-cols-7 gap-y-4 max-w-5xl mx-auto">
+              <div className="grid grid-cols-7 gap-x-1 gap-y-3 sm:gap-y-4 max-w-5xl mx-auto">
                 {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
                   <div key={d} className="text-[12px] font-black text-muted-foreground uppercase tracking-widest text-center mb-6">{d}</div>
                 ))}
@@ -235,7 +235,7 @@ export default function Streaks() {
             </div>
 
             {/* Redesigned Full Width Line Chart */}
-            <div data-tour="consistency-chart" className="bg-card border-2 rounded-[40px] p-10 shadow-sm flex flex-col min-h-[350px]">
+            <div data-tour="consistency-chart" className="bg-card border-2 rounded-[28px] md:rounded-[40px] p-5 sm:p-8 md:p-10 shadow-sm flex flex-col min-h-[350px]">
                <div className="mb-6">
                  <h3 className="text-xl font-black flex items-center gap-3">
                    <TrendingUp size={24} className="text-emerald-500" /> Goal Consistency Trend

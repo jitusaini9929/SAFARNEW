@@ -14,7 +14,6 @@ import {
   CheckCircle,
   Edit3,
   ArrowRight,
-  Sparkles,
   Zap,
   Heart,
   History as LucideHistory,
@@ -108,7 +107,7 @@ export default function CheckIn() {
 
   return (
     <NishthaLayout userName={user.name} userAvatar={user.avatar}>
-      <div className="flex-1 min-h-screen bg-background p-6 md:p-10 animate-in fade-in duration-700 font-sans">
+      <div className="flex-1 min-h-screen bg-background p-4 sm:p-6 md:p-10 animate-in fade-in duration-700 font-sans">
         
         {/* Glow Backgrounds */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -118,12 +117,9 @@ export default function CheckIn() {
 
         <div className="max-w-7xl mx-auto space-y-10 relative z-10">
           
-          <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 md:gap-6">
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-primary font-black text-[10px] uppercase tracking-[0.3em] pl-1">
-                <Sparkles size={14} /> {t('checkin.reflection_mode')}
-              </div>
-              <h1 className="text-4xl md:text-5xl font-black tracking-tight">{t('checkin.title')}</h1>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight">{t('checkin.title')}</h1>
               <p className="text-muted-foreground font-medium pl-1">{t('checkin.subtitle')}</p>
             </div>
             <button
@@ -137,7 +133,7 @@ export default function CheckIn() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             {/* Mood Grid */}
-            <div className="lg:col-span-8 bg-card border-2 rounded-[40px] p-8 lg:p-10 shadow-sm space-y-8 animate-in slide-in-from-bottom-8 duration-500">
+            <div className="lg:col-span-8 bg-card border-2 rounded-[28px] md:rounded-[40px] p-5 sm:p-8 lg:p-10 shadow-sm space-y-8 animate-in slide-in-from-bottom-8 duration-500">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-black flex items-center gap-2">
                   <div className="w-1.5 h-6 bg-primary rounded-full" /> {t('checkin.current_state')}
@@ -201,7 +197,7 @@ export default function CheckIn() {
             </div>
 
             {/* Note Area */}
-            <div className="lg:col-span-12 bg-card border-2 rounded-[40px] p-10 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-10 animate-in slide-in-from-bottom-8 duration-700 delay-100">
+            <div className="lg:col-span-12 bg-card border-2 rounded-[28px] md:rounded-[40px] p-5 sm:p-8 md:p-10 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-10 animate-in slide-in-from-bottom-8 duration-700 delay-100">
               <div className="lg:col-span-8 space-y-6">
                 <div className="space-y-1">
                   <h3 className="text-xl font-black flex items-center gap-2">
@@ -250,7 +246,7 @@ export default function CheckIn() {
             </div>
 
             {/* History List */}
-            <div className="lg:col-span-12 bg-card border-2 rounded-[40px] p-10 shadow-sm animate-in slide-in-from-bottom-8 duration-700 delay-200">
+            <div className="lg:col-span-12 bg-card border-2 rounded-[28px] md:rounded-[40px] p-5 sm:p-8 md:p-10 shadow-sm animate-in slide-in-from-bottom-8 duration-700 delay-200">
                <div className="flex items-center justify-between mb-8">
                   <h3 className="text-xl font-black flex items-center gap-3">
                     <div className="p-2 bg-muted rounded-xl"><LucideHistory size={20} className="text-primary" /></div>

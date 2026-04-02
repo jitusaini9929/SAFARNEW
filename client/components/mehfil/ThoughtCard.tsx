@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Thought } from "@/store/mehfilStore";
 import {
   Heart,
@@ -318,12 +318,13 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
       : "bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300";
   const canConnectToPost = Boolean(thought.userId) && thought.userId !== currentUserId;
+  const glowTheme = thought.category === "REFLECTIVE" ? "reflective" : "academic";
 
   // ── render ──────────────────────────────────────────
 
   return (
     <>
-      <article className="rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-6 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow duration-300">
+      <article className={`composer-glow-card ${glowTheme} p-3 sm:p-4 md:p-6 w-full transition-[transform,shadow] duration-300 hover:scale-[1.01] hover:shadow-glass-hover`}>
         {/* Header */}
         <div className="flex justify-between items-start mb-3 sm:mb-4">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
@@ -433,13 +434,13 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
         {/* Action Bar */}
         {!readOnly && (
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-3 sm:pt-4 border-t border-slate-200 dark:border-white/10">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 md:gap-3 w-full sm:w-auto">
               <button
                 onClick={onReact}
                 className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${hasReacted
-                  ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-2 ring-rose-200 dark:ring-rose-500/20"
-                  : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-rose-500"
+                  ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 ring-2 ring-rose-500/20"
+                  : "text-slate-500 hover:bg-black/5 dark:hover:bg-white/5 hover:text-rose-500"
                   }`}
               >
                 <Heart
@@ -454,8 +455,8 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               <button
                 onClick={handleToggleComments}
                 className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${isCommentsOpen
-                  ? "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-200 dark:ring-teal-500/20"
-                  : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-teal-500"
+                  ? "bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-500/20"
+                  : "text-slate-500 hover:bg-black/5 dark:hover:bg-white/5 hover:text-teal-500"
                   }`}
               >
                 <MessageCircle className="w-4 h-4" />
@@ -478,7 +479,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
         {/* Comment Section (Collapsible) */}
         {!readOnly && isCommentsOpen && (
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-2 duration-200">
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-200 dark:border-white/10 animate-in slide-in-from-top-2 duration-200">
             <div className="space-y-3 sm:space-y-4 mb-3 sm:mb-4">
               {isLoadingComments ? (
                 <p className="text-center text-xs text-slate-400 py-2">
@@ -493,11 +494,11 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                   <div key={comment.id} className="flex gap-2 sm:gap-3">
                     <Avatar className="w-7 h-7 sm:w-8 sm:h-8 shrink-0">
                       <AvatarImage src={comment.author_avatar} />
-                      <AvatarFallback className="text-[10px] sm:text-xs bg-slate-100 dark:bg-slate-800 text-slate-500">
+                      <AvatarFallback className="text-[10px] sm:text-xs bg-black/5 dark:bg-white/5 text-slate-500">
                         {getInitials(comment.author_name)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-800/50 rounded-xl sm:rounded-2xl rounded-tl-none p-2.5 sm:p-3">
+                    <div className="flex-1 min-w-0 bg-black/5 dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-inner rounded-xl sm:rounded-2xl rounded-tl-none p-2.5 sm:p-3">
                       <div className="mb-1 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-slate-900 dark:text-slate-200">
@@ -543,7 +544,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                   onChange={(e) => setCommentText(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handlePostComment()}
                   placeholder={t('mehfil.card.write_comment')}
-                  className="pr-10 rounded-full bg-slate-50 dark:bg-slate-800/50 border-transparent focus:border-teal-500 focus:ring-teal-500/20"
+                  className="pr-10 rounded-full bg-black/5 dark:bg-black/20 border border-slate-200 dark:border-white/10 focus:border-teal-500 focus:ring-teal-500/20 backdrop-blur-md"
                 />
                 <Button
                   size="icon"

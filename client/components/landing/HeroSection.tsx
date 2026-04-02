@@ -157,7 +157,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                         ) : (
                             <button
                                 onClick={() => setIsAuthModalOpen(true)}
-                                className="px-6 py-2.5 md:px-8 md:py-3 rounded-full bg-gradient-to-r from-cyan-400 to-cyan-600 text-white font-semibold text-sm md:text-base shadow-xl shadow-cyan-500/20 ring-1 ring-white/20 hover:shadow-2xl hover:shadow-cyan-500/30 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 relative overflow-hidden group scale-95 active:scale-90"
+                                className="px-5 py-2 md:px-7 md:py-2.5 rounded-full bg-gradient-to-r from-[#1e3a8a] to-[#1e40af] text-white font-semibold text-sm md:text-base shadow-lg shadow-blue-900/30 ring-1 ring-white/10 hover:shadow-xl hover:shadow-blue-900/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 relative overflow-hidden group"
                             >
                                 <span className="relative z-10">{t('auth.signin')}</span>
                                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
@@ -209,10 +209,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                         {subtitleBody}
                     </p>
 
-                    <div className="flex flex-col sm:flex-row gap-4 md:gap-5 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-3 md:gap-5 w-full sm:w-auto">
                         <Link
                             to="/dashboard"
-                            className="bg-gradient-to-r from-cyan-400 to-cyan-600 text-white px-8 py-3.5 md:px-10 md:py-4.5 rounded-full text-base md:text-lg font-semibold shadow-lg shadow-cyan-500/20 ring-1 ring-white/20 scale-95 active:scale-90 transition-all duration-200 flex items-center gap-3"
+                            className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-[#1e3a8a] to-[#1e40af] text-white px-7 py-3.5 md:px-10 md:py-4 rounded-full text-base md:text-lg font-semibold shadow-lg shadow-blue-900/30 ring-1 ring-white/10 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-900/40 group"
                         >
                             <span>{t('landing.start_btn')}</span>
                             <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />

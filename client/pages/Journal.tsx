@@ -174,9 +174,9 @@ export default function Journal() {
         <div className="relative z-10 flex flex-col lg:flex-row max-w-[1600px] mx-auto">
           
           {/* Main Content Area */}
-          <main className="flex-1 p-6 lg:p-12 space-y-10">
+          <main className="flex-1 p-4 sm:p-6 lg:p-12 space-y-8 md:space-y-10">
             <header className="space-y-2 animate-in fade-in slide-in-from-top-4 duration-700">
-              <h1 className="text-4xl md:text-5xl font-black tracking-tight">{dateDisplay}</h1>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight">{dateDisplay}</h1>
               <div className="flex items-center gap-2 text-emerald-500 font-bold text-xs uppercase tracking-widest pl-1">
                 <Sparkles size={14} />
                 {t('journal.reflection_mode')}
@@ -236,7 +236,7 @@ export default function Journal() {
               </div>
 
               {/* Editor Area */}
-              <div className="p-8 lg:p-16 space-y-8 min-h-[500px]">
+              <div className="p-4 sm:p-8 lg:p-12 space-y-8 min-h-[350px] md:min-h-[500px]">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] pl-1">{t('journal.title_label')}</label>
                   <input
@@ -274,7 +274,7 @@ export default function Journal() {
           </main>
 
           {/* Sidebar */}
-          <aside className="w-full lg:w-[450px] p-6 lg:p-12 lg:border-l space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
+          <aside className="w-full lg:w-[420px] xl:w-[450px] p-4 sm:p-6 lg:p-12 lg:border-l space-y-6 md:space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
             
             {/* Daily Inspiration */}
             <div data-tour="daily-inspiration" className="bg-gradient-to-br from-violet-600 to-indigo-600 rounded-[32px] p-8 text-white shadow-2xl shadow-violet-500/20 relative overflow-hidden group">

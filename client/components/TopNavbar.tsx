@@ -62,7 +62,7 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
 
   return (
     <>
-      <nav className="h-16 bg-white/80 dark:bg-[#0B0F19]/90 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 sticky top-0 z-40 shadow-sm">
+      <nav className="h-16 bg-card/90 backdrop-blur-xl border-b border-border sticky top-0 z-40 shadow-sm">
         <div className="h-full px-6 flex items-center justify-between">
           {/* Left side - Hamburger (mobile) + Logo and Portal Name */}
           <div className="flex items-center gap-3">
@@ -118,7 +118,7 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 mt-2 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur-xl border-slate-200 dark:border-white/10 rounded-2xl shadow-xl p-2">
+              <DropdownMenuContent align="end" className="w-56 mt-2 bg-card/95 backdrop-blur-xl border-border rounded-2xl shadow-xl p-2">
                 <div className="px-3 py-2">
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{userName}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Student</p>

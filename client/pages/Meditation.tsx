@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import BreathingVisualizer from "@/components/meditation/BreathingVisualizer";
 import meditationBg from "@/assets/meditation-bg.webp";
+import safarLogo from "@/assets/safar-logo.png.webp";
 import { useAuth } from "@/contexts/AuthContext";
 import ThemeToggle from "@/components/ui/theme-toggle";
 
@@ -547,13 +548,16 @@ export default function Meditation() {
             <GlobalSidebar isOpen={isGlobalSidebarOpen} onClose={() => setIsGlobalSidebarOpen(false)} homeRoute="/home" />
 
             {/* Top App Bar */}
-            <header className="fixed top-0 right-0 left-0 z-50 h-20 px-5 md:px-10 flex items-center justify-between bg-background/70 backdrop-blur-xl border-b border-border/50">
+            <header className="fixed top-0 right-0 left-0 z-50 h-16 md:h-20 px-4 md:px-10 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50">
                 <div className="flex items-center gap-3">
                     <button onClick={() => setIsGlobalSidebarOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:bg-muted/50 transition-colors">
                         <Menu className="w-5 h-5" />
                     </button>
-                    <div>
-                        <h1 className="text-xl font-black text-primary font-serif">Dhyan</h1>
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-border shadow-sm">
+                            <img src={safarLogo} alt="SAFAR" className="w-full h-full object-cover" />
+                        </div>
+                        <span className="text-lg font-serif font-bold text-foreground tracking-tight hidden sm:block">SAFAR</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 md:gap-5">
@@ -574,16 +578,16 @@ export default function Meditation() {
                 </div>
             </header>
 
-            <main className="pt-24 pb-28 lg:pb-32 px-4 md:px-8 min-h-screen">
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 xl:gap-10">
+            <main className="pt-20 md:pt-24 pb-28 lg:pb-32 px-3 sm:px-6 md:px-8 min-h-screen">
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 xl:gap-10">
                     {/* Left Column */}
-                    <section className="xl:col-span-3 space-y-6">
-                        <div className="rounded-lg bg-card border border-border p-5 shadow-sm">
+                    <section className="xl:col-span-3 space-y-4">
+                        <div className="rounded-lg bg-card border border-border p-4 md:p-5 shadow-sm">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold">Daily Practice</h3>
-                                <span className="text-[10px] text-[#81ecff] uppercase tracking-widest">Live</span>
+                                <span className="text-[10px] text-primary uppercase tracking-widest">Live</span>
                             </div>
-                            <div className="space-y-3">
+                            <div data-tour="session-cards" className="space-y-3">
                                 {sessions.slice(0, 5).map((session) => (
                                     <button
                                         key={session.id}
@@ -601,39 +605,39 @@ export default function Meditation() {
                             </div>
                         </div>
 
-                        <div className="rounded-lg bg-card border border-border p-5 space-y-4 shadow-sm">
+                        <div className="rounded-lg bg-card border border-border p-4 md:p-5 space-y-3 shadow-sm">
                             <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold">Atmosphere</p>
                             <button onClick={() => setIsMuted(!isMuted)} className="w-full flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3 hover:bg-muted/70 transition-colors">
                                 <div className="flex items-center gap-3 text-sm">
                                     {isMuted ? <VolumeX className="w-4 h-4 text-primary" /> : <Volume2 className="w-4 h-4 text-primary" />}
                                     <span>{isMuted ? "Sound Muted" : "White Noise"}</span>
                                 </div>
-                                <span className="text-[#adaaab] text-xs uppercase tracking-widest">{isMuted ? "Off" : "On"}</span>
+                                <span className="text-muted-foreground text-xs uppercase tracking-widest">{isMuted ? "Off" : "On"}</span>
                             </button>
                             <button
                                 onClick={() => window.open(VISUAL_GUIDANCE_PLAYLIST_URL, "_blank", "noopener,noreferrer")}
-                                className="w-full flex items-center justify-between rounded-xl bg-[#1f1f20] px-4 py-3 hover:bg-[#242526] transition-colors"
+                                className="w-full flex items-center justify-between rounded-xl bg-muted px-4 py-3 hover:bg-muted/80 transition-colors"
                             >
                                 <div className="flex items-center gap-3 text-sm">
-                                    <Image className="w-4 h-4 text-[#94aaff]" />
+                                    <Image className="w-4 h-4 text-primary" />
                                     <span>Visual Guidance</span>
                                 </div>
-                                <ExternalLink className="w-4 h-4 text-[#adaaab]" />
+                                <ExternalLink className="w-4 h-4 text-muted-foreground" />
                             </button>
                         </div>
                     </section>
 
                     {/* Center Column */}
                     <section className="xl:col-span-6 flex flex-col items-center text-center">
-                        <div className="mt-4 space-y-2">
-                            <p className="text-[#94aaff] font-bold text-xs uppercase tracking-[0.4em]">Current Journey</p>
-                            <h2 className="text-5xl md:text-7xl font-serif font-black tracking-tight">Dhyan</h2>
-                            <p className="text-[#adaaab] italic text-sm md:text-lg">"Silence is the language of God."</p>
+                        <div className="mt-2 md:mt-4 space-y-2">
+                            <p className="text-primary font-bold text-xs uppercase tracking-[0.4em]">Current Journey</p>
+                            <h2 className="text-4xl sm:text-5xl md:text-7xl font-serif font-black tracking-tight">Dhyan</h2>
+                            <p className="text-muted-foreground italic text-sm md:text-lg">"Silence is the language of God."</p>
                         </div>
 
-                        <div className="relative mt-8 w-[280px] h-[280px] md:w-[420px] md:h-[420px] flex items-center justify-center">
-                            <div className="absolute inset-0 rounded-full bg-[#94aaff]/10 blur-[80px]" />
-                            <div className="absolute inset-4 rounded-full border border-[#3b3c3d] overflow-hidden">
+                        <div className="relative mt-6 md:mt-8 w-[220px] h-[220px] sm:w-[280px] sm:h-[280px] md:w-[380px] md:h-[380px] flex items-center justify-center">
+                            <div className="absolute inset-0 rounded-full bg-primary/5 blur-[80px]" />
+                            <div className="absolute inset-4 rounded-full border border-border overflow-hidden">
                                 <img src={meditationBg} alt="Meditation focus" className="w-full h-full object-cover opacity-60" />
                             </div>
 
@@ -646,15 +650,15 @@ export default function Meditation() {
                             </button>
                         </div>
 
-                        <div data-tour="timer-display" className="mt-8 space-y-3 w-full max-w-lg">
-                            <div className="text-6xl md:text-8xl font-light font-mono tracking-wider tabular-nums">{formatTime(timeLeft)}</div>
-                            <p className="text-[#adaaab] text-[11px] uppercase tracking-[0.2em]">{breathPhase === "inhale" ? "Inhale" : breathPhase === "exhale" ? "Exhale" : "Hold"}</p>
+                        <div data-tour="timer-display" className="mt-6 md:mt-8 space-y-3 w-full max-w-lg">
+                            <div className="text-5xl sm:text-6xl md:text-8xl font-light font-mono tracking-wider tabular-nums">{formatTime(timeLeft)}</div>
+                            <p className="text-muted-foreground text-[11px] uppercase tracking-[0.2em]">{breathPhase === "inhale" ? "Inhale" : breathPhase === "exhale" ? "Exhale" : "Hold"}</p>
 
                             {selectedSession.id === "dhyan-custom" && (
-                                <div className="rounded-lg border border-[#2c2d2e] bg-[#161618] p-4 mx-auto max-w-sm">
+                                <div className="rounded-lg border border-border bg-muted/50 p-4 mx-auto max-w-sm">
                                     <div className="flex items-center justify-between mb-3">
-                                        <span className="text-[10px] uppercase tracking-widest text-[#adaaab]">Session Length</span>
-                                        <span className="text-xs font-bold text-[#81ecff]">{sliderValue} min</span>
+                                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Session Length</span>
+                                        <span className="text-xs font-bold text-primary">{sliderValue} min</span>
                                     </div>
                                     <input
                                         type="range"
@@ -668,48 +672,48 @@ export default function Meditation() {
                                 </div>
                             )}
 
-                            <div className="h-1.5 bg-[#262627] rounded-full overflow-hidden max-w-sm mx-auto">
-                                <div className="h-full bg-gradient-to-r from-[#94aaff] to-[#00d4ec]" style={{ width: `${progress}%` }} />
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden max-w-sm mx-auto">
+                                <div className="h-full bg-gradient-to-r from-primary to-primary/60" style={{ width: `${progress}%` }} />
                             </div>
 
-                            <div className="flex items-center justify-center gap-6 pt-2">
-                                <button data-tour="reset-button" onClick={handleReset} className="p-4 rounded-full bg-[#1a191b] hover:bg-[#242425] transition-colors border border-[#2f2f31]">
-                                    <RotateCcw className="w-5 h-5 text-[#adaaab]" />
+                            <div className="flex items-center justify-center gap-4 md:gap-6 pt-2">
+                                <button data-tour="reset-button" onClick={handleReset} className="p-3 md:p-4 rounded-full bg-card hover:bg-muted transition-colors border border-border shadow-sm">
+                                    <RotateCcw className="w-5 h-5 text-muted-foreground" />
                                 </button>
-                                <button onClick={() => setIsMuted(!isMuted)} className="p-4 rounded-full bg-[#1a191b] hover:bg-[#242425] transition-colors border border-[#2f2f31]">
-                                    {isMuted ? <VolumeX className="w-5 h-5 text-[#adaaab]" /> : <Volume2 className="w-5 h-5 text-[#adaaab]" />}
+                                <button onClick={() => setIsMuted(!isMuted)} className="p-3 md:p-4 rounded-full bg-card hover:bg-muted transition-colors border border-border shadow-sm">
+                                    {isMuted ? <VolumeX className="w-5 h-5 text-muted-foreground" /> : <Volume2 className="w-5 h-5 text-muted-foreground" />}
                                 </button>
-                                <button onClick={() => setShowInstructions(true)} className="p-4 rounded-full bg-[#1a191b] hover:bg-[#242425] transition-colors border border-[#2f2f31]">
-                                    <HelpCircle className="w-5 h-5 text-[#adaaab]" />
+                                <button onClick={() => setShowInstructions(true)} className="p-3 md:p-4 rounded-full bg-card hover:bg-muted transition-colors border border-border shadow-sm">
+                                    <HelpCircle className="w-5 h-5 text-muted-foreground" />
                                 </button>
                             </div>
                         </div>
 
-                        <div className="mt-10 grid grid-cols-3 gap-8 text-center">
+                        <div className="mt-6 md:mt-10 grid grid-cols-3 gap-4 md:gap-8 text-center">
                             <div>
-                                <p className="text-[#adaaab] text-[10px] uppercase tracking-widest">Duration</p>
-                                <p className="text-2xl font-serif">{formatTime(timeLeft)}</p>
+                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Duration</p>
+                                <p className="text-xl md:text-2xl font-serif">{formatTime(timeLeft)}</p>
                             </div>
                             <div>
-                                <p className="text-[#adaaab] text-[10px] uppercase tracking-widest">Session</p>
-                                <p className="text-2xl font-serif">{selectedSession.duration}m</p>
+                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Session</p>
+                                <p className="text-xl md:text-2xl font-serif">{selectedSession.duration}m</p>
                             </div>
                             <div>
-                                <p className="text-[#adaaab] text-[10px] uppercase tracking-widest">Intensity</p>
-                                <p className="text-2xl font-serif">Deep</p>
+                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Intensity</p>
+                                <p className="text-xl md:text-2xl font-serif">Deep</p>
                             </div>
                         </div>
                     </section>
 
                     {/* Right Column */}
-                    <section className="xl:col-span-3 space-y-6">
-                        <div className="rounded-lg bg-[#161618] border border-[#262627] p-4">
-                            {renderMeditationVideoCard("meditation-video-url-desktop", "bg-transparent border-0 shadow-none p-0")}
+                    <section className="xl:col-span-3 space-y-4">
+                        <div className="rounded-lg bg-card border border-border p-4 shadow-sm">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold mb-3">Resources</p>
                             <button
                                 onClick={() => setShowResources(true)}
-                                className="mt-4 w-full py-3 rounded-full bg-[#1f2022] text-xs font-bold uppercase tracking-widest hover:bg-[#292a2d] transition-colors"
+                                className="w-full py-3 rounded-xl bg-primary/10 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/15 transition-colors border border-primary/20"
                             >
-                                Resources
+                                Open Resources
                             </button>
                         </div>
                     </section>
@@ -717,29 +721,29 @@ export default function Meditation() {
             </main>
 
             {/* Desktop Mini Player */}
-            <footer className="hidden lg:flex fixed bottom-0 left-0 right-0 z-40 h-20 px-10 items-center justify-between bg-[#060607]/80 backdrop-blur-xl border-t border-[#222325]">
+            <footer className="hidden lg:flex fixed bottom-0 left-0 right-0 z-40 h-20 px-10 items-center justify-between bg-background/90 backdrop-blur-xl border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
                 <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl overflow-hidden border border-[#2c2d2f]">
+                    <div className="w-11 h-11 rounded-xl overflow-hidden border border-border">
                         <img src={meditationBg} alt="Track cover" className="w-full h-full object-cover" />
                     </div>
                     <div>
-                        <p className="text-sm font-bold">Transcendental States</p>
-                        <p className="text-[10px] uppercase tracking-widest text-[#adaaab]">Safar Soundscapes</p>
+                        <p className="text-sm font-bold text-foreground">Transcendental States</p>
+                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Safar Soundscapes</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-6">
-                    <button onClick={handleReset} className="text-[#adaaab] hover:text-white"><RotateCcw className="w-5 h-5" /></button>
-                    <button onClick={() => setIsActive(!isActive)} className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center">
+                    <button onClick={handleReset} className="text-muted-foreground hover:text-foreground transition-colors"><RotateCcw className="w-5 h-5" /></button>
+                    <button onClick={() => setIsActive(!isActive)} className="w-10 h-10 rounded-full bg-foreground text-background flex items-center justify-center shadow-md">
                         {isActive ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
                     </button>
-                    <button onClick={() => setIsMuted(!isMuted)} className="text-[#adaaab] hover:text-white">{isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</button>
+                    <button onClick={() => setIsMuted(!isMuted)} className="text-muted-foreground hover:text-foreground transition-colors">{isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</button>
                 </div>
                 <div className="flex items-center gap-3 w-64">
-                    <span className="text-[10px] font-bold text-[#adaaab]">{formatTime(Math.max(0, (selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60 - timeLeft))}</span>
-                    <div className="flex-1 h-1 bg-[#262627] rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-[#94aaff] to-[#9c8fff]" style={{ width: `${progress}%` }} />
+                    <span className="text-[10px] font-bold text-muted-foreground">{formatTime(Math.max(0, (selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60 - timeLeft))}</span>
+                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-primary to-primary/60" style={{ width: `${progress}%` }} />
                     </div>
-                    <span className="text-[10px] font-bold text-[#adaaab]">{formatTime((selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60)}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground">{formatTime((selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60)}</span>
                 </div>
             </footer>
 
@@ -910,22 +914,22 @@ export default function Meditation() {
             />
 
             {/* Mobile Bottom Nav */}
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex justify-around items-center px-4 py-3 bg-background/90 backdrop-blur-2xl border-t border-border">
-                <button onClick={() => setShowSessionList(true)} className="flex flex-col items-center text-primary">
+            <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex justify-around items-center px-2 py-2 bg-background/95 backdrop-blur-2xl border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+                <button onClick={() => setShowSessionList(true)} className="flex flex-col items-center gap-1 flex-1 py-2 text-primary">
                     <Wind className="w-5 h-5" />
-                    <span className="text-[10px] mt-1 uppercase tracking-widest">Breath</span>
+                    <span className="text-[9px] uppercase tracking-widest font-medium">Breath</span>
                 </button>
-                <button onClick={() => navigate("/study")} className="flex flex-col items-center text-[#adaaab]">
+                <button onClick={() => navigate("/study")} className="flex flex-col items-center gap-1 flex-1 py-2 text-muted-foreground hover:text-foreground transition-colors">
                     <Dumbbell className="w-5 h-5" />
-                    <span className="text-[10px] mt-1 uppercase tracking-widest">Focus</span>
+                    <span className="text-[9px] uppercase tracking-widest font-medium">Focus</span>
                 </button>
-                <button onClick={() => setIsActive(!isActive)} className="flex flex-col items-center text-[#adaaab]">
+                <button onClick={() => setIsActive(!isActive)} className="flex flex-col items-center gap-1 flex-1 py-2 text-muted-foreground hover:text-foreground transition-colors">
                     <Clock className="w-5 h-5" />
-                    <span className="text-[10px] mt-1 uppercase tracking-widest">Timer</span>
+                    <span className="text-[9px] uppercase tracking-widest font-medium">Timer</span>
                 </button>
-                <button onClick={() => setShowResources(true)} className="flex flex-col items-center text-[#adaaab]">
+                <button onClick={() => setShowResources(true)} className="flex flex-col items-center gap-1 flex-1 py-2 text-muted-foreground hover:text-foreground transition-colors">
                     <ExternalLink className="w-5 h-5" />
-                    <span className="text-[10px] mt-1 uppercase tracking-widest">Journal</span>
+                    <span className="text-[9px] uppercase tracking-widest font-medium">Resources</span>
                 </button>
             </nav>
 

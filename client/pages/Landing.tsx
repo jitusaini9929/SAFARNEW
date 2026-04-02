@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '../components/AuthModal';
 import ThemeToggle from '../components/ui/theme-toggle';
-import { Trophy } from 'lucide-react';
+import { Youtube } from 'lucide-react';
 
 // Import extracted components
 import HeroSection from '../components/landing/HeroSection';
@@ -11,19 +11,18 @@ import AppsGrid from '../components/landing/AppsGrid';
 import CommunitySpotlight from '../components/landing/CommunitySpotlight';
 import ExternalResources from '../components/landing/ExternalResources';
 import Footer from '../components/landing/Footer';
-import Milestone100KModal from '../components/landing/Milestone100KModal';
-import { triggerFireworks, triggerSideCannons } from '../components/ui/confetti';
+import YoutubePromotionModal from '../components/landing/YoutubePromotionModal';
 
-const MILESTONE_MODAL_SESSION_KEY_PREFIX = 'milestone100k:auto-open-dismissed';
+const YOUTUBE_MODAL_SESSION_KEY_PREFIX = 'youtube-modal:auto-open-dismissed';
 
 const Landing = () => {
   const { user, refreshUser } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [suppressMilestoneAutoOpen, setSuppressMilestoneAutoOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [is100KModalOpen, setIs100KModalOpen] = useState(false);
+  const [isYoutubeModalOpen, setIsYoutubeModalOpen] = useState(false);
   const milestoneSessionKey = useMemo(
-    () => `${MILESTONE_MODAL_SESSION_KEY_PREFIX}:${user?.id ?? 'guest'}`,
+    () => `${YOUTUBE_MODAL_SESSION_KEY_PREFIX}:${user?.id ?? 'guest'}`,
     [user?.id],
   );
 
@@ -40,7 +39,7 @@ const Landing = () => {
   };
 
   const handleMilestoneOpenChange = (nextOpen: boolean) => {
-    setIs100KModalOpen(nextOpen);
+    setIsYoutubeModalOpen(nextOpen);
 
     if (typeof window === 'undefined') return;
 
@@ -66,13 +65,7 @@ const Landing = () => {
     if (suppressMilestoneAutoOpen || isAuthModalOpen) return;
 
     const timer = window.setTimeout(() => {
-      setIs100KModalOpen(true);
-
-      // Fireworks and side cannons should appear above the modal overlay.
-      window.setTimeout(() => {
-        triggerFireworks();
-        triggerSideCannons();
-      }, 100);
+      setIsYoutubeModalOpen(true);
     }, 750);
 
     return () => window.clearTimeout(timer);
@@ -88,13 +81,13 @@ const Landing = () => {
         
         <div className="max-w-6xl mx-auto px-4 md:px-10 py-6 md:py-10 flex justify-center relative z-20">
           <button 
-            title="Open 100K Celebration"
-            onClick={() => setIs100KModalOpen(true)} 
-            className="inline-flex items-center gap-3 px-6 py-3 md:px-8 md:py-4 rounded-full bg-gradient-to-br from-amber-100 to-amber-300 dark:from-amber-900/40 dark:to-amber-700/40 border border-amber-300/50 dark:border-amber-500/30 text-amber-950 dark:text-amber-100 font-bold shadow-lg shadow-amber-500/10 hover:shadow-amber-500/20 hover:-translate-y-0.5 transition-all"
+            title="Open Latest Video"
+            onClick={() => setIsYoutubeModalOpen(true)} 
+            className="inline-flex items-center gap-3 px-6 py-3 md:px-8 md:py-4 rounded-full bg-gradient-to-br from-red-100 to-red-50 dark:from-red-950/40 dark:to-red-900/40 border border-red-200 dark:border-red-500/30 text-rose-950 dark:text-red-100 font-bold shadow-lg shadow-red-500/10 hover:shadow-red-500/20 hover:-translate-y-0.5 transition-all"
           >
-            <Trophy className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            <span>100,000 YouTube Subscribers</span>
-            <span className="flex w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2" />
+            <Youtube className="w-5 h-5 text-red-600 dark:text-red-500" />
+            <span>Watch Latest Dhyan Video</span>
+            <span className="flex w-2 h-2 rounded-full bg-red-600 dark:bg-red-500 animate-[pulse_2s_ease-in-out_infinite] ml-2" />
           </button>
         </div>
 
@@ -127,8 +120,8 @@ const Landing = () => {
         }}
       />
 
-      <Milestone100KModal 
-        open={is100KModalOpen} 
+      <YoutubePromotionModal 
+        open={isYoutubeModalOpen} 
         onOpenChange={handleMilestoneOpenChange} 
       />
     </div>

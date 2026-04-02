@@ -148,60 +148,90 @@
    * Customizable Light Theme (User Request: #EDDEA4 Background)
    */
   .light {
-    /* Light Theme - Off-White Parchment #fbf9f4 */
-    --background: 48 33% 97%;
-    --foreground: 75 4% 19%;
-    
-    /* Card - Surface Container #efeee7 */
-    --card: 48 20% 92%;
-    --card-foreground: 75 4% 19%;
+    /* Light Theme — Warm Parchment base, warm-white UI surfaces */
+    --background: 42 30% 96%;
+    /* #f9f6f0  — subtle warm parchment page background */
+    --foreground: 220 25% 14%;
+    /* #1a1f2e  — deep navy-black text, very legible */
 
-    --popover: 48 20% 92%;
-    --popover-foreground: 75 4% 19%;
+    /* Card — warm white surface, clearly distinct from background */
+    --card: 40 40% 99%;
+    /* #fffefb  — near-white warm card */
+    --card-foreground: 220 25% 14%;
 
-    /* Primary - Muted Sage #52635a */
-    --primary: 151 10% 36%;
-    --primary-foreground: 153 38% 95%;
+    --popover: 40 40% 99%;
+    --popover-foreground: 220 25% 14%;
 
-    /* Secondary - Muted Blue Grey #575f72 */
-    --secondary: 226 13% 41%;
-    --secondary-foreground: 228 100% 99%;
+    /* Primary — Indigo / Navy Blue (matches branding) */
+    --primary: 231 55% 40%;
+    /* #3040a0 — deep indigo */
+    --primary-foreground: 0 0% 100%;
 
-    /* Muted - Surface Container High #e9e8e1 */
-    --muted: 48 15% 91%;
-    --muted-foreground: 75 4% 37%;
+    /* Secondary — Muted warm slate */
+    --secondary: 220 15% 55%;
+    --secondary-foreground: 0 0% 100%;
 
-    /* Accent */
-    --accent: 151 10% 36%;
-    --accent-foreground: 153 38% 95%;
+    /* Muted — Very light warm surface for subtle bg areas */
+    --muted: 40 25% 93%;
+    /* #f2ede4 — warm light muted */
+    --muted-foreground: 220 15% 38%;
+    /* Darkened readable secondary text */
 
-    --destructive: 0 52% 44%;
+    /* Accent — same as primary for consistency */
+    --accent: 231 55% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 60% 44%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Border - Outline #7a7b75 */
-    --border: 66 4% 47%;
-    --input: 48 15% 91%;
-    --ring: 151 10% 36%;
+    /* Border — warm medium grey, visible but not harsh */
+    --border: 40 12% 82%;
+    /* #d9d4ca */
+    --input: 40 25% 93%;
+    --ring: 231 55% 40%;
 
-    /* Sidebar - Match Background */
-    --sidebar-background: 48 33% 97%;
-    --sidebar-foreground: 75 4% 19%;
-    --sidebar-primary: 151 10% 36%;
-    --sidebar-primary-foreground: 153 38% 95%;
-    --sidebar-accent: 226 13% 41%;
-    --sidebar-accent-foreground: 228 100% 99%;
-    --sidebar-border: 66 4% 47%;
-    --sidebar-ring: 151 10% 36%;
+    /* Sidebar — warm white, same as card */
+    --sidebar-background: 40 40% 99%;
+    --sidebar-foreground: 220 25% 14%;
+    --sidebar-primary: 231 55% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 55%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 40 12% 82%;
+    --sidebar-ring: 231 55% 40%;
 
-    /* Glass - High Intensity (Light mode) */
-    --glass-bg: rgba(251, 249, 244, 0.85);
-    --glass-border: rgba(122, 123, 117, 0.2);
-    --glass-shadow: 0 8px 32px rgba(49, 51, 46, 0.08);
+    /* Glass — Warm white with soft shadow */
+    --glass-bg: rgba(255, 254, 251, 0.88);
+    --glass-border: rgba(180, 170, 155, 0.25);
+    --glass-shadow: 0 8px 32px rgba(30, 30, 50, 0.07);
     --glass-blur: 52px;
   }
 }
 
 @layer components {
+  /* ── Light Mode: warm-white card overrides ─────────────────────────────
+     Components that use bg-white or hardcoded surfaces will inherit the warm
+     card colour from CSS variables in light mode, while dark mode is unchanged. */
+
+  .light .bento-card:not([class*="dark:bg-"]) {
+    background-color: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+  }
+
+  /* Modals — use warm white in light mode */
+  .light [class*="bg-white"][class*="dark:bg-[#1A1A1A]"],
+  .light [class*="bg-white"][class*="dark:bg-slate-8"] {
+    background-color: hsl(var(--card)) !important;
+    border-color: hsl(var(--border)) !important;
+    color: hsl(var(--foreground)) !important;
+  }
+
+  /* Slate borders in light mode — harmonize to warm */
+  .light [class*="border-slate-200"]:not([class*="dark:"]) {
+    border-color: hsl(var(--border)) !important;
+  }
+
+
   .glass-high {
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur));
@@ -1394,5 +1424,21 @@ select {
 @media (max-width: 768px) {
   .flex-nowrap-responsive {
     flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gradient-blob {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -72,6 +72,8 @@ export default {
         "pastel-yellow": "hsl(var(--pastel-yellow))",
         // Mehfil colors
         "mint": "#D1FAE5",
+        "mehfil-maroon": "#7A1F3D",
+        "mehfil-plum": "#4B1027",
         "midnight": "#0B0F19",
         "midnight-light": "#151B2B",
         "plum-dark": "#2a1b2b",

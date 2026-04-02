@@ -72,12 +72,18 @@ export async function createServer() {
   const sandeshModule = await loadStartupModule("sandesh routes", () => import("./routes/sandesh"));
   const suggestionsModule = await loadStartupModule("suggestions routes", () => import("./routes/suggestions"));
 
-  await runStartupTask("seed achievement definitions", async () => {
-    await achievementsModule.seedAchievementDefinitions();
-  });
-  await runStartupTask("seed perk definitions", async () => {
-    await perksModule.seedPerkDefinitions();
-  });
+  const IS_DEV_MODE = process.env.DEV_MODE === 'true';
+
+  if (!IS_DEV_MODE) {
+    await runStartupTask("seed achievement definitions", async () => {
+      await achievementsModule.seedAchievementDefinitions();
+    });
+    await runStartupTask("seed perk definitions", async () => {
+      await perksModule.seedPerkDefinitions();
+    });
+  } else {
+    console.log('[STARTUP] DEV MODE — skipping seed tasks');
+  }
 
 
   // Performance: gzip/brotli compression

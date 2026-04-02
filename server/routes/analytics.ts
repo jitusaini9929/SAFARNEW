@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
+import { QUERY_TIMEOUT_MS } from '../utils/queryDefaults';
 
 const router = Router();
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -59,18 +60,22 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
         collections.loginHistory()
             .find({ user_id: userId, timestamp: { $gte: startUTC, $lte: endUTC } })
             .project({ _id: 0, timestamp: 1 })
+            .maxTimeMS(QUERY_TIMEOUT_MS)
             .toArray(),
         collections.goalActivityLogs()
             .find({ user_id: userId, timestamp: { $gte: startUTC, $lte: endUTC } })
             .project({ _id: 0, event_type: 1, goal_type: 1, timestamp: 1, day_of_week: 1, hour_of_day: 1 })
+            .maxTimeMS(QUERY_TIMEOUT_MS)
             .toArray(),
         collections.focusSessionLogs()
             .find({ user_id: userId, timestamp: { $gte: startUTC, $lte: endUTC } })
             .project({ _id: 0, duration_minutes: 1, timestamp: 1, interrupted: 1 })
+            .maxTimeMS(QUERY_TIMEOUT_MS)
             .toArray(),
         collections.moodSnapshots()
             .find({ user_id: userId, timestamp: { $gte: startUTC, $lte: endUTC } })
             .project({ _id: 0, mood_score: 1, pre_study_mood: 1, post_study_mood: 1, timestamp: 1 })
+            .maxTimeMS(QUERY_TIMEOUT_MS)
             .toArray(),
     ]);
 

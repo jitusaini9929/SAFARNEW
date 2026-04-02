@@ -429,7 +429,7 @@
    ============================================================ */
 :root:not(.dark) .sandesh-glow-card {
     background: linear-gradient(145deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.4));
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.12);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
@@ -439,7 +439,7 @@
 
 :root:not(.dark) .sandesh-announcement-card {
     background: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 :root:not(.dark) .sandesh-announcement-card:hover {
@@ -448,12 +448,12 @@
 
 :root:not(.dark) .sandesh-input-card {
     background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
 :root:not(.dark) .sandesh-action-btn {
     background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 :root:not(.dark) .sandesh-action-btn:hover {

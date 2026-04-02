@@ -29,7 +29,7 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
                 className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100]"
                 onClick={onClose}
             />
-            <div className="fixed inset-y-0 left-0 w-[280px] max-w-[85vw] bg-white dark:bg-[#0B0F19] lg:bg-background border-r border-slate-200 dark:border-white/10 shadow-2xl z-[110] animate-in slide-in-from-left duration-300 overflow-y-auto">
+            <div className="fixed inset-y-0 left-0 w-[280px] max-w-[85vw] bg-card border-r border-border shadow-2xl z-[110] animate-in slide-in-from-left duration-300 overflow-y-auto">
                 <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-white/10">
                     <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{t('nav.menu')}</h2>
                     <button

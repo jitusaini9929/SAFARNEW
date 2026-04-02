@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
+import { QUERY_TIMEOUT_MS, QUERY_FAST_TIMEOUT_MS, CACHE_CONTROL } from '../utils/queryDefaults';
 
 const router = Router();
 
@@ -121,6 +122,7 @@ router.get('/personalized', requireAuth, async (req: any, res) => {
             .find({ user_id: userId })
             .sort({ timestamp: -1 })
             .limit(1)
+            .maxTimeMS(QUERY_FAST_TIMEOUT_MS)
             .toArray();
         const currentMoodIntensity = latestMood[0]?.intensity ?? 3;
         const currentMoodLabel = latestMood[0]?.mood ?? 'neutral';
@@ -199,6 +201,7 @@ router.get('/personalized', requireAuth, async (req: any, res) => {
         // SOS flag (frontend decides visibility, but this helps)
         response.showSOS = moodCategory === 'low';
 
+        res.set('Cache-Control', CACHE_CONTROL.MEDIUM);
         res.json(response);
     } catch (error) {
         console.error('Error generating personalized suggestions:', error);

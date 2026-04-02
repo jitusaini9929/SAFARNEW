@@ -98,6 +98,18 @@ export const dataService = {
         };
     },
 
+    async transferGoalToEkagra(goalId: string): Promise<Goal> {
+        const res = await apiFetch(`${API_URL}/goals/${encodeURIComponent(goalId)}/transfer-to-ekagra`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to transfer goal to Ekagra"));
+        const data = await res.json();
+        if (!data?.goal) throw new Error("Missing transferred goal in response");
+        return data.goal as Goal;
+    },
+
     async addGoal(payload: {
         title: string;
         scheduledDate?: string;

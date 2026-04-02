@@ -2,6 +2,7 @@ import { Router, Request } from 'express';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { v4 as uuid } from 'uuid';
+import { QUERY_TIMEOUT_MS, QUERY_FAST_TIMEOUT_MS, CACHE_CONTROL } from '../utils/queryDefaults';
 
 const router = Router();
 const FOCUS_STATS_DEBUG_LOGS = process.env.FOCUS_STATS_DEBUG_LOGS === 'true';
@@ -37,6 +38,20 @@ function invalidateFocusStatsCache(userId: string) {
 
 const ACTUAL_DURATION_EXPR = { $ifNull: ['$actual_duration_minutes', '$duration_minutes'] };
 const BREAK_DURATION_EXPR = { $ifNull: ['$break_minutes', 0] };
+const PLANNED_DURATION_EXPR = { $ifNull: ['$planned_duration_minutes', 0] };
+const EFFECTIVE_DURATION_EXPR = {
+    $cond: [
+        { $eq: ['$completed', true] },
+        {
+            $cond: [
+                { $gt: [PLANNED_DURATION_EXPR, 0] },
+                PLANNED_DURATION_EXPR,
+                ACTUAL_DURATION_EXPR,
+            ],
+        },
+        ACTUAL_DURATION_EXPR,
+    ],
+};
 
 // Log a single completed or interrupted focus session.
 router.post('/', requireAuth, async (req: Request, res) => {
@@ -152,7 +167,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             {
                 $group: {
                     _id: null,
-                    total_focus_minutes: { $sum: ACTUAL_DURATION_EXPR },
+                    total_focus_minutes: { $sum: EFFECTIVE_DURATION_EXPR },
                     total_break_minutes: { $sum: BREAK_DURATION_EXPR },
                     total_sessions: { $sum: 1 },
                     completed_sessions: {
@@ -161,7 +176,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
                 }
             }
         ];
-        const totalResult = await collections.focusSessions().aggregate(totalPipeline).toArray();
+        const totalResult = await collections.focusSessions().aggregate(totalPipeline, { maxTimeMS: QUERY_TIMEOUT_MS }).toArray();
         const totals = totalResult[0] || { total_focus_minutes: 0, total_break_minutes: 0, total_sessions: 0, completed_sessions: 0 };
 
         // Weekly data (last 7 days)
@@ -176,11 +191,11 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             {
                 $group: {
                     _id: { $dayOfWeek: { date: '$completed_at', timezone: '+05:30' } },
-                    minutes: { $sum: ACTUAL_DURATION_EXPR }
+                    minutes: { $sum: EFFECTIVE_DURATION_EXPR }
                 }
             }
         ];
-        const weeklyResult = await collections.focusSessions().aggregate(weeklyPipeline).toArray();
+        const weeklyResult = await collections.focusSessions().aggregate(weeklyPipeline, { maxTimeMS: QUERY_TIMEOUT_MS }).toArray();
 
         // Convert to array indexed by day (0=Mon, ..., 6=Sun)
         const weeklyData = [0, 0, 0, 0, 0, 0, 0];
@@ -205,7 +220,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
                 }
             }
         ];
-        const weeklyBreakResult = await collections.focusSessions().aggregate(weeklyBreakPipeline).toArray();
+        const weeklyBreakResult = await collections.focusSessions().aggregate(weeklyBreakPipeline, { maxTimeMS: QUERY_TIMEOUT_MS }).toArray();
         const weeklyBreaks = [0, 0, 0, 0, 0, 0, 0];
         for (const row of weeklyBreakResult) {
             const mongoDay = row._id as number;
@@ -224,7 +239,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
                 }
             },
             { $sort: { _id: -1 } }
-        ]).toArray();
+        ], { maxTimeMS: QUERY_TIMEOUT_MS }).toArray();
 
         let focusStreak = 0;
         const today = new Date();
@@ -248,7 +263,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
 
         // Goals stats
         const goalsPipeline = [
-            { $match: { user_id: userId } },
+            { $match: { user_id: userId, source: 'ekagra' } },
             {
                 $group: {
                     _id: null,
@@ -259,7 +274,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
                 }
             }
         ];
-        const goalsResult = await collections.goals().aggregate(goalsPipeline).toArray();
+        const goalsResult = await collections.goals().aggregate(goalsPipeline, { maxTimeMS: QUERY_TIMEOUT_MS }).toArray();
         const goals = goalsResult[0] || { total_goals: 0, completed_goals: 0 };
 
         const hourlyPipeline = [
@@ -267,11 +282,11 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             {
                 $group: {
                     _id: { $hour: { date: '$completed_at', timezone: '+05:30' } },
-                    minutes: { $sum: ACTUAL_DURATION_EXPR }
+                    minutes: { $sum: EFFECTIVE_DURATION_EXPR }
                 }
             }
         ];
-        const hourlyResult = await collections.focusSessions().aggregate(hourlyPipeline).toArray();
+        const hourlyResult = await collections.focusSessions().aggregate(hourlyPipeline, { maxTimeMS: QUERY_TIMEOUT_MS }).toArray();
         const hourlyDistribution = Array.from({ length: 24 }, () => 0);
         for (const row of hourlyResult) {
             const hour = row._id as number;
@@ -282,6 +297,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             .find({ user_id: userId })
             .sort({ completed_at: -1 })
             .limit(6)
+            .maxTimeMS(QUERY_FAST_TIMEOUT_MS)
             .toArray();
         const linkedGoalIds = Array.from(new Set(
             recentSessionsRaw
@@ -328,6 +344,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
         };
 
         setCachedFocusStats(userId, payload);
+        res.set('Cache-Control', CACHE_CONTROL.MEDIUM);
         res.json(payload);
     } catch (error) {
         console.error('Get focus stats error:', error);
@@ -350,13 +367,13 @@ router.get('/by-goal/:goalId', requireAuth, async (req: Request, res) => {
             {
                 $group: {
                     _id: null,
-                    totalMinutes: { $sum: ACTUAL_DURATION_EXPR },
+                    totalMinutes: { $sum: EFFECTIVE_DURATION_EXPR },
                     sessionCount: { $sum: 1 },
                 },
             },
         ];
 
-        const result = await collections.focusSessions().aggregate(pipeline).toArray();
+        const result = await collections.focusSessions().aggregate(pipeline, { maxTimeMS: QUERY_TIMEOUT_MS }).toArray();
         const data = result[0] || { totalMinutes: 0, sessionCount: 0 };
 
         res.json({
@@ -406,13 +423,13 @@ router.post('/by-goals', requireAuth, async (req: Request, res) => {
             {
                 $group: {
                     _id: '$associated_goal_id',
-                    totalMinutes: { $sum: ACTUAL_DURATION_EXPR },
+                    totalMinutes: { $sum: EFFECTIVE_DURATION_EXPR },
                     sessionCount: { $sum: 1 },
                 },
             },
         ];
 
-        const results = await collections.focusSessions().aggregate(pipeline).toArray();
+        const results = await collections.focusSessions().aggregate(pipeline, { maxTimeMS: QUERY_TIMEOUT_MS }).toArray();
         const map: Record<string, { totalMinutes: number; sessionCount: number }> = {};
         for (const row of results) {
             map[row._id] = {

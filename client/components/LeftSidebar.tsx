@@ -117,7 +117,7 @@ export default function LeftSidebar({ homeRoute = "/home" }: LeftSidebarProps) {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside data-tour="sidebar-nav" className="hidden lg:flex flex-col w-64 bg-white/80 dark:bg-[#0B0F19]/95 backdrop-blur-xl border-r border-slate-200 dark:border-white/10 h-full sticky top-0 overflow-y-auto">
+      <aside data-tour="sidebar-nav" className="hidden lg:flex flex-col w-64 bg-card/90 backdrop-blur-xl border-r border-border h-full sticky top-0 overflow-y-auto">
         <div className="flex-1 px-4 py-6 space-y-2">
           {navItems.map((item) => (
             <NavLink key={item.href} item={item} />
@@ -138,7 +138,7 @@ export default function LeftSidebar({ homeRoute = "/home" }: LeftSidebarProps) {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur-xl border-t border-slate-200 dark:border-white/10 safe-area-bottom shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-xl border-t border-border safe-area-bottom shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
         <div className="flex justify-around items-center h-16 px-2">
           {mobileNavItems.map((item) => {
             const Icon = item.icon;
@@ -167,7 +167,7 @@ export default function LeftSidebar({ homeRoute = "/home" }: LeftSidebarProps) {
                 <span className="text-[10px] font-medium">Menu</span>
               </button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[80%] sm:w-[350px] p-0 border-r border-slate-200 dark:border-white/10 bg-white/95 dark:bg-[#0B0F19]/95 backdrop-blur-xl">
+            <SheetContent side="left" className="w-[80%] sm:w-[350px] p-0 border-r border-border bg-card/95 backdrop-blur-xl">
               <SheetHeader className="p-6 border-b border-border">
                 <SheetTitle className="text-left flex items-center gap-2">
                   <span className="text-xl font-bold bg-gradient-to-r from-teal-500 to-emerald-500 bg-clip-text text-transparent">Nishtha</span>

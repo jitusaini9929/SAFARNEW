@@ -2,6 +2,7 @@ import { Router, Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
+import { QUERY_TIMEOUT_MS, QUERY_FAST_TIMEOUT_MS, CACHE_CONTROL } from '../utils/queryDefaults';
 
 const router = Router();
 
@@ -11,7 +12,9 @@ router.get('/', requireAuth, async (req: Request, res) => {
         const rows = await collections.journal()
             .find({ user_id: req.session.userId })
             .sort({ timestamp: -1 })
+            .maxTimeMS(QUERY_TIMEOUT_MS)
             .toArray();
+        res.set('Cache-Control', CACHE_CONTROL.SHORT);
         res.json(rows);
     } catch (error) {
         console.error('Get journal error:', error);
@@ -51,7 +54,7 @@ router.delete('/:id', requireAuth, async (req: Request, res) => {
     const userId = req.session.userId;
 
     try {
-        const result = await collections.journal().deleteOne({ id, user_id: userId });
+        const result = await collections.journal().deleteOne({ id, user_id: userId });  // deleteOne has its own internal timeout via serverSelectionTimeoutMS
 
         if (result.deletedCount === 0) {
             return res.status(404).json({ message: 'Entry not found or unauthorized' });

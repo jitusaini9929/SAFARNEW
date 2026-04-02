@@ -17,7 +17,7 @@ import GlobalSidebar from '@/components/GlobalSidebar';
 import { closeMehfilSocket, getMehfilSocket } from '@/lib/socket';
 import { useTranslation } from 'react-i18next';
 
-import { Search, Settings, LogOut, Menu, Info, ShieldAlert, AlertCircle, ChevronDown, ChevronUp, Clock, Ban, Ghost, Bell } from 'lucide-react';
+import { Search, Settings, LogOut, Menu, Info, ShieldAlert, AlertCircle, ChevronDown, ChevronUp, Clock, Ban, Ghost, Bell, MessageCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -62,7 +62,7 @@ const ROOM_CONFIG: Record<MehfilFeedRoom, {
     title: 'All',
     subtitle: 'See all approved posts from both Academic Hall and Thoughts in one feed.',
     placeholder: 'Share what is on your mind. AI will route it to the right section...',
-    chipClass: 'from-[#7A1F3D] to-[#4B1027]',
+    chipClass: 'from-mehfil-maroon to-mehfil-plum',
   },
   ACADEMIC: {
     title: 'Academic Hall',
@@ -84,6 +84,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const { user } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [mehfilSidebarInitialView, setMehfilSidebarInitialView] = useState<MehfilSidebarView>('connections');
   const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
@@ -94,6 +95,14 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [hasMoreThoughts, setHasMoreThoughts] = useState(true);
   const [isLoadingThoughts, setIsLoadingThoughts] = useState(false);
   const [guidelinesOpen, setGuidelinesOpen] = useState(false);
+  const [ariaLiveMessage, setAriaLiveMessage] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   const userIdRef = useRef<string | undefined>(undefined);
   const currentFeedPageRef = useRef(0);
@@ -258,6 +267,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
     newSocket.on('thoughtCreated', (thought) => {
       addThought(thought);
+      setAriaLiveMessage(t('mehfil.aria.new_thought') || 'New thought received');
+      setTimeout(() => setAriaLiveMessage(''), 3000);
     });
 
     newSocket.on('thoughtUpdated', (thought) => {
@@ -431,8 +442,8 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   });
 
   const filteredThoughts = roomFilteredThoughts.filter((t) =>
-    t.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.authorName.toLowerCase().includes(searchTerm.toLowerCase())
+    t.content.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+    t.authorName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
   );
 
   const isGuestReadOnly = !user?.id;
@@ -441,55 +452,59 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const isReflective = activeRoom === 'REFLECTIVE';
   const roomPalette = isAll
     ? {
-      page: 'bg-[#e6eaf2] dark:bg-slate-950',
+      page: 'bg-[#f8f7f5] dark:bg-[#0a0a0b]',
       selection: 'selection:bg-rose-200/50',
-      blobA: 'bg-rose-400/30 dark:bg-rose-500/20',
-      blobB: 'bg-pink-300/30 dark:bg-pink-500/20',
+      blobA: 'bg-rose-400/10 dark:bg-rose-500/20',
+      blobB: 'bg-pink-300/10 dark:bg-pink-500/20',
       ring: 'focus:ring-rose-500/20 focus:border-rose-500/50',
-      tabActive: 'bg-gradient-to-r from-[#7A1F3D] to-[#4B1027] text-white shadow-[#7A1F3D]/35',
-      tabIdle: 'text-rose-700 bg-rose-50 hover:bg-rose-100 dark:text-rose-300 dark:bg-rose-500/10 dark:hover:bg-rose-500/20',
+      tabActive: 'bg-gradient-to-r from-mehfil-maroon to-mehfil-plum text-white shadow-lg shadow-mehfil-maroon/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]',
+      tabIdle: 'text-rose-700 hover:text-rose-800 hover:bg-white/60 dark:text-rose-300 dark:hover:bg-white/10 dark:hover:text-rose-200',
     }
     : isReflective
       ? {
-        page: 'bg-[#e8e6f0] dark:bg-slate-950',
+        page: 'bg-[#f8f7f5] dark:bg-[#0a0a0b]',
         selection: 'selection:bg-indigo-200/50',
-        blobA: 'bg-indigo-400/30 dark:bg-indigo-500/20',
-        blobB: 'bg-violet-300/30 dark:bg-violet-500/20',
+        blobA: 'bg-indigo-400/10 dark:bg-indigo-500/20',
+        blobB: 'bg-violet-300/10 dark:bg-violet-500/20',
         ring: 'focus:ring-indigo-500/20 focus:border-indigo-500/50',
-        tabActive: 'bg-indigo-600 text-white shadow-indigo-500/30',
-        tabIdle: 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20',
+        tabActive: 'bg-gradient-to-r from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 text-white shadow-lg shadow-indigo-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]',
+        tabIdle: 'text-indigo-700 hover:text-indigo-800 hover:bg-white/60 dark:text-indigo-300 dark:hover:bg-white/10 dark:hover:text-indigo-200',
       }
       : {
-        page: 'bg-[#e4eaf0] dark:bg-slate-950',
+        page: 'bg-[#f8f7f5] dark:bg-[#0a0a0b]',
         selection: 'selection:bg-teal-200/50',
-        blobA: 'bg-teal-400/30 dark:bg-teal-500/20',
-        blobB: 'bg-cyan-300/30 dark:bg-cyan-500/20',
+        blobA: 'bg-teal-400/10 dark:bg-teal-500/20',
+        blobB: 'bg-cyan-300/10 dark:bg-cyan-500/20',
         ring: 'focus:ring-teal-500/20 focus:border-teal-500/50',
-        tabActive: 'bg-teal-600 text-white shadow-teal-500/30',
-        tabIdle: 'text-teal-700 bg-teal-50 hover:bg-teal-100 dark:text-teal-300 dark:bg-teal-500/10 dark:hover:bg-teal-500/20',
+        tabActive: 'bg-gradient-to-r from-teal-500 to-teal-600 dark:from-teal-600 dark:to-teal-700 text-white shadow-lg shadow-teal-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]',
+        tabIdle: 'text-teal-700 hover:text-teal-800 hover:bg-white/60 dark:text-teal-300 dark:hover:bg-white/10 dark:hover:text-indigo-200',
       };
 
   return (
     <div className={`min-h-[100dvh] ${roomPalette.page} text-foreground ${roomPalette.selection} overflow-x-hidden font-sans`}>
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {ariaLiveMessage}
+      </div>
+
       <div className={`fixed inset-0 pointer-events-none overflow-hidden -z-10 ${roomPalette.page}`}>
         <div className={`gradient-blob ${roomPalette.blobA} w-[800px] h-[800px] -top-64 -left-32`} />
         <div className={`gradient-blob ${roomPalette.blobB} w-[600px] h-[600px] top-1/2 -right-32`} />
         <div className="gradient-blob bg-sky-300/30 dark:bg-sky-500/20 w-[500px] h-[500px] bottom-0 left-1/3 opacity-40" />
       </div>
 
-      <nav className="relative w-full min-h-14 sm:min-h-16 glass-2-0 rounded-2xl z-50 px-2 sm:px-4 md:px-6 py-2 sm:py-0 flex items-center justify-between border border-white/40 dark:border-white/10 shadow-lg shadow-black/5 gap-1.5 sm:gap-2 mt-2 sm:mt-4 mb-4 sm:mb-6">
+      <nav className="relative w-full min-h-14 sm:min-h-16 glass-2-0 rounded-2xl z-50 px-2 sm:px-4 md:px-6 py-2 sm:py-0 flex items-center justify-between border border-slate-200 dark:border-white/5 bg-white/40 dark:bg-black/40 backdrop-blur-2xl shadow-lg shadow-black/5 dark:shadow-black/20 gap-1.5 sm:gap-2 mt-2 sm:mt-4 mb-4 sm:mb-6">
         <Link to="/home" className="flex items-center gap-2 sm:gap-3 group cursor-pointer text-inherit no-underline shrink-0">
           <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
             <span className="text-white font-bold text-sm sm:text-lg tracking-tight whitespace-nowrap break-normal">{t('mehfil.title')}</span>
           </div>
         </Link>
 
-        <div className="relative flex-1 min-w-0 md:flex-none">
-          <Search className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+        <div className="relative flex-1 min-w-0 md:flex-none group">
+          <Search className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 w-4 h-4 z-10" />
           <input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-1.5 sm:py-2 md:py-2.5 pl-9 sm:pl-10 pr-3 sm:pr-4 text-sm w-full md:w-72 lg:w-96 focus:ring-2 transition-all focus:outline-none placeholder:text-slate-400 text-slate-900 dark:text-slate-100 ${roomPalette.ring}`}
+            className={`relative bg-black/5 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl py-1.5 sm:py-2 md:py-2.5 pl-9 sm:pl-10 pr-3 sm:pr-4 text-sm w-full md:w-72 lg:w-96 focus:ring-2 focus:bg-white/50 dark:focus:bg-black/60 transition-all focus:outline-none placeholder:text-slate-500 text-slate-900 dark:text-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_2px_6px_rgba(0,0,0,0.2)] backdrop-blur-md ${roomPalette.ring}`}
             placeholder={t('mehfil.search_placeholder')}
             type="text"
           />
@@ -557,32 +572,25 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
       <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pb-6 sm:pb-8 md:pb-12">
         <main className="scrollbar-blend">
-          <section className="mb-4 sm:mb-6 rounded-2xl sm:rounded-3xl border border-white/40 dark:border-white/10 bg-white/70 dark:bg-slate-900/60 p-3 sm:p-4 backdrop-blur-xl flex flex-col items-center text-center">
-            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/70 rounded-xl sm:rounded-2xl w-full sm:w-fit">
+          <section className="mb-4 sm:mb-6 rounded-2xl sm:rounded-[2rem] border border-slate-200 dark:border-white/5 bg-white/40 dark:bg-black/40 backdrop-blur-2xl flex flex-col items-center text-center shadow-glass transition-all">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 p-1.5 glass-2-0 rounded-2xl border border-slate-200/60 dark:border-white/5 w-full sm:w-fit shadow-inner bg-white/20 dark:bg-black/30">
               {(['ALL', 'ACADEMIC', 'REFLECTIVE'] as MehfilFeedRoom[]).map((room) => (
                 <button
                   key={room}
                   onClick={() => setActiveRoom(room)}
-                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap break-normal ${room === activeRoom ? roomPalette.tabActive : roomPalette.tabIdle
+                  className={`px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 whitespace-nowrap break-normal outline-none ${room === activeRoom ? `scale-[1.02] ${roomPalette.tabActive}` : `hover:scale-105 ${roomPalette.tabIdle}`
                     }`}
                 >
                   {t(`mehfil.rooms.${room.toLowerCase()}`)}
                 </button>
               ))}
             </div>
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 max-w-3xl">
+            <p className="mt-4 text-sm font-medium text-slate-700 dark:text-slate-300 max-w-3xl leading-relaxed">
               {t(`mehfil.subtitles.${activeRoom.toLowerCase()}`)}
             </p>
           </section>
 
 
-          {/* Background Blobs */}
-          <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-            <div className="absolute rounded-full blur-[120px] -z-10 opacity-60 bg-teal-200 w-[600px] h-[600px] -top-48 -left-24 dark:bg-teal-900/20"></div>
-            <div className="absolute rounded-full blur-[120px] -z-10 opacity-60 bg-indigo-200 w-[500px] h-[500px] top-1/2 -right-24 dark:bg-indigo-900/20"></div>
-            <div className="absolute rounded-full blur-[120px] -z-10 opacity-60 bg-purple-100 w-[400px] h-[400px] bottom-0 left-1/4 dark:bg-purple-900/20"></div>
-            <div className="absolute rounded-full blur-[120px] -z-10 opacity-60 bg-emerald-100 w-[300px] h-[300px] top-1/4 right-1/3 opacity-40 dark:bg-emerald-900/20"></div>
-          </div>
 
 
           {/* Main Layout Grid */}
@@ -591,7 +599,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             {/* Center Feed - Spans 8 columns */}
             <main className="md:col-span-7 lg:col-span-8 flex flex-col gap-3 sm:gap-4 md:gap-6">
 
-              <div className="backdrop-blur-2xl bg-white/60 dark:bg-black/40 border border-slate-200/60 dark:border-white/10 shadow-glass rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
+              <div className="backdrop-blur-2xl bg-white/40 dark:bg-black/40 border border-slate-200 dark:border-white/5 shadow-glass rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
                 <div className="mb-4 sm:mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-3 sm:gap-4">
                   <div>
                     <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-1 sm:mb-2">{t('mehfil.community_space')}</h1>
@@ -696,8 +704,11 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
               <div className="space-y-6">
                 {filteredThoughts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-slate-400 text-lg">
+                  <div className="text-center py-16">
+                    <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      <MessageCircle className="w-12 h-12 text-slate-400 dark:text-slate-500" />
+                    </div>
+                    <p className="text-slate-500 mt-2">
                       {t('mehfil.no_thoughts', { room: t(`mehfil.rooms.${activeRoom.toLowerCase()}`) })}
                     </p>
                   </div>

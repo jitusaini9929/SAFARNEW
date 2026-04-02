@@ -192,6 +192,7 @@ const normalizeStoredTask = (raw: any): Task | null => {
             completedAtDate && Number.isFinite(completedAtDate.getTime())
                 ? completedAtDate.toISOString()
                 : null,
+        importedFromGoal: Boolean(raw.importedFromGoal || raw.imported_from_goal),
     };
 };
 
@@ -239,6 +240,7 @@ const mapGoalToTask = (goal: any): Task => ({
     completed: Boolean(goal.completed),
     createdAt: String(goal.createdAt || goal.created_at || new Date().toISOString()),
     completedAt: goal.completedAt || goal.completed_at || null,
+    importedFromGoal: Boolean(goal.importedFromGoal || goal.imported_from_goal),
 });
 
 const extractEkagraTasks = (goals: any[]) =>
@@ -315,10 +317,12 @@ export default function StudyWithMe() {
     const [awaitingProceed, setAwaitingProceed] = useState(false);
     const [showDurationPrompt, setShowDurationPrompt] = useState(false);
     const [nextDurationInput, setNextDurationInput] = useState("");
-    const [pendingLinkedGoal, setPendingLinkedGoal] = useState<{ goalId: string; goalTitle: string | null } | null>(null);
 
-    // Get current task (first uncompleted)
-    const activeTask = tasks.find(task => !task.completed);
+    const linkedGoalTask = associatedGoalId ? tasks.find((task) => task.id === associatedGoalId) : undefined;
+    const linkedActiveTask = linkedGoalTask && !linkedGoalTask.completed ? linkedGoalTask : undefined;
+    const activeTask = associatedGoalId
+        ? linkedActiveTask
+        : tasks.find((task) => !task.completed);
     const currentTask = awaitingProceed ? undefined : activeTask;
 
     // Audio/Video refs and states
@@ -349,7 +353,6 @@ export default function StudyWithMe() {
         const goalTitle = searchParams.get('goalTitle');
         if (goalId) {
             setAssociatedGoal(goalId, goalTitle);
-            setPendingLinkedGoal({ goalId, goalTitle });
 
             const nextParams = new URLSearchParams(searchParams);
             nextParams.delete('goalId');
@@ -357,58 +360,6 @@ export default function StudyWithMe() {
             setSearchParams(nextParams, { replace: true });
         }
     }, [searchParams, setAssociatedGoal, setSearchParams]);
-
-    useEffect(() => {
-        if (!pendingLinkedGoal?.goalTitle) return;
-        let cancelled = false;
-
-        const ensureLinkedTask = async () => {
-            const title = pendingLinkedGoal.goalTitle?.trim();
-            if (!title) return;
-
-            const existingTask = tasks.find((task) => !task.completed && task.text === title);
-            if (existingTask) {
-                setPendingLinkedGoal(null);
-                return;
-            }
-
-            if (status !== "authenticated" || !user?.id) {
-                const linkedTask: Task = {
-                    id: createTaskId(),
-                    text: title,
-                    completed: false,
-                    createdAt: new Date().toISOString(),
-                    completedAt: null,
-                };
-                const next = sortTasks([...tasks, linkedTask]);
-                saveTasks(next, user?.id);
-                if (!cancelled) setTasks(next);
-                setPendingLinkedGoal(null);
-                return;
-            }
-
-            try {
-                const createdGoal = await dataService.addGoal({
-                    title,
-                    startedAt: null,
-                    source: "ekagra",
-                });
-                if (!cancelled) {
-                    setTasks((prev) => sortTasks([...prev, mapGoalToTask(createdGoal)]));
-                }
-            } catch (error) {
-                console.error("Create linked Ekagra task error:", error);
-            } finally {
-                if (!cancelled) setPendingLinkedGoal(null);
-            }
-        };
-
-        void ensureLinkedTask();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [pendingLinkedGoal, status, tasks, user?.id]);
 
     const persistTasks = useCallback(async (nextTasks: Task[]) => {
         const sortedTasks = sortTasks(nextTasks);
@@ -470,7 +421,7 @@ export default function StudyWithMe() {
         if (!justCompleted || completionHandledRef.current || mode !== "Timer") return;
         completionHandledRef.current = true;
 
-        const taskToComplete = activeTask;
+        const taskToComplete = currentTask;
         if (taskToComplete) {
             const completedAt = new Date().toISOString();
             updateTasks((prev) =>
@@ -482,7 +433,7 @@ export default function StudyWithMe() {
             setAwaitingProceed(true);
             setShowDurationPrompt(false);
         }
-    }, [remainingSeconds, activeTask, updateTasks, mode]);
+    }, [remainingSeconds, currentTask, updateTasks, mode]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1081,7 +1032,14 @@ export default function StudyWithMe() {
                         <div className="w-full max-w-2xl mb-4 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 text-white backdrop-blur-md shadow-lg">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0">
-                                    <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Linked Goal</div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Linked Goal</div>
+                                        {linkedGoalTask?.importedFromGoal && (
+                                            <span className="inline-flex items-center rounded-full border border-emerald-200/40 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-100">
+                                                Imported from Goals
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="mt-1 flex items-center gap-2 text-sm font-semibold">
                                         <Target className="h-4 w-4 shrink-0" />
                                         <span className="truncate">{associatedGoalTitle}</span>

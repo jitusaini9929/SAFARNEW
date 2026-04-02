@@ -114,10 +114,27 @@ const multerUpload = multer({
   },
 });
 
+const IS_DEV_MODE = process.env.DEV_MODE === 'true';
+
 const processAndSave = (type: string) => async (req: Request, _res: Response, next: NextFunction) => {
   if (!req.file) return next();
 
   const config = CONFIGS[type] || CONFIGS.general;
+
+  // In DEV_MODE, skip real Vultr upload — just return a stub URL
+  if (IS_DEV_MODE) {
+    const isAudio = req.file.mimetype.startsWith('audio/');
+    const ext = isAudio ? getAudioExtension(req.file) : 'webp';
+    const filename = `${uuidv4()}.${ext}`;
+    const objectKey = `${config.folder}/${filename}`;
+    (req as any).processedFile = {
+      filename,
+      objectKey,
+      urlPath: `/dev-stub/${objectKey}`,
+    };
+    return next();
+  }
+
   const { bucket } = getStorageSettings();
   const isAudio = req.file.mimetype.startsWith('audio/');
 

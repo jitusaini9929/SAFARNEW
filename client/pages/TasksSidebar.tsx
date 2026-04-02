@@ -7,6 +7,7 @@ interface Task {
     completed: boolean;
     createdAt: string;
     completedAt: string | null;
+    importedFromGoal?: boolean;
 }
 
 interface TasksSidebarProps {

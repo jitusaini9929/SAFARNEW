@@ -2,6 +2,7 @@ import { Router, Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
+import { QUERY_TIMEOUT_MS, CACHE_CONTROL } from '../utils/queryDefaults';
 
 const router = Router();
 
@@ -29,6 +30,7 @@ const calculateCheckInStreakFromMoods = async (userId: string) => {
         .find({ user_id: userId }, { projection: { timestamp: 1 } })
         .sort({ timestamp: -1 })
         .limit(500)
+        .maxTimeMS(QUERY_TIMEOUT_MS)
         .toArray();
 
     const daySet = new Set<string>();
@@ -87,6 +89,7 @@ router.get('/', requireAuth, async (req: Request, res) => {
             );
         }
 
+        res.set('Cache-Control', CACHE_CONTROL.MEDIUM);
         res.json({
             loginStreak,
             checkInStreak,
