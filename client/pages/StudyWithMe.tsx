@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/utils/authService";
 import { dataService } from "@/utils/dataService";
-import { focusService } from "@/utils/focusService";
-import FocusAnalytics from "@/pages/FocusAnalytics";
-import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard } from "lucide-react";
+import FocusAnalytics from "./FocusAnalytics";
+import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard, Layers3 } from "lucide-react";
 import TasksSidebar, { type Task } from "./TasksSidebar";
-import { TimerCard } from "@/components/focus/TimerCard";
+import { TimerCard } from "../components/focus/TimerCard";
 import { PiPNudgeToast } from "@/components/focus/PiPNudgeToast";
 import { useFocus } from "@/contexts/FocusContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ThemeToggle from "@/components/ui/theme-toggle";
+import { useTheme } from "@/contexts/ThemeContext";
 
 import {
     DropdownMenu,
@@ -34,6 +34,7 @@ import { focusTimerTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
 import MobileDrawer from "@/components/ui/mobile-drawer";
 import { Heart, MessageSquare, Wind, Menu, Shield } from "lucide-react";
+import { EkagraModeSession } from "@shared/api";
 
 // Theme configuration
 interface FocusTheme {
@@ -254,6 +255,7 @@ const extractEkagraTasks = (goals: any[]) =>
 export default function StudyWithMe() {
     const navigate = useNavigate();
     const { user, status } = useAuth();
+    const { theme } = useTheme();
     const {
         timerState,
         toggleTimer,
@@ -278,6 +280,7 @@ export default function StudyWithMe() {
         hasPendingResume,
         resumeStoredSession,
         discardStoredSession,
+        applyRuntimeSnapshot,
     } = useFocus(); // Use Context
 
     const [searchParams, setSearchParams] = useSearchParams();
@@ -310,6 +313,7 @@ export default function StudyWithMe() {
     });
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
+    const [showMusicSelector, setShowMusicSelector] = useState(false);
     const [selectedMusicTrackId, setSelectedMusicTrackId] = useState<string>(getInitialMusicTrackId);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -317,13 +321,40 @@ export default function StudyWithMe() {
     const [awaitingProceed, setAwaitingProceed] = useState(false);
     const [showDurationPrompt, setShowDurationPrompt] = useState(false);
     const [nextDurationInput, setNextDurationInput] = useState("");
+    const [sessionOverlayTrigger, setSessionOverlayTrigger] = useState(0);
+    const [runtimeSessions, setRuntimeSessions] = useState<EkagraModeSession[]>([]);
+    const [runtimeActiveSessionId, setRuntimeActiveSessionId] = useState<string | null>(null);
+    const runtimeSessionIdRef = useRef<string | null>(null);
 
     const linkedGoalTask = associatedGoalId ? tasks.find((task) => task.id === associatedGoalId) : undefined;
     const linkedActiveTask = linkedGoalTask && !linkedGoalTask.completed ? linkedGoalTask : undefined;
     const activeTask = associatedGoalId
         ? linkedActiveTask
         : tasks.find((task) => !task.completed);
-    const currentTask = awaitingProceed ? undefined : activeTask;
+    const currentTask = activeTask;
+
+    const refreshRuntimeSessions = useCallback(async () => {
+        if (status !== "authenticated" || !user?.id) {
+            setRuntimeSessions([]);
+            setRuntimeActiveSessionId(null);
+            runtimeSessionIdRef.current = null;
+            return;
+        }
+
+        try {
+            const [sessions, activeSession] = await Promise.all([
+                dataService.getEkagraSessions(),
+                dataService.getActiveEkagraSession(),
+            ]);
+
+            setRuntimeSessions(sessions);
+            const activeId = activeSession?.id || null;
+            setRuntimeActiveSessionId(activeId);
+            runtimeSessionIdRef.current = activeId;
+        } catch (error) {
+            console.error("Refresh runtime sessions error:", error);
+        }
+    }, [status, user?.id]);
 
     // Audio/Video refs and states
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -340,12 +371,18 @@ export default function StudyWithMe() {
     }, [searchParams]);
 
     useEffect(() => {
-        if (!user?.id) return;
+        void refreshRuntimeSessions();
+    }, [refreshRuntimeSessions]);
 
-        void focusService.flushQueuedSessions().catch(() => {
-            // Keep retry silent here; current-session failures are surfaced when they happen.
-        });
-    }, [user?.id]);
+    useEffect(() => {
+        if (status !== "authenticated" || !user?.id) return;
+        const id = window.setInterval(() => {
+            void refreshRuntimeSessions();
+        }, 20000);
+        return () => {
+            window.clearInterval(id);
+        };
+    }, [refreshRuntimeSessions, status, user?.id]);
 
     // Goal linking via URL params (from Goals page "▶ Focus" button)
     useEffect(() => {
@@ -429,8 +466,8 @@ export default function StudyWithMe() {
                     task.id === taskToComplete.id ? { ...task, completed: true, completedAt } : task
                 )
             );
-            setCompletedTask({ ...taskToComplete, completed: true, completedAt });
-            setAwaitingProceed(true);
+            setCompletedTask(null);
+            setAwaitingProceed(false);
             setShowDurationPrompt(false);
         }
     }, [remainingSeconds, currentTask, updateTasks, mode]);
@@ -636,6 +673,10 @@ export default function StudyWithMe() {
         const trimmedText = text.trim();
         if (!trimmedText) return;
 
+        setCompletedTask(null);
+        setAwaitingProceed(false);
+        setShowDurationPrompt(false);
+
         if (associatedGoalId) {
             setAssociatedGoal(null, null);
         }
@@ -665,6 +706,261 @@ export default function StudyWithMe() {
             console.error("Add Ekagra task error:", error);
         }
     };
+
+    const handleCompleteCurrentTask = useCallback(async () => {
+        if (!currentTask) return;
+
+        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
+        if (runtimeSessionId && status === "authenticated" && user?.id) {
+            try {
+                await dataService.completeEkagraSession(runtimeSessionId, {
+                    mode: "Timer",
+                    totalSeconds: Math.max(1, totalSeconds),
+                    sessionStartedAt: null,
+                });
+                runtimeSessionIdRef.current = null;
+                setRuntimeActiveSessionId(null);
+                await refreshRuntimeSessions();
+            } catch (error) {
+                console.error("Complete Ekagra session error:", error);
+            }
+        }
+
+        const completedAt = new Date().toISOString();
+        if (status === "authenticated" && user?.id) {
+            try {
+                await dataService.updateGoal(currentTask.id, true, completedAt);
+                setTasks((prev) => sortTasks(prev.map((task) =>
+                    task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
+                )));
+            } catch (error) {
+                console.error("Complete Ekagra task error:", error);
+                return;
+            }
+        } else {
+            const nextTasks = sortTasks(tasks.map((task) =>
+                task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
+            ));
+            setTasks(nextTasks);
+            saveTasks(nextTasks, user?.id);
+        }
+
+        setCompletedTask(null);
+        setAwaitingProceed(false);
+        setShowDurationPrompt(false);
+    }, [currentTask, refreshRuntimeSessions, runtimeActiveSessionId, status, tasks, totalSeconds, user?.id]);
+
+    const handleCreateSessionFromOverlay = useCallback(async (title: string) => {
+        await handleManualTaskAdd(title);
+    }, [handleManualTaskAdd]);
+
+    const handleOpenSessionOverlay = useCallback(() => {
+        setIsTasksOpen(false);
+        setSessionOverlayTrigger((value) => value + 1);
+    }, []);
+
+    const handlePauseLiveSession = useCallback(async () => {
+        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
+        if (runtimeSessionId && status === "authenticated" && user?.id) {
+            try {
+                await dataService.updateEkagraSession(runtimeSessionId, {
+                    status: "paused",
+                    mode: "Timer",
+                    totalSeconds: Math.max(1, totalSeconds),
+                    remainingSeconds: Math.max(0, remainingSeconds),
+                    isRunning: false,
+                });
+                setRuntimeActiveSessionId(null);
+                await refreshRuntimeSessions();
+            } catch (error) {
+                console.error("Pause Ekagra session error:", error);
+            }
+        }
+
+        if (isRunning) {
+            toggleTimer();
+        }
+    }, [isRunning, refreshRuntimeSessions, remainingSeconds, runtimeActiveSessionId, status, toggleTimer, totalSeconds, user?.id]);
+
+    const handleResumeSession = useCallback(async (sessionId: string) => {
+        if (status !== "authenticated" || !user?.id) return;
+
+        const session = runtimeSessions.find((entry) => entry.id === sessionId);
+        if (!session) return;
+
+        const goalId = String(session.goalId || (session as any).goal_id || "").trim();
+        const goalTitle = String(session.goalTitle || (session as any).goal_title || "").trim();
+        const nextTotalSeconds = Math.max(1, Number(session.totalSeconds ?? (session as any).total_seconds ?? totalSeconds));
+        const nextRemainingSeconds = Math.max(0, Math.min(nextTotalSeconds, Number(session.remainingSeconds ?? (session as any).remaining_seconds ?? nextTotalSeconds)));
+
+        if (!goalId || !goalTitle) return;
+
+        try {
+            const activated = await dataService.activateEkagraSession({
+                goalId,
+                goalTitle,
+                source: String(session.source || "").toLowerCase() === "imported" ? "imported" : "goal_continue",
+                importedFromGoal: Boolean(session.importedFromGoal || (session as any).imported_from_goal),
+                overrideActive: true,
+                mode: "Timer",
+                totalSeconds: nextTotalSeconds,
+                remainingSeconds: nextRemainingSeconds,
+                isRunning: true,
+                sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
+            });
+
+            setAssociatedGoal(goalId, goalTitle);
+            applyRuntimeSnapshot({
+                mode: "Timer",
+                totalSeconds: nextTotalSeconds,
+                remainingSeconds: nextRemainingSeconds,
+                isRunning: false,
+                associatedGoalId: goalId,
+                associatedGoalTitle: goalTitle,
+                sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
+            });
+
+            runtimeSessionIdRef.current = activated.id;
+            setRuntimeActiveSessionId(activated.id);
+            toggleTimer();
+            await refreshRuntimeSessions();
+        } catch (error) {
+            console.error("Resume Ekagra session error:", error);
+        }
+    }, [applyRuntimeSnapshot, refreshRuntimeSessions, runtimeSessions, setAssociatedGoal, status, toggleTimer, totalSeconds, user?.id]);
+
+    const handleDiscardSession = useCallback(async (sessionId: string) => {
+        if (status !== "authenticated" || !user?.id) return;
+
+        try {
+            await dataService.discardEkagraSession(sessionId);
+            if ((runtimeSessionIdRef.current || runtimeActiveSessionId) === sessionId) {
+                runtimeSessionIdRef.current = null;
+                setRuntimeActiveSessionId(null);
+                if (isRunning) {
+                    toggleTimer();
+                }
+            }
+            await refreshRuntimeSessions();
+        } catch (error) {
+            console.error("Discard Ekagra session error:", error);
+        }
+    }, [isRunning, refreshRuntimeSessions, runtimeActiveSessionId, status, toggleTimer, user?.id]);
+
+    const handleSwitchLiveSession = useCallback(() => {
+        if (!currentTask) {
+            setIsTasksOpen(true);
+            return;
+        }
+        if (!isRunning && mode === "Timer") {
+            toggleTimer();
+        }
+    }, [currentTask, isRunning, mode, toggleTimer]);
+
+    const handleToggleTimer = useCallback(async () => {
+        if (mode !== "Timer" || status !== "authenticated" || !user?.id) {
+            toggleTimer();
+            return;
+        }
+
+        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
+        const baseTask = currentTask || linkedGoalTask;
+        const goalId = associatedGoalId || baseTask?.id;
+        const goalTitle = associatedGoalTitle || baseTask?.text;
+        const importedFromGoal = Boolean(baseTask?.importedFromGoal || linkedGoalTask?.importedFromGoal);
+
+        if (isRunning) {
+            toggleTimer();
+            if (!runtimeSessionId) return;
+
+            try {
+                await dataService.updateEkagraSession(runtimeSessionId, {
+                    status: "paused",
+                    mode: "Timer",
+                    totalSeconds: Math.max(1, totalSeconds),
+                    remainingSeconds: Math.max(0, remainingSeconds),
+                    isRunning: false,
+                });
+                setRuntimeActiveSessionId(null);
+                await refreshRuntimeSessions();
+            } catch (error) {
+                console.error("Pause runtime Ekagra session error:", error);
+            }
+            return;
+        }
+
+        if (!goalId || !goalTitle) {
+            toggleTimer();
+            return;
+        }
+
+        try {
+            const activated = await dataService.activateEkagraSession({
+                goalId: String(goalId),
+                goalTitle: String(goalTitle),
+                source: importedFromGoal ? "imported" : "goal_continue",
+                importedFromGoal,
+                overrideActive: true,
+                mode: "Timer",
+                totalSeconds: Math.max(1, totalSeconds),
+                remainingSeconds: Math.max(0, remainingSeconds),
+                isRunning: true,
+                sessionStartedAt: new Date().toISOString(),
+            });
+            runtimeSessionIdRef.current = activated.id;
+            setRuntimeActiveSessionId(activated.id);
+            await refreshRuntimeSessions();
+        } catch (error) {
+            console.error("Activate runtime Ekagra session error:", error);
+        }
+
+        toggleTimer();
+    }, [associatedGoalId, associatedGoalTitle, currentTask, isRunning, linkedGoalTask, mode, refreshRuntimeSessions, remainingSeconds, runtimeActiveSessionId, status, toggleTimer, totalSeconds, user?.id]);
+
+    const liveSessionPreview = useMemo<EkagraModeSession | null>(() => {
+        if (status === "authenticated" && user?.id) return null;
+        if (mode !== "Timer") return null;
+
+        const baseTask = currentTask || linkedGoalTask;
+        const goalId = associatedGoalId || baseTask?.id;
+        const goalTitle = associatedGoalTitle || baseTask?.text;
+        if (!goalId || !goalTitle) return null;
+
+        const importedFromGoal = Boolean(baseTask?.importedFromGoal || linkedGoalTask?.importedFromGoal);
+        const nowIso = new Date().toISOString();
+
+        return {
+            id: "live-runtime-session",
+            userId: user?.id || "local",
+            goalId: String(goalId),
+            goalTitle: String(goalTitle),
+            source: importedFromGoal ? "imported" : "manual",
+            status: isRunning ? "active" : "paused",
+            mode: "Timer",
+            totalSeconds: Math.max(1, totalSeconds),
+            remainingSeconds: Math.max(0, remainingSeconds),
+            isRunning,
+            importedFromGoal,
+            pauseCount: 0,
+            sessionStartedAt: null,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+            completedAt: null,
+            endedAt: null,
+            discardedAt: null,
+        };
+    }, [
+        mode,
+        awaitingProceed,
+        currentTask,
+        linkedGoalTask,
+        associatedGoalId,
+        associatedGoalTitle,
+        isRunning,
+        totalSeconds,
+        remainingSeconds,
+        user?.id,
+    ]);
 
     const handleVolumeChange = (newVolume: number) => {
         setMusicVolume(newVolume);
@@ -755,15 +1051,7 @@ export default function StudyWithMe() {
                         <div className="space-y-2 flex-1">
 
 
-                            <button
-                                data-tour="add-task"
-                                onClick={() => setIsTasksOpen(true)}
-                                className={`flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all group ${isSidebarCollapsed ? 'justify-center' : ''}`}
-                                title="Task History"
-                            >
-                                <History className="w-5 h-5 group-hover:scale-110 transition-transform" style={{ color: currentTheme.accent }} />
-                                {!isSidebarCollapsed && <span className="font-medium">Task History</span>}
-                            </button>
+
 
 
 
@@ -822,25 +1110,15 @@ export default function StudyWithMe() {
                                 {!isSidebarCollapsed && <span className="font-medium">Theme</span>}
                             </button>
 
-                            {!isSidebarCollapsed && (
-                                <div className="rounded-xl border border-border/60 bg-muted/25 p-3 space-y-2">
-                                    <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                        <Music className="w-4 h-4" style={{ color: currentTheme.accent }} />
-                                        Music Track
-                                    </label>
-                                    <select
-                                        value={selectedMusicTrackId}
-                                        onChange={(event) => handleMusicTrackChange(event.target.value)}
-                                        className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
-                                    >
-                                        {focusMusicTracks.map((track) => (
-                                            <option key={track.id} value={track.id}>
-                                                {track.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                            {/* Music Selector Button */}
+                            <button
+                                onClick={() => setShowMusicSelector(true)}
+                                className={`flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all group ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                                title="Change Music Track"
+                            >
+                                <Music className="w-5 h-5 group-hover:scale-110 transition-transform" style={{ color: currentTheme.accent }} />
+                                {!isSidebarCollapsed && <span className="font-medium">Music Track</span>}
+                            </button>
                         </div>
 
                         {/* Timer Duration Slider */}
@@ -921,19 +1199,6 @@ export default function StudyWithMe() {
                             </div>
                         )}
 
-                        {/* Analytics Link */}
-                        <div className={`text-sm text-muted-foreground font-semibold mt-6 ${isSidebarCollapsed ? 'flex justify-center' : ''}`}>
-                            <button
-                                data-tour="analytics-link"
-                                onClick={() => setShowAnalytics(true)}
-                                className={`flex items-center gap-3 hover:opacity-80 transition-colors ${isSidebarCollapsed ? 'p-3' : ''}`}
-                                style={{ color: currentTheme.accent }}
-                                title="Analytics"
-                            >
-                                <BarChart2 className="w-5 h-5" />
-                                {!isSidebarCollapsed && <span>Analytics</span>}
-                            </button>
-                        </div>
                     </div>
                 </aside>
             )}
@@ -967,6 +1232,53 @@ export default function StudyWithMe() {
                         <button
                             onClick={() => setShowThemeSelector(false)}
                             className="mt-4 w-full py-2 rounded-xl bg-muted hover:bg-muted/80 transition-colors font-medium"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Music Selector Popup */}
+            {showMusicSelector && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl max-w-md w-full mx-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold">Choose Music Track</h3>
+                            <button 
+                                onClick={() => setShowMusicSelector(false)}
+                                className="p-2 hover:bg-muted rounded-full transition-colors"
+                            >
+                                <Plus className="w-5 h-5 rotate-45" />
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            {focusMusicTracks.map((track) => (
+                                <button
+                                    key={track.id}
+                                    onClick={() => {
+                                        handleMusicTrackChange(track.id);
+                                        setShowMusicSelector(false);
+                                    }}
+                                    className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-3 text-center ${selectedMusicTrackId === track.id
+                                        ? 'border-current shadow-lg bg-muted/30'
+                                        : 'border-transparent bg-muted/50 hover:bg-muted'
+                                        }`}
+                                    style={{ borderColor: selectedMusicTrackId === track.id ? currentTheme.accent : undefined }}
+                                >
+                                    <div
+                                        className="w-10 h-10 rounded-full flex items-center justify-center text-white"
+                                        style={{ backgroundColor: currentTheme.accent }}
+                                    >
+                                        <Music className="w-4 h-4" />
+                                    </div>
+                                    <span className="font-medium text-sm">{track.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setShowMusicSelector(false)}
+                            className="mt-6 w-full py-2.5 rounded-xl bg-muted hover:bg-muted/80 transition-colors font-semibold"
                         >
                             Close
                         </button>
@@ -1019,6 +1331,16 @@ export default function StudyWithMe() {
                 onClose={() => setIsTasksOpen(false)}
                 tasks={tasks}
                 onTasksChange={persistTasks}
+                sessions={runtimeSessions}
+                activeSessionId={runtimeActiveSessionId}
+                liveSessionPreview={liveSessionPreview}
+                onResumeSession={handleResumeSession}
+                onDiscardSession={handleDiscardSession}
+                onPauseLiveSession={handlePauseLiveSession}
+                onCompleteLiveSession={handleCompleteCurrentTask}
+                onSwitchLiveSession={handleSwitchLiveSession}
+                onCreateSession={handleCreateSessionFromOverlay}
+                sessionOverlayTrigger={sessionOverlayTrigger}
             />
 
             {/* Main Content or Analytics */}
@@ -1062,77 +1384,11 @@ export default function StudyWithMe() {
                         isRunning={isRunning}
                         mode={mode}
                         currentTheme={currentTheme}
-                        currentTask={currentTask}
-                        completedTask={completedTask ?? undefined}
-                        nextTask={nextTask}
-                        onProceed={handleProceedToNext}
-                        onToggle={toggleTimer}
+                        onToggle={handleToggleTimer}
                         onReset={handleResetTimer}
                         onTogglePiP={togglePiP}
                         onSetMode={handleModeChange}
                         isPiPActive={isPiPActive}
-                        onAddTask={handleManualTaskAdd}
-                        onEditTask={async (newText) => {
-                            if (currentTask) {
-                                const updatedText = newText.trim() || currentTask.text;
-                                if (status === "authenticated" && user?.id) {
-                                    try {
-                                        await dataService.updateGoalDetails(currentTask.id, { title: updatedText });
-                                        setTasks((prev) => sortTasks(prev.map((task) => (
-                                            task.id === currentTask.id ? { ...task, text: updatedText } : task
-                                        ))));
-                                    } catch (error) {
-                                        console.error("Edit Ekagra task error:", error);
-                                    }
-                                } else {
-                                    const nextTasks = sortTasks(tasks.map(t => t.id === currentTask.id ? { ...t, text: updatedText } : t));
-                                    setTasks(nextTasks);
-                                    saveTasks(nextTasks, user?.id);
-                                }
-                            }
-                        }}
-                        onDeleteTask={async () => {
-                            if (currentTask) {
-                                if (status === "authenticated" && user?.id) {
-                                    try {
-                                        await dataService.deleteGoal(currentTask.id);
-                                        setTasks((prev) => prev.filter((task) => task.id !== currentTask.id));
-                                    } catch (error) {
-                                        console.error("Delete Ekagra task error:", error);
-                                    }
-                                } else {
-                                    const nextTasks = tasks.filter(t => t.id !== currentTask.id);
-                                    setTasks(nextTasks);
-                                    saveTasks(nextTasks, user?.id);
-                                }
-                            }
-                        }}
-                        onCompleteTask={async () => {
-                            if (!currentTask) return;
-
-                            const completedAt = new Date().toISOString();
-                            if (status === "authenticated" && user?.id) {
-                                try {
-                                    await dataService.updateGoal(currentTask.id, true, completedAt);
-                                    setTasks((prev) => sortTasks(prev.map((task) =>
-                                        task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
-                                    )));
-                                } catch (error) {
-                                    console.error("Complete Ekagra task error:", error);
-                                    return;
-                                }
-                            } else {
-                                const nextTasks = sortTasks(tasks.map((task) =>
-                                    task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
-                                ));
-                                setTasks(nextTasks);
-                                saveTasks(nextTasks, user?.id);
-                            }
-                            setCompletedTask(currentTask);
-
-                            setAwaitingProceed(true);
-                            setShowDurationPrompt(false);
-                        }}
                     />
 
                     {/* Progress Section */}
@@ -1221,8 +1477,8 @@ export default function StudyWithMe() {
                             }}
                             className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all font-medium"
                         >
-                            <Plus className="w-5 h-5" style={{ color: currentTheme.accent }} />
-                            Add Task
+                            <History className="w-5 h-5" style={{ color: currentTheme.accent }} />
+                            <span>History</span>
                         </button>
                         <button
                             onClick={() => navigate("/home")}
@@ -1282,23 +1538,16 @@ export default function StudyWithMe() {
                             <Palette className="w-5 h-5" style={{ color: currentTheme.accent }} />
                             Change Theme
                         </button>
-                        <div className="space-y-2">
-                            <label className="px-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                                <Music className="w-4 h-4" style={{ color: currentTheme.accent }} />
-                                Music Track
-                            </label>
-                            <select
-                                value={selectedMusicTrackId}
-                                onChange={(event) => handleMusicTrackChange(event.target.value)}
-                                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/30"
-                            >
-                                {focusMusicTracks.map((track) => (
-                                    <option key={track.id} value={track.id}>
-                                        {track.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <button
+                            onClick={() => {
+                                setShowMusicSelector(true);
+                                setIsMobileMenuOpen(false);
+                            }}
+                            className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all font-medium"
+                        >
+                            <Music className="w-5 h-5" style={{ color: currentTheme.accent }} />
+                            <span>Music Track</span>
+                        </button>
                     </div>
 
                     {/* Timer Settings */}
@@ -1360,101 +1609,152 @@ export default function StudyWithMe() {
                         </div>
                     </div>
 
-                    {/* Analytics Link */}
-                    <button
-                        onClick={() => {
-                            setShowAnalytics(true);
-                            setIsMobileMenuOpen(false);
-                        }}
-                        className="flex items-center gap-3 w-full p-3 mt-4 rounded-xl hover:bg-muted/50 transition-all font-medium"
-                        style={{ color: currentTheme.accent }}
-                    >
-                        <BarChart2 className="w-5 h-5" />
-                        Analytics
-                    </button>
+
                 </div>
             </MobileDrawer>
 
-            {/* Floating Controls - Music & Profile - Desktop & Mobile */}
-            <div className="fixed top-6 right-4 sm:right-8 z-[60] flex flex-wrap justify-end items-center gap-2 sm:gap-3 max-w-[80vw]">
-                {/* Theme Toggle */}
-                <ThemeToggle className={showAnalytics ? "bg-slate-200/50 dark:bg-slate-800/50 border border-slate-300 dark:border-white/20 text-slate-700 dark:text-white hover:bg-slate-300/50 dark:hover:bg-slate-700/50" : "bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 hover:text-white shrink-0"} />
-
-
-                {/* Music Control */}
-                <div className={`flex items-center gap-2 backdrop-blur-md rounded-full px-3 py-2 ${showAnalytics ? "bg-white dark:bg-slate-800/50 border border-slate-300 dark:border-white/20" : "bg-white/10 border border-white/20"}`}>
+            {/* Premium Floating Toolbar */}
+            <div className={`fixed top-6 right-4 sm:right-8 z-[60] flex items-center p-1.5 rounded-full backdrop-blur-2xl border transition-all duration-500 shadow-2xl ${
+                showAnalytics 
+                ? "bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-white/10" 
+                : "bg-white/10 border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
+            }`}>
+                <div className="flex items-center gap-1.5 px-1">
+                    {/* History Button */}
                     <button
-                        onClick={toggleMusic}
-                        className={`p-1.5 rounded-full transition-colors ${showAnalytics ? "hover:bg-slate-200 dark:hover:bg-slate-700/50 text-slate-700 dark:text-white" : "hover:bg-white/10 text-white"}`}
-                        title={isMusicPlaying ? "Pause Music" : "Play Music"}
+                        onClick={() => setIsTasksOpen(true)}
+                        className={`flex items-center gap-2 h-10 px-4 rounded-full transition-all group ${
+                            showAnalytics 
+                            ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" 
+                            : "hover:bg-white/10 text-white"
+                        }`}
+                        title="Session History"
                     >
-                        {isMusicPlaying ? (
-                            <Pause className="w-4 h-4" />
-                        ) : (
-                            <Music className="w-4 h-4" />
-                        )}
+                        <History className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline">History</span>
                     </button>
+
                     <button
-                        onClick={toggleMusicMuted}
-                        className={`p-1.5 rounded-full transition-colors ${showAnalytics ? "hover:bg-slate-200 dark:hover:bg-slate-700/50 text-slate-700 dark:text-white" : "hover:bg-white/10 text-white"}`}
-                        title={isMusicMuted ? "Unmute" : "Mute"}
+                        onClick={handleOpenSessionOverlay}
+                        className={`flex items-center gap-2 h-10 px-4 rounded-full transition-all group ${
+                            showAnalytics
+                                ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
+                                : "hover:bg-white/10 text-white"
+                        }`}
+                        title="Focus Sessions"
                     >
-                        {isMusicMuted ? (
-                            <VolumeX className="w-4 h-4" />
-                        ) : (
-                            <Volume2 className="w-4 h-4" />
-                        )}
+                        <Layers3 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline">Sessions</span>
                     </button>
-                    <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={musicVolume}
-                        onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                        className={`w-16 h-1 rounded-full appearance-none cursor-pointer ${showAnalytics ? "bg-slate-300 dark:bg-slate-600 accent-teal-600 dark:accent-white focus:outline-none" : "bg-white/20 accent-white focus:outline-none"}`}
-                        title="Volume"
+
+                    <div className={`w-px h-4 mx-1 ${showAnalytics ? "bg-slate-300 dark:bg-slate-700" : "bg-slate-900/20 dark:bg-white/20"}`} />
+
+                    {/* Theme Toggle */}
+                    <ThemeToggle 
+                        className={`!w-10 !h-10 flex items-center justify-center !rounded-full transition-all ${
+                            showAnalytics 
+                            ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" 
+                            : "hover:bg-white/10 text-white"
+                        }`} 
                     />
-                </div>
 
-                {/* Analytics Toggle - Hidden on Mobile */}
-                <button
-                    onClick={() => setShowAnalytics(!showAnalytics)}
-                    className={`hidden sm:flex p-2 rounded-full border transition-all ${showAnalytics ? "bg-white dark:bg-slate-800 border-slate-300 dark:border-white/20 text-slate-900 dark:text-white shadow-md hover:bg-slate-100 dark:hover:bg-slate-700" : "bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-md shrink-0"}`}
-                    title={showAnalytics ? "Show Timer" : "Show Analytics"}
-                >
-                    {showAnalytics ? <LayoutDashboard className="w-5 h-5" /> : <BarChart2 className="w-5 h-5" />}
-                </button>
-
-                {/* Profile Icon */}
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className={`rounded-xl h-[52px] w-[52px] p-0 border backdrop-blur-md ${showAnalytics ? "bg-white dark:bg-slate-800/50 border-slate-300 dark:border-white/20 hover:bg-slate-100 dark:hover:bg-slate-700/50" : "bg-white/10 border-white/20 hover:bg-white/10"}`}>
-                            <Avatar className={`h-[52px] w-[52px] rounded-lg border-2 shadow-sm ${showAnalytics ? "border-slate-300 dark:border-slate-800" : "border-white"}`}>
-                                <AvatarImage src={user?.avatar} alt={user?.name || 'User'} className="rounded-lg" />
-                                <AvatarFallback className="rounded-lg text-white font-bold" style={{ backgroundColor: currentTheme.accent }}>
-                                    {user?.name ? user.name[0].toUpperCase() : 'G'}
-                                </AvatarFallback>
-                            </Avatar>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                        <div className="px-2 py-1.5">
-                            <p className="text-sm font-medium text-foreground">{user?.name || 'Guest'}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">SSC Aspirant</p>
+                    {/* Music Control Pill */}
+                    <div className={`flex items-center gap-1 h-10 px-2 rounded-full transition-all ${
+                        showAnalytics 
+                        ? "bg-slate-100 dark:bg-slate-800/40" 
+                        : "bg-white/5 border border-white/10 backdrop-blur-md"
+                    }`}>
+                        <button
+                            onClick={toggleMusic}
+                            className={`p-1.5 rounded-full transition-all ${showAnalytics ? "hover:bg-slate-200 dark:hover:bg-slate-700" : "hover:bg-slate-900/10 dark:hover:bg-white/10"}`}
+                            style={{ color: isMusicPlaying ? currentTheme.accent : 'inherit' }}
+                            title={isMusicPlaying ? "Pause Music" : "Play Music"}
+                        >
+                            {isMusicPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Music className="w-3.5 h-3.5" />}
+                        </button>
+                        
+                        <div className="flex items-center overflow-hidden group/vol relative">
+                             <button
+                                onClick={toggleMusicMuted}
+                                className={`p-1.5 rounded-full transition-colors ${showAnalytics ? "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" : "text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white hover:bg-slate-900/10 dark:hover:bg-white/10"}`}
+                                title={isMusicMuted ? "Unmute" : "Mute"}
+                            >
+                                {isMusicMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                            </button>
+                            <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value={musicVolume}
+                                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                                className={`w-0 group-hover/vol:w-16 transition-all duration-300 h-1.5 rounded-full appearance-none cursor-pointer ${
+                                    showAnalytics ? "bg-slate-300" : "bg-white/20"
+                                } accent-white focus:outline-none ml-1`}
+                                title="Music Volume"
+                            />
                         </div>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleProfile} className="cursor-pointer gap-2">
-                            <Settings className="w-4 h-4" />
-                            <span>Profile Settings</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2 text-destructive">
-                            <LogOut className="w-4 h-4" />
-                            <span>Sign Out</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                    </div>
+
+                    {/* Analytics Toggle */}
+                    <button
+                        onClick={() => setShowAnalytics(!showAnalytics)}
+                        className={`hidden sm:flex items-center justify-center w-10 h-10 rounded-full transition-all ${
+                            showAnalytics 
+                            ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" 
+                            : "hover:bg-white/10 text-white"
+                        }`}
+                        title={showAnalytics ? "Return to Timer" : "View Analytics"}
+                    >
+                        {showAnalytics ? <LayoutDashboard className="w-4 h-4" /> : <BarChart2 className="w-4 h-4" />}
+                    </button>
+
+                    {/* Profile Avatar with Dropdown */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="relative group outline-none ml-1">
+                                <div className={`p-0.5 rounded-full border-2 transition-all group-hover:scale-105 group-active:scale-95 ${
+                                    showAnalytics ? "border-slate-200 dark:border-slate-800" : "border-white/20"
+                                }`}>
+                                    <Avatar className="h-8 w-8 rounded-full shadow-lg">
+                                        <AvatarImage src={user?.avatar} className="rounded-full" />
+                                        <AvatarFallback className="rounded-full text-white font-black text-[10px]" style={{ backgroundColor: currentTheme.accent }}>
+                                            {user?.name ? user.name[0].toUpperCase() : 'G'}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </div>
+                                {isMusicPlaying && (
+                                    <span className="absolute -bottom-1 -right-1 flex h-3 w-3">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: currentTheme.accent }}></span>
+                                        <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: currentTheme.accent }}></span>
+                                    </span>
+                                )}
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64 p-2 rounded-2xl shadow-2xl backdrop-blur-xl border-white/20">
+                            <div className="px-3 py-3 mb-2 flex items-center gap-3 bg-muted/40 rounded-xl">
+                                <Avatar className="h-10 w-10 border border-white/20">
+                                    <AvatarImage src={user?.avatar} />
+                                    <AvatarFallback style={{ backgroundColor: currentTheme.accent }}>{user?.name?.[0]}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="text-sm font-bold text-foreground">{user?.name || 'Guest'}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">SSC Aspirant</p>
+                                </div>
+                            </div>
+                            <DropdownMenuSeparator className="opacity-50" />
+                            <DropdownMenuItem onClick={handleProfile} className="cursor-pointer gap-2.5 p-3 rounded-lg hover:bg-muted font-medium">
+                                <Settings className="w-4 h-4 opacity-70" />
+                                <span>Profile Settings</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="opacity-50" />
+                            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer gap-2.5 p-3 rounded-lg text-destructive hover:bg-destructive/10 font-medium">
+                                <LogOut className="w-4 h-4" />
+                                <span>Sign Out</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
 
             {/* Styles */}

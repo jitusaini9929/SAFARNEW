@@ -18,10 +18,20 @@ type GoalCategory = 'academic' | 'health' | 'personal' | 'other';
 type GoalPriority = 'high' | 'medium' | 'low';
 type GoalSubtask = { id: string; text: string; done: boolean };
 type GoalSource = 'manual' | 'ekagra';
+type GoalKind = 'one_time' | 'today' | 'repeat';
+type GoalUnitType = 'binary' | 'count' | 'duration_minutes' | 'checklist';
+type GoalExecutionMode = 'manual' | 'timed' | 'hybrid';
+type GoalStatus = 'not_started' | 'in_progress' | 'completed' | 'partial' | 'missed' | 'cancelled' | 'expired' | 'rolled_over';
+type GoalCarryForwardMode = 'none' | 'remaining' | 'full' | 'ask';
 
 const ALLOWED_CATEGORIES = new Set<GoalCategory>(['academic', 'health', 'personal', 'other']);
 const ALLOWED_PRIORITIES = new Set<GoalPriority>(['high', 'medium', 'low']);
 const ALLOWED_SOURCES = new Set<GoalSource>(['manual', 'ekagra']);
+const ALLOWED_GOAL_KINDS = new Set<GoalKind>(['one_time', 'today', 'repeat']);
+const ALLOWED_GOAL_UNITS = new Set<GoalUnitType>(['binary', 'count', 'duration_minutes', 'checklist']);
+const ALLOWED_GOAL_EXECUTION_MODES = new Set<GoalExecutionMode>(['manual', 'timed', 'hybrid']);
+const ALLOWED_GOAL_STATUSES = new Set<GoalStatus>(['not_started', 'in_progress', 'completed', 'partial', 'missed', 'cancelled', 'expired', 'rolled_over']);
+const ALLOWED_CARRY_FORWARD_MODES = new Set<GoalCarryForwardMode>(['none', 'remaining', 'full', 'ask']);
 
 const toISTDate = (date: Date) => new Date(date.getTime() + IST_OFFSET_MS);
 
@@ -104,6 +114,113 @@ const normalizeGoalSource = (raw: unknown): GoalSource | null => {
 
 const normalizeGoalImportedFromGoal = (raw: unknown) => Boolean(raw);
 
+const normalizeGoalKind = (raw: unknown): GoalKind | null => {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (ALLOWED_GOAL_KINDS.has(value as GoalKind)) return value as GoalKind;
+    return null;
+};
+
+const normalizeGoalUnitType = (raw: unknown): GoalUnitType | null => {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (ALLOWED_GOAL_UNITS.has(value as GoalUnitType)) return value as GoalUnitType;
+    return null;
+};
+
+const normalizeGoalExecutionMode = (raw: unknown): GoalExecutionMode | null => {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (ALLOWED_GOAL_EXECUTION_MODES.has(value as GoalExecutionMode)) return value as GoalExecutionMode;
+    return null;
+};
+
+const normalizeGoalLinkedFocusEnabled = (raw: unknown): boolean | null => {
+    if (raw === undefined) return null;
+    return Boolean(raw);
+};
+
+const normalizeGoalPlannedFocusMinutes = (raw: unknown): number | null => {
+    if (raw === undefined || raw === null || raw === '') return null;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return null;
+    return parsed >= 0 ? Math.round(parsed) : null;
+};
+
+const normalizeGoalStatus = (raw: unknown): GoalStatus | null => {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (ALLOWED_GOAL_STATUSES.has(value as GoalStatus)) return value as GoalStatus;
+    return null;
+};
+
+const normalizeGoalCarryForwardMode = (raw: unknown): GoalCarryForwardMode | null => {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (ALLOWED_CARRY_FORWARD_MODES.has(value as GoalCarryForwardMode)) return value as GoalCarryForwardMode;
+    return null;
+};
+
+const normalizeGoalTargetValue = (raw: unknown): number | null => {
+    if (raw === undefined || raw === null || raw === '') return null;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return null;
+    return parsed >= 0 ? parsed : null;
+};
+
+const normalizeGoalAchievedValue = (raw: unknown): number | null => {
+    if (raw === undefined || raw === null || raw === '') return null;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return null;
+    return parsed >= 0 ? parsed : null;
+};
+
+const getGoalKindFromRecord = (goal: any): GoalKind => {
+    return normalizeGoalKind(goal.goal_kind ?? goal.goalKind) || 'today';
+};
+
+const getGoalUnitTypeFromRecord = (goal: any): GoalUnitType => {
+    return normalizeGoalUnitType(goal.unit_type ?? goal.unitType) || 'binary';
+};
+
+const getGoalExecutionModeFromRecord = (goal: any): GoalExecutionMode => {
+    const normalized = normalizeGoalExecutionMode(goal.execution_mode ?? goal.executionMode);
+    if (normalized) return normalized;
+    return getGoalUnitTypeFromRecord(goal) === 'duration_minutes' ? 'timed' : 'manual';
+};
+
+const getGoalLinkedFocusEnabledFromRecord = (goal: any): boolean => {
+    const normalized = normalizeGoalLinkedFocusEnabled(goal.linked_focus_enabled ?? goal.linkedFocusEnabled);
+    if (normalized !== null) return normalized;
+    return getGoalUnitTypeFromRecord(goal) === 'duration_minutes';
+};
+
+const getGoalPlannedFocusMinutesFromRecord = (goal: any): number | null => {
+    const normalized = normalizeGoalPlannedFocusMinutes(goal.planned_focus_minutes ?? goal.plannedFocusMinutes);
+    if (normalized !== null) return normalized;
+    return getGoalUnitTypeFromRecord(goal) === 'duration_minutes'
+        ? getGoalTargetValueFromRecord(goal)
+        : null;
+};
+
+const getGoalTargetValueFromRecord = (goal: any): number | null => {
+    const value = normalizeGoalTargetValue(goal.target_value ?? goal.targetValue);
+    return value === null ? null : value;
+};
+
+const getGoalAchievedValueFromRecord = (goal: any): number => {
+    const normalized = normalizeGoalAchievedValue(goal.achieved_value ?? goal.achievedValue);
+    if (normalized !== null) return normalized;
+    return Boolean(goal.completed || goal.completed_at) ? 1 : 0;
+};
+
+const getGoalStatusFromRecord = (goal: any): GoalStatus => {
+    const normalized = normalizeGoalStatus(goal.status_value ?? goal.status);
+    if (normalized) return normalized;
+    if (goal.completed || goal.completed_at) return 'completed';
+    if ((goal.lifecycle_status || '').toLowerCase() === 'missed') return 'missed';
+    return 'not_started';
+};
+
+const getGoalCarryForwardModeFromRecord = (goal: any): GoalCarryForwardMode => {
+    return normalizeGoalCarryForwardMode(goal.carry_forward_mode ?? goal.carryForwardMode) || 'none';
+};
+
 const normalizeGoalSubtasks = (raw: unknown): GoalSubtask[] | null => {
     if (raw === undefined || raw === null) return [];
     if (!Array.isArray(raw)) return null;
@@ -137,6 +254,15 @@ const normalizeGoalResponse = (goal: any) => {
     const priority = normalizeGoalPriority(goal.priority) || 'medium';
     const source = normalizeGoalSource(goal.source) || 'manual';
     const importedFromGoal = normalizeGoalImportedFromGoal(goal.imported_from_goal ?? goal.importedFromGoal);
+    const goalKind = getGoalKindFromRecord(goal);
+    const unitType = getGoalUnitTypeFromRecord(goal);
+    const executionMode = getGoalExecutionModeFromRecord(goal);
+    const linkedFocusEnabled = getGoalLinkedFocusEnabledFromRecord(goal);
+    const plannedFocusMinutes = getGoalPlannedFocusMinutesFromRecord(goal);
+    const targetValue = getGoalTargetValueFromRecord(goal);
+    const achievedValue = getGoalAchievedValueFromRecord(goal);
+    const status = getGoalStatusFromRecord(goal);
+    const carryForwardMode = getGoalCarryForwardModeFromRecord(goal);
     const subtasks = normalizeGoalSubtasks(goal.subtasks) || [];
     return {
         ...goal,
@@ -147,6 +273,15 @@ const normalizeGoalResponse = (goal: any) => {
         priority,
         source,
         importedFromGoal,
+        goalKind,
+        unitType,
+        executionMode,
+        linkedFocusEnabled,
+        plannedFocusMinutes,
+        targetValue,
+        achievedValue,
+        status,
+        carryForwardMode,
         subtasks,
         createdAt: createdAt.toISOString(),
         completedAt: completedAt ? completedAt.toISOString() : null,
@@ -155,6 +290,15 @@ const normalizeGoalResponse = (goal: any) => {
         scheduledDate: goal.scheduled_date ? new Date(goal.scheduled_date).toISOString() : null,
         lifecycleStatus: (goal.lifecycle_status || 'active') as GoalLifecycleStatus,
         imported_from_goal: importedFromGoal,
+        goal_kind: goalKind,
+        unit_type: unitType,
+        execution_mode: executionMode,
+        linked_focus_enabled: linkedFocusEnabled,
+        planned_focus_minutes: plannedFocusMinutes,
+        target_value: targetValue,
+        achieved_value: achievedValue,
+        status_value: status,
+        carry_forward_mode: carryForwardMode,
     };
 };
 
@@ -202,6 +346,15 @@ const migrateLegacyEkagraTasks = async (userId: string) => {
                 lifecycle_status: 'active' as GoalLifecycleStatus,
                 rollover_prompt_pending: false,
                 imported_from_goal: false,
+                goal_kind: 'today' as GoalKind,
+                unit_type: 'binary' as GoalUnitType,
+                execution_mode: 'manual' as GoalExecutionMode,
+                linked_focus_enabled: false,
+                planned_focus_minutes: null as number | null,
+                target_value: null as number | null,
+                achieved_value: completed ? 1 : 0,
+                status_value: completed ? 'completed' as GoalStatus : 'not_started' as GoalStatus,
+                carry_forward_mode: 'none' as GoalCarryForwardMode,
                 source_goal_id: null as string | null,
                 scheduled_date: scheduledDate,
                 missed_at: null as Date | null,
@@ -476,18 +629,25 @@ router.post('/:id/transfer-to-ekagra', requireAuth, async (req: Request, res) =>
         }
 
         const lifecycleStatus = String(goal.lifecycle_status || 'active').toLowerCase();
-        const isArchivedState = lifecycleStatus !== 'active';
-        if (goal.completed || isArchivedState) {
+        const isArchivedState = lifecycleStatus === 'abandoned' || lifecycleStatus === 'rolled_over';
+        const isCompleted = Boolean(goal.completed || goal.completed_at);
+        if (isCompleted || isArchivedState) {
             return res.status(409).json({ message: 'Completed or archived goals cannot be transferred to Ekagra' });
+        }
+
+        const updates: Record<string, unknown> = {
+            source: 'ekagra',
+            imported_from_goal: true,
+        };
+        if (lifecycleStatus === 'missed') {
+            updates.lifecycle_status = 'active';
+            updates.rollover_prompt_pending = false;
         }
 
         await collections.goals().updateOne(
             { id, user_id: userId },
             {
-                $set: {
-                    source: 'ekagra',
-                    imported_from_goal: true,
-                },
+                $set: updates,
             },
         );
 
@@ -506,15 +666,91 @@ router.post('/:id/transfer-to-ekagra', requireAuth, async (req: Request, res) =>
     }
 });
 
+router.post('/:id/revert-from-ekagra-import', requireAuth, async (req: Request, res) => {
+    try {
+        const userId = req.session.userId!;
+        const { id } = req.params;
+
+        const goal = await collections.goals().findOne({ id, user_id: userId });
+        if (!goal) {
+            return res.status(404).json({ message: 'Goal not found or unauthorized' });
+        }
+
+        const currentSource = normalizeGoalSource(goal.source) || 'manual';
+        const importedFromGoal = normalizeGoalImportedFromGoal(goal.imported_from_goal);
+        if (currentSource !== 'ekagra' || !importedFromGoal) {
+            return res.status(409).json({ message: 'Goal is not an imported Ekagra goal' });
+        }
+
+        if (goal.completed) {
+            return res.status(409).json({ message: 'Completed imported goals cannot be reverted' });
+        }
+
+        await collections.goals().updateOne(
+            { id, user_id: userId },
+            {
+                $set: {
+                    source: 'manual',
+                    imported_from_goal: false,
+                },
+            },
+        );
+
+        const updatedGoal = await collections.goals().findOne({ id, user_id: userId });
+        if (!updatedGoal) {
+            return res.status(500).json({ message: 'Failed to revert imported goal' });
+        }
+
+        return res.json({
+            message: 'Imported goal reverted to manual',
+            goal: normalizeGoalResponse(updatedGoal),
+        });
+    } catch (error) {
+        console.error('Revert imported goal error:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 // Create goal
 router.post('/', requireAuth, async (req: Request, res) => {
-    const { text, title, description, scheduledDate, category, priority, subtasks, startedAt, source } = req.body;
+    const {
+        text,
+        title,
+        description,
+        scheduledDate,
+        category,
+        priority,
+        subtasks,
+        startedAt,
+        source,
+        goalKind,
+        unitType,
+        executionMode,
+        linkedFocusEnabled,
+        plannedFocusMinutes,
+        targetValue,
+        achievedValue,
+        status,
+        carryForwardMode,
+    } = req.body;
     const type: GoalType = 'daily';
     const normalizedTitle = normalizeGoalTitle(title, text);
     const normalizedDescription = normalizeGoalDescription(description);
     const normalizedCategory = normalizeGoalCategory(category) || 'other';
     const normalizedPriority = normalizeGoalPriority(priority) || 'medium';
     const normalizedSource = normalizeGoalSource(source) || 'manual';
+    const normalizedGoalKind = normalizeGoalKind(goalKind) || 'today';
+    const normalizedUnitType = normalizeGoalUnitType(unitType) || 'binary';
+    const normalizedExecutionMode = normalizeGoalExecutionMode(executionMode)
+        || (normalizedUnitType === 'duration_minutes' ? 'timed' : 'manual');
+    const normalizedLinkedFocusEnabled = normalizeGoalLinkedFocusEnabled(linkedFocusEnabled)
+        ?? (normalizedUnitType === 'duration_minutes');
+    const normalizedPlannedFocusMinutes = normalizeGoalPlannedFocusMinutes(plannedFocusMinutes)
+        ?? (normalizedUnitType === 'duration_minutes' ? normalizeGoalTargetValue(targetValue) : null);
+    const normalizedTargetValue = normalizeGoalTargetValue(targetValue);
+    const normalizedAchievedValue = normalizeGoalAchievedValue(achievedValue);
+    const normalizedStatus = normalizeGoalStatus(status);
+    const normalizedCarryForwardMode = normalizeGoalCarryForwardMode(carryForwardMode) || (normalizedGoalKind === 'repeat' ? 'ask' : 'none');
     const normalizedSubtasks = normalizeGoalSubtasks(subtasks) || [];
 
     if (!normalizedTitle) {
@@ -548,6 +784,10 @@ router.post('/', requireAuth, async (req: Request, res) => {
         const userId = req.session.userId!;
         const createdAt = now;
         const expiresAt = calculateExpiryUTC(type, now, scheduledDateObj);
+        const effectiveStatus: GoalStatus = normalizedStatus || 'not_started';
+        const isCompletedByStatus = effectiveStatus === 'completed';
+        const effectiveAchievedValue = normalizedAchievedValue
+            ?? (isCompletedByStatus && normalizedUnitType === 'binary' ? 1 : 0);
 
         // Parse optional startedAt — must be a valid ISO timestamp
         let startedAtDate: Date | null = null;
@@ -567,14 +807,23 @@ router.post('/', requireAuth, async (req: Request, res) => {
             source: normalizedSource,
             subtasks: normalizedSubtasks,
             type,
-            completed: false,
+            completed: isCompletedByStatus,
             created_at: createdAt,
-            completed_at: null,
+            completed_at: isCompletedByStatus ? createdAt : null,
             started_at: startedAtDate,
             expires_at: expiresAt,
             lifecycle_status: 'active' as GoalLifecycleStatus,
             rollover_prompt_pending: false,
             imported_from_goal: false,
+            goal_kind: normalizedGoalKind,
+            unit_type: normalizedUnitType,
+            execution_mode: normalizedExecutionMode,
+            linked_focus_enabled: normalizedLinkedFocusEnabled,
+            planned_focus_minutes: normalizedPlannedFocusMinutes,
+            target_value: normalizedTargetValue,
+            achieved_value: effectiveAchievedValue,
+            status_value: effectiveStatus,
+            carry_forward_mode: normalizedCarryForwardMode,
             source_goal_id: null as string | null,
             scheduled_date: scheduledDateObj,
             missed_at: null as Date | null,
@@ -639,6 +888,15 @@ router.post('/:id/rollover-action', requireAuth, async (req: Request, res) => {
                 lifecycle_status: 'active' as GoalLifecycleStatus,
                 rollover_prompt_pending: false,
                 imported_from_goal: normalizeGoalImportedFromGoal(goal.imported_from_goal),
+                goal_kind: getGoalKindFromRecord(goal),
+                unit_type: getGoalUnitTypeFromRecord(goal),
+                execution_mode: getGoalExecutionModeFromRecord(goal),
+                linked_focus_enabled: getGoalLinkedFocusEnabledFromRecord(goal),
+                planned_focus_minutes: getGoalPlannedFocusMinutesFromRecord(goal),
+                target_value: getGoalTargetValueFromRecord(goal),
+                achieved_value: 0,
+                status_value: 'not_started' as GoalStatus,
+                carry_forward_mode: getGoalCarryForwardModeFromRecord(goal),
                 source_goal_id: id,
                 scheduled_date: scheduledDateObj,
                 missed_at: null as Date | null,
@@ -700,9 +958,27 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
     const hasSubtasksUpdate = req.body && 'subtasks' in req.body;
     const hasTypeUpdate = req.body && 'type' in req.body;
     const hasStartedAtUpdate = req.body && 'startedAt' in req.body;
+    const hasGoalKindUpdate = req.body && 'goalKind' in req.body;
+    const hasUnitTypeUpdate = req.body && 'unitType' in req.body;
+    const hasExecutionModeUpdate = req.body && 'executionMode' in req.body;
+    const hasLinkedFocusEnabledUpdate = req.body && 'linkedFocusEnabled' in req.body;
+    const hasPlannedFocusMinutesUpdate = req.body && 'plannedFocusMinutes' in req.body;
+    const hasTargetValueUpdate = req.body && 'targetValue' in req.body;
+    const hasAchievedValueUpdate = req.body && 'achievedValue' in req.body;
+    const hasStatusUpdate = req.body && 'status' in req.body;
+    const hasCarryForwardModeUpdate = req.body && 'carryForwardMode' in req.body;
     const normalizedTitle = hasTitleUpdate ? normalizeGoalTitle(req.body?.title, req.body?.text) : null;
     const normalizedDescription = hasDescriptionUpdate ? normalizeGoalDescription(req.body?.description) : undefined;
     const normalizedType = hasTypeUpdate ? normalizeGoalType(req.body?.type) : null;
+    const normalizedGoalKind = hasGoalKindUpdate ? normalizeGoalKind(req.body?.goalKind) : null;
+    const normalizedUnitType = hasUnitTypeUpdate ? normalizeGoalUnitType(req.body?.unitType) : null;
+    const normalizedExecutionMode = hasExecutionModeUpdate ? normalizeGoalExecutionMode(req.body?.executionMode) : null;
+    const normalizedLinkedFocusEnabled = hasLinkedFocusEnabledUpdate ? normalizeGoalLinkedFocusEnabled(req.body?.linkedFocusEnabled) : null;
+    const normalizedPlannedFocusMinutes = hasPlannedFocusMinutesUpdate ? normalizeGoalPlannedFocusMinutes(req.body?.plannedFocusMinutes) : null;
+    const normalizedTargetValue = hasTargetValueUpdate ? normalizeGoalTargetValue(req.body?.targetValue) : null;
+    const normalizedAchievedValue = hasAchievedValueUpdate ? normalizeGoalAchievedValue(req.body?.achievedValue) : null;
+    const normalizedStatus = hasStatusUpdate ? normalizeGoalStatus(req.body?.status) : null;
+    const normalizedCarryForwardMode = hasCarryForwardModeUpdate ? normalizeGoalCarryForwardMode(req.body?.carryForwardMode) : null;
 
     if (
         !hasCompletedUpdate &&
@@ -713,7 +989,16 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         !hasPriorityUpdate &&
         !hasSubtasksUpdate &&
         !hasTypeUpdate &&
-        !hasStartedAtUpdate
+        !hasStartedAtUpdate &&
+        !hasGoalKindUpdate &&
+        !hasUnitTypeUpdate &&
+        !hasExecutionModeUpdate &&
+        !hasLinkedFocusEnabledUpdate &&
+        !hasPlannedFocusMinutesUpdate &&
+        !hasTargetValueUpdate &&
+        !hasAchievedValueUpdate &&
+        !hasStatusUpdate &&
+        !hasCarryForwardModeUpdate
     ) {
         return res.status(400).json({ message: 'Nothing to update' });
     }
@@ -724,6 +1009,38 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
 
     if (hasTypeUpdate && (!normalizedType || normalizedType !== 'daily')) {
         return res.status(400).json({ message: 'Only daily goals are supported' });
+    }
+
+    if (hasGoalKindUpdate && !normalizedGoalKind) {
+        return res.status(400).json({ message: 'Invalid goal kind' });
+    }
+
+    if (hasUnitTypeUpdate && !normalizedUnitType) {
+        return res.status(400).json({ message: 'Invalid goal unit type' });
+    }
+
+    if (hasExecutionModeUpdate && !normalizedExecutionMode) {
+        return res.status(400).json({ message: 'Invalid execution mode' });
+    }
+
+    if (hasPlannedFocusMinutesUpdate && req.body?.plannedFocusMinutes !== null && normalizedPlannedFocusMinutes === null) {
+        return res.status(400).json({ message: 'Invalid planned focus minutes' });
+    }
+
+    if (hasTargetValueUpdate && req.body?.targetValue !== null && normalizedTargetValue === null) {
+        return res.status(400).json({ message: 'Invalid target value' });
+    }
+
+    if (hasAchievedValueUpdate && normalizedAchievedValue === null) {
+        return res.status(400).json({ message: 'Invalid achieved value' });
+    }
+
+    if (hasStatusUpdate && !normalizedStatus) {
+        return res.status(400).json({ message: 'Invalid goal status' });
+    }
+
+    if (hasCarryForwardModeUpdate && !normalizedCarryForwardMode) {
+        return res.status(400).json({ message: 'Invalid carry forward mode' });
     }
 
     try {
@@ -798,6 +1115,49 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
             }
         }
 
+        if (hasGoalKindUpdate && normalizedGoalKind) {
+            updates.goal_kind = normalizedGoalKind;
+        }
+
+        if (hasUnitTypeUpdate && normalizedUnitType) {
+            updates.unit_type = normalizedUnitType;
+        }
+
+        if (hasExecutionModeUpdate && normalizedExecutionMode) {
+            updates.execution_mode = normalizedExecutionMode;
+        }
+
+        if (hasLinkedFocusEnabledUpdate && normalizedLinkedFocusEnabled !== null) {
+            updates.linked_focus_enabled = normalizedLinkedFocusEnabled;
+        }
+
+        if (hasPlannedFocusMinutesUpdate) {
+            updates.planned_focus_minutes = normalizedPlannedFocusMinutes;
+        }
+
+        if (hasTargetValueUpdate) {
+            updates.target_value = normalizedTargetValue;
+        }
+
+        if (hasAchievedValueUpdate && normalizedAchievedValue !== null) {
+            updates.achieved_value = normalizedAchievedValue;
+        }
+
+        if (hasStatusUpdate && normalizedStatus) {
+            updates.status_value = normalizedStatus;
+            if (normalizedStatus === 'completed') {
+                updates.completed = true;
+                updates.completed_at = new Date();
+            } else if (goal.completed) {
+                updates.completed = false;
+                updates.completed_at = null;
+            }
+        }
+
+        if (hasCarryForwardModeUpdate && normalizedCarryForwardMode) {
+            updates.carry_forward_mode = normalizedCarryForwardMode;
+        }
+
         const effectiveType = normalizedType || goalType;
         if (hasTypeUpdate && normalizedType) {
             updates.type = normalizedType;
@@ -851,6 +1211,15 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         updates.completed_at = completedAt;
         updates.lifecycle_status = lifecycleStatus;
         updates.rollover_prompt_pending = false;
+        if (completed) {
+            const existingTarget = getGoalTargetValueFromRecord(goal);
+            updates.status_value = 'completed';
+            if (existingTarget !== null) {
+                updates.achieved_value = Math.max(Number(existingTarget) || 0, getGoalAchievedValueFromRecord(goal));
+            } else if (getGoalUnitTypeFromRecord(goal) === 'binary') {
+                updates.achieved_value = 1;
+            }
+        }
 
         await collections.goals().updateOne(
             { id, user_id: userId },
@@ -1042,6 +1411,15 @@ router.post('/repeat-plan', requireAuth, async (req: Request, res) => {
                 lifecycle_status: 'active' as GoalLifecycleStatus,
                 rollover_prompt_pending: false,
                 imported_from_goal: normalizeGoalImportedFromGoal(goal.imported_from_goal),
+                goal_kind: getGoalKindFromRecord(goal),
+                unit_type: getGoalUnitTypeFromRecord(goal),
+                execution_mode: getGoalExecutionModeFromRecord(goal),
+                linked_focus_enabled: getGoalLinkedFocusEnabledFromRecord(goal),
+                planned_focus_minutes: getGoalPlannedFocusMinutesFromRecord(goal),
+                target_value: getGoalTargetValueFromRecord(goal),
+                achieved_value: 0,
+                status_value: 'not_started' as GoalStatus,
+                carry_forward_mode: getGoalCarryForwardModeFromRecord(goal),
                 repeated_from: goal.id, // track origin
             };
         });
@@ -1107,6 +1485,15 @@ router.post('/:id/repeat', requireAuth, async (req: Request, res) => {
             lifecycle_status: 'active' as GoalLifecycleStatus,
             rollover_prompt_pending: false,
             imported_from_goal: normalizeGoalImportedFromGoal(sourceGoal.imported_from_goal),
+            goal_kind: getGoalKindFromRecord(sourceGoal),
+            unit_type: getGoalUnitTypeFromRecord(sourceGoal),
+            execution_mode: getGoalExecutionModeFromRecord(sourceGoal),
+            linked_focus_enabled: getGoalLinkedFocusEnabledFromRecord(sourceGoal),
+            planned_focus_minutes: getGoalPlannedFocusMinutesFromRecord(sourceGoal),
+            target_value: getGoalTargetValueFromRecord(sourceGoal),
+            achieved_value: 0,
+            status_value: 'not_started' as GoalStatus,
+            carry_forward_mode: getGoalCarryForwardModeFromRecord(sourceGoal),
             source_goal_id: sourceGoal.id,
             scheduled_date: scheduledDateObj,
             missed_at: null as Date | null,

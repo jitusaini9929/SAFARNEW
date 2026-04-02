@@ -31,18 +31,16 @@ export function FocusAnalytics() {
         completedSessions,
         weeklyData,
         focusStreak,
-        dailyGoalProgress
     } = stats;
 
     const maxWeekly = Math.max(...weeklyData, 1);
 
     return (
         <div className="w-full max-w-4xl mx-auto p-4 space-y-6 animate-in fade-in duration-500">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <StatCard icon={<Zap className="w-5 h-5 text-amber-500" />} label="Focus Time" value={`${Math.round(totalFocusMinutes / 60)}h ${totalFocusMinutes % 60}m`} />
                 <StatCard icon={<Trophy className="w-5 h-5 text-yellow-500" />} label="Sessions" value={completedSessions.toString()} subtext={`of ${totalSessions} started`} />
                 <StatCard icon={<Calendar className="w-5 h-5 text-blue-500" />} label="Streak" value={`${focusStreak} Days`} />
-                <StatCard icon={<Target className="w-5 h-5 text-emerald-500" />} label="Daily Goal" value={`${dailyGoalProgress}%`} />
             </div>
 
             <Card className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60">

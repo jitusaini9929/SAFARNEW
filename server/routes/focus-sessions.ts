@@ -172,12 +172,15 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
                     total_sessions: { $sum: 1 },
                     completed_sessions: {
                         $sum: { $cond: [{ $eq: ['$completed', true] }, 1, 0] }
+                    },
+                    ended_early_sessions: {
+                        $sum: { $cond: [{ $and: [{ $eq: ['$completed', false] }, { $gt: [ACTUAL_DURATION_EXPR, 0] }] }, 1, 0] }
                     }
                 }
             }
         ];
         const totalResult = await collections.focusSessions().aggregate(totalPipeline, { maxTimeMS: QUERY_TIMEOUT_MS }).toArray();
-        const totals = totalResult[0] || { total_focus_minutes: 0, total_break_minutes: 0, total_sessions: 0, completed_sessions: 0 };
+        const totals = totalResult[0] || { total_focus_minutes: 0, total_break_minutes: 0, total_sessions: 0, completed_sessions: 0, ended_early_sessions: 0 };
 
         // Weekly data (last 7 days)
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -296,7 +299,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
         const recentSessionsRaw = await collections.focusSessions()
             .find({ user_id: userId })
             .sort({ completed_at: -1 })
-            .limit(6)
+            .limit(20)
             .maxTimeMS(QUERY_FAST_TIMEOUT_MS)
             .toArray();
         const linkedGoalIds = Array.from(new Set(
@@ -319,6 +322,7 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             actualMinutes: session.actual_duration_minutes || session.duration_minutes || 0,
             completed: Boolean(session.completed),
             taskText: session.associated_goal_id ? linkedGoalTitleMap.get(session.associated_goal_id) || null : null,
+            pauseCount: Number(session.pause_count || 0),
         }));
 
         if (FOCUS_STATS_DEBUG_LOGS) {
@@ -332,13 +336,12 @@ router.get('/stats', requireAuth, async (req: Request, res) => {
             totalBreakMinutes: totals.total_break_minutes || 0,
             totalSessions: totals.total_sessions || 0,
             completedSessions: totals.completed_sessions || 0,
+            endedEarlySessions: totals.ended_early_sessions || 0,
             weeklyData,
             weeklyBreaks,
             focusStreak,
             goalsSet: goals.total_goals || 0,
             goalsCompleted: goals.completed_goals || 0,
-            dailyGoalMinutes: 240,
-            dailyGoalProgress: Math.min(100, Math.round(((totals.total_focus_minutes || 0) / 240) * 100)),
             hourlyDistribution,
             recentSessions,
         };

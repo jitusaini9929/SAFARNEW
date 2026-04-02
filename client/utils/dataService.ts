@@ -1,9 +1,47 @@
 import { apiFetch } from "@/utils/apiFetch";
-import { MoodEntry, JournalEntry, Goal, GoalSubtask, MonthlyReport } from "@shared/api";
+import {
+    MoodEntry,
+    JournalEntry,
+    Goal,
+    GoalSubtask,
+    MonthlyReport,
+    EkagraModeSession,
+    EkagraSessionSource,
+    EkagraSessionStatus,
+    EkagraTimerMode,
+    EkagraAnalyticsStats,
+    GoalKind,
+    GoalUnitType,
+    GoalExecutionStatus,
+    GoalCarryForwardMode,
+} from "@shared/api";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export type GoalFocusSummaryMap = Record<string, { totalMinutes: number; sessionCount: number }>;
+type EkagraSessionListResponse = { sessions?: EkagraModeSession[] };
+
+const emptyEkagraAnalytics = (): EkagraAnalyticsStats => ({
+    totalFocusMinutes: 0,
+    totalBreakMinutes: 0,
+    timerUsageCount: 0,
+    breakSessionsCount: 0,
+    shortBreakSessionsCount: 0,
+    longBreakSessionsCount: 0,
+    longDurationSessionCount: 0,
+    averageTimerMinutes: 0,
+    mostUsedTimerDurationMinutes: null,
+    totalSessions: 0,
+    completedSessions: 0,
+    endedEarlySessions: 0,
+    weeklyData: [0, 0, 0, 0, 0, 0, 0],
+    weeklyBreaks: [0, 0, 0, 0, 0, 0, 0],
+    focusStreak: 0,
+    hourlyDistribution: Array.from({ length: 24 }, () => 0),
+    recentSessions: [],
+    topTasks: [],
+    timerDurationUsage: [],
+});
 
 async function getApiErrorMessage(res: Response, fallback: string): Promise<string> {
     try {
@@ -110,6 +148,165 @@ export const dataService = {
         return data.goal as Goal;
     },
 
+    async revertImportedGoalFromEkagra(goalId: string): Promise<Goal> {
+        const res = await apiFetch(`${API_URL}/goals/${encodeURIComponent(goalId)}/revert-from-ekagra-import`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to revert imported goal"));
+        const data = await res.json();
+        if (!data?.goal) throw new Error("Missing reverted goal in response");
+        return data.goal as Goal;
+    },
+
+    async getEkagraSessions(): Promise<EkagraModeSession[]> {
+        const res = await apiFetch(`${API_URL}/ekagra-sessions`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch Ekagra sessions"));
+        const data = (await res.json()) as EkagraSessionListResponse;
+        return Array.isArray(data?.sessions) ? data.sessions : [];
+    },
+
+    async getActiveEkagraSession(): Promise<EkagraModeSession | null> {
+        const res = await apiFetch(`${API_URL}/ekagra-sessions/active`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch active Ekagra session"));
+        const data = await res.json();
+        return data?.session ? (data.session as EkagraModeSession) : null;
+    },
+
+    async getEkagraAnalytics(): Promise<EkagraAnalyticsStats> {
+        const res = await apiFetch(`${API_URL}/ekagra-sessions/analytics`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch Ekagra analytics"));
+        const data = await res.json();
+
+        const fallback = emptyEkagraAnalytics();
+        return {
+            totalFocusMinutes: Number(data?.totalFocusMinutes || 0),
+            totalBreakMinutes: Number(data?.totalBreakMinutes || 0),
+            timerUsageCount: Number(data?.timerUsageCount || 0),
+            breakSessionsCount: Number(data?.breakSessionsCount || 0),
+            shortBreakSessionsCount: Number(data?.shortBreakSessionsCount || 0),
+            longBreakSessionsCount: Number(data?.longBreakSessionsCount || 0),
+            longDurationSessionCount: Number(data?.longDurationSessionCount || 0),
+            averageTimerMinutes: Number(data?.averageTimerMinutes || 0),
+            mostUsedTimerDurationMinutes:
+                data?.mostUsedTimerDurationMinutes === null || data?.mostUsedTimerDurationMinutes === undefined
+                    ? null
+                    : Number(data?.mostUsedTimerDurationMinutes || 0),
+            totalSessions: Number(data?.totalSessions || 0),
+            completedSessions: Number(data?.completedSessions || 0),
+            endedEarlySessions: Number(data?.endedEarlySessions || 0),
+            weeklyData: Array.isArray(data?.weeklyData) && data.weeklyData.length === 7 ? data.weeklyData : fallback.weeklyData,
+            weeklyBreaks: Array.isArray(data?.weeklyBreaks) && data.weeklyBreaks.length === 7 ? data.weeklyBreaks : fallback.weeklyBreaks,
+            focusStreak: Number(data?.focusStreak || 0),
+            hourlyDistribution: Array.isArray(data?.hourlyDistribution) && data.hourlyDistribution.length === 24
+                ? data.hourlyDistribution
+                : fallback.hourlyDistribution,
+            recentSessions: Array.isArray(data?.recentSessions) ? data.recentSessions : fallback.recentSessions,
+            topTasks: Array.isArray(data?.topTasks) ? data.topTasks : fallback.topTasks,
+            timerDurationUsage: Array.isArray(data?.timerDurationUsage) ? data.timerDurationUsage : fallback.timerDurationUsage,
+        };
+    },
+
+    async activateEkagraSession(payload: {
+        goalId: string;
+        goalTitle?: string;
+        source?: EkagraSessionSource;
+        importedFromGoal?: boolean;
+        overrideActive?: boolean;
+        mode?: EkagraTimerMode;
+        totalSeconds?: number;
+        remainingSeconds?: number;
+        isRunning?: boolean;
+        sessionStartedAt?: string | null;
+    }): Promise<EkagraModeSession> {
+        const res = await apiFetch(`${API_URL}/ekagra-sessions/activate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to activate Ekagra session"));
+        const data = await res.json();
+        if (!data?.session) throw new Error("Missing Ekagra session in activate response");
+        return data.session as EkagraModeSession;
+    },
+
+    async updateEkagraSession(
+        sessionId: string,
+        payload: {
+            status?: EkagraSessionStatus;
+            mode?: EkagraTimerMode;
+            totalSeconds?: number;
+            remainingSeconds?: number;
+            isRunning?: boolean;
+            sessionStartedAt?: string | null;
+            goalTitle?: string;
+            source?: EkagraSessionSource;
+            importedFromGoal?: boolean;
+        },
+    ): Promise<EkagraModeSession> {
+        const res = await apiFetch(`${API_URL}/ekagra-sessions/${encodeURIComponent(sessionId)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update Ekagra session"));
+        const data = await res.json();
+        if (!data?.session) throw new Error("Missing Ekagra session in update response");
+        return data.session as EkagraModeSession;
+    },
+
+    async completeEkagraSession(
+        sessionId: string,
+        payload?: { mode?: EkagraTimerMode; totalSeconds?: number; sessionStartedAt?: string | null },
+    ): Promise<EkagraModeSession> {
+        const res = await apiFetch(`${API_URL}/ekagra-sessions/${encodeURIComponent(sessionId)}/complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload || {}),
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to complete Ekagra session"));
+        const data = await res.json();
+        if (!data?.session) throw new Error("Missing Ekagra session in complete response");
+        return data.session as EkagraModeSession;
+    },
+
+    async discardEkagraSession(sessionId: string): Promise<EkagraModeSession> {
+        const res = await apiFetch(`${API_URL}/ekagra-sessions/${encodeURIComponent(sessionId)}/discard`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({}),
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to discard Ekagra session"));
+        const data = await res.json();
+        if (!data?.session) throw new Error("Missing Ekagra session in discard response");
+        return data.session as EkagraModeSession;
+    },
+
+    async deleteEkagraSession(sessionId: string): Promise<void> {
+        const res = await apiFetch(`${API_URL}/ekagra-sessions/${encodeURIComponent(sessionId)}`, {
+            method: "DELETE",
+            credentials: "include",
+        });
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to delete Ekagra session"));
+    },
+
     async addGoal(payload: {
         title: string;
         scheduledDate?: string;
@@ -117,6 +314,15 @@ export const dataService = {
         subtasks?: GoalSubtask[];
         startedAt?: string | null;
         source?: "manual" | "ekagra";
+        goalKind?: GoalKind;
+        unitType?: GoalUnitType;
+        executionMode?: Goal["executionMode"];
+        linkedFocusEnabled?: boolean;
+        plannedFocusMinutes?: number | null;
+        targetValue?: number | null;
+        achievedValue?: number;
+        status?: GoalExecutionStatus;
+        carryForwardMode?: GoalCarryForwardMode;
     }): Promise<Goal> {
         const res = await apiFetch(`${API_URL}/goals`, {
             method: "POST",
@@ -130,6 +336,15 @@ export const dataService = {
                 scheduledDate: payload.scheduledDate,
                 startedAt: payload.startedAt ?? null,
                 source: payload.source ?? "manual",
+                goalKind: payload.goalKind,
+                unitType: payload.unitType,
+                executionMode: payload.executionMode,
+                linkedFocusEnabled: payload.linkedFocusEnabled,
+                plannedFocusMinutes: payload.plannedFocusMinutes,
+                targetValue: payload.targetValue,
+                achievedValue: payload.achievedValue,
+                status: payload.status,
+                carryForwardMode: payload.carryForwardMode,
             }),
             credentials: 'include',
         });
@@ -184,6 +399,15 @@ export const dataService = {
             title?: string;
             description?: string;
             subtasks?: GoalSubtask[];
+            goalKind?: GoalKind;
+            unitType?: GoalUnitType;
+            executionMode?: Goal["executionMode"];
+            linkedFocusEnabled?: boolean;
+            plannedFocusMinutes?: number | null;
+            targetValue?: number | null;
+            achievedValue?: number;
+            status?: GoalExecutionStatus;
+            carryForwardMode?: GoalCarryForwardMode;
         }
     ): Promise<void> {
         const res = await apiFetch(`${API_URL}/goals/${id}`, {

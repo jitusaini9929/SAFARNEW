@@ -2,10 +2,19 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { useAuth } from "@/contexts/AuthContext";
 import { FocusOverlayStats } from "@/utils/focusOverlayService";
 import { clearPiPNudgeSessionDismissal, dismissPiPNudgeSession, shouldShowPiPNudge } from "@/utils/pipNudge";
-import { toast } from "sonner";
 
 // Types
 type FocusMode = "Timer" | "short" | "long";
+
+export interface FocusRuntimeSnapshot {
+    mode: FocusMode;
+    totalSeconds: number;
+    remainingSeconds: number;
+    isRunning: boolean;
+    associatedGoalId: string | null;
+    associatedGoalTitle: string | null;
+    sessionStartedAt?: string | null;
+}
 
 interface TimerState {
     minutes: number;
@@ -31,6 +40,8 @@ interface FocusContextType {
     hasPendingResume: boolean;
     resumeStoredSession: () => void;
     discardStoredSession: () => void;
+    getRuntimeSnapshot: () => FocusRuntimeSnapshot;
+    applyRuntimeSnapshot: (snapshot: FocusRuntimeSnapshot) => void;
 
     // Goal linking
     associatedGoalId: string | null;
@@ -230,16 +241,6 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, [userId]);
 
     useEffect(() => {
-        if (!userId) return;
-
-        void import("@/utils/focusService")
-            .then(({ focusService }) => focusService.flushQueuedSessions())
-            .catch(() => {
-                // Ignore retry failures here; the active session flow will surface its own errors.
-            });
-    }, [userId]);
-
-    useEffect(() => {
         if (pendingResumeSnapshot) return;
 
         const hasProgress = remainingSeconds > 0 && remainingSeconds < totalSeconds;
@@ -356,6 +357,63 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
+    const getRuntimeSnapshot = useCallback((): FocusRuntimeSnapshot => {
+        return {
+            mode: modeRef.current,
+            totalSeconds: Math.max(1, totalSecondsRef.current),
+            remainingSeconds: Math.max(0, remainingSecondsRef.current),
+            isRunning: isRunningRef.current,
+            associatedGoalId: associatedGoalIdRef.current,
+            associatedGoalTitle: associatedGoalTitle || null,
+            sessionStartedAt: activeFocusSessionRef.current?.startedAt || null,
+        };
+    }, [associatedGoalTitle]);
+
+    const applyRuntimeSnapshot = useCallback((snapshot: FocusRuntimeSnapshot) => {
+        const nextMode: FocusMode =
+            snapshot.mode === "short" || snapshot.mode === "long" ? snapshot.mode : "Timer";
+        const nextTotalSeconds = Math.max(1, Number(snapshot.totalSeconds || 25 * 60));
+        const nextRemainingSeconds = Math.max(0, Math.min(nextTotalSeconds, Number(snapshot.remainingSeconds || nextTotalSeconds)));
+        const nextIsRunning = Boolean(snapshot.isRunning) && nextRemainingSeconds > 0;
+
+        isRunningRef.current = false;
+        setIsRunning(false);
+        setIsMusicPlaying(false);
+
+        setMode(nextMode);
+        setTotalSeconds(nextTotalSeconds);
+        setRemainingSeconds(nextRemainingSeconds);
+        const modeMinutes = Math.max(1, Math.round(nextTotalSeconds / 60));
+        if (nextMode === "Timer") setTimerDuration(modeMinutes);
+        if (nextMode === "short") setBreakDuration(modeMinutes);
+        if (nextMode === "long") setLongBreakDuration(modeMinutes);
+
+        setAssociatedGoal(snapshot.associatedGoalId || null, snapshot.associatedGoalTitle || null);
+
+        if (nextMode === "Timer" && nextRemainingSeconds > 0) {
+            const startedAtFromSnapshot = snapshot.sessionStartedAt ? new Date(snapshot.sessionStartedAt) : null;
+            const safeStartedAt =
+                startedAtFromSnapshot && Number.isFinite(startedAtFromSnapshot.getTime())
+                    ? startedAtFromSnapshot.toISOString()
+                    : new Date(Date.now() - Math.max(0, nextTotalSeconds - nextRemainingSeconds) * 1000).toISOString();
+            activeFocusSessionRef.current = {
+                startedAt: safeStartedAt,
+                plannedDurationMinutes: Math.max(1, Math.round(nextTotalSeconds / 60)),
+                associatedGoalId: snapshot.associatedGoalId || null,
+            };
+        } else {
+            activeFocusSessionRef.current = null;
+        }
+
+        if (nextIsRunning) {
+            isRunningRef.current = true;
+            setIsRunning(true);
+            setIsMusicPlaying(true);
+        }
+
+        setPendingResumeSnapshot(null);
+    }, [setAssociatedGoal]);
+
     useEffect(() => {
         musicShouldPlayRef.current = isMusicPlaying;
     }, [isMusicPlaying]);
@@ -450,37 +508,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
         const activeSession = activeFocusSessionRef.current;
         if (!activeSession) return;
-
-        const elapsedSeconds = Math.max(0, totalSecondsRef.current - remainingSecondsRef.current);
-        const actualDurationMinutes = Math.floor(elapsedSeconds / 60);
-        if (actualDurationMinutes <= 0) {
-            activeFocusSessionRef.current = null;
-            return;
-        }
-
-        const payload = {
-            plannedDurationMinutes: activeSession.plannedDurationMinutes,
-            actualDurationMinutes,
-            breakMinutes: 0,
-            completed: Boolean(opts?.completed),
-            interrupted: Boolean(opts?.interrupted),
-            associatedGoalId: activeSession.associatedGoalId || undefined,
-            startedAt: activeSession.startedAt,
-            completedAt: new Date().toISOString(),
-        };
-
         activeFocusSessionRef.current = null;
-
-        import("@/utils/focusService")
-            .then(({ focusService }) => focusService.logSession(payload))
-            .then((result) => {
-                if (!result.success && result.queued) {
-                    toast.error("Session sync was delayed. We'll retry automatically.");
-                }
-            })
-            .catch((error) => {
-                console.error("Focus session log failed:", error);
-            });
     }, []);
 
     // Timer interval with timestamp catch-up. This is more resilient on iPad/backgrounded tabs.
@@ -1145,6 +1173,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         hasPendingResume: Boolean(pendingResumeSnapshot),
         resumeStoredSession,
         discardStoredSession,
+        getRuntimeSnapshot,
+        applyRuntimeSnapshot,
         associatedGoalId,
         associatedGoalTitle,
         setAssociatedGoal,

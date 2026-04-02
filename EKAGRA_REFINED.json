@@ -1,0 +1,605 @@
+{
+  "feature": "ekagra_logic_rebuild_without_main_ui_redesign",
+  "version": "1.0.0",
+  "objective": "Keep the current main Ekagra timer page UI visually unchanged, but rebuild the logic contract for sessions, history, and analytics so all three derive from one single source of truth and no longer drift or misreport.",
+  "product_principles": [
+    "Do not redesign the main Ekagra timer card UI.",
+    "Do not change the calm visual style, central timer, or main page layout.",
+    "Timer controls live state only.",
+    "Session record is the single source of truth.",
+    "History is a read-only view over session records.",
+    "Analytics is an aggregate view over session records.",
+    "Tasks, goals, sessions, history, and analytics must not maintain separate truths.",
+    "Any metric shown to the user must be directly derivable from persisted session records.",
+    "Do not infer critical stats from mixed sources like task list state, URL state, or temporary UI state.",
+    "If a session started meaningfully, preserve it as data.",
+    "If a session never started meaningfully, it may be ignored or deleted as a draft."
+  ],
+  "non_goals": [
+    "No redesign of the main timer card.",
+    "No redesign of the Ekagra background, theme, or current central timer layout.",
+    "No expansion of feature scope.",
+    "No new advanced workflow system.",
+    "No dependency on hidden synthetic session objects as the truth source."
+  ],
+  "canonical_domain_model": {
+    "primary_entity": "FocusSession",
+    "definition": "A FocusSession is one actual timed run of focus or break activity. It is the only truth source for session state, history, and analytics.",
+    "schema": {
+      "id": "string",
+      "userId": "string",
+      "title": "string",
+      "linkedGoalId": "string|null",
+      "linkedGoalTitle": "string|null",
+      "sessionType": "focus|short_break|long_break",
+      "plannedMinutes": "number",
+      "actualMinutes": "number",
+      "status": "active|paused|completed|ended_early",
+      "startedAt": "ISO_datetime|null",
+      "pausedAt": "ISO_datetime|null",
+      "resumedAt": "ISO_datetime|null",
+      "completedAt": "ISO_datetime|null",
+      "endedAt": "ISO_datetime|null",
+      "createdAt": "ISO_datetime",
+      "updatedAt": "ISO_datetime",
+      "pauseCount": "number",
+      "interruptionCount": "number",
+      "source": "quick|goal_import|manual_task",
+      "dayKey": "YYYY-MM-DD_local_user_day",
+      "timezone": "IANA_timezone_string",
+      "isDeleted": "boolean"
+    },
+    "field_rules": [
+      "title is frozen at session start time and does not change retroactively if the live input changes later.",
+      "linkedGoalId and linkedGoalTitle are frozen into the session at start time if a goal is linked.",
+      "plannedMinutes is frozen at session start time.",
+      "actualMinutes is always computed from elapsed time and persisted on pause, resume, complete, or end early.",
+      "dayKey must be derived from the user's local timezone at session start time.",
+      "sessionType must be explicit and never inferred later from UI tabs.",
+      "status must always reflect the latest real lifecycle state of the single session record."
+    ]
+  },
+  "ownership_rules": {
+    "timer": [
+      "Controls countdown.",
+      "Controls live running or paused display.",
+      "Knows currently active session id.",
+      "Writes status transitions to FocusSession.",
+      "Does not own history records.",
+      "Does not own analytics summaries."
+    ],
+    "session_record": [
+      "Owns lifecycle timestamps.",
+      "Owns title, linked goal snapshot, planned minutes, actual minutes, and status.",
+      "Owns pause count and interruption count.",
+      "Owns source of truth for completion and early ending."
+    ],
+    "history": [
+      "Reads from FocusSession only.",
+      "Never reads raw task creation events as truth.",
+      "Never infers completion from task UI state."
+    ],
+    "analytics": [
+      "Reads from FocusSession only.",
+      "Never mixes task rows, temporary overlays, synthetic previews, or legacy stats from other models as truth."
+    ]
+  },
+  "entity_definitions": {
+    "task": "A user-visible label entered in the timer input, such as Maths or Physical Chemistry.",
+    "goal": "An optional linked item from the Goals section.",
+    "session": "One actual timed run.",
+    "history": "A list view of previously started and ended sessions.",
+    "analytics": "Aggregated calculations derived from session records.",
+    "paused_session": "A previously started session that can still be resumed.",
+    "ended_early_session": "A previously started session that stopped before planned completion.",
+    "completed_session": "A session that reached its intended completion."
+  },
+  "state_machine": {
+    "allowed_statuses": [
+      "active",
+      "paused",
+      "completed",
+      "ended_early"
+    ],
+    "transitions": [
+      {
+        "from": "none",
+        "to": "active",
+        "event": "start_session",
+        "rules": [
+          "Create a new FocusSession immediately.",
+          "Persist title, linked goal snapshot, session type, planned minutes, createdAt, startedAt, dayKey, timezone, source.",
+          "Set actualMinutes to 0.",
+          "Set pauseCount to 0.",
+          "Set interruptionCount to 0."
+        ]
+      },
+      {
+        "from": "active",
+        "to": "paused",
+        "event": "pause_session",
+        "rules": [
+          "Update the same session record.",
+          "Persist pausedAt.",
+          "Increment pauseCount by 1.",
+          "Recompute and persist actualMinutes using elapsed time minus paused durations if applicable."
+        ]
+      },
+      {
+        "from": "paused",
+        "to": "active",
+        "event": "resume_session",
+        "rules": [
+          "Update the same session record.",
+          "Persist resumedAt.",
+          "Do not create a new session."
+        ]
+      },
+      {
+        "from": "active",
+        "to": "completed",
+        "event": "timer_natural_completion",
+        "rules": [
+          "Persist completedAt and endedAt.",
+          "Set actualMinutes to plannedMinutes unless actual elapsed differs slightly due to timer drift, in which case cap to plannedMinutes.",
+          "Completed focus sessions count toward streak and completion metrics."
+        ]
+      },
+      {
+        "from": "active",
+        "to": "ended_early",
+        "event": "manual_end_before_timer_completion",
+        "rules": [
+          "Persist endedAt.",
+          "Persist actualMinutes based on elapsed time.",
+          "Do not mark as completed."
+        ]
+      },
+      {
+        "from": "paused",
+        "to": "ended_early",
+        "event": "manual_end_from_paused_state",
+        "rules": [
+          "Persist endedAt.",
+          "Keep actualMinutes as last known elapsed value.",
+          "Do not mark as completed."
+        ]
+      }
+    ],
+    "forbidden_transitions": [
+      "completed -> active",
+      "completed -> paused",
+      "ended_early -> active",
+      "ended_early -> paused"
+    ],
+    "draft_rule": {
+      "definition": "A draft is a UI-only state before a session meaningfully starts.",
+      "rules": [
+        "If user types a task but never starts the timer, no session record is created.",
+        "If user resets before timer start, discard draft locally only.",
+        "If user starts and then immediately stops, create a real session only if elapsed time crosses a meaningful threshold.",
+        "Meaningful threshold should be configurable but default to at least 5 seconds."
+      ]
+    }
+  },
+  "single_active_session_policy": {
+    "rule": "A user may have only one active session at a time.",
+    "behavior": [
+      "If a new session is started while another is active, do not silently switch.",
+      "Show a user decision modal with three options: resume current, switch to new, end current and start new."
+    ],
+    "modal_options": [
+      {
+        "id": "resume_current",
+        "label": "Resume current",
+        "effect": "Dismiss new start flow and keep current active session."
+      },
+      {
+        "id": "switch_to_new",
+        "label": "Switch to new",
+        "effect": "Pause current active session, then create and start the new session."
+      },
+      {
+        "id": "end_current_and_start_new",
+        "label": "End current and start new",
+        "effect": "Mark current session as ended_early, then create and start the new session."
+      }
+    ]
+  },
+  "main_timer_contract": {
+    "ui_policy": "Keep the current timer page design intact.",
+    "allowed_small_logic_ui_additions": [
+      "A small status line under the task field.",
+      "A subtle linked goal line if a goal is attached.",
+      "A subtle paused-session reminder if applicable."
+    ],
+    "status_line_examples": [
+      "Not started",
+      "Running session",
+      "Paused session saved",
+      "Linked to goal: Maths Revision"
+    ],
+    "start_behavior": [
+      "When Start is pressed, create FocusSession immediately.",
+      "Freeze title and goal linkage into the session.",
+      "Start timer and store active session id."
+    ],
+    "pause_behavior": [
+      "Pause updates current active session only.",
+      "Do not create a new row or shadow record."
+    ],
+    "reset_behavior": [
+      "If no started session exists, reset local timer only.",
+      "If a started session exists and timer has elapsed meaningfully, Reset must ask user whether to end session early or continue.",
+      "Do not silently erase a started session."
+    ],
+    "task_input_behavior": [
+      "Current task input is only the draft title before Start.",
+      "After Start, the running session title is frozen.",
+      "Editing input later does not retroactively change history or analytics for an already-started session."
+    ]
+  },
+  "goal_linking_contract": {
+    "user_facing_language": [
+      "Linked to goal",
+      "Quick focus"
+    ],
+    "rules": [
+      "If Ekagra is opened from a goal, the goal is preselected and frozen into the session at start time.",
+      "Goal linkage must not be inferred later from navigation state.",
+      "History and analytics must read linkedGoalId and linkedGoalTitle from the session record only.",
+      "If a goal is unlinked before session start, the session starts as quick focus.",
+      "If a goal is unlinked after session start, the already-started session keeps the original linked goal snapshot."
+    ]
+  },
+  "sessions_panel_spec": {
+    "purpose": "Operational control only",
+    "must_not_be": [
+      "A second analytics dashboard",
+      "A mixed history screen",
+      "A raw admin/debug panel"
+    ],
+    "sections": [
+      {
+        "id": "current",
+        "title": "Current",
+        "show_when": "There is one active session",
+        "contents": [
+          "title",
+          "session type",
+          "time planned",
+          "time elapsed or remaining",
+          "status",
+          "linked goal if any"
+        ],
+        "actions": [
+          "Pause",
+          "End",
+          "Resume if somehow visible from paused handoff state"
+        ]
+      },
+      {
+        "id": "saved_for_later",
+        "title": "Saved for later",
+        "show_when": "There are paused sessions",
+        "contents": [
+          "title",
+          "planned duration",
+          "actual time already spent",
+          "last updated time"
+        ],
+        "actions": [
+          "Resume",
+          "End"
+        ]
+      }
+    ],
+    "remove_or_do_not_show": [
+      "Ready section",
+      "Resumable time summary box",
+      "Large empty category blocks",
+      "Counters that do not directly help the user act"
+    ],
+    "empty_states": [
+      {
+        "when": "No active and no paused sessions",
+        "message": "No active or saved sessions."
+      }
+    ]
+  },
+  "history_panel_spec": {
+    "purpose": "Review only",
+    "top_summary_metrics": [
+      "Focused today",
+      "Sessions done today",
+      "Average completed session"
+    ],
+    "tabs": [
+      "Today",
+      "7 Days",
+      "All"
+    ],
+    "history_source_rule": "History must be fully session-based, not task-based.",
+    "history_row_schema": {
+      "title": "string",
+      "dateTime": "formatted local datetime",
+      "actualMinutes": "number",
+      "statusChip": "Completed|Ended early|Break",
+      "linkedGoalTitle": "string|null",
+      "sessionType": "focus|short_break|long_break"
+    },
+    "row_examples": [
+      "Maths — 25m — Completed",
+      "Physical Chemistry — 12m — Ended early",
+      "Short Break — 5m — Completed"
+    ],
+    "include_statuses": [
+      "completed",
+      "ended_early"
+    ],
+    "exclude_by_default": [
+      "active",
+      "paused",
+      "draft",
+      "unstarted tasks"
+    ],
+    "sorting_rule": "Newest first within the selected filter.",
+    "grouping_rule": {
+      "today_tab": "Group under Today only",
+      "seven_days_tab": "Group by day key",
+      "all_tab": "Group by day key with older groups collapsed by default"
+    },
+    "empty_states": [
+      {
+        "when": "No completed or ended early sessions today",
+        "message": "No focus history yet for today."
+      }
+    ]
+  },
+  "analytics_spec": {
+    "purpose": "Trustworthy trends only",
+    "global_rule": "Every metric must be directly derivable from FocusSession records.",
+    "time_windows": [
+      "today",
+      "last_7_days",
+      "all_time"
+    ],
+    "metrics": {
+      "today": [
+        "totalFocusMinutes",
+        "completedFocusSessions",
+        "endedEarlyFocusSessions",
+        "totalBreakMinutes"
+      ],
+      "thisWeek": [
+        "focusMinutesByDay",
+        "completionRate",
+        "averageCompletedSessionLength",
+        "currentStreak"
+      ],
+      "patterns": [
+        "topTaskTitles",
+        "bestTimeOfDay",
+        "pauseRate",
+        "finishRate"
+      ]
+    },
+    "remove_or_demote": [
+      "Hardcoded daily goal minutes",
+      "Weak derived insights that are not explainable",
+      "Goal distribution when most sessions are unlabeled",
+      "Metrics derived from recent subset only if presented as all-time truth"
+    ],
+    "sparse_data_rule": [
+      "If insufficient sessions exist, show 'Not enough focus sessions yet.'",
+      "Do not fabricate trend language from low-sample data."
+    ]
+  },
+  "analytics_formula_contract": {
+    "totalFocusMinutes": "Sum actualMinutes for sessionType=focus and status in [completed, ended_early].",
+    "totalBreakMinutes": "Sum actualMinutes for sessionType in [short_break, long_break] and status in [completed, ended_early].",
+    "completedFocusSessions": "Count sessions where sessionType=focus and status=completed.",
+    "endedEarlyFocusSessions": "Count sessions where sessionType=focus and status=ended_early.",
+    "averageCompletedSessionLength": "Average actualMinutes for sessionType=focus and status=completed only.",
+    "completionRate": "completed focus sessions / all started focus sessions where status in [completed, ended_early]. Paused and active are excluded from denominator unless product explicitly wants otherwise.",
+    "currentStreak": "Count consecutive local dayKeys backward from today where at least one focus session has status=completed.",
+    "bestTimeOfDay": "Hour bucket with maximum sum of actualMinutes from completed and ended_early focus sessions.",
+    "topTaskTitles": "Group focus sessions by normalized frozen title, sum actualMinutes, sort descending.",
+    "pauseRate": "Number of focus sessions with pauseCount > 0 divided by all started focus sessions.",
+    "finishRate": "completed focus sessions / all started focus sessions where status in [completed, ended_early].",
+    "interruptions": "Must have one explicit definition only. Recommended: count of focus sessions with pauseCount > 0. Do not also use not-completed sessions for the same metric."
+  },
+  "normalization_rules": {
+    "title_normalization_for_analytics": [
+      "Trim whitespace.",
+      "Collapse multiple spaces.",
+      "Lowercase for grouping key only.",
+      "Preserve original user casing for display.",
+      "Empty title becomes 'Unlabeled'."
+    ],
+    "time_rounding": [
+      "Persist actualMinutes with second precision if possible.",
+      "Display rounded minutes in UI.",
+      "Use consistent rounding rule across history and analytics."
+    ],
+    "timezone_handling": [
+      "dayKey must be computed in user local timezone.",
+      "All streaks and daily grouping use dayKey, not raw UTC date."
+    ]
+  },
+  "break_session_rules": {
+    "breaks_are_sessions": true,
+    "rules": [
+      "Short break and long break are stored as FocusSession records with explicit sessionType.",
+      "Breaks should not count toward streak.",
+      "Breaks should not count toward completed focus session totals.",
+      "Breaks should count toward totalBreakMinutes."
+    ]
+  },
+  "error_prevention_rules": [
+    "Do not let history read directly from tasks table as truth for completed work.",
+    "Do not let analytics read directly from task completion UI state.",
+    "Do not let linked goal badges become the source of analytics mapping.",
+    "Do not let synthetic live preview objects become the authoritative session source.",
+    "Do not let ended_early be silently treated as discarded and disappear from history.",
+    "Do not let paused sessions appear in history as completed work."
+  ],
+  "data_consistency_rules": [
+    "A session that appears in history must exist in the session table.",
+    "A session that contributes to analytics must exist in the session table.",
+    "A session cannot be counted as both completed and ended_early.",
+    "A paused session cannot count as completed work.",
+    "A focus streak day requires at least one completed focus session.",
+    "History and analytics must use the same normalized dayKey boundaries."
+  ],
+  "ui_mapping_rules": {
+    "main_page": {
+      "reads": [
+        "current active session",
+        "current linked goal draft before start",
+        "timer configuration"
+      ],
+      "writes": [
+        "session start",
+        "session pause",
+        "session resume",
+        "session complete",
+        "session end early"
+      ]
+    },
+    "sessions_panel": {
+      "reads": [
+        "active sessions",
+        "paused sessions"
+      ],
+      "writes": [
+        "pause active session",
+        "resume paused session",
+        "end active session",
+        "end paused session"
+      ]
+    },
+    "history_panel": {
+      "reads": [
+        "completed sessions",
+        "ended early sessions"
+      ],
+      "writes": []
+    },
+    "analytics_page": {
+      "reads": [
+        "aggregated sessions"
+      ],
+      "writes": []
+    }
+  },
+  "edge_cases": [
+    {
+      "id": "start_without_task_title",
+      "rule": "Allow start with fallback title 'Unlabeled' or require a title consistently. Pick one rule and use it everywhere.",
+      "recommended": "Allow start and store title as 'Unlabeled'."
+    },
+    {
+      "id": "user_changes_input_mid_session",
+      "rule": "Do not modify frozen session title."
+    },
+    {
+      "id": "user_starts_focus_then_switches_to_break",
+      "rule": "Current focus session must first be completed, paused, or ended early. Break starts as a separate session."
+    },
+    {
+      "id": "browser_refresh_during_active_session",
+      "rule": "Restore active session from backend session record, not from temporary UI state."
+    },
+    {
+      "id": "active_session_exists_but_timer_ui_shows_zero",
+      "rule": "Backend session truth wins. UI must reconcile to the active session instead of showing contradictory state."
+    },
+    {
+      "id": "paused_session_left_for_days",
+      "rule": "It remains resumable unless product defines expiry. If expiry is added later, expired sessions must convert to ended_early or archived with explicit rule."
+    },
+    {
+      "id": "goal_deleted_after_session_start",
+      "rule": "History and analytics still show frozen linkedGoalTitle snapshot from the session."
+    }
+  ],
+  "migration_plan": {
+    "goal": "Move current Ekagra logic to canonical FocusSession truth without changing main UI.",
+    "steps": [
+      "Create or finalize canonical FocusSession schema.",
+      "Map existing session statuses to active, paused, completed, ended_early.",
+      "Replace discarded for meaningful started sessions with ended_early during migration if safe.",
+      "Freeze title and linked goal snapshot into session on start.",
+      "Refactor timer actions to write only to FocusSession.",
+      "Refactor Sessions panel to read only active and paused sessions from FocusSession.",
+      "Refactor History panel to read only completed and ended_early sessions from FocusSession.",
+      "Refactor Analytics page to aggregate only FocusSession data.",
+      "Remove or disable metrics that still depend on mixed legacy sources.",
+      "Validate every displayed number against session-table-based recomputation."
+    ]
+  },
+  "qa_acceptance_criteria": [
+    "Starting a focus session creates exactly one FocusSession record.",
+    "Pausing and resuming do not create new session records.",
+    "Completing a focus session makes it appear in History and Analytics consistently.",
+    "Ending a focus session early makes it appear in History and Analytics consistently as ended early.",
+    "Paused sessions appear only in Sessions panel, not in History completed lists.",
+    "A linked goal started in Ekagra is preserved in History even if the live input later changes.",
+    "History counts match analytics counts when filtered to the same time window and same status rules.",
+    "Streak is based only on completed focus sessions by local dayKey.",
+    "Break sessions contribute only to break totals, not focus totals or streak.",
+    "No panel displays contradictory counts for the same set of sessions."
+  ],
+  "recommended_api_contract": {
+    "createSession": {
+      "method": "POST",
+      "path": "/focus-sessions",
+      "payload": {
+        "title": "string",
+        "linkedGoalId": "string|null",
+        "linkedGoalTitle": "string|null",
+        "sessionType": "focus|short_break|long_break",
+        "plannedMinutes": "number",
+        "source": "quick|goal_import|manual_task",
+        "timezone": "string"
+      }
+    },
+    "updateSessionStatus": {
+      "method": "PATCH",
+      "path": "/focus-sessions/:id/status",
+      "payload": {
+        "status": "active|paused|completed|ended_early",
+        "actualMinutes": "number|null",
+        "timestamp": "ISO_datetime"
+      }
+    },
+    "getOpenSessions": {
+      "method": "GET",
+      "path": "/focus-sessions/open",
+      "returns": "active and paused sessions only"
+    },
+    "getHistorySessions": {
+      "method": "GET",
+      "path": "/focus-sessions/history",
+      "query": {
+        "range": "today|7d|all"
+      }
+    },
+    "getAnalytics": {
+      "method": "GET",
+      "path": "/focus-sessions/analytics",
+      "query": {
+        "range": "today|7d|all"
+      },
+      "rule": "Must be computed from FocusSession only"
+    }
+  },
+  "final_product_contract": {
+    "ekagra_timer_answers": "What is happening right now?",
+    "sessions_panel_answers": "What can I still resume or control?",
+    "history_panel_answers": "What have I already done?",
+    "analytics_page_answers": "What patterns can I learn from?",
+    "truth_contract": "All four must resolve from the same persisted FocusSession truth model."
+  }
+}

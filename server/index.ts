@@ -16,6 +16,7 @@ import { journalRoutes } from "./routes/journal";
 import { goalRoutes } from "./routes/goals";
 import { streakRoutes } from "./routes/streaks";
 import { focusSessionRoutes } from "./routes/focus-sessions";
+import { ekagraSessionRoutes } from "./routes/ekagra-sessions";
 import { focusOverlayRoutes } from "./routes/focus-overlay";
 import { analyticsRoutes } from "./routes/analytics";
 import { connectMongo, initDatabase } from "./db";
@@ -176,6 +177,7 @@ export async function createServer() {
   app.use("/api/goals", goalRoutes);
   app.use("/api/streaks", streakRoutes);
   app.use("/api/focus-sessions", focusSessionRoutes);
+  app.use("/api/ekagra-sessions", ekagraSessionRoutes);
   app.use("/api/focus-overlay", focusOverlayRoutes);
   app.use("/api/achievements", achievementsModule.achievementRoutes);
   app.use("/api/analytics", analyticsRoutes);

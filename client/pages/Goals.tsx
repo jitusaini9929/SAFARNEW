@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { dataService } from "@/utils/dataService";
-import { Goal, GoalSubtask } from "@shared/api";
+import { Goal, GoalSubtask, GoalKind, GoalUnitType, GoalExecutionStatus, GoalCarryForwardMode } from "@shared/api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { 
@@ -25,13 +25,43 @@ import {
   TrendingUp, 
   Clock, 
   BarChart3,
-  X
+  X,
+  Info
 } from "lucide-react";
 
 // ─── TYPES ────────────────────────────────────────────────────
 interface UIGoal extends Goal {
   title: string;
 }
+
+const GOAL_KIND_OPTIONS: Array<{ value: GoalKind; label: string; hint: string }> = [
+  { value: "one_time", label: "One-time", hint: "No fixed day. Complete it when done." },
+  { value: "today", label: "Today", hint: "Only for today." },
+  { value: "repeat", label: "Repeat", hint: "Do this regularly." },
+];
+
+const GOAL_UNIT_OPTIONS: Array<{ value: GoalUnitType; label: string }> = [
+  { value: "binary", label: "Done / Not done" },
+  { value: "count", label: "By number (count)" },
+  { value: "duration_minutes", label: "Track by focused time" },
+  { value: "checklist", label: "Checklist points" },
+];
+
+const GOAL_CARRY_FORWARD_OPTIONS: Array<{ value: GoalCarryForwardMode; label: string }> = [
+  { value: "none", label: "End for this day" },
+  { value: "remaining", label: "Carry remaining to next day" },
+  { value: "full", label: "Repeat full target next day" },
+  { value: "ask", label: "Ask me next day" },
+];
+
+const GOAL_STATUS_OPTIONS: Array<{ value: GoalExecutionStatus; label: string }> = [
+  { value: "not_started", label: "Not started" },
+  { value: "in_progress", label: "In progress" },
+  { value: "partial", label: "Partially done" },
+  { value: "completed", label: "Completed" },
+  { value: "missed", label: "Missed" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
 const MAX_COMPLETED_DISPLAY = 5;
 
@@ -50,15 +80,147 @@ const formatDuration = (ms?: number | null) => {
   return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
 };
 
+const MAX_DAILY_GOAL_DURATION_MS = 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const parseValidDate = (raw: unknown) => {
+  if (!raw) return null;
+  const parsed = new Date(String(raw));
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+};
+
+const normalizeGoalKind = (goal: UIGoal): GoalKind => {
+  const raw = String(goal.goalKind || (goal as any).goal_kind || "").trim();
+  if (raw === "one_time" || raw === "today" || raw === "repeat") return raw as GoalKind;
+  return "today";
+};
+
+const normalizeGoalUnitType = (goal: UIGoal): GoalUnitType => {
+  const raw = String(goal.unitType || (goal as any).unit_type || "").trim();
+  if (raw === "binary" || raw === "count" || raw === "duration_minutes" || raw === "checklist") return raw as GoalUnitType;
+  return "binary";
+};
+
+const normalizeGoalStatus = (goal: UIGoal): GoalExecutionStatus => {
+  const raw = String(goal.status || (goal as any).status_value || "").trim();
+  if (
+    raw === "not_started" ||
+    raw === "in_progress" ||
+    raw === "completed" ||
+    raw === "partial" ||
+    raw === "missed" ||
+    raw === "cancelled" ||
+    raw === "expired" ||
+    raw === "rolled_over"
+  ) {
+    return raw as GoalExecutionStatus;
+  }
+  return isGoalCompleted(goal) ? "completed" : "not_started";
+};
+
+const normalizeCarryForwardMode = (goal: UIGoal): GoalCarryForwardMode => {
+  const raw = String(goal.carryForwardMode || (goal as any).carry_forward_mode || "").trim();
+  if (raw === "none" || raw === "remaining" || raw === "full" || raw === "ask") return raw as GoalCarryForwardMode;
+  return normalizeGoalKind(goal) === "repeat" ? "ask" : "none";
+};
+
+const normalizeTargetValue = (goal: UIGoal): number | null => {
+  const raw = (goal.targetValue ?? (goal as any).target_value) as unknown;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return value;
+};
+
+const normalizeAchievedValue = (goal: UIGoal): number => {
+  const raw = (goal.achievedValue ?? (goal as any).achieved_value) as unknown;
+  const value = Number(raw);
+  if (Number.isFinite(value) && value >= 0) return value;
+  return isGoalCompleted(goal) ? 1 : 0;
+};
+
+const getGoalKindBadgeLabel = (kind: GoalKind) => {
+  if (kind === "one_time") return "One-time";
+  if (kind === "repeat") return "Repeat";
+  return "Today";
+};
+
+const getGoalUnitBadgeLabel = (unit: GoalUnitType) => {
+  if (unit === "duration_minutes") return "Time";
+  if (unit === "count") return "Count";
+  if (unit === "checklist") return "Checklist";
+  return "Done/Not done";
+};
+
+const getGoalStatusLabel = (status: GoalExecutionStatus) => {
+  const entry = GOAL_STATUS_OPTIONS.find((option) => option.value === status);
+  return entry?.label || status.replace(/_/g, " ");
+};
+
+const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+
+const getGoalProgressPercent = (goal: UIGoal) => {
+  const unitType = normalizeGoalUnitType(goal);
+  const status = normalizeGoalStatus(goal);
+  const target = normalizeTargetValue(goal);
+  const achieved = normalizeAchievedValue(goal);
+  const isCompleted = status === "completed" || isGoalCompleted(goal);
+
+  if (unitType === "binary") {
+    return isCompleted ? 100 : achieved > 0 ? 100 : 0;
+  }
+
+  if (unitType === "checklist") {
+    const subtasks = Array.isArray(goal.subtasks) ? goal.subtasks : [];
+    if (subtasks.length === 0) return isCompleted ? 100 : 0;
+    const doneCount = subtasks.filter((item) => item.done).length;
+    return clampPercent((doneCount / subtasks.length) * 100);
+  }
+
+  if (typeof target === "number" && target > 0) {
+    return clampPercent((achieved / target) * 100);
+  }
+
+  return isCompleted ? 100 : 0;
+};
+
+const getGoalAnchorDateKey = (goal: UIGoal) => {
+  const scheduled = goal.scheduledDate ? parseValidDate(goal.scheduledDate) : null;
+  if (scheduled) return getISTDateKey(scheduled);
+  return getGoalCreatedDateKey(goal);
+};
+
+const getStatusBucket = (goal: UIGoal) => {
+  const status = normalizeGoalStatus(goal);
+  if (status === "cancelled") return "cancelled";
+  if (status === "missed" || status === "expired") return "missed";
+  if (status === "partial") return "partial";
+  if (status === "completed" || isGoalCompleted(goal)) return "completed";
+  return "open";
+};
+
+const getGoalCompletedDate = (goal: UIGoal) =>
+  parseValidDate(goal.completedAt || (goal as any).completed_at);
+
+const isGoalCompleted = (goal: UIGoal) =>
+  Boolean(goal.completed || getGoalCompletedDate(goal));
+
 const getGoalLifecycleDurationMs = (goal: UIGoal) => {
-  const rawCreatedAt = (goal as any).createdAt || (goal as any).created_at;
-  const rawCompletedAt = goal.completedAt || (goal as any).completed_at;
-  if (!rawCreatedAt || !rawCompletedAt) return null;
-  const createdAt = new Date(rawCreatedAt);
-  const completedAt = new Date(rawCompletedAt);
-  if (!Number.isFinite(createdAt.getTime()) || !Number.isFinite(completedAt.getTime())) return null;
-  if (completedAt.getTime() < createdAt.getTime()) return null;
-  return completedAt.getTime() - createdAt.getTime();
+  const completedAt = getGoalCompletedDate(goal);
+  if (!completedAt) return null;
+
+  const rawStart = (goal as any).startedAt || (goal as any).started_at || (goal as any).createdAt || (goal as any).created_at;
+  const startAt = parseValidDate(rawStart);
+  if (!startAt) return null;
+
+  const completedMs = completedAt.getTime();
+  const istMinutesSinceMidnight = getISTMinutesSinceMidnight(completedAt);
+  const istDayStartMs = completedMs - (istMinutesSinceMidnight * 60 * 1000);
+  const normalizedStartMs = Math.max(startAt.getTime(), istDayStartMs);
+  const rawDuration = completedMs - normalizedStartMs;
+
+  if (!Number.isFinite(rawDuration) || rawDuration <= 0) return null;
+  return Math.min(rawDuration, MAX_DAILY_GOAL_DURATION_MS);
 };
 
 const getGoalCreatedTime = (goal: UIGoal) => {
@@ -68,7 +230,7 @@ const getGoalCreatedTime = (goal: UIGoal) => {
 };
 
 const getGoalCreatedDateKey = (goal: UIGoal) => {
-  const raw = (goal as any).createdAt || (goal as any).created_at || goal.scheduledDate;
+  const raw = (goal as any).createdAt || (goal as any).created_at || (goal as any).startedAt || (goal as any).started_at || goal.scheduledDate;
   const created = raw ? new Date(raw) : null;
   return created && Number.isFinite(created.getTime()) ? getISTDateKey(created) : null;
 };
@@ -77,14 +239,20 @@ const getDailyCompletionMetrics = (
   completedGoals: UIGoal[],
   dayKey: string,
 ) => {
-  const dayGoals = completedGoals.filter(g => g.completedAt && getISTDateKey(new Date(g.completedAt)) === dayKey);
+  const dayGoals = completedGoals.filter((goal) => {
+    const completedAt = getGoalCompletedDate(goal);
+    return Boolean(completedAt && getISTDateKey(completedAt) === dayKey);
+  });
   const durations = dayGoals
     .map((goal) => getGoalLifecycleDurationMs(goal))
     .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
   const totalDuration = durations.reduce((sum, v) => sum + v, 0);
   const avgDuration = durations.length ? totalDuration / durations.length : 0;
   const completionMinutes = dayGoals
-    .map(g => g.completedAt ? getISTMinutesSinceMidnight(new Date(g.completedAt)) : null)
+    .map((goal) => {
+      const completedAt = getGoalCompletedDate(goal);
+      return completedAt ? getISTMinutesSinceMidnight(completedAt) : null;
+    })
     .filter((v): v is number => v !== null && Number.isFinite(v));
   const avgCompletionMinutes = completionMinutes.length
     ? completionMinutes.reduce((sum, v) => sum + v, 0) / completionMinutes.length
@@ -101,6 +269,17 @@ const formatTimeInputFromISTDate = (date: Date) => {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 };
 
+const FieldInfo = ({ text, children }: { text?: string, children?: React.ReactNode }) => (
+  <span className="relative inline-flex items-center group normal-case tracking-normal">
+    <span className="inline-flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-help">
+      <Info size={14} strokeWidth={2.5} />
+    </span>
+    <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 rounded-xl border bg-background/95 backdrop-blur-md p-3.5 text-[11px] font-medium leading-relaxed text-foreground opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 text-left">
+      {children || text}
+    </span>
+  </span>
+);
+
 const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
   const todayKey = getISTDateKey(new Date());
   const base = dateKeyToUtcDate(todayKey);
@@ -109,7 +288,10 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
     const ds = getISTDateKey(d);
     return {
       day: formatISTDate(d, { weekday: "short" })[0],
-      count: goals.filter(g => g.completed && g.completedAt && getISTDateKey(new Date(g.completedAt)).startsWith(ds)).length,
+      count: goals.filter((goal) => {
+        const completedAt = getGoalCompletedDate(goal);
+        return Boolean(completedAt && getISTDateKey(completedAt) === ds);
+      }).length,
     };
   });
   const max = Math.max(...data.map(d => d.count), 1);
@@ -141,9 +323,15 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
 const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideActions = false, hideMeta = false, createdMeta }: any) => {
   const { t } = useTranslation();
   const durationMs = goal.source !== "ekagra" ? getGoalLifecycleDurationMs(goal) : null;
-  const completedAt = goal.completedAt ? new Date(goal.completedAt) : null;
+  const completedAt = getGoalCompletedDate(goal);
   const completedDateLabel = completedAt ? formatDateLabel(completedAt.toISOString()) : "";
   const completedTimeLabel = completedAt ? formatTime(completedAt) : "";
+  const goalKind = normalizeGoalKind(goal);
+  const unitType = normalizeGoalUnitType(goal);
+  const targetValue = normalizeTargetValue(goal);
+  const achievedValue = normalizeAchievedValue(goal);
+  const status = normalizeGoalStatus(goal);
+  const linkedFocusEnabled = Boolean(goal.linkedFocusEnabled ?? (goal as any).linked_focus_enabled);
   
   const primaryMeta = goal.completed
     ? completedTimeLabel
@@ -166,10 +354,30 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
       </div>
 
       <div className="flex-1 min-w-0">
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+            {getGoalKindBadgeLabel(goalKind)}
+          </span>
+          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            {getGoalUnitBadgeLabel(unitType)}
+          </span>
+          {status !== "completed" && (
+            <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-600">
+              {getGoalStatusLabel(status)}
+            </span>
+          )}
+        </div>
         {goal.source === "ekagra" && (
           <div className="mb-2">
             <span className="inline-flex items-center rounded-full bg-[#800020]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#800020] dark:bg-[#800020]/20 dark:text-[#ff85a2]">
               Ekagra mode task
+            </span>
+          </div>
+        )}
+        {linkedFocusEnabled && (
+          <div className="mb-2">
+            <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-600">
+              Timer linked
             </span>
           </div>
         )}
@@ -179,6 +387,13 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
         {goal.description && (
           <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
             {goal.description}
+          </p>
+        )}
+        {unitType !== "binary" && (
+          <p className="text-[11px] text-muted-foreground mt-2">
+            {targetValue !== null
+              ? `Progress ${achievedValue} / ${targetValue}${unitType === "duration_minutes" ? " min" : ""}`
+              : `Progress ${achievedValue}${unitType === "duration_minutes" ? " min" : ""}`}
           </p>
         )}
         {!hideMeta && metaPieces.length > 0 && (
@@ -229,9 +444,60 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
 const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) => {
   const { t } = useTranslation();
   const isEdit = mode === "edit";
+  const isCreate = !isEdit;
   const [title, setTitle] = useState(goal?.title || "");
   const [desc, setDesc] = useState(goal?.description || "");
+  const [goalKind, setGoalKind] = useState<GoalKind>(() => {
+    const raw = String(goal?.goalKind || goal?.goal_kind || "").trim();
+    return raw === "one_time" || raw === "today" || raw === "repeat" ? (raw as GoalKind) : "today";
+  });
+  const [unitType, setUnitType] = useState<GoalUnitType>(() => {
+    const raw = String(goal?.unitType || goal?.unit_type || "").trim();
+    return raw === "binary" || raw === "count" || raw === "duration_minutes" || raw === "checklist"
+      ? (raw as GoalUnitType)
+      : "binary";
+  });
+  const [linkedFocusEnabled, setLinkedFocusEnabled] = useState(() => {
+    const raw = goal?.linkedFocusEnabled ?? goal?.linked_focus_enabled;
+    if (typeof raw === "boolean") return raw;
+    const rawUnit = String(goal?.unitType || goal?.unit_type || "").trim();
+    return rawUnit === "duration_minutes";
+  });
+  const [advancedOpen, setAdvancedOpen] = useState(Boolean(isEdit));
+  const [repeatRule, setRepeatRule] = useState<"daily" | "weekdays" | "custom">("daily");
+  const [targetValue, setTargetValue] = useState(() => {
+    const raw = goal?.targetValue ?? goal?.target_value;
+    const value = Number(raw);
+    return Number.isFinite(value) && value >= 0 ? String(value) : "";
+  });
+  const [achievedValue, setAchievedValue] = useState(() => {
+    const raw = goal?.achievedValue ?? goal?.achieved_value;
+    const value = Number(raw);
+    return Number.isFinite(value) && value >= 0 ? String(value) : "";
+  });
+  const [status, setStatus] = useState<GoalExecutionStatus>(() => {
+    const raw = String(goal?.status || goal?.status_value || "").trim();
+    if (
+      raw === "not_started" ||
+      raw === "in_progress" ||
+      raw === "completed" ||
+      raw === "partial" ||
+      raw === "missed" ||
+      raw === "cancelled" ||
+      raw === "expired" ||
+      raw === "rolled_over"
+    ) {
+      return raw as GoalExecutionStatus;
+    }
+    return goal?.completed ? "completed" : "not_started";
+  });
+  const [carryForwardMode, setCarryForwardMode] = useState<GoalCarryForwardMode>(() => {
+    const raw = String(goal?.carryForwardMode || goal?.carry_forward_mode || "").trim();
+    if (raw === "none" || raw === "remaining" || raw === "full" || raw === "ask") return raw as GoalCarryForwardMode;
+    return goalKind === "repeat" ? "ask" : "none";
+  });
   const [date, setDate] = useState(goal?.scheduledDate ? getISTDateKey(new Date(goal.scheduledDate)) : todayKey);
+  const [showDueDate, setShowDueDate] = useState(Boolean(isEdit && goalKind === "one_time"));
   const [startTime, setStartTime] = useState(() => {
     const rawStartedAt = goal?.startedAt;
     if (!rawStartedAt) return "";
@@ -266,29 +532,92 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
     setSubtasks((prev) => prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)));
   };
 
+  useEffect(() => {
+    if (goalKind === "today") {
+      setDate(todayKey);
+      if (!isEdit) setCarryForwardMode("none");
+    } else if (goalKind === "repeat") {
+      if (!isEdit) setCarryForwardMode("ask");
+    } else if (goalKind === "one_time") {
+      if (!isEdit) setCarryForwardMode("none");
+    }
+  }, [goalKind, isEdit, todayKey]);
+
+  useEffect(() => {
+    if (unitType !== "duration_minutes") {
+      setLinkedFocusEnabled(false);
+      return;
+    }
+
+    if (!isEdit) {
+      setLinkedFocusEnabled(true);
+    }
+  }, [unitType, isEdit]);
+
   const submit = () => {
     if (!title.trim()) return;
+    const parsedTargetValue = Number(targetValue);
+    const effectiveDurationTarget = Number.isFinite(parsedTargetValue) && parsedTargetValue > 0
+      ? Math.round(parsedTargetValue)
+      : null;
+
+    if (unitType === "count" && (targetValue === "" || parsedTargetValue < 0)) return;
+    if (unitType === "duration_minutes" && effectiveDurationTarget === null) return;
+    const scheduleDateKey = goalKind === "today"
+      ? todayKey
+      : goalKind === "one_time"
+        ? (showDueDate ? date : undefined)
+        : todayKey;
     let startedAt: string | null = null;
     if (startTime) {
       const [hh, mm] = startTime.split(":").map(Number);
       const istOffsetMs = 5.5 * 60 * 60 * 1000;
-      const utcMs = new Date(`${date}T00:00:00.000Z`).getTime() + hh * 3600000 + mm * 60000 - istOffsetMs;
+      const anchorDate = scheduleDateKey || todayKey;
+      const utcMs = new Date(`${anchorDate}T00:00:00.000Z`).getTime() + hh * 3600000 + mm * 60000 - istOffsetMs;
       startedAt = new Date(utcMs).toISOString();
     }
+
+    const plannedFocusMinutes = unitType === "duration_minutes"
+      ? Number.isFinite(parsedTargetValue) && parsedTargetValue > 0
+        ? Math.round(parsedTargetValue)
+        : null
+      : null;
+
     onSave({
       title: title.trim(),
       description: desc.trim(),
-      scheduledDate: date,
+      scheduledDate: scheduleDateKey,
       startedAt,
+      goalKind,
+      unitType,
+      executionMode: unitType === "duration_minutes" && linkedFocusEnabled ? "timed" : "manual",
+      linkedFocusEnabled: unitType === "duration_minutes" ? linkedFocusEnabled : false,
+      plannedFocusMinutes,
+      targetValue:
+        unitType === "binary" || unitType === "checklist"
+          ? null
+          : unitType === "duration_minutes"
+            ? effectiveDurationTarget
+            : Number(targetValue),
+      achievedValue: achievedValue ? Number(achievedValue) : 0,
+      status: isCreate ? "not_started" : status,
+      carryForwardMode: goalKind === "one_time" ? "none" : carryForwardMode,
       subtasks: subtasks
         .map((item) => ({ ...item, text: item.text.trim() }))
         .filter((item) => item.text.length > 0),
     });
   };
+  const requiresTarget = unitType === "count" || unitType === "duration_minutes";
+  const parsedTargetForValidation = Number(targetValue);
+  const hasValidTarget = !requiresTarget
+    || (unitType === "duration_minutes"
+      ? Number.isFinite(parsedTargetForValidation) && parsedTargetForValidation > 0
+      : targetValue !== "" && parsedTargetForValidation >= 0);
+  const canSubmit = Boolean(title.trim()) && hasValidTarget;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-card border shadow-2xl rounded-3xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-lg bg-card border shadow-2xl rounded-3xl overflow-visible animate-in zoom-in-95 duration-200">
         <div className="bg-gradient-to-r from-emerald-600 to-teal-500 p-6 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Plus className="w-5 h-5" /> {isEdit ? t("goals.edit_goal") : t("goals.new_goal")}
@@ -300,7 +629,15 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
 
         <div className="p-6 space-y-5">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.title")}</label>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+              What do you want to do?
+              <FieldInfo>
+                <div className="space-y-1">
+                  <p>Yahan simple likho ki kaam kya hai.</p>
+                  <p className="text-muted-foreground">Jaise: 'Maths ke 20 questions solve karne hain.'</p>
+                </div>
+              </FieldInfo>
+            </label>
             <input 
               className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
               placeholder={t("goals.modal.title_placeholder")}
@@ -310,93 +647,385 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.description_optional")}</label>
-            <textarea 
-              className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all min-h-[100px] resize-none"
-              placeholder={t("goals.modal.description_placeholder")}
-              value={desc}
-              onChange={e => setDesc(e.target.value)}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-2xl border bg-muted/20">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                Goal type
+                <FieldInfo>
+                  <ul className="list-disc pl-3 space-y-1 text-muted-foreground">
+                    <li><strong className="text-foreground">Today:</strong> sirf aaj ke liye.</li>
+                    <li><strong className="text-foreground">One-time:</strong> jab complete ho tab.</li>
+                    <li><strong className="text-foreground">Repeat:</strong> regular basis par karna hai.</li>
+                  </ul>
+                </FieldInfo>
+              </label>
+              <select
+                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                value={goalKind}
+                onChange={(e) => setGoalKind(e.target.value as GoalKind)}
+              >
+                {GOAL_KIND_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground pl-1">
+                {GOAL_KIND_OPTIONS.find((option) => option.value === goalKind)?.hint}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                How will you track it?
+                <FieldInfo>
+                  <ul className="list-disc pl-3 space-y-1.5 text-muted-foreground">
+                    <li><strong className="text-foreground">Done/Not done:</strong> bas complete mark.</li>
+                    <li><strong className="text-foreground">Number:</strong> count track hoga.</li>
+                    <li><strong className="text-foreground">Time:</strong> minutes track honge.</li>
+                    <li><strong className="text-foreground">Checklist:</strong> points-wise track.</li>
+                  </ul>
+                </FieldInfo>
+              </label>
+              <select
+                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                value={unitType}
+                onChange={(e) => setUnitType(e.target.value as GoalUnitType)}
+              >
+                {GOAL_UNIT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.subtasks_optional")}</label>
-            <div className="flex gap-2">
+          {(unitType === "count" || unitType === "duration_minutes") && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                {unitType === "count" ? "Target number" : "Target time (minutes)"}
+                <FieldInfo>
+                  <p>{unitType === "count" ? "Total kitna karna hai wo number do." : "Total focus/study minutes do."}</p>
+                  <p className="text-muted-foreground mt-1">
+                    {unitType === "count" ? "Jaise: 20" : "Jaise: 90 ya 120"}
+                  </p>
+                </FieldInfo>
+              </label>
               <input
-                className="flex-1 bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                placeholder={t("goals.modal.subtask_placeholder")}
-                value={newSubtaskText}
-                onChange={(e) => setNewSubtaskText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addSubtask();
-                  }
-                }}
+                type="number"
+                min={0}
+                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                placeholder={unitType === "count" ? "For example, 20" : "For example, 120"}
+                value={targetValue}
+                onChange={(e) => setTargetValue(e.target.value)}
               />
-              <button
-                type="button"
-                onClick={addSubtask}
-                className="px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
-              >
-                {t("goals.modal.add")}
-              </button>
             </div>
+          )}
 
-            {subtasks.length > 0 && (
-              <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
-                {subtasks.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 bg-muted/40 border rounded-xl px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleSubtaskDone(item.id)}
-                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-border text-transparent'}`}
-                      title={t("goals.modal.toggle_subtask")}
+          {unitType === "duration_minutes" && (
+            <div className="space-y-3 rounded-2xl border bg-amber-500/5 border-amber-500/20 p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-foreground">Work on this with a timer</p>
+                <p className="text-xs text-muted-foreground">Goal alag rahega, focus sessions alag rahengi, but session is goal ke saath link hogi.</p>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={linkedFocusEnabled}
+                  onChange={(e) => setLinkedFocusEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border-border"
+                />
+                Enable linked focus sessions
+              </label>
+            </div>
+          )}
+
+          {unitType === "checklist" && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                Checklist points
+                <FieldInfo>
+                  <p>Bade goal ko chhote steps mein tod do.</p>
+                  <p className="text-muted-foreground mt-1">Har step tick karke progress track hoga.</p>
+                </FieldInfo>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  placeholder={t("goals.modal.subtask_placeholder")}
+                  value={newSubtaskText}
+                  onChange={(e) => setNewSubtaskText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addSubtask();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={addSubtask}
+                  className="px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
+                >
+                  {t("goals.modal.add")}
+                </button>
+              </div>
+              {subtasks.length > 0 && (
+                <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                  {subtasks.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 bg-muted/40 border rounded-xl px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleSubtaskDone(item.id)}
+                        className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-border text-transparent'}`}
+                        title={t("goals.modal.toggle_subtask")}
+                      >
+                        <Check size={12} strokeWidth={3} />
+                      </button>
+                      <span className={`flex-1 text-sm ${item.done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{item.text}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeSubtask(item.id)}
+                        className="p-1 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
+                        title={t("goals.modal.remove_subtask")}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {goalKind === "one_time" && (
+            <div className="space-y-3 rounded-2xl border bg-muted/20 p-4">
+              <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <input
+                  type="checkbox"
+                  checked={showDueDate}
+                  onChange={(e) => setShowDueDate(e.target.checked)}
+                  className="h-4 w-4 rounded border-border"
+                />
+                Add due date (optional)
+                <FieldInfo>
+                  <p>Agar is goal ki deadline fix karni hai to date select karo.</p>
+                  <p className="text-muted-foreground mt-1">Optional hai.</p>
+                </FieldInfo>
+              </label>
+              {showDueDate && (
+                <input
+                  type="date"
+                  className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all color-scheme-dark"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  min={todayKey}
+                  max={maxDateKey}
+                />
+              )}
+            </div>
+          )}
+
+          {goalKind === "repeat" && (
+            <div className="space-y-2 rounded-2xl border bg-muted/20 p-4">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                Repeat setting
+                <FieldInfo>
+                  <p>Ye batata hai goal kitni baar automatically aayega.</p>
+                  <p className="text-muted-foreground mt-1">Abhi Daily active hai.</p>
+                </FieldInfo>
+              </label>
+              <select
+                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                value={repeatRule}
+                onChange={(e) => setRepeatRule(e.target.value as "daily" | "weekdays" | "custom")}
+              >
+                <option value="daily">Daily</option>
+                <option value="weekdays" disabled>Weekdays only (coming soon)</option>
+                <option value="custom" disabled>Custom days (coming soon)</option>
+              </select>
+            </div>
+          )}
+
+          <div className="border rounded-2xl bg-muted/20">
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((prev) => !prev)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
+            >
+              <span className="flex items-center gap-2">
+                More options
+                <FieldInfo>
+                  <p>Yeh advanced settings hain.</p>
+                  <p className="text-muted-foreground mt-1">Normal use ke liye fill karna zaroori nahi hai.</p>
+                </FieldInfo>
+              </span>
+              <span className="text-xs text-muted-foreground">{advancedOpen ? "Hide" : "Show"}</span>
+            </button>
+            {advancedOpen && (
+              <div className="px-4 pb-4 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                    Add details
+                    <FieldInfo>
+                      <p>Goal ke extra notes likh sakte ho.</p>
+                      <p className="text-muted-foreground mt-1">Jaise topic, context ya reminder.</p>
+                    </FieldInfo>
+                  </label>
+                  <textarea
+                    className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all min-h-[90px] resize-none"
+                    placeholder={t("goals.modal.description_placeholder")}
+                    value={desc}
+                    onChange={e => setDesc(e.target.value)}
+                  />
+                </div>
+
+                {(goalKind === "today" || goalKind === "repeat") && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                      What if you do not finish?
+                      <FieldInfo>
+                        <p className="mb-1">Agar goal incomplete raha to app kya kare:</p>
+                        <ul className="list-disc pl-3 space-y-1 text-muted-foreground">
+                          <li>Close kare</li>
+                          <li>Carry kare</li>
+                          <li>Ya next day puche</li>
+                        </ul>
+                      </FieldInfo>
+                    </label>
+                    <select
+                      className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      value={carryForwardMode}
+                      onChange={(e) => setCarryForwardMode(e.target.value as GoalCarryForwardMode)}
                     >
-                      <Check size={12} strokeWidth={3} />
-                    </button>
-                    <span className={`flex-1 text-sm ${item.done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{item.text}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeSubtask(item.id)}
-                      className="p-1 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
-                      title={t("goals.modal.remove_subtask")}
-                    >
-                      <X size={14} />
-                    </button>
+                      {GOAL_CARRY_FORWARD_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                ))}
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                      Already started?
+                      <FieldInfo>
+                        <p>Agar aap pehle se kuch progress kar chuke ho to yahan number daalo.</p>
+                        <p className="text-muted-foreground mt-1">Nahi to 0 rehne do.</p>
+                      </FieldInfo>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      placeholder="0 (optional)"
+                      value={achievedValue}
+                      onChange={(e) => setAchievedValue(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                      {t("goals.modal.start_time_ist")}
+                      <FieldInfo>
+                        <p>Optional: goal ko kis time se start maana jaye, wo set kar sakte ho.</p>
+                      </FieldInfo>
+                    </label>
+                    <input
+                      type="time"
+                      className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all color-scheme-dark"
+                      value={startTime}
+                      onChange={e => setStartTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {isEdit && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                      Execution status
+                      <FieldInfo>
+                        <p>Yeh mostly edit mode ke liye hai.</p>
+                        <p className="text-muted-foreground mt-1">Isse goal ka current state update hota hai.</p>
+                      </FieldInfo>
+                    </label>
+                    <select
+                      className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value as GoalExecutionStatus)}
+                    >
+                      {GOAL_STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {isEdit && unitType !== "checklist" && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+                      Subtasks (optional)
+                      <FieldInfo text="Main goal ke under optional mini tasks add kar sakte ho." />
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                        placeholder={t("goals.modal.subtask_placeholder")}
+                        value={newSubtaskText}
+                        onChange={(e) => setNewSubtaskText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addSubtask();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={addSubtask}
+                        className="px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
+                      >
+                        {t("goals.modal.add")}
+                      </button>
+                    </div>
+                    {subtasks.length > 0 && (
+                      <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                        {subtasks.map((item) => (
+                          <div key={item.id} className="flex items-center gap-2 bg-muted/40 border rounded-xl px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleSubtaskDone(item.id)}
+                              className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-border text-transparent'}`}
+                              title={t("goals.modal.toggle_subtask")}
+                            >
+                              <Check size={12} strokeWidth={3} />
+                            </button>
+                            <span className={`flex-1 text-sm ${item.done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{item.text}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeSubtask(item.id)}
+                              className="p-1 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
+                              title={t("goals.modal.remove_subtask")}
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.target_date")}</label>
-              <input 
-                type="date"
-                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all color-scheme-dark"
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                min={todayKey}
-                max={maxDateKey}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1">{t("goals.modal.start_time_ist")}</label>
-              <input 
-                type="time"
-                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all color-scheme-dark"
-                value={startTime}
-                onChange={e => setStartTime(e.target.value)}
-              />
-            </div>
-          </div>
-
           <button
             onClick={submit}
-            disabled={!title.trim()}
+            disabled={!canSubmit}
             className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] mt-2"
           >
             {isEdit ? t("goals.modal.save_changes") : t("goals.modal.create_goal")}
@@ -478,6 +1107,15 @@ export default function Goals() {
           title: data.title,
           description: data.description,
           subtasks: data.subtasks || [],
+          goalKind: data.goalKind,
+          unitType: data.unitType,
+          executionMode: data.executionMode,
+          linkedFocusEnabled: data.linkedFocusEnabled,
+          plannedFocusMinutes: data.plannedFocusMinutes,
+          targetValue: data.targetValue ?? null,
+          achievedValue: data.achievedValue,
+          status: data.status,
+          carryForwardMode: data.carryForwardMode,
         });
         const oldKey = getISTDateKey(new Date(modal.goal.scheduledDate));
         if (oldKey !== data.scheduledDate) {
@@ -486,14 +1124,28 @@ export default function Goals() {
         await dataService.updateGoalStartTime(modal.goal.id, data.startedAt ?? null);
         toast.success(t("goals.toast.updated"));
       } else {
-        await dataService.addGoal({
+        const createdGoal = await dataService.addGoal({
           title: data.title,
           description: data.description,
           scheduledDate: data.scheduledDate,
           startedAt: data.startedAt,
           subtasks: data.subtasks || [],
+          goalKind: data.goalKind,
+          unitType: data.unitType,
+          executionMode: data.executionMode,
+          linkedFocusEnabled: data.linkedFocusEnabled,
+          plannedFocusMinutes: data.plannedFocusMinutes,
+          targetValue: data.targetValue ?? null,
+          achievedValue: data.achievedValue,
+          status: data.status,
+          carryForwardMode: data.carryForwardMode,
         });
-        toast.success(t("goals.toast.created"));
+
+        if (data.unitType === "duration_minutes" && data.linkedFocusEnabled && createdGoal?.id) {
+          toast.success("Goal created. Use Start Focus on the goal card to begin linked timer sessions.");
+        } else {
+          toast.success(t("goals.toast.created"));
+        }
       }
       fetchGoals();
     } catch (error) {
@@ -504,22 +1156,58 @@ export default function Goals() {
 
   const standardGoals = useMemo(() => goals.filter(g => g.source !== "ekagra"), [goals]);
   const manualCompletedGoals = useMemo(
-    () => standardGoals.filter(g => g.completed && Boolean(g.completedAt)),
+    () => standardGoals.filter((goal) => isGoalCompleted(goal)),
     [standardGoals],
   );
-  const historyGoals = useMemo(() => goals.filter(g => g.completed || g.source === "ekagra"), [goals]);
-  const pendingGoals = useMemo(() => standardGoals.filter(g => !g.completed).sort((a,b) => (a.scheduledDate || "") > (b.scheduledDate || "") ? 1 : -1), [standardGoals]);
-  const completedRecent = useMemo(() => standardGoals.filter(g => g.completed).sort((a,b) => (b.completedAt || "") > (a.completedAt || "") ? 1 : -1).slice(0, MAX_COMPLETED_DISPLAY), [standardGoals]);
+  const historyGoals = useMemo(() => goals.filter(g => isGoalCompleted(g) || g.source === "ekagra"), [goals]);
+  const pendingGoals = useMemo(
+    () =>
+      standardGoals
+        .filter((goal) => !isGoalCompleted(goal))
+        .sort((a, b) => (a.scheduledDate || "") > (b.scheduledDate || "") ? 1 : -1),
+    [standardGoals],
+  );
+  const completedRecent = useMemo(
+    () =>
+      standardGoals
+        .filter((goal) => isGoalCompleted(goal))
+        .sort((a, b) => {
+          const aCompletedAt = getGoalCompletedDate(a)?.getTime() || 0;
+          const bCompletedAt = getGoalCompletedDate(b)?.getTime() || 0;
+          return bCompletedAt - aCompletedAt;
+        })
+        .slice(0, MAX_COMPLETED_DISPLAY),
+    [standardGoals],
+  );
   const filteredHistory = useMemo(() => historyDateFilter ? historyGoals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter) : historyGoals, [historyGoals, historyDateFilter]);
+  const manualCompletedLast7Days = useMemo(
+    () =>
+      manualCompletedGoals.filter((goal) => {
+        const completedAt = getGoalCompletedDate(goal);
+        if (!completedAt) return false;
+        const completedKey = getISTDateKey(completedAt);
+        const diff = diffISTDays(completedKey, todayKey);
+        return diff <= 0 && diff >= -6;
+      }),
+    [manualCompletedGoals, todayKey],
+  );
   const manualTotalLifecycleDurationMs = useMemo(
-    () => manualCompletedGoals
+    () => manualCompletedLast7Days
       .map((goal) => getGoalLifecycleDurationMs(goal))
       .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0)
       .reduce((sum, value) => sum + value, 0),
-    [manualCompletedGoals],
+    [manualCompletedLast7Days],
   );
 
   const handleFocusGoal = async (goal: UIGoal) => {
+    const linkedFocusEnabled = Boolean(goal.linkedFocusEnabled ?? (goal as any).linked_focus_enabled);
+    const goalTitle = goal.title || goal.text || "Focus session";
+
+    if (goal.source === "ekagra" || linkedFocusEnabled || normalizeGoalUnitType(goal) === "duration_minutes") {
+      navigate(`/study?goalId=${encodeURIComponent(goal.id)}&goalTitle=${encodeURIComponent(goalTitle)}`);
+      return;
+    }
+
     try {
       const transferredGoal = await dataService.transferGoalToEkagra(goal.id);
       setGoals((prev) => prev.map((entry) => entry.id === goal.id
@@ -542,13 +1230,86 @@ export default function Goals() {
     [manualCompletedGoals, todayKey],
   );
 
-  const completedLast7DaysCount = useMemo(() => {
-    return manualCompletedGoals.filter(g => {
-      const completedKey = getISTDateKey(new Date(g.completedAt!));
-      const diff = diffISTDays(completedKey, todayKey);
-      return diff <= 0 && diff >= -6;
-    }).length;
-  }, [manualCompletedGoals, todayKey]);
+  const completedLast7DaysCount = useMemo(() => manualCompletedLast7Days.length, [manualCompletedLast7Days]);
+  const manualGoalsCount = useMemo(() => standardGoals.length, [standardGoals]);
+  const manualCompletionRate = useMemo(
+    () => (manualGoalsCount > 0 ? Math.round((manualCompletedGoals.length / manualGoalsCount) * 100) : 0),
+    [manualCompletedGoals.length, manualGoalsCount],
+  );
+  const averageProgressPercent = useMemo(() => {
+    if (standardGoals.length === 0) return 0;
+    const sum = standardGoals.reduce((acc, goal) => acc + getGoalProgressPercent(goal), 0);
+    return Math.round(sum / standardGoals.length);
+  }, [standardGoals]);
+
+  const kindBreakdown = useMemo(() => {
+    const counts: Record<GoalKind, number> = { today: 0, one_time: 0, repeat: 0 };
+    for (const goal of standardGoals) counts[normalizeGoalKind(goal)] += 1;
+    return counts;
+  }, [standardGoals]);
+
+  const unitBreakdown = useMemo(() => {
+    const counts: Record<GoalUnitType, number> = { binary: 0, count: 0, duration_minutes: 0, checklist: 0 };
+    for (const goal of standardGoals) counts[normalizeGoalUnitType(goal)] += 1;
+    return counts;
+  }, [standardGoals]);
+
+  const statusBreakdown = useMemo(() => {
+    const counts = { completed: 0, partial: 0, open: 0, missed: 0, cancelled: 0 };
+    for (const goal of standardGoals) {
+      const key = getStatusBucket(goal);
+      counts[key] += 1;
+    }
+    return counts;
+  }, [standardGoals]);
+
+  const sevenDaySeries = useMemo(() => {
+    const base = dateKeyToUtcDate(todayKey);
+    return Array.from({ length: 7 }, (_, i) => {
+      const dayDate = new Date(base.getTime() - (6 - i) * DAY_MS);
+      const dayKey = getISTDateKey(dayDate);
+      const dayGoals = standardGoals.filter((goal) => getGoalAnchorDateKey(goal) === dayKey);
+      const completed = dayGoals.filter((goal) => getStatusBucket(goal) === "completed").length;
+      const avgProgress = dayGoals.length > 0
+        ? Math.round(dayGoals.reduce((sum, goal) => sum + getGoalProgressPercent(goal), 0) / dayGoals.length)
+        : 0;
+      return {
+        dayKey,
+        dayLabel: formatISTDate(dayDate, { weekday: "short" }),
+        total: dayGoals.length,
+        completed,
+        avgProgress,
+      };
+    });
+  }, [standardGoals, todayKey]);
+
+  const consistencyDays = useMemo(
+    () => sevenDaySeries.filter((entry) => entry.completed > 0).length,
+    [sevenDaySeries],
+  );
+
+  const currentCompletionStreak = useMemo(() => {
+    let streak = 0;
+    for (let i = sevenDaySeries.length - 1; i >= 0; i -= 1) {
+      if (sevenDaySeries[i].completed > 0) streak += 1;
+      else break;
+    }
+    return streak;
+  }, [sevenDaySeries]);
+
+  const averageDailyCompletionThisWeek = useMemo(() => {
+    if (sevenDaySeries.length === 0) return 0;
+    const total = sevenDaySeries.reduce((sum, entry) => sum + entry.completed, 0);
+    return Number((total / sevenDaySeries.length).toFixed(1));
+  }, [sevenDaySeries]);
+
+  const averageCompletionDuration = useMemo(() => {
+    const values = manualCompletedGoals
+      .map((goal) => getGoalLifecycleDurationMs(goal))
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0);
+    if (values.length === 0) return 0;
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  }, [manualCompletedGoals]);
 
   return (
     <NishthaLayout>
@@ -595,47 +1356,95 @@ export default function Goals() {
           </div>
 
           {tab === "analytics" ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="lg:col-span-2 space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="p-6 bg-card border rounded-3xl shadow-sm">
-                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">{t("goals.analytics.completed_7d")}</h4>
-                        <span className="text-4xl font-black text-emerald-500">{completedLast7DaysCount}</span>
-                     </div>
-                    <div className="p-6 bg-card border rounded-3xl shadow-sm">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">{t("goals.analytics.total_focus_time")}</h4>
-                       <span className="text-4xl font-black text-amber-500">
-                         {formatDuration(manualTotalLifecycleDurationMs) || "0m"}
-                       </span>
-                    </div>
-                 </div>
-                 <div className="p-8 bg-card border rounded-[32px] shadow-sm">
-                    <div className="flex items-center justify-between mb-8">
-                        <h3 className="font-bold flex items-center gap-2"><Calendar className="text-primary w-4 h-4" /> {t("goals.analytics.weekly_pulse")}</h3>
-                        <span className="text-xs text-muted-foreground">{t("goals.analytics.completion_velocity")}</span>
-                    </div>
-                    <WeekChart goals={standardGoals} />
-                 </div>
+            <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="p-6 bg-card border rounded-3xl shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Completion Rate</p>
+                  <p className="text-4xl font-black text-emerald-500">{manualCompletionRate}%</p>
+                  <p className="text-xs text-muted-foreground mt-2">{manualCompletedGoals.length} of {manualGoalsCount} manual goals completed</p>
+                </div>
+                <div className="p-6 bg-card border rounded-3xl shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Average Progress</p>
+                  <p className="text-4xl font-black text-blue-500">{averageProgressPercent}%</p>
+                  <p className="text-xs text-muted-foreground mt-2">Across all manual goals (active + completed)</p>
+                </div>
+                <div className="p-6 bg-card border rounded-3xl shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Consistency (7 Days)</p>
+                  <p className="text-4xl font-black text-violet-500">{consistencyDays}/7</p>
+                  <p className="text-xs text-muted-foreground mt-2">Days with at least one completed manual goal</p>
+                </div>
+                <div className="p-6 bg-card border rounded-3xl shadow-sm">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Current Streak</p>
+                  <p className="text-4xl font-black text-amber-500">{currentCompletionStreak}d</p>
+                  <p className="text-xs text-muted-foreground mt-2">Consecutive days with completions</p>
+                </div>
               </div>
-              <div className="p-8 bg-card border rounded-[32px] shadow-sm">
-                   <h3 className="font-bold mb-6">{t("goals.analytics.daily_breakdown")}</h3>
-                <div className="space-y-4">
-                  {Array.from({length: 7}, (_, i) => {
-                    const d = new Date(dateKeyToUtcDate(todayKey).getTime() - (6-i) * (24*60*60*1000));
-                    const key = getISTDateKey(d);
-                    const metrics = getDailyCompletionMetrics(manualCompletedGoals, key);
-                    return (
-                      <div key={key} className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
-                        <span className="text-xs font-bold w-12">{formatISTDate(d, { weekday: "short" })}</span>
-                        <div className="flex-1 px-4">
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden w-full">
-                            <div className="h-full bg-emerald-500" style={{ width: `${Math.min(100, (metrics.count / 5) * 100)}%` }} />
-                          </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-7 p-8 bg-card border rounded-[32px] shadow-sm">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-bold flex items-center gap-2"><Calendar className="text-primary w-4 h-4" /> Weekly Growth Pulse</h3>
+                    <span className="text-xs text-muted-foreground">{averageDailyCompletionThisWeek} avg completions/day</span>
+                  </div>
+                  <div className="space-y-3">
+                    {sevenDaySeries.map((entry) => (
+                      <div key={entry.dayKey} className="rounded-2xl border bg-muted/20 p-3">
+                        <div className="flex items-center justify-between text-xs font-semibold mb-2">
+                          <span>{entry.dayLabel}</span>
+                          <span className="text-muted-foreground">{entry.completed}/{entry.total || 0} done</span>
                         </div>
-                        <span className="text-[10px] font-bold text-muted-foreground w-12 text-right">{t("goals.analytics.done_count", { count: metrics.count })}</span>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden mb-2">
+                          <div className="h-full bg-emerald-500 transition-all" style={{ width: `${entry.total > 0 ? Math.round((entry.completed / entry.total) * 100) : 0}%` }} />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">Average progress: {entry.avgProgress}%</p>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-5 space-y-6">
+                  <div className="p-6 bg-card border rounded-[28px] shadow-sm">
+                    <h4 className="font-bold mb-4">Status Split</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between"><span>Completed</span><span className="font-bold">{statusBreakdown.completed}</span></div>
+                      <div className="flex items-center justify-between"><span>In progress / Open</span><span className="font-bold">{statusBreakdown.open}</span></div>
+                      <div className="flex items-center justify-between"><span>Partial</span><span className="font-bold">{statusBreakdown.partial}</span></div>
+                      <div className="flex items-center justify-between"><span>Missed</span><span className="font-bold">{statusBreakdown.missed}</span></div>
+                      <div className="flex items-center justify-between"><span>Cancelled</span><span className="font-bold">{statusBreakdown.cancelled}</span></div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-card border rounded-[28px] shadow-sm">
+                    <h4 className="font-bold mb-4">Goal Type Mix</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between"><span>Today</span><span className="font-bold">{kindBreakdown.today}</span></div>
+                      <div className="flex items-center justify-between"><span>One-time</span><span className="font-bold">{kindBreakdown.one_time}</span></div>
+                      <div className="flex items-center justify-between"><span>Repeat</span><span className="font-bold">{kindBreakdown.repeat}</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="p-6 bg-card border rounded-[28px] shadow-sm">
+                  <h4 className="font-bold mb-4">Tracking Method Insights</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between"><span>Done / Not done</span><span className="font-bold">{unitBreakdown.binary}</span></div>
+                    <div className="flex items-center justify-between"><span>Number based</span><span className="font-bold">{unitBreakdown.count}</span></div>
+                    <div className="flex items-center justify-between"><span>Time based</span><span className="font-bold">{unitBreakdown.duration_minutes}</span></div>
+                    <div className="flex items-center justify-between"><span>Checklist based</span><span className="font-bold">{unitBreakdown.checklist}</span></div>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-card border rounded-[28px] shadow-sm">
+                  <h4 className="font-bold mb-4">Effort & Rhythm</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between"><span>Completed in last 7 days</span><span className="font-bold">{completedLast7DaysCount}</span></div>
+                    <div className="flex items-center justify-between"><span>Total lifecycle duration (7 days)</span><span className="font-bold">{formatDuration(manualTotalLifecycleDurationMs) || "0m"}</span></div>
+                    <div className="flex items-center justify-between"><span>Average completion duration</span><span className="font-bold">{formatDuration(averageCompletionDuration) || "0m"}</span></div>
+                    <div className="flex items-center justify-between"><span>Today's completions</span><span className="font-bold">{todayMetrics.count}</span></div>
+                    <div className="flex items-center justify-between"><span>Today's avg completion time</span><span className="font-bold">{todayMetrics.avgCompletionMinutes !== null ? formatTimeFromMinutes(todayMetrics.avgCompletionMinutes) : "-"}</span></div>
+                  </div>
                 </div>
               </div>
             </div>

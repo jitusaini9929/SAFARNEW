@@ -1,6 +1,6 @@
 import { API_BASE, apiFetch } from "@/utils/apiFetch";
 
-export interface FocusSession {
+export interface LegacyFocusSessionLog {
     id: string;
     userId: string;
     plannedDurationMinutes: number;
@@ -16,18 +16,20 @@ export interface FocusSession {
     completedAt: string;
 }
 
-export interface FocusStats {
+// Backward-compatible alias; new code should prefer LegacyFocusSessionLog.
+export type FocusSession = LegacyFocusSessionLog;
+
+export interface LegacyFocusStats {
     totalFocusMinutes: number;
     totalBreakMinutes: number;
     totalSessions: number;
     completedSessions: number;
+    endedEarlySessions: number;
     weeklyData: number[]; // Mon-Sun
     weeklyBreaks: number[]; // Mon-Sun
     focusStreak: number;
-    goalsSet: number; // For now mock or fetch from goals
+    goalsSet: number;
     goalsCompleted: number;
-    dailyGoalMinutes: number;
-    dailyGoalProgress: number;
     hourlyDistribution: number[]; // 24 hours
     recentSessions: Array<{
         id: string;
@@ -36,8 +38,12 @@ export interface FocusStats {
         actualMinutes: number;
         completed: boolean;
         taskText: string | null;
+        pauseCount?: number;
     }>;
 }
+
+// Backward-compatible alias; new code should prefer LegacyFocusStats.
+export type FocusStats = LegacyFocusStats;
 
 type FocusSessionPayload = Omit<FocusSession, "id" | "userId">;
 
@@ -211,13 +217,12 @@ export const focusService = {
                 totalBreakMinutes: data.totalBreakMinutes || 0,
                 totalSessions: data.totalSessions || 0,
                 completedSessions: data.completedSessions || 0,
+                endedEarlySessions: data.endedEarlySessions || 0,
                 weeklyData: data.weeklyData || [0, 0, 0, 0, 0, 0, 0],
                 weeklyBreaks: data.weeklyBreaks || [0, 0, 0, 0, 0, 0, 0],
                 focusStreak: data.focusStreak || 0,
                 goalsSet: data.goalsSet || 0,
                 goalsCompleted: data.goalsCompleted || 0,
-                dailyGoalMinutes: 240,
-                dailyGoalProgress: Math.min(100, Math.round(((data.totalFocusMinutes || 0) / 240) * 100)),
                 hourlyDistribution: data.hourlyDistribution || Array.from({ length: 24 }, () => 0),
                 recentSessions: data.recentSessions || [],
             };
@@ -228,13 +233,12 @@ export const focusService = {
                 totalBreakMinutes: 0,
                 totalSessions: 0,
                 completedSessions: 0,
+                endedEarlySessions: 0,
                 weeklyData: [0, 0, 0, 0, 0, 0, 0],
                 weeklyBreaks: [0, 0, 0, 0, 0, 0, 0],
                 focusStreak: 0,
                 goalsSet: 0,
                 goalsCompleted: 0,
-                dailyGoalMinutes: 240,
-                dailyGoalProgress: 0,
                 hourlyDistribution: Array.from({ length: 24 }, () => 0),
                 recentSessions: [],
             };

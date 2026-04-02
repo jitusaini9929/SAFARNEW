@@ -41,6 +41,7 @@ export const collections = {
     loginHistory: () => getDb().collection('login_history'),
     focusSessions: () => getDb().collection('focus_sessions'),
     focusSessionLogs: () => getDb().collection('focus_session_logs'),
+    ekagraModeSessions: () => getDb().collection('ekagra_mode_sessions'),
     focusOverlayState: () => getDb().collection('focus_overlay_state'),
     focusOverlaySessions: () => getDb().collection('focus_overlay_sessions'),
     sectionActivity: () => getDb().collection('section_activity'),
@@ -166,6 +167,17 @@ export async function initDatabase(): Promise<void> {
         );
         await db.collection('focus_session_logs').createIndex({ user_id: 1, timestamp: -1 });
         await db.collection('focus_session_logs').createIndex({ user_id: 1, date_key: 1 });
+        await db.collection('ekagra_mode_sessions').createIndex({ user_id: 1, status: 1, updated_at: -1 });
+        await db.collection('ekagra_mode_sessions').createIndex({ user_id: 1, goal_id: 1, status: 1, updated_at: -1 });
+        await db.collection('ekagra_mode_sessions').createIndex(
+            { user_id: 1, goal_id: 1 },
+            {
+                unique: true,
+                partialFilterExpression: { status: { $in: ['active', 'paused'] } },
+                name: 'ekagra_open_session_per_goal_unique',
+            },
+        );
+        await db.collection('ekagra_mode_sessions').createIndex({ user_id: 1, id: 1 }, { unique: true });
         await db.collection('focus_overlay_state').createIndex({ user_id: 1 }, { unique: true });
         await db.collection('focus_overlay_state').createIndex({ updated_at: -1 });
         await db.collection('focus_overlay_sessions').createIndex({ user_id: 1, updated_at: -1 });
