@@ -27,6 +27,7 @@ interface TasksSidebarProps {
     onPauseLiveSession?: () => Promise<void> | void;
     onCompleteLiveSession?: () => Promise<void> | void;
     onSwitchLiveSession?: () => Promise<void> | void;
+    onSelectPlannedSessionGoal?: (goalId: string, goalTitle: string) => Promise<void> | void;
     onCreateSession?: (title: string) => Promise<void> | void;
     sessionOverlayTrigger?: number;
 }
@@ -35,7 +36,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     isOpen,
     onClose,
     onTasksChange: _onTasksChange,
-    tasks: _tasks,
+    tasks,
     sessions = [],
     activeSessionId = null,
     liveSessionPreview = null,
@@ -44,6 +45,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     onPauseLiveSession,
     onCompleteLiveSession,
     onSwitchLiveSession,
+    onSelectPlannedSessionGoal,
     onCreateSession,
     sessionOverlayTrigger = 0,
 }) => {
@@ -58,6 +60,69 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
 
     const mergedSessions = shouldUseLocalFetch ? localSessions : sessions;
     const mergedActiveSessionId = shouldUseLocalFetch ? localActiveSessionId : activeSessionId;
+    const openSessionGoalIds = useMemo(() => {
+        const ids = new Set<string>();
+        for (const session of mergedSessions) {
+            const status = String(session.status || "").toLowerCase();
+            if (status !== "active" && status !== "paused") continue;
+            const goalId = String(session.goalId || session.goal_id || "").trim();
+            if (goalId) ids.add(goalId);
+        }
+        return ids;
+    }, [mergedSessions]);
+
+    const pendingImportedGoals = useMemo(
+        () => tasks.filter((task) => Boolean(task.importedFromGoal) && !task.completed),
+        [tasks],
+    );
+
+    const plannedImportedSessions = useMemo<EkagraModeSession[]>(() => {
+        return pendingImportedGoals
+            .filter((task) => !openSessionGoalIds.has(task.id))
+            .map((task) => {
+                const timestamp = task.createdAt || new Date().toISOString();
+                return {
+                    id: `planned-imported-${task.id}`,
+                    userId: "planned",
+                    goalId: task.id,
+                    goalTitle: task.text,
+                    source: "imported",
+                    status: "paused",
+                    mode: "Timer",
+                    totalSeconds: 25 * 60,
+                    remainingSeconds: 25 * 60,
+                    isRunning: false,
+                    importedFromGoal: true,
+                    pauseCount: 0,
+                    sessionStartedAt: null,
+                    createdAt: timestamp,
+                    updatedAt: timestamp,
+                    completedAt: null,
+                    endedAt: null,
+                    discardedAt: null,
+                    user_id: "planned",
+                    goal_id: task.id,
+                    goal_title: task.text,
+                    total_seconds: 25 * 60,
+                    remaining_seconds: 25 * 60,
+                    is_running: false,
+                    imported_from_goal: true,
+                    pause_count: 0,
+                    session_started_at: null,
+                    created_at: timestamp,
+                    updated_at: timestamp,
+                    completed_at: null,
+                    ended_at: null,
+                    discarded_at: null,
+                };
+            });
+    }, [openSessionGoalIds, pendingImportedGoals]);
+
+    const baseSessions = useMemo(
+        () => [...mergedSessions, ...plannedImportedSessions],
+        [mergedSessions, plannedImportedSessions],
+    );
+
     const hasServerActiveSession = mergedSessions.some(
         (session) => String(session.status || "").toLowerCase() === "active",
     );
@@ -68,8 +133,8 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
             String(liveSessionPreview.status || "").toLowerCase() === "paused"),
     );
     const displaySessions = shouldInjectLivePreview
-        ? [liveSessionPreview!, ...mergedSessions.filter((session) => session.id !== liveSessionPreview!.id)]
-        : mergedSessions;
+        ? [liveSessionPreview!, ...baseSessions.filter((session) => session.id !== liveSessionPreview!.id)]
+        : baseSessions;
     const effectiveActiveSessionId =
         mergedActiveSessionId ||
         (shouldInjectLivePreview && String(liveSessionPreview?.status || "").toLowerCase() === "active"
@@ -80,14 +145,17 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
         Boolean(
             liveSessionPreview &&
             liveSessionPreview.id === sessionId &&
-            !mergedSessions.some((session) => session.id === sessionId),
+            !baseSessions.some((session) => session.id === sessionId),
         );
+
+    const isSyntheticImportedSession = (sessionId: string) =>
+        plannedImportedSessions.some((session) => session.id === sessionId);
 
     const refreshLocalSessions = async () => {
         try {
             const [all, active] = await Promise.all([
-                dataService.getEkagraSessions(),
-                dataService.getActiveEkagraSession(),
+                dataService.getEkagraSessions({ forceFresh: true }),
+                dataService.getActiveEkagraSession({ forceFresh: true }),
             ]);
             setLocalSessions(all);
             setLocalActiveSessionId(active?.id || null);
@@ -150,6 +218,15 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
             await onSwitchLiveSession?.();
             return;
         }
+        if (isSyntheticImportedSession(sessionId)) {
+            const planned = plannedImportedSessions.find((session) => session.id === sessionId);
+            if (!planned) return;
+            const goalId = String(planned.goalId || planned.goal_id || "").trim();
+            const goalTitle = String(planned.goalTitle || planned.goal_title || "").trim();
+            if (!goalId || !goalTitle) return;
+            await onSelectPlannedSessionGoal?.(goalId, goalTitle);
+            return;
+        }
         if (onResumeSession) {
             await onResumeSession(sessionId);
             return;
@@ -158,7 +235,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     };
 
     const handleDiscard = async (sessionId: string) => {
-        if (isSyntheticLiveSession(sessionId)) return;
+        if (isSyntheticLiveSession(sessionId) || isSyntheticImportedSession(sessionId)) return;
         if (onDiscardSession) {
             await onDiscardSession(sessionId);
             return;
@@ -178,8 +255,14 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
             await onPauseLiveSession?.();
             return;
         }
+        if (isSyntheticImportedSession(sessionId)) return;
 
-        if (onPauseLiveSession && sessionId === effectiveActiveSessionId) {
+        const session = displaySessions.find((item) => item.id === sessionId);
+        const isActiveSession =
+            sessionId === effectiveActiveSessionId ||
+            String(session?.status || "").toLowerCase() === "active";
+
+        if (onPauseLiveSession && isActiveSession) {
             await onPauseLiveSession();
             return;
         }
@@ -193,11 +276,25 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
             await onCompleteLiveSession?.();
             return;
         }
+        if (isSyntheticImportedSession(sessionId)) return;
 
         const session = displaySessions.find((item) => item.id === sessionId);
+        const isActiveSession =
+            sessionId === effectiveActiveSessionId ||
+            String(session?.status || "").toLowerCase() === "active";
+
+        if (onCompleteLiveSession && isActiveSession) {
+            await onCompleteLiveSession();
+            return;
+        }
+
+        const sessionTotalSeconds = Number(session?.totalSeconds ?? session?.total_seconds ?? 0) || 1500;
+        const sessionRemainingSeconds = Number(session?.remainingSeconds ?? session?.remaining_seconds ?? 0) || 0;
+        const spentSeconds = Math.max(1, sessionTotalSeconds - sessionRemainingSeconds);
+
         await dataService.completeEkagraSession(sessionId, {
             mode: session?.mode || "Timer",
-            totalSeconds: Number(session?.totalSeconds ?? session?.total_seconds ?? 0) || 1500,
+            totalSeconds: spentSeconds,
             sessionStartedAt: session?.sessionStartedAt || session?.session_started_at || null,
         });
         await refreshLocalSessions();
@@ -231,6 +328,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
                 onClose={() => setShowSessionOverlay(false)}
                 sessions={displaySessions}
                 activeSessionId={effectiveActiveSessionId}
+                importedQueueCount={pendingImportedGoals.length}
                 onCreateSession={async (title) => {
                     await onCreateSession?.(title);
                     setShowSessionOverlay(false);

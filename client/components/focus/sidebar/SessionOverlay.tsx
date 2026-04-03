@@ -7,6 +7,7 @@ interface SessionOverlayProps {
     onClose: () => void;
     sessions: EkagraModeSession[];
     activeSessionId?: string | null;
+    importedQueueCount?: number;
     onCreateSession?: (title: string) => Promise<void> | void;
     onSwitchSession?: (sessionId: string) => Promise<void> | void;
     onPauseSession?: (sessionId: string) => Promise<void> | void;
@@ -61,6 +62,10 @@ const getModeIcon = (session: EkagraModeSession) => {
     return Timer;
 };
 
+const isPlannedImportedSession = (session: EkagraModeSession) =>
+    Boolean(session.importedFromGoal || session.imported_from_goal) &&
+    String(session.id || "").startsWith("planned-imported-");
+
 /* ─── component ─────────────────────────────────────── */
 
 export const SessionOverlay: React.FC<SessionOverlayProps> = ({
@@ -68,6 +73,7 @@ export const SessionOverlay: React.FC<SessionOverlayProps> = ({
     onClose,
     sessions,
     activeSessionId = null,
+    importedQueueCount = 0,
     onSwitchSession,
     onPauseSession,
     onCompleteSession,
@@ -107,6 +113,11 @@ export const SessionOverlay: React.FC<SessionOverlayProps> = ({
                         <div>
                             <h2 className="text-xl font-extrabold text-foreground">Focus Sessions</h2>
                             <p className="text-xs text-muted-foreground mt-0.5">What can you still resume or control?</p>
+                            {importedQueueCount > 0 && (
+                                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-semibold">
+                                    {importedQueueCount} imported goal{importedQueueCount > 1 ? "s" : ""} queued
+                                </p>
+                            )}
                         </div>
                         <button type="button" onClick={onClose} className="h-9 w-9 rounded-lg border border-border/60 bg-background flex items-center justify-center hover:bg-muted transition-colors">
                             <X className="w-4 h-4" />
@@ -123,7 +134,7 @@ export const SessionOverlay: React.FC<SessionOverlayProps> = ({
                                 <CurrentSessionCard
                                     session={current}
                                     onPause={onPauseSession}
-                                    onEnd={onDiscardSession}
+                                    onEnd={onCompleteSession}
                                 />
                             ) : (
                                 <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
@@ -234,6 +245,7 @@ const SavedSessionCard: React.FC<{
     onEnd?: (id: string) => Promise<void> | void;
 }> = ({ session, onResume, onEnd }) => {
     const ModeIcon = getModeIcon(session);
+    const plannedImported = isPlannedImportedSession(session);
 
     return (
         <div className="rounded-xl border border-amber-500/40 bg-card/80 p-3 space-y-2">
@@ -248,13 +260,25 @@ const SavedSessionCard: React.FC<{
                         <span>•</span>
                         <span>{Math.round(getTotalSeconds(session) / 60)}m planned</span>
                         <span>•</span>
-                        <span>{getElapsedMinutes(session)}m spent</span>
-                        <span>•</span>
-                        <span>{formatAgo(session.updatedAt || session.updated_at)}</span>
+                        {plannedImported ? (
+                            <span>Ready to start</span>
+                        ) : (
+                            <>
+                                <span>{getElapsedMinutes(session)}m spent</span>
+                                <span>•</span>
+                                <span>{formatAgo(session.updatedAt || session.updated_at)}</span>
+                            </>
+                        )}
                     </div>
                 </div>
-                <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300 shrink-0">
-                    Paused
+                <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0 ${
+                        plannedImported
+                            ? "border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
+                            : "border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                    }`}
+                >
+                    {plannedImported ? "Planned" : "Paused"}
                 </span>
             </div>
 
@@ -266,17 +290,19 @@ const SavedSessionCard: React.FC<{
                     className="h-8 px-4 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50 inline-flex items-center gap-1.5 hover:opacity-90 transition-opacity"
                 >
                     <Play className="w-3.5 h-3.5" />
-                    Resume
+                    {plannedImported ? "Select Goal" : "Resume"}
                 </button>
-                <button
-                    type="button"
-                    onClick={() => onEnd?.(session.id)}
-                    disabled={!onEnd}
-                    className="h-8 px-4 rounded-md border border-rose-300/60 bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300 text-xs font-semibold disabled:opacity-50 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
-                >
-                    <Square className="w-3 h-3 mr-1 inline" />
-                    End
-                </button>
+                {!plannedImported && (
+                    <button
+                        type="button"
+                        onClick={() => onEnd?.(session.id)}
+                        disabled={!onEnd}
+                        className="h-8 px-4 rounded-md border border-rose-300/60 bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300 text-xs font-semibold disabled:opacity-50 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
+                    >
+                        <Square className="w-3 h-3 mr-1 inline" />
+                        End
+                    </button>
+                )}
             </div>
         </div>
     );

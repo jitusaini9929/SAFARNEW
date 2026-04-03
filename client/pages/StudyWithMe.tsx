@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/utils/authService";
 import { dataService } from "@/utils/dataService";
 import FocusAnalytics from "./FocusAnalytics";
-import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard, Layers3 } from "lucide-react";
+import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard, Layers3, X } from "lucide-react";
 import TasksSidebar, { type Task } from "./TasksSidebar";
 import { TimerCard } from "../components/focus/TimerCard";
 import { PiPNudgeToast } from "@/components/focus/PiPNudgeToast";
@@ -293,6 +293,7 @@ export default function StudyWithMe() {
     const [breakSliderValue, setBreakSliderValue] = useState(5);
     const [isTasksOpen, setIsTasksOpen] = useState(false);
     const [showAnalytics, setShowAnalytics] = useState(false);
+    const [showEkagraGuide, setShowEkagraGuide] = useState(false);
 
     // Sync slider with global state if needed, or just let slider drive global
     useEffect(() => {
@@ -343,8 +344,8 @@ export default function StudyWithMe() {
 
         try {
             const [sessions, activeSession] = await Promise.all([
-                dataService.getEkagraSessions(),
-                dataService.getActiveEkagraSession(),
+                dataService.getEkagraSessions({ forceFresh: true }),
+                dataService.getActiveEkagraSession({ forceFresh: true }),
             ]);
 
             setRuntimeSessions(sessions);
@@ -729,9 +730,10 @@ export default function StudyWithMe() {
         const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
         if (runtimeSessionId && status === "authenticated" && user?.id) {
             try {
+                const spentSeconds = Math.max(1, totalSeconds - remainingSeconds);
                 await dataService.completeEkagraSession(runtimeSessionId, {
                     mode: "Timer",
-                    totalSeconds: Math.max(1, totalSeconds),
+                    totalSeconds: spentSeconds,
                     sessionStartedAt: null,
                 });
                 runtimeSessionIdRef.current = null;
@@ -761,10 +763,15 @@ export default function StudyWithMe() {
             saveTasks(nextTasks, user?.id);
         }
 
+        if (isRunning) {
+            toggleTimer();
+        }
+        resetTimer();
+
         setCompletedTask(null);
         setAwaitingProceed(false);
         setShowDurationPrompt(false);
-    }, [currentTask, refreshRuntimeSessions, runtimeActiveSessionId, status, tasks, totalSeconds, user?.id]);
+    }, [currentTask, isRunning, refreshRuntimeSessions, remainingSeconds, resetTimer, runtimeActiveSessionId, status, tasks, toggleTimer, totalSeconds, user?.id]);
 
     const handleCreateSessionFromOverlay = useCallback(async (title: string) => {
         await handleManualTaskAdd(title);
@@ -872,6 +879,19 @@ export default function StudyWithMe() {
             toggleTimer();
         }
     }, [currentTask, isRunning, mode, toggleTimer]);
+
+    const handleSelectPlannedSessionGoal = useCallback(async (goalId: string, goalTitle: string) => {
+        const safeGoalId = String(goalId || "").trim();
+        if (!safeGoalId) return;
+
+        const taskTitle = tasks.find((task) => task.id === safeGoalId)?.text || "";
+        const safeGoalTitle = String(goalTitle || taskTitle || "").trim() || null;
+
+        setAssociatedGoal(safeGoalId, safeGoalTitle);
+        if (mode !== "Timer") {
+            setMode("Timer");
+        }
+    }, [mode, setAssociatedGoal, setMode, tasks]);
 
     const handleToggleTimer = useCallback(async () => {
         if (mode !== "Timer" || status !== "authenticated" || !user?.id) {
@@ -1355,6 +1375,7 @@ export default function StudyWithMe() {
                 onPauseLiveSession={handlePauseLiveSession}
                 onCompleteLiveSession={handleCompleteCurrentTask}
                 onSwitchLiveSession={handleSwitchLiveSession}
+                onSelectPlannedSessionGoal={handleSelectPlannedSessionGoal}
                 onCreateSession={handleCreateSessionFromOverlay}
                 sessionOverlayTrigger={sessionOverlayTrigger}
             />
@@ -1464,16 +1485,6 @@ export default function StudyWithMe() {
 
 
                 </main>
-            )}
-
-            {/* Mobile Menu Button - Hide on Analytics screen */}
-            {!showAnalytics && (
-                <button
-                    onClick={() => setIsMobileMenuOpen(true)}
-                    className={`lg:hidden fixed top-4 left-4 z-[60] p-2 backdrop-blur-md border rounded-xl shadow-lg transition-colors bg-white/20 border-white/20 text-white`}
-                >
-                    <Menu className="w-6 h-6" />
-                </button>
             )}
 
             {/* Mobile Drawer */}
@@ -1636,6 +1647,18 @@ export default function StudyWithMe() {
                 : "bg-white/10 border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
             }`}>
                 <div className="flex items-center gap-1.5 px-1">
+                    <button
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        className={`lg:hidden flex items-center justify-center w-10 h-10 rounded-full transition-all ${
+                            showAnalytics
+                                ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
+                                : "hover:bg-white/10 text-white"
+                        }`}
+                        title="Open Menu"
+                    >
+                        <Menu className="w-5 h-5" />
+                    </button>
+
                     {/* History Button */}
                     <button
                         onClick={() => setIsTasksOpen(true)}
@@ -1661,6 +1684,19 @@ export default function StudyWithMe() {
                     >
                         <Layers3 className="w-4 h-4 group-hover:scale-110 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline">Sessions</span>
+                    </button>
+
+                    <button
+                        onClick={() => setShowEkagraGuide(true)}
+                        className={`flex items-center gap-2 h-10 px-4 rounded-full transition-all group ${
+                            showAnalytics
+                                ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
+                                : "hover:bg-white/10 text-white"
+                        }`}
+                        title="Ekagra Usage Guide"
+                    >
+                        <HelpCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline">Guide</span>
                     </button>
 
                     <div className={`w-px h-4 mx-1 ${showAnalytics ? "bg-slate-300 dark:bg-slate-700" : "bg-slate-900/20 dark:bg-white/20"}`} />
@@ -1689,10 +1725,10 @@ export default function StudyWithMe() {
                             {isMusicPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Music className="w-3.5 h-3.5" />}
                         </button>
                         
-                        <div className="flex items-center overflow-hidden group/vol relative">
+                        <div className="flex items-center gap-2 relative">
                              <button
                                 onClick={toggleMusicMuted}
-                                className={`p-1.5 rounded-full transition-colors ${showAnalytics ? "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" : "text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white hover:bg-slate-900/10 dark:hover:bg-white/10"}`}
+                                className={`p-1.5 rounded-full transition-colors shrink-0 ${showAnalytics ? "text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700" : "text-slate-600 dark:text-white/60 hover:text-slate-900 dark:hover:text-white hover:bg-slate-900/10 dark:hover:bg-white/10"}`}
                                 title={isMusicMuted ? "Unmute" : "Mute"}
                             >
                                 {isMusicMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
@@ -1704,9 +1740,9 @@ export default function StudyWithMe() {
                                 step="0.1"
                                 value={musicVolume}
                                 onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                                className={`w-0 group-hover/vol:w-16 transition-all duration-300 h-1.5 rounded-full appearance-none cursor-pointer ${
+                                className={`w-16 sm:w-20 md:w-24 h-1.5 rounded-full appearance-none cursor-pointer ${
                                     showAnalytics ? "bg-slate-300" : "bg-white/20"
-                                } accent-white focus:outline-none ml-1`}
+                                } accent-white focus:outline-none`}
                                 title="Music Volume"
                             />
                         </div>
@@ -1772,6 +1808,88 @@ export default function StudyWithMe() {
                     </DropdownMenu>
                 </div>
             </div>
+
+            {showEkagraGuide && (
+                <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm p-4 flex items-center justify-center">
+                    <div className="w-full max-w-3xl max-h-[85dvh] rounded-3xl border border-white/20 bg-slate-900/95 text-white shadow-2xl overflow-hidden flex flex-col">
+                        <div className="px-5 py-4 border-b border-white/10 bg-white/5 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-bold">Ekagra Mode Detailed Guide</h2>
+                                <p className="text-xs text-white/70 mt-1">Har major control ka kaam aur practical usage steps.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowEkagraGuide(false)}
+                                className="p-2 rounded-lg hover:bg-white/10"
+                                title="Close guide"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="overflow-y-auto p-5 sm:p-6 space-y-6 text-sm leading-relaxed">
+                            <section className="space-y-2">
+                                <h3 className="font-bold text-base">1. Session start kaise karein</h3>
+                                <ol className="list-decimal pl-5 space-y-1 text-white/90">
+                                    <li>Goal linked ho to wahi continue karo, warna manual task add karo.</li>
+                                    <li>Timer duration set karo (slider ya custom input).</li>
+                                    <li>Play button dabao to active session start hota hai.</li>
+                                </ol>
+                            </section>
+
+                            <section className="space-y-2">
+                                <h3 className="font-bold text-base">2. Timer controls ka meaning</h3>
+                                <ul className="list-disc pl-5 space-y-1 text-white/90">
+                                    <li><strong>Play/Pause</strong>: session ko run ya hold karta hai.</li>
+                                    <li><strong>Reset</strong>: current timer cycle ko reset karta hai.</li>
+                                    <li><strong>Mode</strong>: Timer, short break, long break select kar sakte ho.</li>
+                                    <li><strong>PiP</strong>: timer ko mini floating view me rakhta hai.</li>
+                                </ul>
+                            </section>
+
+                            <section className="space-y-2">
+                                <h3 className="font-bold text-base">3. Sessions panel (History/Sessions)</h3>
+                                <ul className="list-disc pl-5 space-y-1 text-white/90">
+                                    <li><strong>History</strong>: previous sessions dekhne ke liye.</li>
+                                    <li><strong>Sessions</strong>: pending/active sessions manage karne ke liye.</li>
+                                    <li><strong>Switch</strong>: kisi paused session par wapas jao.</li>
+                                    <li><strong>Complete</strong>: task done mark karke session close karo.</li>
+                                    <li><strong>Discard</strong>: unwanted session remove karo.</li>
+                                </ul>
+                            </section>
+
+                            <section className="space-y-2">
+                                <h3 className="font-bold text-base">4. Linked goal behavior</h3>
+                                <ul className="list-disc pl-5 space-y-1 text-white/90">
+                                    <li>Linked goal top section me visible rahega.</li>
+                                    <li>Goal imported ho to badge dikhega.</li>
+                                    <li>Unlink button se current timer ko goal se alag kar sakte ho.</li>
+                                </ul>
+                            </section>
+
+                            <section className="space-y-2">
+                                <h3 className="font-bold text-base">5. Audio + environment controls</h3>
+                                <ul className="list-disc pl-5 space-y-1 text-white/90">
+                                    <li>Theme button se visual background change hota hai.</li>
+                                    <li>Music play/pause aur mute controls quick toolbar me hain.</li>
+                                    <li>Volume slider fixed hai, direct adjust kar sakte ho.</li>
+                                </ul>
+                            </section>
+
+                            <section className="space-y-2">
+                                <h3 className="font-bold text-base">6. Recommended usage flow</h3>
+                                <ol className="list-decimal pl-5 space-y-1 text-white/90">
+                                    <li>Goal pick karo.</li>
+                                    <li>Duration realistic set karo.</li>
+                                    <li>Session run karo and interruptions par pause use karo.</li>
+                                    <li>Session ke end par complete/discard clearly choose karo.</li>
+                                    <li>Analytics ya history se consistency review karo.</li>
+                                </ol>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Styles */}
             <style>{`

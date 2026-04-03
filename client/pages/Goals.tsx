@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { dataService } from "@/utils/dataService";
@@ -25,9 +25,13 @@ import {
   TrendingUp, 
   Clock, 
   BarChart3,
+  HelpCircle,
   X,
   Info
 } from "lucide-react";
+import ChartErrorBoundary from "@/components/charts/ChartErrorBoundary";
+
+const StreaksConsistencyChart = lazy(() => import("@/components/charts/StreaksConsistencyChart"));
 
 // ─── TYPES ────────────────────────────────────────────────────
 interface UIGoal extends Goal {
@@ -463,7 +467,6 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
     const rawUnit = String(goal?.unitType || goal?.unit_type || "").trim();
     return rawUnit === "duration_minutes";
   });
-  const [advancedOpen, setAdvancedOpen] = useState(Boolean(isEdit));
   const [repeatRule, setRepeatRule] = useState<"daily" | "weekdays" | "custom">("daily");
   const [targetValue, setTargetValue] = useState(() => {
     const raw = goal?.targetValue ?? goal?.target_value;
@@ -498,13 +501,6 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   });
   const [date, setDate] = useState(goal?.scheduledDate ? getISTDateKey(new Date(goal.scheduledDate)) : todayKey);
   const [showDueDate, setShowDueDate] = useState(Boolean(isEdit && goalKind === "one_time"));
-  const [startTime, setStartTime] = useState(() => {
-    const rawStartedAt = goal?.startedAt;
-    if (!rawStartedAt) return "";
-    const startedAtDate = new Date(rawStartedAt);
-    if (!Number.isFinite(startedAtDate.getTime())) return "";
-    return formatTimeInputFromISTDate(startedAtDate);
-  });
   const [newSubtaskText, setNewSubtaskText] = useState("");
   const [subtasks, setSubtasks] = useState<GoalSubtask[]>(() => {
     const initial = Array.isArray(goal?.subtasks) ? goal.subtasks : [];
@@ -568,14 +564,9 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
       : goalKind === "one_time"
         ? (showDueDate ? date : undefined)
         : todayKey;
-    let startedAt: string | null = null;
-    if (startTime) {
-      const [hh, mm] = startTime.split(":").map(Number);
-      const istOffsetMs = 5.5 * 60 * 60 * 1000;
-      const anchorDate = scheduleDateKey || todayKey;
-      const utcMs = new Date(`${anchorDate}T00:00:00.000Z`).getTime() + hh * 3600000 + mm * 60000 - istOffsetMs;
-      startedAt = new Date(utcMs).toISOString();
-    }
+    const startedAt = isEdit
+      ? (goal?.startedAt || goal?.started_at || null)
+      : null;
 
     const plannedFocusMinutes = unitType === "duration_minutes"
       ? Number.isFinite(parsedTargetValue) && parsedTargetValue > 0
@@ -616,8 +607,8 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   const canSubmit = Boolean(title.trim()) && hasValidTarget;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-card border shadow-2xl rounded-3xl overflow-visible animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+      <div className="w-full max-w-lg bg-card border shadow-2xl rounded-3xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="bg-gradient-to-r from-emerald-600 to-teal-500 p-6 flex items-center justify-between">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <Plus className="w-5 h-5" /> {isEdit ? t("goals.edit_goal") : t("goals.new_goal")}
@@ -627,7 +618,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto overscroll-contain">
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
               What do you want to do?
@@ -848,179 +839,20 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
             </div>
           )}
 
-          <div className="border rounded-2xl bg-muted/20">
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((prev) => !prev)}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
-            >
-              <span className="flex items-center gap-2">
-                More options
-                <FieldInfo>
-                  <p>Yeh advanced settings hain.</p>
-                  <p className="text-muted-foreground mt-1">Normal use ke liye fill karna zaroori nahi hai.</p>
-                </FieldInfo>
-              </span>
-              <span className="text-xs text-muted-foreground">{advancedOpen ? "Hide" : "Show"}</span>
-            </button>
-            {advancedOpen && (
-              <div className="px-4 pb-4 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
-                    Add details
-                    <FieldInfo>
-                      <p>Goal ke extra notes likh sakte ho.</p>
-                      <p className="text-muted-foreground mt-1">Jaise topic, context ya reminder.</p>
-                    </FieldInfo>
-                  </label>
-                  <textarea
-                    className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all min-h-[90px] resize-none"
-                    placeholder={t("goals.modal.description_placeholder")}
-                    value={desc}
-                    onChange={e => setDesc(e.target.value)}
-                  />
-                </div>
-
-                {(goalKind === "today" || goalKind === "repeat") && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
-                      What if you do not finish?
-                      <FieldInfo>
-                        <p className="mb-1">Agar goal incomplete raha to app kya kare:</p>
-                        <ul className="list-disc pl-3 space-y-1 text-muted-foreground">
-                          <li>Close kare</li>
-                          <li>Carry kare</li>
-                          <li>Ya next day puche</li>
-                        </ul>
-                      </FieldInfo>
-                    </label>
-                    <select
-                      className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                      value={carryForwardMode}
-                      onChange={(e) => setCarryForwardMode(e.target.value as GoalCarryForwardMode)}
-                    >
-                      {GOAL_CARRY_FORWARD_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
-                      Already started?
-                      <FieldInfo>
-                        <p>Agar aap pehle se kuch progress kar chuke ho to yahan number daalo.</p>
-                        <p className="text-muted-foreground mt-1">Nahi to 0 rehne do.</p>
-                      </FieldInfo>
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                      placeholder="0 (optional)"
-                      value={achievedValue}
-                      onChange={(e) => setAchievedValue(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
-                      {t("goals.modal.start_time_ist")}
-                      <FieldInfo>
-                        <p>Optional: goal ko kis time se start maana jaye, wo set kar sakte ho.</p>
-                      </FieldInfo>
-                    </label>
-                    <input
-                      type="time"
-                      className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all color-scheme-dark"
-                      value={startTime}
-                      onChange={e => setStartTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {isEdit && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
-                      Execution status
-                      <FieldInfo>
-                        <p>Yeh mostly edit mode ke liye hai.</p>
-                        <p className="text-muted-foreground mt-1">Isse goal ka current state update hota hai.</p>
-                      </FieldInfo>
-                    </label>
-                    <select
-                      className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as GoalExecutionStatus)}
-                    >
-                      {GOAL_STATUS_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {isEdit && unitType !== "checklist" && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
-                      Subtasks (optional)
-                      <FieldInfo text="Main goal ke under optional mini tasks add kar sakte ho." />
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        className="flex-1 bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                        placeholder={t("goals.modal.subtask_placeholder")}
-                        value={newSubtaskText}
-                        onChange={(e) => setNewSubtaskText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addSubtask();
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={addSubtask}
-                        className="px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
-                      >
-                        {t("goals.modal.add")}
-                      </button>
-                    </div>
-                    {subtasks.length > 0 && (
-                      <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                        {subtasks.map((item) => (
-                          <div key={item.id} className="flex items-center gap-2 bg-muted/40 border rounded-xl px-3 py-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleSubtaskDone(item.id)}
-                              className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-border text-transparent'}`}
-                              title={t("goals.modal.toggle_subtask")}
-                            >
-                              <Check size={12} strokeWidth={3} />
-                            </button>
-                            <span className={`flex-1 text-sm ${item.done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{item.text}</span>
-                            <button
-                              type="button"
-                              onClick={() => removeSubtask(item.id)}
-                              className="p-1 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
-                              title={t("goals.modal.remove_subtask")}
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+              Add details (optional)
+              <FieldInfo>
+                <p>Goal ke extra notes likh sakte ho.</p>
+                <p className="text-muted-foreground mt-1">Jaise topic, context ya reminder.</p>
+              </FieldInfo>
+            </label>
+            <textarea
+              className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all min-h-[90px] resize-none"
+              placeholder={t("goals.modal.description_placeholder")}
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+            />
           </div>
 
           <button
@@ -1043,6 +875,7 @@ export default function Goals() {
   
   const [goals, setGoals] = useState<UIGoal[]>([]);
   const [modal, setModal] = useState<any>(null);
+  const [showGoalsGuide, setShowGoalsGuide] = useState(false);
   const [tab, setTab] = useState("goals");
   const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
   const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
@@ -1303,6 +1136,15 @@ export default function Goals() {
     return Number((total / sevenDaySeries.length).toFixed(1));
   }, [sevenDaySeries]);
 
+  const consistencyTrendData = useMemo(
+    () =>
+      sevenDaySeries.map((entry) => ({
+        day: entry.dayLabel,
+        score: entry.total > 0 ? Math.round((entry.completed / entry.total) * 100) : 0,
+      })),
+    [sevenDaySeries],
+  );
+
   const averageCompletionDuration = useMemo(() => {
     const values = manualCompletedGoals
       .map((goal) => getGoalLifecycleDurationMs(goal))
@@ -1326,6 +1168,16 @@ export default function Goals() {
               </h1>
               <p className="text-muted-foreground font-medium pl-1">{t('goals.subtitle')}</p>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowGoalsGuide(true)}
+              className="inline-flex items-center gap-2 rounded-xl border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
+              title="Goal Usage Guide"
+            >
+              <HelpCircle size={16} className="text-emerald-600" />
+              Guide
+            </button>
           </header>
 
           <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
@@ -1377,6 +1229,22 @@ export default function Goals() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Current Streak</p>
                   <p className="text-4xl font-black text-amber-500">{currentCompletionStreak}d</p>
                   <p className="text-xs text-muted-foreground mt-2">Consecutive days with completions</p>
+                </div>
+              </div>
+
+              <div className="bg-card border rounded-[32px] p-8 shadow-sm" data-tour="consistency-chart">
+                <div className="mb-6">
+                  <h3 className="text-xl font-black flex items-center gap-3">
+                    <TrendingUp size={24} className="text-emerald-500" /> Goal Consistency Trend
+                  </h3>
+                  <p className="text-sm font-medium text-muted-foreground mt-2">Your goal completion over the last 7 days</p>
+                </div>
+                <div className="h-[250px] w-full">
+                  <ChartErrorBoundary>
+                    <Suspense fallback={<div className="h-full w-full" />}>
+                      <StreaksConsistencyChart data={consistencyTrendData} />
+                    </Suspense>
+                  </ChartErrorBoundary>
                 </div>
               </div>
 
@@ -1566,6 +1434,91 @@ export default function Goals() {
             </div>
           )}
         </div>
+
+        {showGoalsGuide && (
+          <div className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm p-4 flex items-center justify-center">
+            <div className="w-full max-w-3xl max-h-[85dvh] rounded-3xl border bg-card shadow-2xl overflow-hidden flex flex-col">
+              <div className="px-5 py-4 border-b bg-muted/20 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold">Goal System Detailed Guide</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Har option ka meaning + kaise use karein, step by step.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowGoalsGuide(false)}
+                  className="p-2 rounded-lg hover:bg-muted"
+                  title="Close guide"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto p-5 sm:p-6 space-y-6 text-sm leading-relaxed">
+                <section className="space-y-2">
+                  <h3 className="font-bold text-base">1. Basic setup</h3>
+                  <ol className="list-decimal pl-5 space-y-1">
+                    <li><strong>What do you want to do?</strong>: Goal title likho. Clear action likho.</li>
+                    <li><strong>Goal Type</strong>: Today, One-time, Repeat me se choose karo.</li>
+                    <li><strong>How will you track it?</strong>: Done, Number, Time, ya Checklist choose karo.</li>
+                  </ol>
+                </section>
+
+                <section className="space-y-2">
+                  <h3 className="font-bold text-base">2. Goal Type ka matlab</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><strong>Today</strong>: sirf aaj ke liye relevant task.</li>
+                    <li><strong>One-time</strong>: ek baar complete hone wala task, optional due date ke saath.</li>
+                    <li><strong>Repeat</strong>: daily ya recurring behavior build karne ke liye.</li>
+                  </ul>
+                </section>
+
+                <section className="space-y-2">
+                  <h3 className="font-bold text-base">3. Tracking Method ka matlab</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><strong>Done / Not done</strong>: binary completion.</li>
+                    <li><strong>By number (count)</strong>: jaise 20 questions, 5 pages.</li>
+                    <li><strong>Track by focused time</strong>: total minutes target set hota hai.</li>
+                    <li><strong>Checklist points</strong>: task ko small subtasks me tod do.</li>
+                  </ul>
+                </section>
+
+                <section className="space-y-2">
+                  <h3 className="font-bold text-base">4. Conditional fields ka use</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><strong>Target number/time</strong>: count aur time mode me mandatory.</li>
+                    <li><strong>Enable linked focus sessions</strong>: sirf time-based goals ke liye. Ekagra timer sessions goal ke saath link honge.</li>
+                    <li><strong>Checklist points</strong>: har point add karo, complete hone par tick karo.</li>
+                    <li><strong>Add due date</strong>: one-time goal me optional deadline.</li>
+                    <li><strong>Repeat setting</strong>: recurring goal behavior define karta hai.</li>
+                  </ul>
+                </section>
+
+                <section className="space-y-2">
+                  <h3 className="font-bold text-base">5. More options (advanced)</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><strong>Add details</strong>: context/notes likho.</li>
+                    <li><strong>What if you do not finish?</strong>: carry-forward behavior set karo.</li>
+                    <li><strong>Already started?</strong>: existing progress number enter karo.</li>
+                    <li><strong>Start time (IST)</strong>: optional start-time stamp.</li>
+                    <li><strong>Execution status</strong>: edit mode me workflow status manage karo.</li>
+                  </ul>
+                </section>
+
+                <section className="space-y-2">
+                  <h3 className="font-bold text-base">6. Recommended flow</h3>
+                  <ol className="list-decimal pl-5 space-y-1">
+                    <li>Title + Type + Tracking method set karo.</li>
+                    <li>Target fill karo (agar required ho).</li>
+                    <li>Time-based goal ho to linked focus ON rakho.</li>
+                    <li>Create Goal dabao.</li>
+                    <li>Goal card se Start Focus dabakar Ekagra session start karo.</li>
+                  </ol>
+                </section>
+              </div>
+            </div>
+          </div>
+        )}
+
         {modal && <GoalModal goal={modal.goal} mode={modal.mode} onSave={saveGoal} onClose={() => setModal(null)} todayKey={todayKey} maxDateKey={maxDateKey} />}
       </div>
     </NishthaLayout>
