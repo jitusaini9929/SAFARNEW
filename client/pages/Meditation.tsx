@@ -515,9 +515,28 @@ export default function Meditation() {
         </Button>
     );
 
+    const totalSessionSeconds = (selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60;
+    const safeRemainingSeconds = Math.max(0, timeLeft);
+    const elapsedSeconds = Math.max(0, totalSessionSeconds - safeRemainingSeconds);
+
+    const breathPaceLabel = (() => {
+        if (selectedSession.type !== "breathing" || !selectedSession.cycle) {
+            return "Self-paced";
+        }
+        const cycleSeconds = Math.max(
+            1,
+            selectedSession.cycle.inhale +
+            selectedSession.cycle.holdIn +
+            selectedSession.cycle.exhale +
+            selectedSession.cycle.holdOut,
+        );
+        const breathsPerMinute = (60 / cycleSeconds).toFixed(1);
+        return `${breathsPerMinute} br/min`;
+    })();
+
     const progress = selectedSession.id === "dhyan-custom"
-        ? ((sliderValue * 60 - timeLeft) / (sliderValue * 60)) * 100
-        : ((selectedSession.duration * 60 - timeLeft) / (selectedSession.duration * 60)) * 100;
+        ? ((sliderValue * 60 - safeRemainingSeconds) / (sliderValue * 60)) * 100
+        : ((selectedSession.duration * 60 - safeRemainingSeconds) / (selectedSession.duration * 60)) * 100;
 
     // Handle Slider Change
     const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -651,7 +670,7 @@ export default function Meditation() {
                         </div>
 
                         <div data-tour="timer-display" className="mt-6 md:mt-8 space-y-3 w-full max-w-lg">
-                            <div className="text-5xl sm:text-6xl md:text-8xl font-light font-mono tracking-wider tabular-nums">{formatTime(timeLeft)}</div>
+                            <div className="text-5xl sm:text-6xl md:text-8xl font-light font-mono tracking-wider tabular-nums">{formatTime(safeRemainingSeconds)}</div>
                             <p className="text-muted-foreground text-[11px] uppercase tracking-[0.2em]">{breathPhase === "inhale" ? "Inhale" : breathPhase === "exhale" ? "Exhale" : "Hold"}</p>
 
                             {selectedSession.id === "dhyan-custom" && (
@@ -691,16 +710,16 @@ export default function Meditation() {
 
                         <div className="mt-6 md:mt-10 grid grid-cols-3 gap-4 md:gap-8 text-center">
                             <div>
-                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Duration</p>
-                                <p className="text-xl md:text-2xl font-serif">{formatTime(timeLeft)}</p>
+                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Elapsed</p>
+                                <p className="text-xl md:text-2xl font-serif">{formatTime(elapsedSeconds)}</p>
                             </div>
                             <div>
-                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Session</p>
-                                <p className="text-xl md:text-2xl font-serif">{selectedSession.duration}m</p>
+                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Planned</p>
+                                <p className="text-xl md:text-2xl font-serif">{Math.round(totalSessionSeconds / 60)}m</p>
                             </div>
                             <div>
-                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Intensity</p>
-                                <p className="text-xl md:text-2xl font-serif">Deep</p>
+                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Breath Pace</p>
+                                <p className="text-xl md:text-2xl font-serif">{breathPaceLabel}</p>
                             </div>
                         </div>
                     </section>
@@ -739,11 +758,11 @@ export default function Meditation() {
                     <button onClick={() => setIsMuted(!isMuted)} className="text-muted-foreground hover:text-foreground transition-colors">{isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</button>
                 </div>
                 <div className="flex items-center gap-3 w-64">
-                    <span className="text-[10px] font-bold text-muted-foreground">{formatTime(Math.max(0, (selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60 - timeLeft))}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground">{formatTime(elapsedSeconds)}</span>
                     <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-primary to-primary/60" style={{ width: `${progress}%` }} />
                     </div>
-                    <span className="text-[10px] font-bold text-muted-foreground">{formatTime((selectedSession.id === "dhyan-custom" ? sliderValue : selectedSession.duration) * 60)}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground">{formatTime(totalSessionSeconds)}</span>
                 </div>
             </footer>
 
@@ -779,7 +798,7 @@ export default function Meditation() {
                                 <span className={`inline-block px-7 py-2.5 rounded-full text-lg font-black tracking-[0.15em] ${breathPhase === 'inhale' ? 'bg-primary/20 text-primary' : breathPhase === 'exhale' ? 'bg-secondary/20 text-secondary' : 'bg-amber-500/20 text-amber-600 dark:text-amber-200'}`}>
                                     {breathPhase === 'inhale' ? 'INHALE' : breathPhase === 'exhale' ? 'EXHALE' : 'HOLD'}
                                 </span>
-                                <div className="text-5xl md:text-7xl font-light text-foreground font-mono tracking-widest tabular-nums">{formatTime(timeLeft)}</div>
+                                <div className="text-5xl md:text-7xl font-light text-foreground font-mono tracking-widest tabular-nums">{formatTime(safeRemainingSeconds)}</div>
                                 <div className="w-full max-w-xs h-1.5 bg-muted rounded-full overflow-hidden">
                                     <div className="h-full bg-gradient-to-r from-[#94aaff] to-[#00d4ec]" style={{ width: `${progress}%` }} />
                                 </div>
