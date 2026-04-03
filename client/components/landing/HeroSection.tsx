@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import LanguageToggle from '../LanguageToggle';
+import AnimatedBorderPill from './AnimatedBorderPill';
 
 interface HeroSectionProps {
     user: any;
@@ -33,8 +34,8 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
     const subtitleLines = subtitleRaw.split('\n');
     const subtitleBody =
         subtitleLines.length >= 2 &&
-        normalize(subtitleLines[0]) === normalize(titlePart1) &&
-        normalize(subtitleLines[1]) === normalize(titlePart2)
+            normalize(subtitleLines[0]) === normalize(titlePart1) &&
+            normalize(subtitleLines[1]) === normalize(titlePart2)
             ? subtitleLines.slice(2).join('\n').trim()
             : subtitleRaw;
 
@@ -105,12 +106,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                     </div>
 
                     <div className="hidden md:flex items-center md:gap-4 md:ml-auto md:mr-6 md:-translate-x-[30%]">
-                        <Link
+                        <AnimatedBorderPill
                             to="/updates"
-                            className="inline-flex items-center px-[14px] py-[10px] rounded-lg text-black dark:text-white/80 font-semibold text-[17px] leading-none hover:text-black dark:hover:text-white transition-all duration-200 hover:scale-105 hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
-                        >
-                            Updates
-                        </Link>
+                            text="Updates"
+                            mode={theme === 'dark' ? 'dark' : 'light'}
+                            className="transition-transform duration-200 hover:scale-105"
+                        />
                         <a
                             href={supportGmailHref}
                             target="_blank"

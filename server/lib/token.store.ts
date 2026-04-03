@@ -2,13 +2,18 @@ import { createClient, type RedisClientType } from 'redis';
 import { v4 as uuidv4 } from 'uuid';
 
 const IS_DEV_MODE = process.env.DEV_MODE === 'true';
+const IS_PROD = process.env.NODE_ENV === 'production';
 const redisUrl = String(process.env.REDIS_URL || process.env.REDIS_URI || '').trim();
 const redisConnectTimeoutMs = Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 3000);
 const redisMaxReconnectDelayMs = Number(process.env.REDIS_MAX_RECONNECT_DELAY_MS || 3000);
 const redisReconnectWarningAfterAttempts = Number(process.env.REDIS_RECONNECT_WARN_AFTER || 5);
+const ALLOW_IN_MEMORY_FALLBACK =
+  process.env.AUTH_ALLOW_IN_MEMORY_TOKEN_STORE === 'true' ||
+  (!IS_PROD && process.env.AUTH_ALLOW_IN_MEMORY_TOKEN_STORE !== 'false');
 
 let redisClient: RedisClientType | null = null;
 let redisConnectPromise: Promise<RedisClientType | null> | null = null;
+let fallbackWarningLogged = false;
 
 const RT_PREFIX = 'rt';
 const BLOCKLIST_PREFIX = 'blocklist';
@@ -44,16 +49,17 @@ function memScan(pattern: string): string[] {
 
 // ── Redis connection (production only) ──────────────────────────────────────
 
-if (!IS_DEV_MODE && !redisUrl) {
+if (!redisUrl && !ALLOW_IN_MEMORY_FALLBACK) {
   throw new Error('[AUTH] Missing required Redis configuration. Set REDIS_URL or REDIS_URI.');
 }
 
-if (IS_DEV_MODE && !redisUrl) {
-  console.log('[AUTH] DEV MODE — using in-memory token store (no Redis required)');
+if (!redisUrl && ALLOW_IN_MEMORY_FALLBACK) {
+  const modeLabel = IS_DEV_MODE ? 'DEV MODE' : 'non-production mode';
+  console.warn(`[AUTH] ${modeLabel} - using in-memory token store (Redis not configured).`);
 }
 
 function getOrCreateRedisClient(): RedisClientType | null {
-  if (IS_DEV_MODE && !redisUrl) return null;
+  if (!redisUrl) return null;
   if (redisClient) return redisClient;
 
   redisClient = createClient({
@@ -91,8 +97,8 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | nul
 }
 
 export async function getRedisClient(): Promise<RedisClientType | null> {
-  // In DEV_MODE without Redis, return null — callers below use memStore instead
-  if (IS_DEV_MODE && !redisUrl) return null;
+  // Redis is optional only when fallback is allowed (non-production by default).
+  if (!redisUrl) return null;
 
   const client = getOrCreateRedisClient();
   if (!client) return null;
@@ -126,6 +132,13 @@ export async function getRedisClient(): Promise<RedisClientType | null> {
 
   const connectedClient = await redisConnectPromise;
   if (!connectedClient) {
+    if (ALLOW_IN_MEMORY_FALLBACK) {
+      if (!fallbackWarningLogged) {
+        console.warn('[AUTH] Redis connection unavailable; using in-memory token store fallback.');
+        fallbackWarningLogged = true;
+      }
+      return null;
+    }
     throw new Error('[AUTH] Redis connection unavailable. Token storage must persist across restarts.');
   }
 

@@ -324,7 +324,9 @@
   }
 }
 
+/* ── Updates Nav — Animated Border (Shine) ────────────────────────────────── */
 @layer base {
+
 
   *,
   *::before,
@@ -1432,7 +1434,7 @@ select {
     animation: none !important;
     transition: none !important;
   }
-  
+
   *,
   *::before,
   *::after {
