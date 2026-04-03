@@ -243,6 +243,33 @@ const getGoalExpiry = (goal: any) => {
     return calculateExpiryUTC(goalType, new Date(), new Date(baseDate));
 };
 
+const getGoalScheduledISTDateKey = (goal: any): string | null => {
+    const candidates = [
+        goal?.scheduled_date,
+        goal?.scheduledDate,
+        goal?.expires_at,
+        goal?.expiresAt,
+        goal?.created_at,
+        goal?.createdAt,
+    ];
+
+    for (const rawDate of candidates) {
+        if (!rawDate) continue;
+        const parsed = new Date(rawDate);
+        if (Number.isFinite(parsed.getTime())) {
+            return getISTDateKey(parsed);
+        }
+    }
+
+    return null;
+};
+
+const shouldOfferRolloverPromptForGoal = (goal: any, now: Date) => {
+    const yesterdayKey = getISTDateKeyAfterDays(now, -1);
+    const goalScheduledDateKey = getGoalScheduledISTDateKey(goal);
+    return Boolean(goalScheduledDateKey && goalScheduledDateKey === yesterdayKey);
+};
+
 const normalizeGoalResponse = (goal: any) => {
     const createdAt = new Date(goal.created_at || goal.createdAt || Date.now());
     const completedAt = goal.completed_at ? new Date(goal.completed_at) : null;
@@ -515,8 +542,9 @@ const syncExpiredGoalsToMissed = async (userId: string) => {
         }
 
         if (now.getTime() >= expiresAt.getTime()) {
+            const shouldOfferPrompt = shouldOfferRolloverPromptForGoal(goal, now);
             setFields.lifecycle_status = 'missed';
-            setFields.rollover_prompt_pending = true;
+            setFields.rollover_prompt_pending = shouldOfferPrompt;
             if (!goal.missed_at) setFields.missed_at = now;
         }
 
@@ -560,6 +588,7 @@ router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
         const userId = req.session.userId!;
         await migrateLegacyEkagraTasks(userId);
         await syncExpiredGoalsToMissed(userId);
+        const now = new Date();
 
         const rows = await collections.goals()
             .find({
@@ -571,7 +600,33 @@ router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
             .sort({ missed_at: -1, created_at: -1 })
             .toArray();
 
-        res.json(rows.map(normalizeGoalResponse));
+        const promptRows: any[] = [];
+        const stalePromptGoalIds: string[] = [];
+
+        for (const row of rows) {
+            if (shouldOfferRolloverPromptForGoal(row, now)) {
+                promptRows.push(row);
+                continue;
+            }
+            const goalId = String(row?.id || '').trim();
+            if (goalId) stalePromptGoalIds.push(goalId);
+        }
+
+        if (stalePromptGoalIds.length > 0) {
+            await collections.goals().updateMany(
+                {
+                    user_id: userId,
+                    id: { $in: stalePromptGoalIds },
+                },
+                {
+                    $set: {
+                        rollover_prompt_pending: false,
+                    },
+                }
+            );
+        }
+
+        res.json(promptRows.map(normalizeGoalResponse));
     } catch (error) {
         console.error('Get rollover prompts error:', error);
         res.status(500).json({ message: 'Internal server error' });

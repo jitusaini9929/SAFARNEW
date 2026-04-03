@@ -35,6 +35,7 @@ const Mehfil = React.lazy(() => import("./pages/Mehfil"));
 const Meditation = React.lazy(() => import("./pages/Meditation"));
 const StudyPlannerPage = React.lazy(() => import("./pages/StudyPlannerPage"));
 const Courses = React.lazy(() => import("./pages/Courses"));
+const Updates = React.lazy(() => import("./pages/Updates"));
 
 const queryClient = new QueryClient();
 const GA_MEASUREMENT_ID = "G-JGR9ENZ8W0";
@@ -255,6 +256,7 @@ const App = () => {
                 <Route path="/landing" element={<Navigate to="/home" replace />} />
                 <Route path="/home" element={<Landing />} />
                 <Route path="/challenge-100k" element={<Challenge100K />} />
+                <Route path="/updates" element={<Updates />} />
 
                 {/* Default route - Landing page is now home */}
                 <Route path="/" element={<Landing />} />

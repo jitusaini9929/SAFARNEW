@@ -106,10 +106,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
 
                     <div className="hidden md:flex items-center md:gap-4 md:ml-auto md:mr-6 md:-translate-x-[30%]">
                         <Link
-                            to="/mehfil"
+                            to="/updates"
                             className="inline-flex items-center px-[14px] py-[10px] rounded-lg text-black dark:text-white/80 font-semibold text-[17px] leading-none hover:text-black dark:hover:text-white transition-all duration-200 hover:scale-105 hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
                         >
-                            Community
+                            Updates
                         </Link>
                         <a
                             href={supportGmailHref}
