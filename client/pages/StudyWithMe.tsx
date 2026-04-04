@@ -475,6 +475,25 @@ export default function StudyWithMe() {
         if (!justCompleted || completionHandledRef.current || mode !== "Timer") return;
         completionHandledRef.current = true;
 
+        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
+        if (runtimeSessionId && status === "authenticated" && user?.id) {
+            void (async () => {
+                try {
+                    await dataService.completeEkagraSession(runtimeSessionId, {
+                        mode: "Timer",
+                        elapsedSeconds: Math.max(0, totalSeconds - remainingSeconds),
+                        remainingSeconds: Math.max(0, remainingSeconds),
+                        sessionStartedAt: null,
+                    });
+                    runtimeSessionIdRef.current = null;
+                    setRuntimeActiveSessionId(null);
+                    await refreshRuntimeSessions();
+                } catch (error) {
+                    console.error("Auto-complete Ekagra session error:", error);
+                }
+            })();
+        }
+
         const taskToComplete = currentTask;
         if (taskToComplete) {
             const completedAt = new Date().toISOString();
@@ -486,8 +505,23 @@ export default function StudyWithMe() {
             setCompletedTask(null);
             setAwaitingProceed(false);
             setShowDurationPrompt(false);
+            if (associatedGoalId) {
+                setAssociatedGoal(null, null);
+            }
         }
-    }, [remainingSeconds, currentTask, updateTasks, mode]);
+    }, [
+        associatedGoalId,
+        currentTask,
+        mode,
+        refreshRuntimeSessions,
+        remainingSeconds,
+        runtimeActiveSessionId,
+        setAssociatedGoal,
+        status,
+        totalSeconds,
+        updateTasks,
+        user?.id,
+    ]);
 
     useEffect(() => {
         let cancelled = false;
@@ -730,10 +764,11 @@ export default function StudyWithMe() {
         const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
         if (runtimeSessionId && status === "authenticated" && user?.id) {
             try {
-                const spentSeconds = Math.max(1, totalSeconds - remainingSeconds);
+                const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
                 await dataService.completeEkagraSession(runtimeSessionId, {
                     mode: "Timer",
-                    totalSeconds: spentSeconds,
+                    elapsedSeconds,
+                    remainingSeconds: Math.max(0, remainingSeconds),
                     sessionStartedAt: null,
                 });
                 runtimeSessionIdRef.current = null;
@@ -768,10 +803,34 @@ export default function StudyWithMe() {
         }
         resetTimer();
 
+        if (associatedGoalId) {
+            setAssociatedGoal(null, null);
+        }
+
         setCompletedTask(null);
         setAwaitingProceed(false);
         setShowDurationPrompt(false);
-    }, [currentTask, isRunning, refreshRuntimeSessions, remainingSeconds, resetTimer, runtimeActiveSessionId, status, tasks, toggleTimer, totalSeconds, user?.id]);
+    }, [associatedGoalId, currentTask, isRunning, refreshRuntimeSessions, remainingSeconds, resetTimer, runtimeActiveSessionId, setAssociatedGoal, status, tasks, toggleTimer, totalSeconds, user?.id]);
+
+    const handleCompleteSessionGoal = useCallback(async (goalId: string, completedAt: string, sessionStatus: string) => {
+        if (status !== "authenticated" || !user?.id) return;
+
+        try {
+            const normalizedStatus = String(sessionStatus || "").toLowerCase();
+            const shouldCompleteGoal = normalizedStatus === "completed";
+            if (shouldCompleteGoal) {
+                await dataService.updateGoal(goalId, true, completedAt);
+                setTasks((prev) => sortTasks(prev.map((task) =>
+                    task.id === goalId ? { ...task, completed: true, completedAt } : task
+                )));
+            }
+            if (associatedGoalId === goalId) {
+                setAssociatedGoal(null, null);
+            }
+        } catch (error) {
+            console.error("Complete Ekagra task from session error:", error);
+        }
+    }, [associatedGoalId, setAssociatedGoal, status, user?.id]);
 
     const handleCreateSessionFromOverlay = useCallback(async (title: string) => {
         await handleManualTaskAdd(title);
@@ -869,6 +928,38 @@ export default function StudyWithMe() {
             console.error("Discard Ekagra session error:", error);
         }
     }, [isRunning, refreshRuntimeSessions, runtimeActiveSessionId, status, toggleTimer, user?.id]);
+
+    const handleDeleteSession = useCallback(async (sessionId: string) => {
+        if (status !== "authenticated" || !user?.id) return;
+
+        try {
+            if (sessionId.startsWith("planned-imported-")) {
+                const goalId = sessionId.slice("planned-imported-".length).trim();
+                if (goalId) {
+                    await dataService.revertImportedGoalFromEkagra(goalId);
+                    const refreshedGoals = await dataService.getGoals();
+                    setTasks(extractEkagraTasks(refreshedGoals));
+                }
+                return;
+            }
+
+            const wasRuntimeSession = (runtimeSessionIdRef.current || runtimeActiveSessionId) === sessionId;
+            await dataService.deleteEkagraSession(sessionId);
+            if (wasRuntimeSession) {
+                runtimeSessionIdRef.current = null;
+                setRuntimeActiveSessionId(null);
+                if (isRunning) {
+                    toggleTimer();
+                }
+            }
+            if (associatedGoalId && wasRuntimeSession) {
+                setAssociatedGoal(null, null);
+            }
+            await refreshRuntimeSessions();
+        } catch (error) {
+            console.error("Delete Ekagra session error:", error);
+        }
+    }, [associatedGoalId, isRunning, refreshRuntimeSessions, runtimeActiveSessionId, status, toggleTimer, user?.id]);
 
     const handleSwitchLiveSession = useCallback(() => {
         if (!currentTask) {
@@ -1372,6 +1463,8 @@ export default function StudyWithMe() {
                 liveSessionPreview={liveSessionPreview}
                 onResumeSession={handleResumeSession}
                 onDiscardSession={handleDiscardSession}
+                onDeleteSession={handleDeleteSession}
+                onCompleteSessionGoal={handleCompleteSessionGoal}
                 onPauseLiveSession={handlePauseLiveSession}
                 onCompleteLiveSession={handleCompleteCurrentTask}
                 onSwitchLiveSession={handleSwitchLiveSession}
@@ -1471,6 +1564,16 @@ export default function StudyWithMe() {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Progress Checkpoints */}
+                        <div className="mt-3 flex items-end justify-between px-1 text-[10px] font-semibold text-white/60">
+                            {[25, 50, 75, 100].map((point) => (
+                                <div key={point} className="flex flex-col items-center gap-1">
+                                    <span className="h-2 w-px bg-white/30" />
+                                    <span>{point}%</span>
+                                </div>
+                            ))}
                         </div>
 
                         {/* Growth Icons */}
@@ -1828,12 +1931,21 @@ export default function StudyWithMe() {
                         </div>
 
                         <div className="overflow-y-auto p-5 sm:p-6 space-y-6 text-sm leading-relaxed">
+                            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-white/90">
+                                <h3 className="text-sm font-bold mb-2">What changed (quick recap)</h3>
+                                <ul className="list-disc pl-5 space-y-1">
+                                    <li>Sessions list ab Analytics tab me move ho gayi hai.</li>
+                                    <li>End Session par status auto decide hota hai (Completed vs Ended Early).</li>
+                                    <li>Delete session se instantly clean-up hota hai.</li>
+                                    <li>Linked goal banner end/delete ke baad auto clear hota hai.</li>
+                                </ul>
+                            </div>
                             <section className="space-y-2">
                                 <h3 className="font-bold text-base">1. Session start kaise karein</h3>
                                 <ol className="list-decimal pl-5 space-y-1 text-white/90">
-                                    <li>Goal linked ho to wahi continue karo, warna manual task add karo.</li>
+                                    <li>Goal card se Start Focus dabao ya yahan manual task add karo.</li>
                                     <li>Timer duration set karo (slider ya custom input).</li>
-                                    <li>Play button dabao to active session start hota hai.</li>
+                                    <li>Play dabao — Running session start ho jayega.</li>
                                 </ol>
                             </section>
 
@@ -1843,6 +1955,7 @@ export default function StudyWithMe() {
                                     <li><strong>Play/Pause</strong>: session ko run ya hold karta hai.</li>
                                     <li><strong>Reset</strong>: current timer cycle ko reset karta hai.</li>
                                     <li><strong>Mode</strong>: Timer, short break, long break select kar sakte ho.</li>
+                                    <li><strong>End Session</strong>: session ko close karta hai — completion status timer accuracy se decide hota hai.</li>
                                     <li><strong>PiP</strong>: timer ko mini floating view me rakhta hai.</li>
                                 </ul>
                             </section>
@@ -1850,11 +1963,11 @@ export default function StudyWithMe() {
                             <section className="space-y-2">
                                 <h3 className="font-bold text-base">3. Sessions panel (History/Sessions)</h3>
                                 <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li><strong>History</strong>: previous sessions dekhne ke liye.</li>
-                                    <li><strong>Sessions</strong>: pending/active sessions manage karne ke liye.</li>
+                                    <li><strong>Sessions</strong>: Running Now + Paused sessions manage karne ke liye.</li>
                                     <li><strong>Switch</strong>: kisi paused session par wapas jao.</li>
-                                    <li><strong>Complete</strong>: task done mark karke session close karo.</li>
-                                    <li><strong>Discard</strong>: unwanted session remove karo.</li>
+                                    <li><strong>End Session</strong>: session close hota hai — Completed vs Ended Early timer ke hisaab se.</li>
+                                    <li><strong>Delete</strong>: session ko list se remove karta hai.</li>
+                                    <li><strong>History</strong>: overview/snapshot yahan milega; detailed list Analytics tab me hai.</li>
                                 </ul>
                             </section>
 
@@ -1864,6 +1977,7 @@ export default function StudyWithMe() {
                                     <li>Linked goal top section me visible rahega.</li>
                                     <li>Goal imported ho to badge dikhega.</li>
                                     <li>Unlink button se current timer ko goal se alag kar sakte ho.</li>
+                                    <li>End/Delete ke baad linked goal banner auto clear ho jata hai.</li>
                                 </ul>
                             </section>
 
@@ -1879,11 +1993,11 @@ export default function StudyWithMe() {
                             <section className="space-y-2">
                                 <h3 className="font-bold text-base">6. Recommended usage flow</h3>
                                 <ol className="list-decimal pl-5 space-y-1 text-white/90">
-                                    <li>Goal pick karo.</li>
-                                    <li>Duration realistic set karo.</li>
-                                    <li>Session run karo and interruptions par pause use karo.</li>
-                                    <li>Session ke end par complete/discard clearly choose karo.</li>
-                                    <li>Analytics ya history se consistency review karo.</li>
+                                    <li>Goal pick karo ya manual task add karo.</li>
+                                    <li>Duration realistic set karo (progress bar ke niche checkpoints follow karo).</li>
+                                    <li>Session run karo, interruptions par pause use karo.</li>
+                                    <li>End Session par status auto decide hoga — phir Analytics me Session Quality check karo.</li>
+                                    <li>Consistency review ke liye Analytics ke Sessions tab pe jao.</li>
                                 </ol>
                             </section>
                         </div>

@@ -36,6 +36,7 @@ const Meditation = React.lazy(() => import("./pages/Meditation"));
 const StudyPlannerPage = React.lazy(() => import("./pages/StudyPlannerPage"));
 const Courses = React.lazy(() => import("./pages/Courses"));
 const Updates = React.lazy(() => import("./pages/Updates"));
+const SafarVictoryModeToday = React.lazy(() => import("./pages/mission/today"));
 
 const queryClient = new QueryClient();
 const GA_MEASUREMENT_ID = "G-JGR9ENZ8W0";
@@ -251,6 +252,16 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 />
+                {/* 
+                <Route
+                  path="/mission/today"
+                  element={
+                    <ProtectedRoute>
+                      <SafarVictoryModeToday />
+                    </ProtectedRoute>
+                  }
+                />
+                */}
 
                 {/* Landing page - Public Home */}
                 <Route path="/landing" element={<Navigate to="/home" replace />} />

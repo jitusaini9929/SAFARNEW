@@ -27,6 +27,7 @@ import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
 import mehfilSocialRouter from "./routes/mehfil-social";
 import { dmRoutes } from "./routes/dm";
 import { getRedisClient } from "./lib/redis.client";
+import { missionRouter } from "./routes/mission";
 
 // Setup Mehfil Socket.IO Config Constants
 // Redis adapter logic moved down
@@ -190,6 +191,7 @@ export async function createServer() {
   app.use("/api/dm", dmRoutes);
   app.use("/api/plans", planModule.default);
   app.use("/api/suggestions", suggestionsModule.suggestionsRoutes);
+  app.use("/api/mission", missionRouter);
 
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";

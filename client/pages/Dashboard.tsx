@@ -4,6 +4,8 @@ import MainLayout from "@/components/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { dataService } from "@/utils/dataService";
 import { runGoalRolloverPromptFlow } from "@/utils/goalRolloverPrompt";
+import { isGoalCompleted, getGoalAnchorDateKey, getGoalCompletedDate, UIGoal } from "@/utils/goalUtils";
+import { getISTDateKey } from "@/utils/dateUtils";
 import PerkTitle from "@/components/PerkTitle";
 import {
     Heart,
@@ -182,13 +184,18 @@ export default function Dashboard() {
                     setAllGoals(goalsData || []);
 
                     const todaysGoals = goalsData.filter((g: any) => {
-                        const createdAt = g.created_at || g.createdAt;
-                        if (!createdAt || typeof createdAt !== 'string') return false;
-                        return toISTDateKey(createdAt) === todayISTStr;
+                        const uiG = g as UIGoal;
+                        const anchorKey = getGoalAnchorDateKey(uiG);
+                        if (anchorKey === todayISTStr) return true;
+                        
+                        const completedDate = getGoalCompletedDate(uiG);
+                        if (completedDate && getISTDateKey(completedDate) === todayISTStr) return true;
+                        
+                        return false;
                     });
 
                     const total = todaysGoals.length;
-                    const completed = todaysGoals.filter((g: any) => g.completed).length;
+                    const completed = todaysGoals.filter((g: any) => isGoalCompleted(g as UIGoal)).length;
                     setGoals({ total, completed });
                 } catch (e) { console.error('Failed to fetch goals', e); }
                 try {
@@ -303,7 +310,7 @@ export default function Dashboard() {
                                         <Quote className="w-4 h-4" />
                                         <span className="text-xs font-semibold uppercase tracking-wider">Daily Inspiration</span>
                                     </div>
-                                    <blockquote className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-base md:text-lg font-medium italic text-foreground/90 leading-relaxed">
+                                    <blockquote className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-base md:text-lg font-medium italic text-foreground/90 leading-relaxed mb-6">
                                         "{getDailyQuote()}"
                                     </blockquote>
                                 </div>
@@ -454,15 +461,25 @@ export default function Dashboard() {
                             {goals.total > 0 ? (
                                 <div className="space-y-3 mb-4 overflow-y-auto max-h-24 pr-2">
                                     {allGoals
-                                        .filter(g => toISTDateKey(g.created_at || g.createdAt) === todayISTStr)
-                                        .map(goal => (
-                                            <div key={goal.id} className={`flex items-center gap-3 p-2 rounded-lg ${goal.completed ? 'bg-green-500/10' : 'bg-muted/50'}`}>
-                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${goal.completed ? 'bg-green-500' : 'border-2 border-muted-foreground'}`}>
-                                                    {goal.completed && <Check className="w-3 h-3 text-white" />}
+                                        .filter(g => {
+                                            const uiG = g as UIGoal;
+                                            const anchorKey = getGoalAnchorDateKey(uiG);
+                                            if (anchorKey === todayISTStr) return true;
+                                            const completedDate = getGoalCompletedDate(uiG);
+                                            if (completedDate && getISTDateKey(completedDate) === todayISTStr) return true;
+                                            return false;
+                                        })
+                                        .map(goal => {
+                                            const isDone = isGoalCompleted(goal as UIGoal);
+                                            const title = goal.title || goal.text;
+                                            return (
+                                            <div key={goal.id} className={`flex items-center gap-3 p-2 rounded-lg ${isDone ? 'bg-green-500/10' : 'bg-muted/50'}`}>
+                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isDone ? 'bg-green-500' : 'border-2 border-muted-foreground'}`}>
+                                                    {isDone && <Check className="w-3 h-3 text-white" />}
                                                 </div>
-                                                <span className={`flex-1 text-sm ${goal.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{goal.text}</span>
+                                                <span className={`flex-1 text-sm ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{title}</span>
                                             </div>
-                                        ))}
+                                        )})}
                                 </div>
                             ) : (
                                 <div className="text-center my-auto">

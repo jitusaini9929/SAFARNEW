@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CalendarClock, CheckCircle2, ListChecks, XCircle } from "lucide-react";
 import { ekagraAnalyticsService } from "@/services/ekagraAnalyticsService";
-import { EkagraAnalyticsStats, EkagraTimerDurationUsage } from "@shared/api";
+import { EkagraAnalyticsFocusSession, EkagraAnalyticsStats, EkagraTimerDurationUsage } from "@shared/api";
 
 type FocusAnalyticsProps = {
     onBack?: () => void;
 };
+
+type AnalyticsTab = "overview" | "sessions" | "quality";
 
 const CHART_COLORS = ["#16a34a", "#2563eb", "#f59e0b", "#dc2626", "#14b8a6", "#7c3aed", "#ea580c", "#0891b2"];
 
@@ -48,6 +50,21 @@ const buildUsageChart = (usage: EkagraTimerDurationUsage[]) => {
     return { total, slices };
 };
 
+const formatSessionDateTime = (value: string | null | undefined) => {
+    if (!value) return "-";
+    const parsed = new Date(value);
+    if (!Number.isFinite(parsed.getTime())) return "-";
+    return parsed.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
+};
+
+const formatSessionStatusLabel = (status: EkagraAnalyticsFocusSession["status"]) =>
+    status === "completed" ? "Completed" : "Abandoned";
+
 const MetricCard: React.FC<{ label: string; value: string; sub?: string }> = ({ label, value, sub }) => (
     <div className="rounded-2xl border border-border/60 bg-card p-4">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -60,6 +77,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
     const navigate = useNavigate();
     const [stats, setStats] = useState<EkagraAnalyticsStats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
 
     useEffect(() => {
         let mounted = true;
@@ -106,10 +124,13 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
     };
 
     const usageChart = useMemo(() => buildUsageChart(stats?.timerDurationUsage || []), [stats?.timerDurationUsage]);
+    const focusSessions = useMemo(() => stats?.focusSessions || [], [stats?.focusSessions]);
 
-    const completionTotal = toWholeMinutes((stats?.completedSessions || 0) + (stats?.endedEarlySessions || 0));
+    const completedSessionsCount = Number(stats?.completedSessions || 0);
+    const abandonedSessionsCount = Number(stats?.abandonedSessions ?? stats?.endedEarlySessions ?? 0);
+    const completionTotal = toWholeMinutes(completedSessionsCount + abandonedSessionsCount);
     const completionSummary = completionTotal > 0
-        ? `${Math.round(((stats?.completedSessions || 0) / completionTotal) * 100)}% completion`
+        ? `${Math.round((completedSessionsCount / completionTotal) * 100)}% completion`
         : "No closed sessions yet";
 
     const chartGradient = useMemo(() => {
@@ -146,61 +167,180 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                     </button>
                     <div>
                         <h1 className="text-2xl font-extrabold">Timer Analytics</h1>
-                        <p className="text-sm text-muted-foreground">Focused metrics from Ekagra timer sessions</p>
+                        <p className="text-sm text-muted-foreground">Focused metrics and session quality from Ekagra timer sessions</p>
                     </div>
                 </header>
 
-                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <MetricCard label="Time spent on timer" value={formatMinutesLabel(stats?.totalFocusMinutes)} />
-                    <MetricCard
-                        label="Breaks taken"
-                        value={String(toWholeMinutes(stats?.breakSessionsCount))}
-                        sub={`Short ${toWholeMinutes(stats?.shortBreakSessionsCount)} | Long ${toWholeMinutes(stats?.longBreakSessionsCount)}`}
-                    />
-                    <MetricCard label="Long duration timer uses" value={String(toWholeMinutes(stats?.longDurationSessionCount))} sub="60 minutes or longer" />
-                    <MetricCard label="Average timer duration" value={formatMinutesLabel(stats?.averageTimerMinutes)} />
-                    <MetricCard
-                        label="Most used timer duration"
-                        value={stats?.mostUsedTimerDurationMinutes ? `${toWholeMinutes(stats.mostUsedTimerDurationMinutes)}m` : "-"}
-                    />
-                    <MetricCard
-                        label="Completed vs closed early"
-                        value={`${toWholeMinutes(stats?.completedSessions)} / ${toWholeMinutes(stats?.endedEarlySessions)}`}
-                        sub={completionSummary}
-                    />
+                <section className="inline-flex rounded-xl border border-border/60 bg-card p-1">
+                    {([
+                        { id: "overview" as AnalyticsTab, label: "Overview" },
+                        { id: "sessions" as AnalyticsTab, label: "Sessions" },
+                        { id: "quality" as AnalyticsTab, label: "Session Quality" },
+                    ]).map((tab) => (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`h-9 px-3 rounded-lg text-sm font-semibold transition-colors ${
+                                activeTab === tab.id
+                                    ? "bg-primary text-primary-foreground"
+                                    : "text-muted-foreground hover:text-foreground"
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </section>
 
-                <section className="rounded-2xl border border-border/60 bg-card p-5">
-                    <h2 className="text-base font-bold text-foreground">Timer Duration Usage</h2>
-                    <p className="text-xs text-muted-foreground mt-1">Includes focus timers and both break types.</p>
+                {activeTab === "overview" && (
+                    <>
+                        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <MetricCard label="Time spent on timer" value={formatMinutesLabel(stats?.totalFocusMinutes)} />
+                            <MetricCard
+                                label="Breaks taken"
+                                value={String(toWholeMinutes(stats?.breakSessionsCount))}
+                                sub={`Short ${toWholeMinutes(stats?.shortBreakSessionsCount)} | Long ${toWholeMinutes(stats?.longBreakSessionsCount)}`}
+                            />
+                            <MetricCard label="Long duration timer uses" value={String(toWholeMinutes(stats?.longDurationSessionCount))} sub="60 minutes or longer" />
+                            <MetricCard label="Average timer duration" value={formatMinutesLabel(stats?.averageTimerMinutes)} />
+                            <MetricCard
+                                label="Most used timer duration"
+                                value={stats?.mostUsedTimerDurationMinutes ? `${toWholeMinutes(stats.mostUsedTimerDurationMinutes)}m` : "-"}
+                            />
+                            <MetricCard
+                                label="Completed vs abandoned"
+                                value={`${completedSessionsCount} / ${abandonedSessionsCount}`}
+                                sub={completionSummary}
+                            />
+                        </section>
 
-                    {usageChart.total <= 0 ? (
-                        <div className="mt-4 rounded-xl border border-border/60 bg-background/70 p-4 text-sm text-muted-foreground">
-                            No timer duration usage yet.
-                        </div>
-                    ) : (
-                        <div className="mt-4 flex flex-col md:flex-row md:items-center gap-5">
-                            <div className="relative h-44 w-44 shrink-0 rounded-full border border-border/60" style={{ background: chartGradient }}>
-                                <div className="absolute inset-7 rounded-full border border-border/70 bg-background/95 flex flex-col items-center justify-center text-center">
-                                    <span className="text-xl font-black">{usageChart.total}</span>
-                                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Timers set</span>
+                        <section className="rounded-2xl border border-border/60 bg-card p-5">
+                            <h2 className="text-base font-bold text-foreground">Timer Duration Usage</h2>
+                            <p className="text-xs text-muted-foreground mt-1">Includes focus timers and both break types.</p>
+
+                            {usageChart.total <= 0 ? (
+                                <div className="mt-4 rounded-xl border border-border/60 bg-background/70 p-4 text-sm text-muted-foreground">
+                                    No timer duration usage yet.
                                 </div>
-                            </div>
-
-                            <div className="flex-1 space-y-2">
-                                {usageChart.slices.map((slice) => (
-                                    <div key={slice.id} className="flex items-center justify-between gap-3 text-sm">
-                                        <div className="inline-flex items-center gap-2 min-w-0">
-                                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
-                                            <span className="truncate text-muted-foreground">{slice.label}</span>
+                            ) : (
+                                <div className="mt-4 flex flex-col md:flex-row md:items-center gap-5">
+                                    <div className="relative h-44 w-44 shrink-0 rounded-full border border-border/60" style={{ background: chartGradient }}>
+                                        <div className="absolute inset-7 rounded-full border border-border/70 bg-background/95 flex flex-col items-center justify-center text-center">
+                                            <span className="text-xl font-black">{usageChart.total}</span>
+                                            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Timers set</span>
                                         </div>
-                                        <span className="font-semibold text-foreground">{slice.count}</span>
+                                    </div>
+
+                                    <div className="flex-1 space-y-2">
+                                        {usageChart.slices.map((slice) => (
+                                            <div key={slice.id} className="flex items-center justify-between gap-3 text-sm">
+                                                <div className="inline-flex items-center gap-2 min-w-0">
+                                                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
+                                                    <span className="truncate text-muted-foreground">{slice.label}</span>
+                                                </div>
+                                                <span className="font-semibold text-foreground">{slice.count}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+                    </>
+                )}
+
+                {activeTab === "sessions" && (
+                    <section className="rounded-2xl border border-border/60 bg-card p-5">
+                        <div className="flex items-center justify-between gap-3">
+                            <h2 className="text-base font-bold text-foreground inline-flex items-center gap-2">
+                                <ListChecks className="w-4 h-4" />
+                                Focus Sessions
+                            </h2>
+                            <span className="text-xs text-muted-foreground">{focusSessions.length} sessions</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">All closed focus sessions are listed here with timer-based quality status.</p>
+
+                        {focusSessions.length === 0 ? (
+                            <div className="mt-4 rounded-xl border border-border/60 bg-background/70 p-4 text-sm text-muted-foreground">
+                                No focus sessions available yet.
+                            </div>
+                        ) : (
+                            <div className="mt-4 space-y-2">
+                                {focusSessions.map((session) => (
+                                    <div key={session.id} className="rounded-xl border border-border/60 bg-background/70 p-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold truncate text-foreground">{session.taskText || "Unlabeled task"}</p>
+                                                <div className="mt-1 text-xs text-muted-foreground inline-flex items-center gap-1.5 flex-wrap">
+                                                    <span className="inline-flex items-center gap-1">
+                                                        <CalendarClock className="w-3.5 h-3.5" />
+                                                        {formatSessionDateTime(session.endedAt)}
+                                                    </span>
+                                                    <span>•</span>
+                                                    <span>Planned {toWholeMinutes(session.durationMinutes)}m</span>
+                                                    <span>•</span>
+                                                    <span>Actual {toWholeMinutes(session.actualMinutes)}m</span>
+                                                    {session.pauseCount > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span>{session.pauseCount} pauses</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <span
+                                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                                                    session.status === "completed"
+                                                        ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-300/60"
+                                                        : "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-300/60"
+                                                }`}
+                                            >
+                                                {session.status === "completed" ? (
+                                                    <CheckCircle2 className="w-3 h-3" />
+                                                ) : (
+                                                    <XCircle className="w-3 h-3" />
+                                                )}
+                                                {formatSessionStatusLabel(session.status)}
+                                            </span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
+                        )}
+                    </section>
+                )}
+
+                {activeTab === "quality" && (
+                    <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+                        <h2 className="text-base font-bold text-foreground">Session Quality</h2>
+                        <p className="text-xs text-muted-foreground">
+                            Completed means elapsed time stayed within +/-25% of the planned timer duration. If it goes beyond this range (too early or too late), it is marked abandoned.
+                        </p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="rounded-xl border border-emerald-300/60 bg-emerald-500/10 p-4">
+                                <p className="text-xs uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">Completed</p>
+                                <p className="mt-2 text-3xl font-black text-foreground">{completedSessionsCount}</p>
+                            </div>
+                            <div className="rounded-xl border border-amber-300/60 bg-amber-500/10 p-4">
+                                <p className="text-xs uppercase tracking-wide font-semibold text-amber-700 dark:text-amber-300">Abandoned</p>
+                                <p className="mt-2 text-3xl font-black text-foreground">{abandonedSessionsCount}</p>
+                            </div>
                         </div>
-                    )}
-                </section>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>Completion Quality</span>
+                                <span>{completionSummary}</span>
+                            </div>
+                            <div className="h-3 rounded-full bg-muted overflow-hidden">
+                                <div
+                                    className="h-full bg-emerald-500"
+                                    style={{ width: completionTotal > 0 ? `${Math.round((completedSessionsCount / completionTotal) * 100)}%` : "0%" }}
+                                />
+                            </div>
+                        </div>
+                    </section>
+                )}
             </div>
         </div>
     );

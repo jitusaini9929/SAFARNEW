@@ -14,6 +14,8 @@ const LIST_LIMIT = 40;
 const RECENT_CLOSED_LIMIT = 50;
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const COMPLETION_TOLERANCE_PERCENT = 0.25;
+const COMPLETION_DRIFT_SECONDS = 2;
 const ANALYTICS_CLOSED_STATUSES = ["completed", "ended_early"] as const;
 
 type AnalyticsClosedStatus = (typeof ANALYTICS_CLOSED_STATUSES)[number];
@@ -42,10 +44,16 @@ const normalizeStatus = (raw: unknown): EkagraSessionStatus | null => {
     return null;
 };
 
-const clampSeconds = (raw: unknown, fallback: number) => {
+const clampPositiveSeconds = (raw: unknown, fallback: number) => {
     const value = Number(raw);
     if (!Number.isFinite(value)) return fallback;
     return Math.max(1, Math.min(24 * 60 * 60, Math.round(value)));
+};
+
+const clampRemainingSeconds = (raw: unknown, fallback: number, maxSeconds: number) => {
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return Math.max(0, Math.min(maxSeconds, Math.round(fallback)));
+    return Math.max(0, Math.min(maxSeconds, Math.round(value)));
 };
 
 const parseIso = (raw: unknown): Date | null => {
@@ -102,6 +110,13 @@ const toActualMinutes = (doc: any) => {
     return Math.max(0, Math.round((totalSeconds - remainingSeconds) / 60));
 };
 
+const toActualSeconds = (doc: any) => {
+    const totalSeconds = Number(doc?.total_seconds || 0);
+    const remainingSeconds = Number(doc?.remaining_seconds || 0);
+    if (!Number.isFinite(totalSeconds) || !Number.isFinite(remainingSeconds)) return 0;
+    return Math.max(0, Math.round(totalSeconds - remainingSeconds));
+};
+
 const toDurationMinutes = (doc: any) => {
     const totalSeconds = Number(doc?.total_seconds || 0);
     if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return 0;
@@ -136,8 +151,8 @@ const normalizeSessionResponse = (doc: any) => {
         source: normalizeSource(doc?.source),
         status: normalizeStatus(doc?.status) || "paused",
         mode: normalizeMode(doc?.mode),
-        totalSeconds: clampSeconds(doc?.total_seconds, 25 * 60),
-        remainingSeconds: clampSeconds(doc?.remaining_seconds, 25 * 60),
+        totalSeconds: clampPositiveSeconds(doc?.total_seconds, 25 * 60),
+        remainingSeconds: clampRemainingSeconds(doc?.remaining_seconds, 25 * 60, clampPositiveSeconds(doc?.total_seconds, 25 * 60)),
         isRunning: Boolean(doc?.is_running),
         importedFromGoal: Boolean(doc?.imported_from_goal),
         pauseCount,
@@ -150,8 +165,8 @@ const normalizeSessionResponse = (doc: any) => {
         user_id: String(doc?.user_id || ""),
         goal_id: String(doc?.goal_id || ""),
         goal_title: String(doc?.goal_title || ""),
-        total_seconds: clampSeconds(doc?.total_seconds, 25 * 60),
-        remaining_seconds: clampSeconds(doc?.remaining_seconds, 25 * 60),
+        total_seconds: clampPositiveSeconds(doc?.total_seconds, 25 * 60),
+        remaining_seconds: clampRemainingSeconds(doc?.remaining_seconds, 25 * 60, clampPositiveSeconds(doc?.total_seconds, 25 * 60)),
         is_running: Boolean(doc?.is_running),
         imported_from_goal: Boolean(doc?.imported_from_goal),
         pause_count: pauseCount,
@@ -286,6 +301,18 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
             sessionType: AnalyticsSessionType;
             sortTs: number;
         }> = [];
+        const focusSessionRows: Array<{
+            id: string;
+            startedAt: string | null;
+            endedAt: string | null;
+            durationMinutes: number;
+            actualMinutes: number;
+            status: "completed" | "abandoned";
+            rawStatus: AnalyticsClosedStatus;
+            taskText: string | null;
+            pauseCount: number;
+            sortTs: number;
+        }> = [];
 
         for (const doc of docs) {
             const status = normalizeStatus(doc?.status);
@@ -297,6 +324,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
             const endedAt = getSessionTimestamp(doc, ["ended_at", "completed_at", "updated_at", "created_at"]);
             if (!endedAt) continue;
 
+            const actualSeconds = toActualSeconds(doc);
             const actualMinutes = toActualMinutes(doc);
             const isClosedStatus = status === "completed" || status === "ended_early";
 
@@ -313,7 +341,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
                     }
                 }
 
-                if (isClosedStatus && actualMinutes > 0) {
+                if (isClosedStatus && actualSeconds > 0) {
                     totalFocusMinutes += actualMinutes;
                     if (status === "completed") {
                         completedSessions += 1;
@@ -361,7 +389,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
                 durationUsageMap.set(usageKey, usageEntry);
             }
 
-            if (isClosedStatus && actualMinutes > 0) {
+            if (isClosedStatus && actualSeconds > 0) {
                 recentRows.push({
                     id: String(doc?.id || ""),
                     startedAt: startedAt ? startedAt.toISOString() : null,
@@ -375,6 +403,21 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
                     sessionType,
                     sortTs: getSessionSortTimestamp(doc),
                 });
+
+                if (sessionType === "focus") {
+                    focusSessionRows.push({
+                        id: String(doc?.id || ""),
+                        startedAt: startedAt ? startedAt.toISOString() : null,
+                        endedAt: endedAt.toISOString(),
+                        durationMinutes,
+                        actualMinutes,
+                        status: status === "completed" ? "completed" : "abandoned",
+                        rawStatus: status,
+                        taskText: normalizeTaskLabel(doc?.goal_title) || null,
+                        pauseCount: Math.max(0, Number(doc?.pause_count || 0)),
+                        sortTs: getSessionSortTimestamp(doc),
+                    });
+                }
             }
         }
 
@@ -389,6 +432,8 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
 
         recentRows.sort((a, b) => b.sortTs - a.sortTs);
         const recentSessions = recentRows.slice(0, 20).map(({ sortTs, ...row }) => row);
+        focusSessionRows.sort((a, b) => b.sortTs - a.sortTs);
+        const focusSessions = focusSessionRows.map(({ sortTs, ...row }) => row);
 
         const topTasks = [...topTaskMap.values()]
             .sort((a, b) => {
@@ -422,11 +467,13 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
             totalSessions,
             completedSessions,
             endedEarlySessions,
+            abandonedSessions: endedEarlySessions,
             weeklyData,
             weeklyBreaks,
             focusStreak,
             hourlyDistribution,
             recentSessions,
+            focusSessions,
             topTasks,
             timerDurationUsage,
         };
@@ -498,8 +545,8 @@ router.post("/activate", requireAuth, async (req: Request, res) => {
             return res.json({ session: normalizeSessionResponse(updated) });
         }
 
-        const totalSeconds = clampSeconds(req.body?.totalSeconds, 25 * 60);
-        const remainingSeconds = clampSeconds(req.body?.remainingSeconds, totalSeconds);
+        const totalSeconds = clampPositiveSeconds(req.body?.totalSeconds, 25 * 60);
+        const remainingSeconds = clampRemainingSeconds(req.body?.remainingSeconds, totalSeconds, totalSeconds);
         const mode = normalizeMode(req.body?.mode);
         const isRunning = Boolean(req.body?.isRunning);
         const startedAt = parseIso(req.body?.sessionStartedAt);
@@ -583,8 +630,17 @@ router.patch("/:id", requireAuth, async (req: Request, res) => {
         const hasImportedFromGoal = req.body && "importedFromGoal" in req.body;
 
         if (hasMode) updates.mode = normalizeMode(req.body.mode);
-        if (hasTotalSeconds) updates.total_seconds = clampSeconds(req.body.totalSeconds, clampSeconds(session.total_seconds, 25 * 60));
-        if (hasRemainingSeconds) updates.remaining_seconds = clampSeconds(req.body.remainingSeconds, clampSeconds(session.remaining_seconds, 25 * 60));
+        const existingTotalSeconds = clampPositiveSeconds(session.total_seconds, 25 * 60);
+        if (hasTotalSeconds) {
+            updates.total_seconds = clampPositiveSeconds(req.body.totalSeconds, existingTotalSeconds);
+        }
+        if (hasRemainingSeconds) {
+            updates.remaining_seconds = clampRemainingSeconds(
+                req.body.remainingSeconds,
+                clampRemainingSeconds(session.remaining_seconds, existingTotalSeconds, existingTotalSeconds),
+                hasTotalSeconds ? updates.total_seconds : existingTotalSeconds,
+            );
+        }
         if (hasIsRunning) updates.is_running = Boolean(req.body.isRunning);
         if (hasSessionStartedAt) updates.session_started_at = parseIso(req.body.sessionStartedAt);
         if (hasGoalTitle) updates.goal_title = String(req.body.goalTitle || "").trim() || session.goal_title;
@@ -601,7 +657,7 @@ router.patch("/:id", requireAuth, async (req: Request, res) => {
                 updates.completed_at = new Date();
                 updates.ended_at = new Date();
                 updates.is_running = false;
-                updates.remaining_seconds = 1;
+                updates.remaining_seconds = 0;
             }
             if (status === "ended_early") {
                 updates.ended_at = new Date();
@@ -652,17 +708,38 @@ router.post("/:id/complete", requireAuth, async (req: Request, res) => {
             return res.status(404).json({ message: "Ekagra session not found" });
         }
 
-        const totalSeconds = clampSeconds(req.body?.totalSeconds, clampSeconds(session.total_seconds, 25 * 60));
+        const plannedTotalSeconds = clampPositiveSeconds(session.total_seconds, 25 * 60);
+        const sessionRemainingSeconds = clampRemainingSeconds(session.remaining_seconds, plannedTotalSeconds, plannedTotalSeconds);
+        const payloadElapsedSeconds = Number(req.body?.elapsedSeconds);
+        const payloadRemainingSeconds = Number(req.body?.remainingSeconds);
+
+        let elapsedSeconds = Math.max(0, plannedTotalSeconds - sessionRemainingSeconds);
+        if (Number.isFinite(payloadElapsedSeconds)) {
+            elapsedSeconds = Math.max(0, Math.round(payloadElapsedSeconds));
+        } else if (Number.isFinite(payloadRemainingSeconds)) {
+            elapsedSeconds = Math.max(0, plannedTotalSeconds - Math.max(0, Math.round(payloadRemainingSeconds)));
+        }
+
+        const lowerBoundSeconds = plannedTotalSeconds * (1 - COMPLETION_TOLERANCE_PERCENT);
+        const upperBoundSeconds = plannedTotalSeconds * (1 + COMPLETION_TOLERANCE_PERCENT);
+        const completedWithinTimer =
+            elapsedSeconds >= Math.max(0, Math.floor(lowerBoundSeconds) - COMPLETION_DRIFT_SECONDS)
+            && elapsedSeconds <= Math.ceil(upperBoundSeconds) + COMPLETION_DRIFT_SECONDS;
+        const status: EkagraSessionStatus = completedWithinTimer ? "completed" : "ended_early";
+        const normalizedElapsedSeconds = Math.max(0, Math.min(24 * 60 * 60, elapsedSeconds));
+        const remainingSeconds = completedWithinTimer
+            ? 0
+            : Math.max(0, plannedTotalSeconds - normalizedElapsedSeconds);
         const now = new Date();
         const updates = {
-            status: "completed" as EkagraSessionStatus,
+            status,
             mode: normalizeMode(req.body?.mode ?? session.mode),
-            total_seconds: totalSeconds,
-            remaining_seconds: 1,
+            total_seconds: plannedTotalSeconds,
+            remaining_seconds: remainingSeconds,
             is_running: false,
             session_started_at: parseIso(req.body?.sessionStartedAt) || session.session_started_at || null,
             updated_at: now,
-            completed_at: now,
+            completed_at: completedWithinTimer ? now : null,
             ended_at: now,
         };
 

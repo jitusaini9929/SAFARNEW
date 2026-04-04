@@ -84,11 +84,13 @@ const emptyEkagraAnalytics = (): EkagraAnalyticsStats => ({
     totalSessions: 0,
     completedSessions: 0,
     endedEarlySessions: 0,
+    abandonedSessions: 0,
     weeklyData: [0, 0, 0, 0, 0, 0, 0],
     weeklyBreaks: [0, 0, 0, 0, 0, 0, 0],
     focusStreak: 0,
     hourlyDistribution: Array.from({ length: 24 }, () => 0),
     recentSessions: [],
+    focusSessions: [],
     topTasks: [],
     timerDurationUsage: [],
 });
@@ -263,6 +265,7 @@ export const dataService = {
                 totalSessions: Number(data?.totalSessions || 0),
                 completedSessions: Number(data?.completedSessions || 0),
                 endedEarlySessions: Number(data?.endedEarlySessions || 0),
+                abandonedSessions: Number(data?.abandonedSessions ?? data?.endedEarlySessions ?? 0),
                 weeklyData: Array.isArray(data?.weeklyData) && data.weeklyData.length === 7 ? data.weeklyData : fallback.weeklyData,
                 weeklyBreaks: Array.isArray(data?.weeklyBreaks) && data.weeklyBreaks.length === 7 ? data.weeklyBreaks : fallback.weeklyBreaks,
                 focusStreak: Number(data?.focusStreak || 0),
@@ -270,6 +273,7 @@ export const dataService = {
                     ? data.hourlyDistribution
                     : fallback.hourlyDistribution,
                 recentSessions: Array.isArray(data?.recentSessions) ? data.recentSessions : fallback.recentSessions,
+                focusSessions: Array.isArray(data?.focusSessions) ? data.focusSessions : fallback.focusSessions,
                 topTasks: Array.isArray(data?.topTasks) ? data.topTasks : fallback.topTasks,
                 timerDurationUsage: Array.isArray(data?.timerDurationUsage) ? data.timerDurationUsage : fallback.timerDurationUsage,
             };
@@ -330,7 +334,13 @@ export const dataService = {
 
     async completeEkagraSession(
         sessionId: string,
-        payload?: { mode?: EkagraTimerMode; totalSeconds?: number; sessionStartedAt?: string | null },
+        payload?: {
+            mode?: EkagraTimerMode;
+            totalSeconds?: number;
+            elapsedSeconds?: number;
+            remainingSeconds?: number;
+            sessionStartedAt?: string | null;
+        },
     ): Promise<EkagraModeSession> {
         const res = await apiFetch(`${API_URL}/ekagra-sessions/${encodeURIComponent(sessionId)}/complete`, {
             method: "POST",

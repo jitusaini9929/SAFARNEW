@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { CheckCircle, Clock, History, XCircle, Coffee, Sparkles, Target } from "lucide-react";
+import { BarChart3, History, Sparkles } from "lucide-react";
 import { EkagraModeSession } from "@shared/api";
 
 interface FocusHistoryPanelProps {
@@ -35,7 +35,7 @@ const formatMinutes = (minutes: number) =>
 
 /* ─── session helpers ───────────────────────────────── */
 
-type HistoryStatus = "completed" | "ended_early" | "break";
+type HistoryStatus = "completed" | "abandoned" | "break";
 
 interface HistoryRow {
     id: string;
@@ -81,8 +81,8 @@ const normalizeHistoryStatus = (session: EkagraModeSession): HistoryStatus | nul
     const sType = getSessionType(session);
 
     if (raw === "completed") return sType !== "focus" ? "break" : "completed";
-    if (raw === "ended_early") return "ended_early";
-    if (raw === "discarded") return "ended_early";
+    if (raw === "ended_early") return "abandoned";
+    if (raw === "discarded") return "abandoned";
     return null;
 };
 
@@ -104,24 +104,6 @@ const toHistoryRow = (session: EkagraModeSession): HistoryRow | null => {
         pauseCount: Number(session.pauseCount ?? session.pause_count ?? 0),
         importedFromGoal: imported,
     };
-};
-
-/* ─── status chip ───────────────────────────────────── */
-
-const StatusChip: React.FC<{ status: HistoryStatus }> = ({ status }) => {
-    const config = {
-        completed: { label: "Completed", icon: CheckCircle, color: "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-300/60" },
-        ended_early: { label: "Ended early", icon: XCircle, color: "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-300/60" },
-        break: { label: "Break", icon: Coffee, color: "text-blue-700 dark:text-blue-300 bg-blue-500/10 border-blue-300/60" },
-    }[status];
-
-    const Icon = config.icon;
-    return (
-        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${config.color}`}>
-            <Icon className="w-3 h-3" />
-            {config.label}
-        </span>
-    );
 };
 
 /* ─── filter helpers ────────────────────────────────── */
@@ -193,16 +175,18 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ sessions })
                 ? `${Math.abs(focusDelta)}m less than yesterday. Keep pushing!`
                 : "Matching yesterday's consistency. Solid effort.";
 
-    /* ─── grouped by day ────────────────────────── */
-    const groupedRows = useMemo(() => {
-        const groups: Record<string, HistoryRow[]> = {};
-        for (const row of filteredRows) {
-            const label = getDateGroupLabel(row.dateTime);
-            if (!groups[label]) groups[label] = [];
-            groups[label].push(row);
-        }
-        return groups;
-    }, [filteredRows]);
+    const filteredFocusRows = useMemo(
+        () => filteredRows.filter((row) => row.sessionType === "focus"),
+        [filteredRows],
+    );
+    const filteredCompletedRows = useMemo(
+        () => filteredFocusRows.filter((row) => row.status === "completed"),
+        [filteredFocusRows],
+    );
+    const filteredAbandonedRows = useMemo(
+        () => filteredFocusRows.filter((row) => row.status === "abandoned"),
+        [filteredFocusRows],
+    );
 
     return (
         <div className="space-y-4">
@@ -255,57 +239,30 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ sessions })
                 <span className="text-[11px] text-muted-foreground">{filteredRows.length} sessions</span>
             </div>
 
-            {/* ─── Session History Timeline ────────── */}
-            <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-muted-foreground">Session History</h3>
-            </div>
-
-            {Object.entries(groupedRows).map(([dateGroup, rows]) => (
-                <div key={dateGroup} className="space-y-2">
-                    <h4 className="text-xs font-semibold text-muted-foreground sticky top-0 bg-background/95 backdrop-blur-md py-1.5 z-10 border-b border-border/50 uppercase tracking-wide">
-                        {dateGroup}
-                    </h4>
-                    {rows.map((row) => (
-                        <div key={row.id} className="relative pl-5">
-                            <div className="absolute left-1 top-1 h-full w-px bg-border/70" />
-                            <div className={`absolute left-0 top-2 h-2.5 w-2.5 rounded-full ${
-                                row.status === "completed" ? "bg-emerald-500" :
-                                row.status === "break" ? "bg-blue-400" : "bg-amber-500"
-                            }`} />
-                            <div className="rounded-xl border border-border/60 bg-card p-3 space-y-1.5">
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-semibold text-foreground truncate">
-                                            {row.sessionType === "focus" ? row.title : row.sessionType === "short_break" ? "Short Break" : "Long Break"}
-                                        </div>
-                                        <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                                            <span className="inline-flex items-center gap-1">
-                                                <Clock className="w-3 h-3" />
-                                                {row.actualMinutes}m
-                                            </span>
-                                            <span>•</span>
-                                            <span>{row.dateTime.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-                                            {row.pauseCount > 0 && (
-                                                <>
-                                                    <span>•</span>
-                                                    <span>{row.pauseCount} {row.pauseCount === 1 ? "pause" : "pauses"}</span>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <StatusChip status={row.status} />
-                                </div>
-                                {row.importedFromGoal && row.linkedGoalTitle && (
-                                    <div className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
-                                        <Target className="w-3 h-3" />
-                                        Linked to goal
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+            <div className="rounded-2xl border border-border/60 bg-card/80 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-foreground inline-flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4" />
+                        Session Quality Snapshot
+                    </h3>
+                    <span className="text-[11px] text-muted-foreground">{historyFilter === "all" ? "All" : historyFilter === "week" ? "Last 7 days" : "Today"}</span>
                 </div>
-            ))}
+
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-emerald-300/60 bg-emerald-500/10 p-3 text-center">
+                        <div className="text-2xl font-extrabold text-foreground">{filteredCompletedRows.length}</div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Completed</div>
+                    </div>
+                    <div className="rounded-xl border border-amber-300/60 bg-amber-500/10 p-3 text-center">
+                        <div className="text-2xl font-extrabold text-foreground">{filteredAbandonedRows.length}</div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Abandoned</div>
+                    </div>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                    Detailed session list has moved to the Analytics tab under Sessions.
+                </div>
+            </div>
 
             {/* ─── Empty States ────────────────────── */}
             {allRows.length === 0 && (

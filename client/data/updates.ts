@@ -44,57 +44,57 @@ export const updates: UpdateEntry[] = [
     name: "The Precision & Focus Update",
     date: "April 2026",
     summary:
-      "SAFAR ki architecture mein ek bohot bada badlav! Ab aapka study focus, analytics aur history bilkul sahi rahega bina kisi 'data drift' ke.",
-    tags: ["New Feature", "Bug Fix", "Architecture", "UX Improvement"],
+      "Ekagra aur Goals ka pura flow refine kiya gaya hai. Sessions, analytics aur goal linking ab zyada clear, faster aur reliable hai.",
+    tags: ["New Feature", "Bug Fix", "UX Improvement", "Architecture"],
     features: [
       {
-        title: "Safar Goals — Mission Control",
+        title: "Focus Analytics Revamp",
         description:
-          "Ab Goals track karna aur bhi easy hai. Checklist, Duration, aur Count base tracking ke saath apne har ek mission ko pura kariye. Missed tasks ab automatically carry-forward honge.",
+          "Sessions ab Analytics tab me shift ho gaye hain, aur new Session Quality view me Completed vs Abandoned ka clear breakdown milta hai. Timer accuracy ke hisaab se completion decide hota hai (±25% tolerance).",
       },
       {
-        title: "Ekagra Mode — 'One Source of Truth'",
+        title: "Ekagra Session Control",
         description:
-          "Pura logic rebuild kiya gaya hai! Ab Timer, History, aur Analytics ek hi single source (FocusSession) se chalte hain. Iska matlab hai ki jo timer dikhayega, wahi analytics mein bhi aayega — bilkul accurate!",
+          "Running aur Paused sessions ka UI simplify hua hai, End Session ka behavior fix hua hai, aur Delete session se clean removal milta hai. Progress bar ke niche checkpoints bhi add ho gaye hain.",
       },
       {
-        title: "Simplified Panels — Baaton Ka Safar",
+        title: "Goals + Ekagra Linking Update",
         description:
-          "Sessions aur History panels ko ab simple banaya gaya hai. Sirf wahi dikhega jo zaruri hai — active sessions, paused tasks aur aapka focus outcome (Completed vs Ended Early).",
+          "Time-based goals me linked focus sessions optional hain, aur one-time goals ke liye time/count tracking hide hota hai. Due date sirf reminder hai — timer imply nahi karta.",
       },
     ],
     patches: [
       {
         id: "Patch 01",
-        title: "Goal Status aur Toggles ki Wapsi",
-        issue: "Users ko progress mark karne mein mushkil ho rahi thi.",
+        title: "Session Completion Accuracy",
+        issue: "Timer end aur manual end ke beech mismatch se analytics confusion ho raha tha.",
         correction:
-          "Goal Card par 'Primary Toggle' wapas aa gaya hai. Sath hi naya 'Status Selector' (In Progress, Partial, Completed) bhi add kiya gaya hai taaki aapka control pura rahe.",
-        tags: ["Bug Fix", "UX Improvement"],
-      },
-      {
-        id: "Patch 02",
-        title: "Sahi Daily Study Hours Calculation",
-        issue: "Technical error ki wajah se study hours galat dikh rahe the.",
-        correction:
-          "Ab logic local timer se hatakar 'Server-Side aggregation' par shift kar diya gaya hai. Aapke har ek session ke minutes ab 100% accurate count honge.",
-        tags: ["Bug Fix", "Performance"],
-      },
-      {
-        id: "Patch 03",
-        title: "Faltu 'Ghost Sessions' ka Khatma",
-        issue: "3m ya 10m ke faltu sessions automatically ban rahe the.",
-        correction:
-          "Sessions ab tabhi bante hain jab aap 5+ seconds tak focus karte hain. 'Freeze-on-Start' logic se timer pause karne par bhi analytics nahi bigdega. Sath hi 'Discard' option bhi ab sahi se kaam karta hai.",
+          "Completion rule ab ±25% tolerance par based hai. Completed vs Ended Early clear hai, aur abandoned sessions goals ko auto-complete nahi karte.",
         tags: ["Bug Fix", "Architecture"],
       },
       {
-        id: "Patch 04",
-        title: "Scrolling aur Layout ki Maat",
-        issue: "Mobile aur chote laptops par users ko add task button tak scroll karne mein dikkat thi.",
+        id: "Patch 02",
+        title: "Sessions List Ab Analytics me",
+        issue: "Task History me sessions list se screen clutter aur mismatch ho raha tha.",
         correction:
-          "NishthaLayout ke 'overflow-hidden' bug ko fix kiya gaya hai. Ab saare modals aur pages full scroll support karte hain mobile par bhi.",
+          "Session list ko Analytics ke Sessions tab me move kiya gaya. Task History ab sirf quick snapshot dikhata hai.",
+        tags: ["UX Improvement"],
+      },
+      {
+        id: "Patch 03",
+        title: "End Session UI Response",
+        issue: "End Session ke baad active session clear hone me delay aa raha tha.",
+        correction:
+          "End Session par UI ab instantly update hota hai, aur backend sync ke baad list refresh hoti hai.",
         tags: ["Bug Fix", "UX Improvement"],
+      },
+      {
+        id: "Patch 04",
+        title: "One-time Goals ka Clean UX",
+        issue: "One-time goals me time/count tracking aur timer expectation confuse kar raha tha.",
+        correction:
+          "One-time goals ke liye tracking options limited hain (Done/Checklist). Due date sirf reminder hai, timer link nahi hota.",
+        tags: ["UX Improvement"],
       },
     ],
   },

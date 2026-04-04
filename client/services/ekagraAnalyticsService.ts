@@ -14,11 +14,13 @@ const emptyEkagraAnalyticsStats = (): EkagraAnalyticsStats => ({
     totalSessions: 0,
     completedSessions: 0,
     endedEarlySessions: 0,
+    abandonedSessions: 0,
     weeklyData: [0, 0, 0, 0, 0, 0, 0],
     weeklyBreaks: [0, 0, 0, 0, 0, 0, 0],
     focusStreak: 0,
     hourlyDistribution: Array.from({ length: 24 }, () => 0),
     recentSessions: [],
+    focusSessions: [],
     topTasks: [],
     timerDurationUsage: [],
 });

@@ -92,6 +92,7 @@ export type EkagraSessionSource = "manual" | "imported" | "goal_created" | "goal
 export type EkagraSessionStatus = "active" | "paused" | "completed" | "ended_early" | "discarded";
 export type EkagraTimerMode = "Timer" | "short" | "long";
 export type EkagraAnalyticsSessionType = "focus" | "short_break" | "long_break";
+export type EkagraAnalyticsQualityStatus = "completed" | "abandoned";
 
 export interface EkagraModeSession {
   id: string;
@@ -153,6 +154,18 @@ export interface EkagraTimerDurationUsage {
   sessionType: EkagraAnalyticsSessionType;
 }
 
+export interface EkagraAnalyticsFocusSession {
+  id: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  durationMinutes: number;
+  actualMinutes: number;
+  status: EkagraAnalyticsQualityStatus;
+  rawStatus: "completed" | "ended_early";
+  taskText: string | null;
+  pauseCount: number;
+}
+
 export interface EkagraAnalyticsStats {
   totalFocusMinutes: number;
   totalBreakMinutes: number;
@@ -166,11 +179,13 @@ export interface EkagraAnalyticsStats {
   totalSessions: number;
   completedSessions: number;
   endedEarlySessions: number;
+  abandonedSessions: number;
   weeklyData: number[];
   weeklyBreaks: number[];
   focusStreak: number;
   hourlyDistribution: number[];
   recentSessions: EkagraAnalyticsRecentSession[];
+  focusSessions: EkagraAnalyticsFocusSession[];
   topTasks: EkagraAnalyticsTopTask[];
   timerDurationUsage: EkagraTimerDurationUsage[];
 }

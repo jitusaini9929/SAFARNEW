@@ -70,6 +70,16 @@ export const collections = {
     sandeshReactions: () => getDb().collection('sandesh_reactions'),
     sandeshComments: () => getDb().collection('sandesh_comments'),
     userSocialHandles: () => getDb().collection('user_social_handles'),
+    
+    // ── Mission Mode ──
+    missionProfiles: () => getDb().collection('mission_profiles'),
+    missionPlans: () => getDb().collection('mission_plans'),
+    missionTasks: () => getDb().collection('mission_tasks'),
+    revisionItems: () => getDb().collection('revision_items'),
+    mockResults: () => getDb().collection('mock_results'),
+    mockRecoveryPlans: () => getDb().collection('mock_recovery_plans'),
+    readinessSnapshots: () => getDb().collection('readiness_snapshots'),
+    backlogEvents: () => getDb().collection('backlog_events'),
 };
 
 export async function connectMongo(): Promise<void> {
@@ -240,6 +250,16 @@ export async function initDatabase(): Promise<void> {
 
         // ── Social handles ──
         await db.collection('user_social_handles').createIndex({ user_id: 1 }, { unique: true });
+
+        // ── Mission Mode ──
+        await db.collection('mission_profiles').createIndex({ user_id: 1 }, { unique: true });
+        await db.collection('mission_plans').createIndex({ user_id: 1, status: 1 });
+        await db.collection('mission_tasks').createIndex({ plan_id: 1, user_id: 1, date: 1 });
+        await db.collection('revision_items').createIndex({ user_id: 1, plan_id: 1, next_due_date: 1 });
+        await db.collection('mock_results').createIndex({ user_id: 1, date_taken: -1 });
+        await db.collection('mock_recovery_plans').createIndex({ mock_result_id: 1 }, { unique: true });
+        await db.collection('readiness_snapshots').createIndex({ user_id: 1, computed_at: -1 });
+        await db.collection('backlog_events').createIndex({ user_id: 1, status: 1 });
 
         console.log('✅ MongoDB indexes created');
     } catch (err: any) {

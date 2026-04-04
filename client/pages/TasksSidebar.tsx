@@ -24,6 +24,8 @@ interface TasksSidebarProps {
     liveSessionPreview?: EkagraModeSession | null;
     onResumeSession?: (sessionId: string) => Promise<void> | void;
     onDiscardSession?: (sessionId: string) => Promise<void> | void;
+    onDeleteSession?: (sessionId: string) => Promise<void> | void;
+    onCompleteSessionGoal?: (goalId: string, completedAt: string, sessionStatus: string) => Promise<void> | void;
     onPauseLiveSession?: () => Promise<void> | void;
     onCompleteLiveSession?: () => Promise<void> | void;
     onSwitchLiveSession?: () => Promise<void> | void;
@@ -42,6 +44,8 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     liveSessionPreview = null,
     onResumeSession,
     onDiscardSession,
+    onDeleteSession,
+    onCompleteSessionGoal,
     onPauseLiveSession,
     onCompleteLiveSession,
     onSwitchLiveSession,
@@ -52,6 +56,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     const [showSessionOverlay, setShowSessionOverlay] = useState(false);
     const [localSessions, setLocalSessions] = useState<EkagraModeSession[]>([]);
     const [localActiveSessionId, setLocalActiveSessionId] = useState<string | null>(null);
+    const [optimisticHiddenSessionIds, setOptimisticHiddenSessionIds] = useState<string[]>([]);
 
     const hasExternalSessionController = Boolean(
         onResumeSession || onDiscardSession || onPauseLiveSession || onCompleteLiveSession || onSwitchLiveSession,
@@ -59,17 +64,25 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     const shouldUseLocalFetch = !hasExternalSessionController && sessions.length === 0;
 
     const mergedSessions = shouldUseLocalFetch ? localSessions : sessions;
+    const hiddenSessionIdSet = useMemo(
+        () => new Set(optimisticHiddenSessionIds),
+        [optimisticHiddenSessionIds],
+    );
+    const visibleMergedSessions = useMemo(
+        () => mergedSessions.filter((session) => !hiddenSessionIdSet.has(session.id)),
+        [hiddenSessionIdSet, mergedSessions],
+    );
     const mergedActiveSessionId = shouldUseLocalFetch ? localActiveSessionId : activeSessionId;
     const openSessionGoalIds = useMemo(() => {
         const ids = new Set<string>();
-        for (const session of mergedSessions) {
+        for (const session of visibleMergedSessions) {
             const status = String(session.status || "").toLowerCase();
             if (status !== "active" && status !== "paused") continue;
             const goalId = String(session.goalId || session.goal_id || "").trim();
             if (goalId) ids.add(goalId);
         }
         return ids;
-    }, [mergedSessions]);
+    }, [visibleMergedSessions]);
 
     const pendingImportedGoals = useMemo(
         () => tasks.filter((task) => Boolean(task.importedFromGoal) && !task.completed),
@@ -119,11 +132,11 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     }, [openSessionGoalIds, pendingImportedGoals]);
 
     const baseSessions = useMemo(
-        () => [...mergedSessions, ...plannedImportedSessions],
-        [mergedSessions, plannedImportedSessions],
+        () => [...visibleMergedSessions, ...plannedImportedSessions],
+        [visibleMergedSessions, plannedImportedSessions],
     );
 
-    const hasServerActiveSession = mergedSessions.some(
+    const hasServerActiveSession = visibleMergedSessions.some(
         (session) => String(session.status || "").toLowerCase() === "active",
     );
     const shouldInjectLivePreview = Boolean(
@@ -201,6 +214,28 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
         }
     }, [sessionOverlayTrigger]);
 
+    useEffect(() => {
+        if (optimisticHiddenSessionIds.length === 0) return;
+        setOptimisticHiddenSessionIds((prev) => {
+            const next = prev.filter((id) => {
+                const session = mergedSessions.find((item) => item.id === id);
+                if (!session) return false;
+                const status = String(session.status || "").toLowerCase();
+                return status === "active" || status === "paused";
+            });
+            if (next.length === prev.length && next.every((id, index) => id === prev[index])) return prev;
+            return next;
+        });
+    }, [mergedSessions, optimisticHiddenSessionIds.length]);
+
+    const hideSessionOptimistically = (sessionId: string) => {
+        setOptimisticHiddenSessionIds((prev) => (prev.includes(sessionId) ? prev : [...prev, sessionId]));
+    };
+
+    const restoreHiddenSession = (sessionId: string) => {
+        setOptimisticHiddenSessionIds((prev) => prev.filter((id) => id !== sessionId));
+    };
+
     const defaultResume = async (sessionId: string) => {
         const target = displaySessions.find((session) => session.id === sessionId);
         if (!target) return;
@@ -250,6 +285,17 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
         await refreshLocalSessions();
     };
 
+    const handleDelete = async (sessionId: string) => {
+        if (isSyntheticLiveSession(sessionId)) return;
+        if (onDeleteSession) {
+            await onDeleteSession(sessionId);
+            return;
+        }
+        if (isSyntheticImportedSession(sessionId)) return;
+        await dataService.deleteEkagraSession(sessionId);
+        await refreshLocalSessions();
+    };
+
     const handlePause = async (sessionId: string) => {
         if (isSyntheticLiveSession(sessionId)) {
             await onPauseLiveSession?.();
@@ -277,27 +323,46 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
             return;
         }
         if (isSyntheticImportedSession(sessionId)) return;
-
         const session = displaySessions.find((item) => item.id === sessionId);
         const isActiveSession =
             sessionId === effectiveActiveSessionId ||
             String(session?.status || "").toLowerCase() === "active";
 
+        hideSessionOptimistically(sessionId);
+
         if (onCompleteLiveSession && isActiveSession) {
-            await onCompleteLiveSession();
+            try {
+                await onCompleteLiveSession();
+            } catch (error) {
+                restoreHiddenSession(sessionId);
+                console.error("Complete live Ekagra session error:", error);
+            }
             return;
         }
 
         const sessionTotalSeconds = Number(session?.totalSeconds ?? session?.total_seconds ?? 0) || 1500;
-        const sessionRemainingSeconds = Number(session?.remainingSeconds ?? session?.remaining_seconds ?? 0) || 0;
-        const spentSeconds = Math.max(1, sessionTotalSeconds - sessionRemainingSeconds);
+        const sessionRemainingSeconds = Math.max(0, Number(session?.remainingSeconds ?? session?.remaining_seconds ?? 0) || 0);
+        const elapsedSeconds = Math.max(0, sessionTotalSeconds - sessionRemainingSeconds);
 
-        await dataService.completeEkagraSession(sessionId, {
-            mode: session?.mode || "Timer",
-            totalSeconds: spentSeconds,
-            sessionStartedAt: session?.sessionStartedAt || session?.session_started_at || null,
-        });
-        await refreshLocalSessions();
+        try {
+            const completedSession = await dataService.completeEkagraSession(sessionId, {
+                mode: session?.mode || "Timer",
+                elapsedSeconds,
+                remainingSeconds: sessionRemainingSeconds,
+                sessionStartedAt: session?.sessionStartedAt || session?.session_started_at || null,
+            });
+            if (session?.mode === "Timer") {
+                const goalId = String(session?.goalId || session?.goal_id || "").trim();
+                if (goalId) {
+                    const completedAt = new Date().toISOString();
+                    await onCompleteSessionGoal?.(goalId, completedAt, String(completedSession?.status || ""));
+                }
+            }
+            await refreshLocalSessions();
+        } catch (error) {
+            restoreHiddenSession(sessionId);
+            console.error("Complete Ekagra session error:", error);
+        }
     };
 
     return (
@@ -337,6 +402,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
                 onPauseSession={handlePause}
                 onCompleteSession={handleComplete}
                 onDiscardSession={handleDiscard}
+                onDeleteSession={handleDelete}
             />
         </>
     );

@@ -119,7 +119,7 @@ uploadRoutes.get("/legacy-usage-metrics", async (req: Request, res: Response) =>
         { projection: { _id: 0 } },
       )
       .sort({ day: 1, event: 1 })
-      .toArray()) as LegacyUsageMetricDoc[];
+      .toArray()) as unknown as LegacyUsageMetricDoc[];
 
     const byEvent = new Map<LegacyUsageEvent, Map<string, LegacyUsageMetricDoc>>();
 

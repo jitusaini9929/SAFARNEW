@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Wrench, Zap, Star, Shield, Cpu, CheckCircle2, AlertCircle } from 'lucide-react';
 import { updates, type UpdateEntry, type TagType } from '../data/updates';
 import Footer from '../components/landing/Footer';
+import BetaAnnouncementCard from '../components/landing/BetaAnnouncementCard';
 
 // ─── Tag colour map ───────────────────────────────────────────────────────────
 const TAG_STYLES: Record<TagType, string> = {
@@ -282,8 +283,12 @@ export default function Updates() {
           </div>
         </FadeInCard>
 
+        <FadeInCard delay={50}>
+          <BetaAnnouncementCard />
+        </FadeInCard>
+
         {/* Updates timeline */}
-        <div>
+        <div className="mt-8">
           {updates.map((entry, index) => (
             <UpdateCard
               key={entry.version}

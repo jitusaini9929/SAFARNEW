@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bookmark, Shield, X, Loader2, Bell, MessageSquare, Heart, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Thought } from '@/store/mehfilStore';
 import ThoughtCard from './ThoughtCard';
