@@ -9,6 +9,7 @@ const redisMaxReconnectDelayMs = Number(process.env.REDIS_MAX_RECONNECT_DELAY_MS
 const redisReconnectWarningAfterAttempts = Number(process.env.REDIS_RECONNECT_WARN_AFTER || 5);
 const ALLOW_IN_MEMORY_FALLBACK =
   process.env.AUTH_ALLOW_IN_MEMORY_TOKEN_STORE === 'true' ||
+  IS_DEV_MODE ||
   (!IS_PROD && process.env.AUTH_ALLOW_IN_MEMORY_TOKEN_STORE !== 'false');
 
 let redisClient: RedisClientType | null = null;
