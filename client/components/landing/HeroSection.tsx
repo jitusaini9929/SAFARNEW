@@ -227,13 +227,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                             <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
                         </Link>
 
-                        <Link
-                            to="/study/planner"
-                            className="group relative flex items-center justify-center gap-3 bg-slate-900/85 dark:bg-cyan-500/15 text-white dark:text-cyan-100 px-8 py-4 md:px-10 md:py-5 rounded-full font-semibold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden shadow-lg border-2 border-white/20"
-                        >
-                            <span className="relative z-10">Launch Planner</span>
-                            <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
-                        </Link>
                     </div>
                 </div>
             </header>
