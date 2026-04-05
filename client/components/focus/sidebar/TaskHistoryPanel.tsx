@@ -90,7 +90,9 @@ const toHistoryRow = (session: EkagraModeSession): HistoryRow | null => {
     const status = normalizeHistoryStatus(session);
     if (!status) return null;
 
-    const title = String(session.goalTitle || session.goal_title || "").trim() || "Unlabeled";
+    const title =
+        String(session.sessionTitle || session.session_title || session.goalTitle || session.goal_title || "").trim()
+        || "Unlabeled";
     const imported = Boolean(session.importedFromGoal || session.imported_from_goal);
 
     return {

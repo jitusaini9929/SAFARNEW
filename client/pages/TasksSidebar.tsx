@@ -343,6 +343,9 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
         const sessionTotalSeconds = Number(session?.totalSeconds ?? session?.total_seconds ?? 0) || 1500;
         const sessionRemainingSeconds = Math.max(0, Number(session?.remainingSeconds ?? session?.remaining_seconds ?? 0) || 0);
         const elapsedSeconds = Math.max(0, sessionTotalSeconds - sessionRemainingSeconds);
+        const sessionType = String(session?.sessionType || session?.session_type || "").toLowerCase();
+        const goalIdValue = String(session?.goalId || session?.goal_id || "");
+        const isNamedSession = sessionType === "named" || goalIdValue.startsWith("named:");
 
         try {
             const completedSession = await dataService.completeEkagraSession(sessionId, {
@@ -351,7 +354,7 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
                 remainingSeconds: sessionRemainingSeconds,
                 sessionStartedAt: session?.sessionStartedAt || session?.session_started_at || null,
             });
-            if (session?.mode === "Timer") {
+            if (session?.mode === "Timer" && !isNamedSession) {
                 const goalId = String(session?.goalId || session?.goal_id || "").trim();
                 if (goalId) {
                     const completedAt = new Date().toISOString();

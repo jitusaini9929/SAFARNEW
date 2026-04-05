@@ -9,6 +9,7 @@ const router = Router();
 type EkagraSessionSource = "manual" | "imported" | "goal_created" | "goal_continue" | "carry_forward";
 type EkagraSessionStatus = "active" | "paused" | "completed" | "ended_early" | "discarded";
 type EkagraTimerMode = "Timer" | "short" | "long";
+type EkagraSessionType = "goal" | "named";
 
 const LIST_LIMIT = 40;
 const RECENT_CLOSED_LIMIT = 50;
@@ -42,6 +43,12 @@ const normalizeStatus = (raw: unknown): EkagraSessionStatus | null => {
         return value;
     }
     return null;
+};
+
+const normalizeSessionType = (raw: unknown): EkagraSessionType => {
+    const value = String(raw || "").trim().toLowerCase();
+    if (value === "named") return "named";
+    return "goal";
 };
 
 const clampPositiveSeconds = (raw: unknown, fallback: number) => {
@@ -143,11 +150,16 @@ const normalizeSessionResponse = (doc: any) => {
     const sessionStartedAt = doc?.session_started_at ? new Date(doc.session_started_at) : null;
     const pauseCount = Number(doc?.pause_count || 0);
 
+    const sessionType = normalizeSessionType(doc?.session_type);
+    const sessionTitle = String(doc?.session_title || doc?.goal_title || "").trim();
+
     return {
         id: String(doc?.id || ""),
         userId: String(doc?.user_id || ""),
         goalId: String(doc?.goal_id || ""),
         goalTitle: String(doc?.goal_title || ""),
+        sessionType,
+        sessionTitle,
         source: normalizeSource(doc?.source),
         status: normalizeStatus(doc?.status) || "paused",
         mode: normalizeMode(doc?.mode),
@@ -176,6 +188,8 @@ const normalizeSessionResponse = (doc: any) => {
         completed_at: completedAt && Number.isFinite(completedAt.getTime()) ? completedAt.toISOString() : null,
         ended_at: endedAt && Number.isFinite(endedAt.getTime()) ? endedAt.toISOString() : null,
         discarded_at: discardedAt && Number.isFinite(discardedAt.getTime()) ? discardedAt.toISOString() : null,
+        session_type: sessionType,
+        session_title: sessionTitle || null,
     };
 };
 
@@ -253,6 +267,8 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
                         mode: 1,
                         status: 1,
                         goal_title: 1,
+                        session_title: 1,
+                        session_type: 1,
                         total_seconds: 1,
                         remaining_seconds: 1,
                         pause_count: 1,
@@ -355,7 +371,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
                         hourlyDistribution[hourBucket] += actualMinutes;
                     }
 
-                    const taskLabel = normalizeTaskLabel(doc?.goal_title) || "Unlabeled";
+                    const taskLabel = normalizeTaskLabel(doc?.session_title || doc?.goal_title) || "Unlabeled";
                     const taskEntry = topTaskMap.get(taskLabel) || { label: taskLabel, minutes: 0, count: 0 };
                     taskEntry.minutes += actualMinutes;
                     taskEntry.count += 1;
@@ -398,7 +414,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
                     actualMinutes,
                     completed: status === "completed",
                     status,
-                    taskText: normalizeTaskLabel(doc?.goal_title) || null,
+                    taskText: normalizeTaskLabel(doc?.session_title || doc?.goal_title) || null,
                     pauseCount: Math.max(0, Number(doc?.pause_count || 0)),
                     sessionType,
                     sortTs: getSessionSortTimestamp(doc),
@@ -413,7 +429,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
                         actualMinutes,
                         status: status === "completed" ? "completed" : "abandoned",
                         rawStatus: status,
-                        taskText: normalizeTaskLabel(doc?.goal_title) || null,
+                        taskText: normalizeTaskLabel(doc?.session_title || doc?.goal_title) || null,
                         pauseCount: Math.max(0, Number(doc?.pause_count || 0)),
                         sortTs: getSessionSortTimestamp(doc),
                     });
@@ -491,22 +507,31 @@ router.post("/activate", requireAuth, async (req: Request, res) => {
         const userId = req.session.userId!;
         const goalId = String(req.body?.goalId || "").trim();
         const goalTitle = String(req.body?.goalTitle || "").trim();
+        const sessionTitleRaw = String(req.body?.sessionTitle || "").trim();
+        const sessionTypeRaw = normalizeSessionType(req.body?.sessionType);
         const overrideActive = Boolean(req.body?.overrideActive);
         const importedFromGoal = Boolean(req.body?.importedFromGoal);
         const source = importedFromGoal ? "imported" : normalizeSource(req.body?.source);
+        const isNamedSession = sessionTypeRaw === "named" || !goalId;
 
-        if (!goalId) {
+        if (isNamedSession && !sessionTitleRaw) {
+            return res.status(400).json({ message: "sessionTitle is required for named sessions" });
+        }
+        if (!isNamedSession && !goalId) {
             return res.status(400).json({ message: "goalId is required" });
         }
 
-        const goal = await collections.goals().findOne({ id: goalId, user_id: userId });
-        if (!goal) {
-            return res.status(404).json({ message: "Goal not found or unauthorized" });
-        }
-        const goalSource = String(goal.source || "").toLowerCase();
-        const linkedFocusEnabled = Boolean(goal.linked_focus_enabled ?? goal.linkedFocusEnabled);
-        if (goalSource !== "ekagra" && !linkedFocusEnabled) {
-            return res.status(409).json({ message: "Only Ekagra goals can be activated in Ekagra sessions" });
+        let goal: any = null;
+        if (!isNamedSession) {
+            goal = await collections.goals().findOne({ id: goalId, user_id: userId });
+            if (!goal) {
+                return res.status(404).json({ message: "Goal not found or unauthorized" });
+            }
+            const goalSource = String(goal.source || "").toLowerCase();
+            const linkedFocusEnabled = Boolean(goal.linked_focus_enabled ?? goal.linkedFocusEnabled);
+            if (goalSource !== "ekagra" && !linkedFocusEnabled) {
+                return res.status(409).json({ message: "Only Ekagra goals can be activated in Ekagra sessions" });
+            }
         }
 
         const activeSession = await findActiveSession(userId);
@@ -522,10 +547,12 @@ router.post("/activate", requireAuth, async (req: Request, res) => {
             await pauseActiveSession(userId);
         }
 
-        const existingOpen = await collections.ekagraModeSessions().findOne(
-            { user_id: userId, goal_id: goalId, status: { $in: ["active", "paused"] } },
-            { sort: { updated_at: -1 } },
-        );
+        const existingOpen = !isNamedSession
+            ? await collections.ekagraModeSessions().findOne(
+                { user_id: userId, goal_id: goalId, status: { $in: ["active", "paused"] } },
+                { sort: { updated_at: -1 } },
+            )
+            : null;
         const now = new Date();
 
         if (existingOpen) {
@@ -545,6 +572,13 @@ router.post("/activate", requireAuth, async (req: Request, res) => {
             return res.json({ session: normalizeSessionResponse(updated) });
         }
 
+        const sessionId = uuidv4();
+        const namedGoalId = isNamedSession ? `named:${sessionId}` : goalId;
+        const sessionTitle = isNamedSession ? sessionTitleRaw : "";
+        const effectiveGoalTitle = isNamedSession
+            ? sessionTitle
+            : goalTitle || String(goal?.title || goal?.text || "");
+
         const totalSeconds = clampPositiveSeconds(req.body?.totalSeconds, 25 * 60);
         const remainingSeconds = clampRemainingSeconds(req.body?.remainingSeconds, totalSeconds, totalSeconds);
         const mode = normalizeMode(req.body?.mode);
@@ -552,10 +586,12 @@ router.post("/activate", requireAuth, async (req: Request, res) => {
         const startedAt = parseIso(req.body?.sessionStartedAt);
 
         const doc = {
-            id: uuidv4(),
+            id: sessionId,
             user_id: userId,
-            goal_id: goalId,
-            goal_title: goalTitle || String(goal.title || goal.text || ""),
+            goal_id: namedGoalId,
+            goal_title: effectiveGoalTitle,
+            session_type: isNamedSession ? "named" : "goal",
+            session_title: sessionTitle || null,
             source,
             status: "active" as EkagraSessionStatus,
             mode,

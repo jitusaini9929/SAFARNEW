@@ -24,6 +24,9 @@
 15. [Rate Limiting](#15-rate-limiting)
 16. [Payments](#16-payments)
 17. [Focus Overlay (Web)](#17-focus-overlay-web)
+18. [Ekagra Sessions (Timer State)](#18-ekagra-sessions-timer-state)
+19. [Mission (MVP)](#19-mission-mvp)
+20. [System / Health & Debug](#20-system--health--debug)
 
 ---
 
@@ -1610,6 +1613,234 @@ PUT /api/focus-overlay/state
 POST /api/focus-overlay/flush
 ```
 Used to send time chunks for per-section activity tracking and daily aggregates.
+
+---
+
+## 18. Ekagra Sessions (Timer State)
+
+> Base path: `/api/ekagra-sessions`  
+> All routes require `Authorization: Bearer <access_token>`
+
+These endpoints manage **live Ekagra timer state** (active/paused sessions, remaining time, and session analytics).
+
+### 18.1 List Sessions (Open + Recent Closed)
+```
+GET /api/ekagra-sessions
+```
+Returns open (active/paused) sessions plus recent closed sessions.
+
+**Response `200`:**
+```json
+{ "sessions": [ { "id": "uuid", "status": "paused", "mode": "Timer", "totalSeconds": 1500, "remainingSeconds": 900, "goalId": "uuid", "goalTitle": "History", "pauseCount": 2, "createdAt": "2026-04-01T05:30:00.000Z" } ] }
+```
+
+---
+
+### 18.2 Get Active Session
+```
+GET /api/ekagra-sessions/active
+```
+**Response `200`:**
+```json
+{ "session": { "...": "..." } }
+```
+If none active: `{ "session": null }`
+
+---
+
+### 18.3 Analytics (Timer Usage)
+```
+GET /api/ekagra-sessions/analytics
+```
+Returns timer usage analytics, focus/break minutes, recent sessions, streaks, and top tasks.
+
+**Response `200`:**
+```json
+{
+  "totalFocusMinutes": 420,
+  "totalBreakMinutes": 60,
+  "timerUsageCount": 18,
+  "breakSessionsCount": 6,
+  "shortBreakSessionsCount": 4,
+  "longBreakSessionsCount": 2,
+  "longDurationSessionCount": 3,
+  "averageTimerMinutes": 25,
+  "mostUsedTimerDurationMinutes": 25,
+  "totalSessions": 18,
+  "completedSessions": 14,
+  "endedEarlySessions": 4,
+  "abandonedSessions": 4,
+  "weeklyData": [30, 20, 0, 40, 50, 60, 20],
+  "weeklyBreaks": [5, 10, 0, 5, 10, 20, 10],
+  "focusStreak": 3,
+  "hourlyDistribution": [0,0,0,0,0,10,20,30, ...],
+  "recentSessions": [ { "id": "uuid", "durationMinutes": 25, "actualMinutes": 23, "status": "completed" } ],
+  "focusSessions": [ { "id": "uuid", "durationMinutes": 25, "actualMinutes": 23, "status": "completed" } ],
+  "topTasks": [ { "label": "History", "minutes": 120, "count": 4 } ],
+  "timerDurationUsage": [ { "durationMinutes": 25, "count": 12, "sessionType": "focus" } ]
+}
+```
+
+---
+
+### 18.4 Activate Session
+```
+POST /api/ekagra-sessions/activate
+```
+**Body:**
+```json
+{
+  "goalId": "uuid",
+  "goalTitle": "History",
+  "totalSeconds": 1500,
+  "remainingSeconds": 1500,
+  "mode": "Timer",
+  "isRunning": true,
+  "sessionStartedAt": "2026-04-01T08:00:00.000Z",
+  "overrideActive": false,
+  "importedFromGoal": false,
+  "source": "manual"
+}
+```
+**Notes:**
+- Only Ekagra goals (or goals with `linked_focus_enabled`) can be activated.
+- If another session is active and `overrideActive=false`, returns `409` with `code: "ACTIVE_SESSION_CONFLICT"`.
+
+**Response `201/200`:**
+```json
+{ "session": { "...": "..." } }
+```
+
+---
+
+### 18.5 Update Session
+```
+PATCH /api/ekagra-sessions/:id
+```
+Update any subset of:
+`mode`, `totalSeconds`, `remainingSeconds`, `isRunning`, `sessionStartedAt`, `status`, `goalTitle`, `source`, `importedFromGoal`.
+
+**Status transitions:**
+- `completed` sets `ended_at` + `completed_at`
+- `ended_early` sets `ended_at`
+- `discarded` sets `discarded_at`
+- `paused` increments pause count
+- `active` pauses other active sessions
+
+**Response `200`:**
+```json
+{ "session": { "...": "..." } }
+```
+
+---
+
+### 18.6 Complete Session
+```
+POST /api/ekagra-sessions/:id/complete
+```
+**Body (optional):**
+```json
+{ "elapsedSeconds": 1480, "remainingSeconds": 20, "mode": "Timer", "sessionStartedAt": "2026-04-01T08:00:00.000Z" }
+```
+Sets `status` to `completed` or `ended_early` based on tolerance.
+
+**Response `200`:**
+```json
+{ "session": { "...": "..." } }
+```
+
+---
+
+### 18.7 Discard Session
+```
+POST /api/ekagra-sessions/:id/discard
+```
+If the session has meaningful elapsed time (>5s), it is marked `ended_early`; otherwise `discarded`.
+
+**Response `200`:**
+```json
+{ "session": { "...": "..." } }
+```
+
+---
+
+### 18.8 Delete Session
+```
+DELETE /api/ekagra-sessions/:id
+```
+**Response `200`:**
+```json
+{ "ok": true, "deletedId": "uuid" }
+```
+
+---
+
+## 19. Mission (MVP)
+
+> Base path: `/api/mission`  
+> **Note:** Current implementation is MVP and returns mocked data. Auth context is mocked server-side for dev.
+
+### 19.1 Get Today Dashboard
+```
+GET /api/mission/today
+```
+Returns mock tasks, due revisions, backlog alerts, active recovery, and readiness snapshot.
+
+---
+
+### 19.2 Get Active Plan
+```
+GET /api/mission/plan/active
+```
+Returns mock active plan info + readiness snapshot.
+
+---
+
+### 19.3 Get Revision Items
+```
+GET /api/mission/revision
+```
+Returns `{ "items": [] }` (mock).
+
+---
+
+### 19.4 Create/Update Mission Profile (Mock)
+```
+POST /api/mission/profile
+```
+Returns `{ "profile_id": "prof_new_123", "saved": true }`.
+
+---
+
+## 20. System / Health & Debug
+
+### 20.1 Ping
+```
+GET /api/ping
+```
+Returns `{ "message": "<PING_MESSAGE or ping>" }`.
+
+---
+
+### 20.2 Redis Health
+```
+GET /health/redis
+```
+Returns:
+- `{ "redis": "disabled" }` if Redis is not configured
+- `{ "redis": "PONG" }` when healthy
+- `{ "redis": "down" }` when unreachable
+
+---
+
+### 20.3 Demo
+```
+GET /api/demo
+```
+Returns:
+```json
+{ "message": "Hello from Express server" }
+```
 
 ---
 

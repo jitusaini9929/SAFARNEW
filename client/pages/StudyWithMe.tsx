@@ -146,6 +146,8 @@ const TIMER_SLIDER_MAX = 120;
 const BREAK_MINUTES_MIN = 5;
 const BREAK_STEP_MINUTES = 5;
 const BREAK_MAX_MINUTES = 60;
+const COMPLETION_TOLERANCE_PERCENT = 0.25;
+const COMPLETION_DRIFT_SECONDS = 2;
 
 const createTaskId = () =>
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -156,6 +158,15 @@ const normalizeMinutes = (value: number, min = TIMER_MINUTES_MIN, step = TIMER_S
     if (!Number.isFinite(value)) return min;
     const rounded = Math.round(value / step) * step;
     return Math.max(min, rounded);
+};
+
+const isWithinCompletionTolerance = (elapsedSeconds: number, plannedSeconds: number) => {
+    const lowerBoundSeconds = plannedSeconds * (1 - COMPLETION_TOLERANCE_PERCENT);
+    const upperBoundSeconds = plannedSeconds * (1 + COMPLETION_TOLERANCE_PERCENT);
+    return (
+        elapsedSeconds >= Math.max(0, Math.floor(lowerBoundSeconds) - COMPLETION_DRIFT_SECONDS)
+        && elapsedSeconds <= Math.ceil(upperBoundSeconds) + COMPLETION_DRIFT_SECONDS
+    );
 };
 
 const getTasksStorageKey = (userId?: string) => (userId ? `focus-tasks-${userId}` : "focus-tasks");
@@ -326,6 +337,15 @@ export default function StudyWithMe() {
     const [runtimeSessions, setRuntimeSessions] = useState<EkagraModeSession[]>([]);
     const [runtimeActiveSessionId, setRuntimeActiveSessionId] = useState<string | null>(null);
     const runtimeSessionIdRef = useRef<string | null>(null);
+    const [showNamedSessionPrompt, setShowNamedSessionPrompt] = useState(false);
+    const [namedSessionTitleInput, setNamedSessionTitleInput] = useState("");
+    const [earlyFinishPrompt, setEarlyFinishPrompt] = useState<{
+        sessionId: string;
+        plannedSeconds: number;
+        elapsedSeconds: number;
+        remainingSeconds: number;
+        sessionStartedAt?: string | null;
+    } | null>(null);
 
     const linkedGoalTask = associatedGoalId ? tasks.find((task) => task.id === associatedGoalId) : undefined;
     const linkedActiveTask = linkedGoalTask && !linkedGoalTask.completed ? linkedGoalTask : undefined;
@@ -333,6 +353,23 @@ export default function StudyWithMe() {
         ? linkedActiveTask
         : tasks.find((task) => !task.completed);
     const currentTask = activeTask;
+    const activeRuntimeSession = useMemo(() => {
+        if (!runtimeSessions.length) return null;
+        const directMatch = runtimeSessions.find((session) => session.id === runtimeActiveSessionId);
+        if (directMatch) return directMatch;
+        return runtimeSessions.find((session) => String(session.status || "").toLowerCase() === "active") || null;
+    }, [runtimeSessions, runtimeActiveSessionId]);
+    const activeRuntimeSessionTitle =
+        String(
+            activeRuntimeSession?.sessionTitle
+            || (activeRuntimeSession as any)?.session_title
+            || activeRuntimeSession?.goalTitle
+            || (activeRuntimeSession as any)?.goal_title
+            || "",
+        ).trim() || null;
+    const activeRuntimeSessionType = String(
+        activeRuntimeSession?.sessionType || (activeRuntimeSession as any)?.session_type || "",
+    ).toLowerCase();
 
     const refreshRuntimeSessions = useCallback(async () => {
         if (status !== "authenticated" || !user?.id) {
@@ -476,6 +513,14 @@ export default function StudyWithMe() {
         completionHandledRef.current = true;
 
         const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
+        const runtimeSession = runtimeSessionId
+            ? runtimeSessions.find((session) => session.id === runtimeSessionId)
+            : null;
+        const runtimeSessionType = String(
+            runtimeSession?.sessionType || (runtimeSession as any)?.session_type || "",
+        ).toLowerCase();
+        const runtimeGoalId = String(runtimeSession?.goalId || (runtimeSession as any)?.goal_id || "");
+        const isNamedSession = runtimeSessionType === "named" || runtimeGoalId.startsWith("named:");
         if (runtimeSessionId && status === "authenticated" && user?.id) {
             void (async () => {
                 try {
@@ -495,7 +540,7 @@ export default function StudyWithMe() {
         }
 
         const taskToComplete = currentTask;
-        if (taskToComplete) {
+        if (taskToComplete && !isNamedSession) {
             const completedAt = new Date().toISOString();
             updateTasks((prev) =>
                 prev.map(task =>
@@ -505,7 +550,7 @@ export default function StudyWithMe() {
             setCompletedTask(null);
             setAwaitingProceed(false);
             setShowDurationPrompt(false);
-            if (associatedGoalId) {
+            if (associatedGoalId && !isNamedSession) {
                 setAssociatedGoal(null, null);
             }
         }
@@ -516,6 +561,7 @@ export default function StudyWithMe() {
         refreshRuntimeSessions,
         remainingSeconds,
         runtimeActiveSessionId,
+        runtimeSessions,
         setAssociatedGoal,
         status,
         totalSeconds,
@@ -712,9 +758,67 @@ export default function StudyWithMe() {
         try { localStorage.setItem('focus-theme-id', newTheme.id); } catch { }
     };
 
-    const handleResetTimer = () => {
+    const handleResetTimer = useCallback(async () => {
+        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
+        const runtimeSession = runtimeSessionId
+            ? runtimeSessions.find((session) => session.id === runtimeSessionId)
+            : null;
+        const runtimeSessionType = String(
+            runtimeSession?.sessionType || (runtimeSession as any)?.session_type || "",
+        ).toLowerCase();
+        const runtimeGoalId = String(runtimeSession?.goalId || (runtimeSession as any)?.goal_id || "");
+        const isNamedSession = runtimeSessionType === "named" || runtimeGoalId.startsWith("named:");
+
+        if (mode === "Timer" && runtimeSessionId && isNamedSession && status === "authenticated" && user?.id) {
+            const plannedSeconds = Math.max(
+                1,
+                Number(runtimeSession?.totalSeconds ?? (runtimeSession as any)?.total_seconds ?? totalSeconds) || totalSeconds,
+            );
+            const remaining = Math.max(
+                0,
+                Number(runtimeSession?.remainingSeconds ?? (runtimeSession as any)?.remaining_seconds ?? remainingSeconds) || remainingSeconds,
+            );
+            const elapsedSeconds = Math.max(0, plannedSeconds - remaining);
+            const completedWithinTolerance = isWithinCompletionTolerance(elapsedSeconds, plannedSeconds);
+
+            if (!completedWithinTolerance) {
+                setEarlyFinishPrompt({
+                    sessionId: runtimeSessionId,
+                    plannedSeconds,
+                    elapsedSeconds,
+                    remainingSeconds: remaining,
+                    sessionStartedAt: runtimeSession?.sessionStartedAt || (runtimeSession as any)?.session_started_at || null,
+                });
+                return;
+            }
+
+            try {
+                await dataService.completeEkagraSession(runtimeSessionId, {
+                    mode: "Timer",
+                    elapsedSeconds,
+                    remainingSeconds: Math.max(0, remaining),
+                    sessionStartedAt: runtimeSession?.sessionStartedAt || (runtimeSession as any)?.session_started_at || null,
+                });
+                runtimeSessionIdRef.current = null;
+                setRuntimeActiveSessionId(null);
+                await refreshRuntimeSessions();
+            } catch (error) {
+                console.error("Complete Ekagra session error:", error);
+            }
+        }
+
         resetTimer();
-    };
+    }, [
+        mode,
+        refreshRuntimeSessions,
+        remainingSeconds,
+        resetTimer,
+        runtimeActiveSessionId,
+        runtimeSessions,
+        status,
+        totalSeconds,
+        user?.id,
+    ]);
 
     const handleUnlinkGoal = () => {
         setAssociatedGoal(null, null);
@@ -759,16 +863,46 @@ export default function StudyWithMe() {
     };
 
     const handleCompleteCurrentTask = useCallback(async () => {
-        if (!currentTask) return;
-
         const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
+        const runtimeSession = runtimeSessionId
+            ? runtimeSessions.find((session) => session.id === runtimeSessionId)
+            : null;
+        const runtimeSessionType = String(
+            runtimeSession?.sessionType || (runtimeSession as any)?.session_type || "",
+        ).toLowerCase();
+        const runtimeGoalId = String(runtimeSession?.goalId || (runtimeSession as any)?.goal_id || "");
+        const isNamedSession = runtimeSessionType === "named" || runtimeGoalId.startsWith("named:");
+
+        if (!runtimeSessionId && !currentTask) return;
+
+        const plannedSeconds = Math.max(
+            1,
+            Number(runtimeSession?.totalSeconds ?? (runtimeSession as any)?.total_seconds ?? totalSeconds) || totalSeconds,
+        );
+        const remaining = Math.max(
+            0,
+            Number(runtimeSession?.remainingSeconds ?? (runtimeSession as any)?.remaining_seconds ?? remainingSeconds) || remainingSeconds,
+        );
+        const elapsedSeconds = Math.max(0, plannedSeconds - remaining);
+        const completedWithinTolerance = isWithinCompletionTolerance(elapsedSeconds, plannedSeconds);
+
+        if (isNamedSession && runtimeSessionId && !completedWithinTolerance) {
+            setEarlyFinishPrompt({
+                sessionId: runtimeSessionId,
+                plannedSeconds,
+                elapsedSeconds,
+                remainingSeconds: remaining,
+                sessionStartedAt: runtimeSession?.sessionStartedAt || (runtimeSession as any)?.session_started_at || null,
+            });
+            return;
+        }
+
         if (runtimeSessionId && status === "authenticated" && user?.id) {
             try {
-                const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
                 await dataService.completeEkagraSession(runtimeSessionId, {
                     mode: "Timer",
                     elapsedSeconds,
-                    remainingSeconds: Math.max(0, remainingSeconds),
+                    remainingSeconds: Math.max(0, remaining),
                     sessionStartedAt: null,
                 });
                 runtimeSessionIdRef.current = null;
@@ -779,23 +913,26 @@ export default function StudyWithMe() {
             }
         }
 
-        const completedAt = new Date().toISOString();
-        if (status === "authenticated" && user?.id) {
-            try {
-                await dataService.updateGoal(currentTask.id, true, completedAt);
-                setTasks((prev) => sortTasks(prev.map((task) =>
+        if (!isNamedSession) {
+            if (!currentTask) return;
+            const completedAt = new Date().toISOString();
+            if (status === "authenticated" && user?.id) {
+                try {
+                    await dataService.updateGoal(currentTask.id, true, completedAt);
+                    setTasks((prev) => sortTasks(prev.map((task) =>
+                        task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
+                    )));
+                } catch (error) {
+                    console.error("Complete Ekagra task error:", error);
+                    return;
+                }
+            } else {
+                const nextTasks = sortTasks(tasks.map((task) =>
                     task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
-                )));
-            } catch (error) {
-                console.error("Complete Ekagra task error:", error);
-                return;
+                ));
+                setTasks(nextTasks);
+                saveTasks(nextTasks, user?.id);
             }
-        } else {
-            const nextTasks = sortTasks(tasks.map((task) =>
-                task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
-            ));
-            setTasks(nextTasks);
-            saveTasks(nextTasks, user?.id);
         }
 
         if (isRunning) {
@@ -803,14 +940,29 @@ export default function StudyWithMe() {
         }
         resetTimer();
 
-        if (associatedGoalId) {
+        if (associatedGoalId && !isNamedSession) {
             setAssociatedGoal(null, null);
         }
 
         setCompletedTask(null);
         setAwaitingProceed(false);
         setShowDurationPrompt(false);
-    }, [associatedGoalId, currentTask, isRunning, refreshRuntimeSessions, remainingSeconds, resetTimer, runtimeActiveSessionId, setAssociatedGoal, status, tasks, toggleTimer, totalSeconds, user?.id]);
+    }, [
+        associatedGoalId,
+        currentTask,
+        isRunning,
+        refreshRuntimeSessions,
+        remainingSeconds,
+        resetTimer,
+        runtimeActiveSessionId,
+        runtimeSessions,
+        setAssociatedGoal,
+        status,
+        tasks,
+        toggleTimer,
+        totalSeconds,
+        user?.id,
+    ]);
 
     const handleCompleteSessionGoal = useCallback(async (goalId: string, completedAt: string, sessionStatus: string) => {
         if (status !== "authenticated" || !user?.id) return;
@@ -872,16 +1024,28 @@ export default function StudyWithMe() {
 
         const goalId = String(session.goalId || (session as any).goal_id || "").trim();
         const goalTitle = String(session.goalTitle || (session as any).goal_title || "").trim();
+        const sessionTitle = String(session.sessionTitle || (session as any).session_title || goalTitle || "").trim();
+        const sessionType = String(session.sessionType || (session as any).session_type || "").toLowerCase();
+        const isNamedSession = sessionType === "named" || goalId.startsWith("named:");
         const nextTotalSeconds = Math.max(1, Number(session.totalSeconds ?? (session as any).total_seconds ?? totalSeconds));
         const nextRemainingSeconds = Math.max(0, Math.min(nextTotalSeconds, Number(session.remainingSeconds ?? (session as any).remaining_seconds ?? nextTotalSeconds)));
 
-        if (!goalId || !goalTitle) return;
+        if (!isNamedSession && (!goalId || !goalTitle)) return;
+        if (isNamedSession && !sessionTitle) return;
 
         try {
+            const normalizedSource = String(session.source || "").toLowerCase();
+            const source = normalizedSource === "imported"
+                ? "imported"
+                : isNamedSession
+                    ? "manual"
+                    : "goal_continue";
+
             const activated = await dataService.activateEkagraSession({
-                goalId,
-                goalTitle,
-                source: String(session.source || "").toLowerCase() === "imported" ? "imported" : "goal_continue",
+                ...(isNamedSession
+                    ? { sessionType: "named" as const, sessionTitle }
+                    : { goalId, goalTitle }),
+                source,
                 importedFromGoal: Boolean(session.importedFromGoal || (session as any).imported_from_goal),
                 overrideActive: true,
                 mode: "Timer",
@@ -891,14 +1055,18 @@ export default function StudyWithMe() {
                 sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
             });
 
-            setAssociatedGoal(goalId, goalTitle);
+            if (isNamedSession) {
+                setAssociatedGoal(null, null);
+            } else {
+                setAssociatedGoal(goalId, goalTitle);
+            }
             applyRuntimeSnapshot({
                 mode: "Timer",
                 totalSeconds: nextTotalSeconds,
                 remainingSeconds: nextRemainingSeconds,
                 isRunning: false,
-                associatedGoalId: goalId,
-                associatedGoalTitle: goalTitle,
+                associatedGoalId: isNamedSession ? null : goalId,
+                associatedGoalTitle: isNamedSession ? null : goalTitle,
                 sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
             });
 
@@ -984,6 +1152,32 @@ export default function StudyWithMe() {
         }
     }, [mode, setAssociatedGoal, setMode, tasks]);
 
+    const handleStartNamedSession = useCallback(async (title: string) => {
+        const sessionTitle = String(title || "").trim();
+        if (!sessionTitle || status !== "authenticated" || !user?.id) return;
+
+        try {
+            const activated = await dataService.activateEkagraSession({
+                sessionType: "named",
+                sessionTitle,
+                source: "manual",
+                overrideActive: true,
+                mode: "Timer",
+                totalSeconds: Math.max(1, totalSeconds),
+                remainingSeconds: Math.max(0, remainingSeconds),
+                isRunning: true,
+                sessionStartedAt: new Date().toISOString(),
+            });
+            runtimeSessionIdRef.current = activated.id;
+            setRuntimeActiveSessionId(activated.id);
+            setAssociatedGoal(null, null);
+            await refreshRuntimeSessions();
+            toggleTimer();
+        } catch (error) {
+            console.error("Activate named Ekagra session error:", error);
+        }
+    }, [refreshRuntimeSessions, remainingSeconds, setAssociatedGoal, status, toggleTimer, totalSeconds, user?.id]);
+
     const handleToggleTimer = useCallback(async () => {
         if (mode !== "Timer" || status !== "authenticated" || !user?.id) {
             toggleTimer();
@@ -1017,7 +1211,8 @@ export default function StudyWithMe() {
         }
 
         if (!goalId || !goalTitle) {
-            toggleTimer();
+            setNamedSessionTitleInput("");
+            setShowNamedSessionPrompt(true);
             return;
         }
 
@@ -1043,6 +1238,70 @@ export default function StudyWithMe() {
 
         toggleTimer();
     }, [associatedGoalId, associatedGoalTitle, currentTask, isRunning, linkedGoalTask, mode, refreshRuntimeSessions, remainingSeconds, runtimeActiveSessionId, status, toggleTimer, totalSeconds, user?.id]);
+
+    const handleConfirmNamedSession = useCallback(async () => {
+        const title = namedSessionTitleInput.trim();
+        if (!title) return;
+        setShowNamedSessionPrompt(false);
+        setNamedSessionTitleInput("");
+        await handleStartNamedSession(title);
+    }, [handleStartNamedSession, namedSessionTitleInput]);
+
+    const handleCancelNamedSession = useCallback(() => {
+        setShowNamedSessionPrompt(false);
+        setNamedSessionTitleInput("");
+    }, []);
+
+    const handleConfirmEarlyFinishLog = useCallback(async () => {
+        const prompt = earlyFinishPrompt;
+        if (!prompt || status !== "authenticated" || !user?.id) return;
+        setEarlyFinishPrompt(null);
+
+        try {
+            await dataService.completeEkagraSession(prompt.sessionId, {
+                mode: "Timer",
+                elapsedSeconds: prompt.elapsedSeconds,
+                remainingSeconds: prompt.remainingSeconds,
+                sessionStartedAt: prompt.sessionStartedAt || null,
+            });
+            runtimeSessionIdRef.current = null;
+            setRuntimeActiveSessionId(null);
+            await refreshRuntimeSessions();
+        } catch (error) {
+            console.error("Complete Ekagra session error:", error);
+        }
+
+        if (isRunning) {
+            toggleTimer();
+        }
+        resetTimer();
+        setCompletedTask(null);
+        setAwaitingProceed(false);
+        setShowDurationPrompt(false);
+    }, [earlyFinishPrompt, isRunning, refreshRuntimeSessions, resetTimer, status, toggleTimer, user?.id]);
+
+    const handleConfirmEarlyFinishDiscard = useCallback(async () => {
+        const prompt = earlyFinishPrompt;
+        if (!prompt || status !== "authenticated" || !user?.id) return;
+        setEarlyFinishPrompt(null);
+
+        try {
+            await dataService.deleteEkagraSession(prompt.sessionId);
+            runtimeSessionIdRef.current = null;
+            setRuntimeActiveSessionId(null);
+            await refreshRuntimeSessions();
+        } catch (error) {
+            console.error("Discard Ekagra session error:", error);
+        }
+
+        if (isRunning) {
+            toggleTimer();
+        }
+        resetTimer();
+        setCompletedTask(null);
+        setAwaitingProceed(false);
+        setShowDurationPrompt(false);
+    }, [earlyFinishPrompt, isRunning, refreshRuntimeSessions, resetTimer, status, toggleTimer, user?.id]);
 
     const liveSessionPreview = useMemo<EkagraModeSession | null>(() => {
         if (status === "authenticated" && user?.id) return null;
@@ -1413,6 +1672,65 @@ export default function StudyWithMe() {
                 </div>
             )}
 
+            <Dialog
+                open={showNamedSessionPrompt}
+                onOpenChange={(open) => {
+                    if (!open) handleCancelNamedSession();
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Name this session</DialogTitle>
+                        <DialogDescription>
+                            Add a title so you can recognize it later in Ekagra history.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="text"
+                            value={namedSessionTitleInput}
+                            onChange={(e) => setNamedSessionTitleInput(e.target.value)}
+                            placeholder="e.g., Read Maths"
+                            className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleCancelNamedSession}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleConfirmNamedSession} disabled={!namedSessionTitleInput.trim()}>
+                            Start Session
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(earlyFinishPrompt)}
+                onOpenChange={(open) => {
+                    if (!open) setEarlyFinishPrompt(null);
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Finish early?</DialogTitle>
+                        <DialogDescription>
+                            {earlyFinishPrompt
+                                ? `Planned ${Math.max(1, Math.round(earlyFinishPrompt.plannedSeconds / 60))}m, completed ${Math.max(0, Math.round(earlyFinishPrompt.elapsedSeconds / 60))}m so far.`
+                                : "You ended the timer early."} Choose whether to log this as ended early or discard it.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={handleConfirmEarlyFinishDiscard}>
+                            Discard
+                        </Button>
+                        <Button onClick={handleConfirmEarlyFinishLog}>
+                            Log as ended early
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Next Task Duration Prompt */}
             <Dialog
                 open={showDurationPrompt}
@@ -1503,6 +1821,21 @@ export default function StudyWithMe() {
                                 >
                                     Unlink
                                 </button>
+                            </div>
+                        </div>
+                    )}
+                    {!associatedGoalId && activeRuntimeSessionType === "named" && activeRuntimeSessionTitle && (
+                        <div className="w-full max-w-2xl mb-4 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 text-white backdrop-blur-md shadow-lg">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Named Session</div>
+                                    </div>
+                                    <div className="mt-1 flex items-center gap-2 text-sm font-semibold">
+                                        <Target className="h-4 w-4 shrink-0" />
+                                        <span className="truncate">{activeRuntimeSessionTitle}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}

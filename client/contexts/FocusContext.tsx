@@ -548,6 +548,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         if (remainingSeconds === 0 && isRunning) {
             finalizeFocusSession({ completed: true, interrupted: false });
             setIsRunning(false);
+            try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
 
             // 🔔 Play notification sound for ALL modes (pomodoro, short break, long break)
             try {
@@ -1098,6 +1099,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setMusicPlaying(false);
         setRemainingSeconds(totalSeconds);
         setAssociatedGoal(null, null);
+        try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
     }, [totalSeconds, setMusicPlaying, finalizeFocusSession, setAssociatedGoal]);
 
     const handleSetMode = useCallback((newMode: FocusMode) => {
@@ -1117,6 +1119,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setRemainingSeconds(duration * 60);
         setIsRunning(false);
         setMusicPlaying(false);
+        try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
     }, [timerDuration, breakDuration, longBreakDuration, setMusicPlaying, finalizeFocusSession]);
 
     const handleSetTimerDuration = useCallback((mins: number) => {
@@ -1129,6 +1132,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
             setMusicPlaying(false);
+            try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
         }
     }, [mode, setMusicPlaying, finalizeFocusSession]);
 
@@ -1139,6 +1143,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
             setMusicPlaying(false);
+            try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
         }
     }, [mode, setMusicPlaying]);
 
@@ -1149,6 +1154,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
             setMusicPlaying(false);
+            try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
         }
     }, [mode, setMusicPlaying]);
 

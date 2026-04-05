@@ -10,6 +10,7 @@ import {
     EkagraSessionStatus,
     EkagraTimerMode,
     EkagraAnalyticsStats,
+    EkagraSessionType,
     GoalKind,
     GoalUnitType,
     GoalExecutionStatus,
@@ -281,8 +282,10 @@ export const dataService = {
     },
 
     async activateEkagraSession(payload: {
-        goalId: string;
+        goalId?: string;
         goalTitle?: string;
+        sessionType?: EkagraSessionType;
+        sessionTitle?: string;
         source?: EkagraSessionSource;
         importedFromGoal?: boolean;
         overrideActive?: boolean;

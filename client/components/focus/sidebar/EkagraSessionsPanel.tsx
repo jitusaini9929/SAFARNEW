@@ -18,7 +18,9 @@ const toDateMillis = (value: unknown) => {
 };
 
 const getSessionGoalTitle = (session: EkagraModeSession) => {
-    const title = String(session.goalTitle || session.goal_title || "").trim();
+    const title = String(
+        session.sessionTitle || session.session_title || session.goalTitle || session.goal_title || "",
+    ).trim();
     return title || "Untitled task";
 };
 

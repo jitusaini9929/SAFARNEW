@@ -91,6 +91,7 @@ export interface Goal {
 export type EkagraSessionSource = "manual" | "imported" | "goal_created" | "goal_continue" | "carry_forward";
 export type EkagraSessionStatus = "active" | "paused" | "completed" | "ended_early" | "discarded";
 export type EkagraTimerMode = "Timer" | "short" | "long";
+export type EkagraSessionType = "goal" | "named";
 export type EkagraAnalyticsSessionType = "focus" | "short_break" | "long_break";
 export type EkagraAnalyticsQualityStatus = "completed" | "abandoned";
 
@@ -99,6 +100,8 @@ export interface EkagraModeSession {
   userId: string;
   goalId: string;
   goalTitle: string;
+  sessionType?: EkagraSessionType;
+  sessionTitle?: string;
   source: EkagraSessionSource;
   status: EkagraSessionStatus;
   mode: EkagraTimerMode;
@@ -116,6 +119,8 @@ export interface EkagraModeSession {
   user_id?: string;
   goal_id?: string;
   goal_title?: string;
+  session_type?: EkagraSessionType;
+  session_title?: string;
   total_seconds?: number;
   remaining_seconds?: number;
   is_running?: boolean;

@@ -35,7 +35,7 @@ const formatAgo = (value: unknown) => {
 };
 
 const getTitle = (session: EkagraModeSession) =>
-    String(session.goalTitle || session.goal_title || "").trim() || "Unlabeled";
+    String(session.sessionTitle || session.session_title || session.goalTitle || session.goal_title || "").trim() || "Unlabeled";
 
 const getRemainingSeconds = (session: EkagraModeSession) =>
     Number(session.remainingSeconds ?? session.remaining_seconds ?? 0);

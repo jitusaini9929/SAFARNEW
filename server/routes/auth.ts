@@ -470,15 +470,27 @@ async function updateLoginStreak(userId: string) {
     const currentStreak = await collections.streaks().findOne({ user_id: userId });
 
     const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const nowIST = new Date(now.getTime() + istOffset);
-    const todayIST = nowIST.toISOString().split('T')[0];
+    const IST_TIMEZONE = 'Asia/Kolkata';
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const istFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: IST_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+    const getISTDateKey = (date: Date) => istFormatter.format(date);
+    const shiftISTDateKey = (dateKey: string, days: number) => {
+        const baseUTC = new Date(`${dateKey}T00:00:00.000Z`);
+        const shifted = new Date(baseUTC.getTime() + days * DAY_MS);
+        return getISTDateKey(shifted);
+    };
+
+    const todayIST = getISTDateKey(now);
 
     if (currentStreak) {
         const lastLoginRaw = currentStreak.last_login_date ?? currentStreak.last_active_date ?? null;
         const lastLoginDate = lastLoginRaw ? new Date(lastLoginRaw) : null;
-        const lastLoginIST = lastLoginDate ? new Date(lastLoginDate.getTime() + istOffset) : null;
-        const lastDateIST = lastLoginIST ? lastLoginIST.toISOString().split('T')[0] : null;
+        const lastDateIST = lastLoginDate ? getISTDateKey(lastLoginDate) : null;
 
         if (currentStreak.login_streak === 0) {
             await collections.streaks().updateOne(
@@ -491,9 +503,7 @@ async function updateLoginStreak(userId: string) {
                 { $set: { last_login_date: now, last_active_date: now } }
             );
         } else {
-            const yesterday = new Date(nowIST);
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayIST = yesterday.toISOString().split('T')[0];
+            const yesterdayIST = shiftISTDateKey(todayIST, -1);
 
             if (lastDateIST === yesterdayIST) {
                 await collections.streaks().updateOne(
