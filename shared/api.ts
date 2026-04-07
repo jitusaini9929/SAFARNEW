@@ -49,6 +49,7 @@ export interface Goal {
   description?: string | null;
   source?: "manual" | "ekagra";
   importedFromGoal?: boolean;
+  completedViaFocus?: boolean;
   goalKind?: GoalKind;
   unitType?: GoalUnitType;
   executionMode?: GoalExecutionMode;
@@ -77,6 +78,7 @@ export interface Goal {
   lifecycle_status?: "active" | "missed" | "rolled_over" | "abandoned";
   scheduled_date?: string;
   imported_from_goal?: boolean;
+  completed_via_focus?: boolean;
   goal_kind?: GoalKind;
   unit_type?: GoalUnitType;
   execution_mode?: GoalExecutionMode;
@@ -143,6 +145,7 @@ export interface EkagraAnalyticsRecentSession {
   completed: boolean;
   status: "completed";
   taskText: string | null;
+  associatedGoalId?: string | null;
   pauseCount: number;
   sessionType: EkagraAnalyticsSessionType;
 }
@@ -168,6 +171,7 @@ export interface EkagraAnalyticsFocusSession {
   status: "completed";
   rawStatus: "completed" | "ended_early";
   taskText: string | null;
+  associatedGoalId?: string | null;
   pauseCount: number;
 }
 

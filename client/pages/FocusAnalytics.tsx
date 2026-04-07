@@ -8,7 +8,7 @@ type FocusAnalyticsProps = {
     onBack?: () => void;
 };
 
-type AnalyticsTab = "overview" | "sessions" | "quality";
+type AnalyticsTab = "overview" | "sessions";
 
 const CHART_COLORS = ["#16a34a", "#2563eb", "#f59e0b", "#dc2626", "#14b8a6", "#7c3aed", "#ea580c", "#0891b2"];
 
@@ -123,12 +123,6 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
     const usageChart = useMemo(() => buildUsageChart(stats?.timerDurationUsage || []), [stats?.timerDurationUsage]);
     const focusSessions = useMemo(() => stats?.focusSessions || [], [stats?.focusSessions]);
 
-    const completedSessionsCount = Number(stats?.completedSessions || 0);
-    const closedSessionsCount = Number(stats?.totalSessions || 0);
-    const completionSummary = closedSessionsCount > 0
-        ? `${completedSessionsCount} completed sessions`
-        : "No closed sessions yet";
-
     const chartGradient = useMemo(() => {
         if (usageChart.total <= 0 || usageChart.slices.length === 0) return "";
         let start = 0;
@@ -171,7 +165,6 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                     {([
                         { id: "overview" as AnalyticsTab, label: "Overview" },
                         { id: "sessions" as AnalyticsTab, label: "Sessions" },
-                        { id: "quality" as AnalyticsTab, label: "Session Quality" },
                     ]).map((tab) => (
                         <button
                             key={tab.id}
@@ -204,9 +197,9 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                                 value={stats?.mostUsedTimerDurationMinutes ? `${toWholeMinutes(stats.mostUsedTimerDurationMinutes)}m` : "-"}
                             />
                             <MetricCard
-                                label="Completed sessions"
-                                value={`${completedSessionsCount}`}
-                                sub={completionSummary}
+                                label="Total sessions"
+                                value={`${toWholeMinutes(stats?.totalSessions)}`}
+                                sub={`${toWholeMinutes(stats?.completedSessions)} completed`}
                             />
                         </section>
 
@@ -291,38 +284,6 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                     </section>
                 )}
 
-                {activeTab === "quality" && (
-                    <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
-                        <h2 className="text-base font-bold text-foreground">Session Quality</h2>
-                        <p className="text-xs text-muted-foreground">
-                            Sessions are counted as completed when you end them. Focus time uses actual consumed timer minutes.
-                        </p>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="rounded-xl border border-emerald-300/60 bg-emerald-500/10 p-4">
-                                <p className="text-xs uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">Completed</p>
-                                <p className="mt-2 text-3xl font-black text-foreground">{completedSessionsCount}</p>
-                            </div>
-                            <div className="rounded-xl border border-blue-300/60 bg-blue-500/10 p-4">
-                                <p className="text-xs uppercase tracking-wide font-semibold text-blue-700 dark:text-blue-300">Total Closed</p>
-                                <p className="mt-2 text-3xl font-black text-foreground">{closedSessionsCount}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>Completion Count</span>
-                                <span>{completionSummary}</span>
-                            </div>
-                            <div className="h-3 rounded-full bg-muted overflow-hidden">
-                                <div
-                                    className="h-full bg-emerald-500"
-                                    style={{ width: closedSessionsCount > 0 ? `${Math.round((completedSessionsCount / closedSessionsCount) * 100)}%` : "0%" }}
-                                />
-                            </div>
-                        </div>
-                    </section>
-                )}
             </div>
         </div>
     );

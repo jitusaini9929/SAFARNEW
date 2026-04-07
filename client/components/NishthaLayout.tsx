@@ -54,9 +54,15 @@ export default function NishthaLayout({
             {showWelcome && <WelcomeDialog onClose={handleCloseWelcome} userName={userName} />}
 
             <div className="flex flex-1 overflow-hidden relative">
-                <LeftSidebar />
+                <LeftSidebar showHome={false} />
                 <div className="flex flex-col flex-1 relative z-10 w-full overflow-hidden">
-                    <TopNavbar userName={userName} userAvatar={userAvatar} onLogout={onLogout} showMobileMenu={true} />
+                    <TopNavbar
+                        userName={userName}
+                        userAvatar={userAvatar}
+                        onLogout={onLogout}
+                        showMobileMenu={true}
+                        showMenuButton={false}
+                    />
                     <main className="flex-1 overflow-y-auto overflow-x-hidden text-foreground flex flex-col">
                         <div className="flex-1 flex flex-col min-h-full pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
                             <div className="flex-1 flex flex-col relative z-0">

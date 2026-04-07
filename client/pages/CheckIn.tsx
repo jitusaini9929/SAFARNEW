@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { dataService } from "@/utils/dataService";
 import { toast } from "sonner";
@@ -53,7 +53,6 @@ const MOOD_OPTIONS: MoodOption[] = [
 const QUICK_TAGS = ["work", "family", "sleep", "health", "relationship", "finance", "study"];
 
 export default function CheckIn() {
-  const navigate = useNavigate();
   const { t } = useTranslation();
   const { startTour } = useGuidedTour();
   const { user, status } = useAuth();
@@ -66,13 +65,9 @@ export default function CheckIn() {
   const [moodHistory, setMoodHistory] = useState<any[]>([]);
 
   useEffect(() => {
-    if (status === "loading") return;
-    if (!user) {
-      navigate("/login");
-      return;
-    }
+    if (status !== "authenticated" || !user) return;
     fetchMoods();
-  }, [navigate, status, user]);
+  }, [status, user]);
 
   const fetchMoods = async () => {
     try {
@@ -103,7 +98,18 @@ export default function CheckIn() {
     }
   };
 
-  if (!user) return null;
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-[100dvh] bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary mx-auto mb-4 animate-pulse"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/?signin=true" replace />;
 
   return (
     <NishthaLayout userName={user.name} userAvatar={user.avatar}>

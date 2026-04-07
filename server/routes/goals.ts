@@ -113,6 +113,7 @@ const normalizeGoalSource = (raw: unknown): GoalSource | null => {
 };
 
 const normalizeGoalImportedFromGoal = (raw: unknown) => Boolean(raw);
+const normalizeGoalCompletedViaFocus = (raw: unknown) => Boolean(raw);
 
 const normalizeGoalKind = (raw: unknown): GoalKind | null => {
     const value = String(raw ?? '').trim().toLowerCase();
@@ -281,6 +282,7 @@ const normalizeGoalResponse = (goal: any) => {
     const priority = normalizeGoalPriority(goal.priority) || 'medium';
     const source = normalizeGoalSource(goal.source) || 'manual';
     const importedFromGoal = normalizeGoalImportedFromGoal(goal.imported_from_goal ?? goal.importedFromGoal);
+    const completedViaFocus = normalizeGoalCompletedViaFocus(goal.completed_via_focus ?? goal.completedViaFocus);
     const goalKind = getGoalKindFromRecord(goal);
     const unitType = getGoalUnitTypeFromRecord(goal);
     const executionMode = getGoalExecutionModeFromRecord(goal);
@@ -300,6 +302,7 @@ const normalizeGoalResponse = (goal: any) => {
         priority,
         source,
         importedFromGoal,
+        completedViaFocus,
         goalKind,
         unitType,
         executionMode,
@@ -317,6 +320,7 @@ const normalizeGoalResponse = (goal: any) => {
         scheduledDate: goal.scheduled_date ? new Date(goal.scheduled_date).toISOString() : null,
         lifecycleStatus: (goal.lifecycle_status || 'active') as GoalLifecycleStatus,
         imported_from_goal: importedFromGoal,
+        completed_via_focus: completedViaFocus,
         goal_kind: goalKind,
         unit_type: unitType,
         execution_mode: executionMode,
@@ -373,6 +377,7 @@ const migrateLegacyEkagraTasks = async (userId: string) => {
                 lifecycle_status: 'active' as GoalLifecycleStatus,
                 rollover_prompt_pending: false,
                 imported_from_goal: false,
+                completed_via_focus: false,
                 goal_kind: 'today' as GoalKind,
                 unit_type: 'binary' as GoalUnitType,
                 execution_mode: 'manual' as GoalExecutionMode,
@@ -403,6 +408,40 @@ const migrateLegacyEkagraTasks = async (userId: string) => {
     }
 
     await dropGoalLegacyTasks(userId);
+};
+
+const restoreTransferredManualGoals = async (userId: string) => {
+    const transferredGoals = await collections.goals()
+        .find(
+            { user_id: userId, source: 'ekagra', imported_from_goal: true },
+            { projection: { id: 1, completed: 1, completed_at: 1 } },
+        )
+        .toArray();
+
+    if (transferredGoals.length === 0) return;
+
+    const completedIds = transferredGoals
+        .filter((goal) => Boolean(goal.completed || goal.completed_at))
+        .map((goal) => String(goal.id || '').trim())
+        .filter((id) => id.length > 0);
+
+    await collections.goals().updateMany(
+        { user_id: userId, source: 'ekagra', imported_from_goal: true },
+        {
+            $set: {
+                source: 'manual',
+                imported_from_goal: false,
+                updated_at: new Date(),
+            },
+        },
+    );
+
+    if (completedIds.length > 0) {
+        await collections.goals().updateMany(
+            { user_id: userId, id: { $in: completedIds } },
+            { $set: { completed_via_focus: true, updated_at: new Date() } },
+        );
+    }
 };
 
 const getGoalLegacyTasks = async (userId: string) => {
@@ -568,6 +607,7 @@ router.get('/', requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
         await migrateLegacyEkagraTasks(userId);
+        await restoreTransferredManualGoals(userId);
         await syncExpiredGoalsToMissed(userId);
 
         const rows = await collections.goals()
@@ -587,6 +627,7 @@ router.get('/rollover-prompts', requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
         await migrateLegacyEkagraTasks(userId);
+        await restoreTransferredManualGoals(userId);
         await syncExpiredGoalsToMissed(userId);
         const now = new Date();
 
@@ -675,14 +716,6 @@ router.post('/:id/transfer-to-ekagra', requireAuth, async (req: Request, res) =>
             return res.status(404).json({ message: 'Goal not found or unauthorized' });
         }
 
-        const currentSource = normalizeGoalSource(goal.source) || 'manual';
-        if (currentSource === 'ekagra') {
-            return res.json({
-                message: 'Goal already linked to Ekagra',
-                goal: normalizeGoalResponse(goal),
-            });
-        }
-
         const lifecycleStatus = String(goal.lifecycle_status || 'active').toLowerCase();
         const isArchivedState = lifecycleStatus === 'abandoned' || lifecycleStatus === 'rolled_over';
         const isCompleted = Boolean(goal.completed || goal.completed_at);
@@ -690,30 +723,9 @@ router.post('/:id/transfer-to-ekagra', requireAuth, async (req: Request, res) =>
             return res.status(409).json({ message: 'Completed or archived goals cannot be transferred to Ekagra' });
         }
 
-        const updates: Record<string, unknown> = {
-            source: 'ekagra',
-            imported_from_goal: true,
-        };
-        if (lifecycleStatus === 'missed') {
-            updates.lifecycle_status = 'active';
-            updates.rollover_prompt_pending = false;
-        }
-
-        await collections.goals().updateOne(
-            { id, user_id: userId },
-            {
-                $set: updates,
-            },
-        );
-
-        const updatedGoal = await collections.goals().findOne({ id, user_id: userId });
-        if (!updatedGoal) {
-            return res.status(500).json({ message: 'Failed to transfer goal to Ekagra' });
-        }
-
         return res.json({
-            message: 'Goal transferred to Ekagra',
-            goal: normalizeGoalResponse(updatedGoal),
+            message: 'Goal ready for Ekagra focus',
+            goal: normalizeGoalResponse(goal),
         });
     } catch (error) {
         console.error('Transfer goal to Ekagra error:', error);
@@ -734,7 +746,10 @@ router.post('/:id/revert-from-ekagra-import', requireAuth, async (req: Request, 
         const currentSource = normalizeGoalSource(goal.source) || 'manual';
         const importedFromGoal = normalizeGoalImportedFromGoal(goal.imported_from_goal);
         if (currentSource !== 'ekagra' || !importedFromGoal) {
-            return res.status(409).json({ message: 'Goal is not an imported Ekagra goal' });
+            return res.json({
+                message: 'Goal is already manual',
+                goal: normalizeGoalResponse(goal),
+            });
         }
 
         if (goal.completed) {
@@ -745,10 +760,11 @@ router.post('/:id/revert-from-ekagra-import', requireAuth, async (req: Request, 
             { id, user_id: userId },
             {
                 $set: {
-                    source: 'manual',
-                    imported_from_goal: false,
-                },
+                source: 'manual',
+                imported_from_goal: false,
+                completed_via_focus: Boolean(goal.completed || goal.completed_at),
             },
+        },
         );
 
         const updatedGoal = await collections.goals().findOne({ id, user_id: userId });
@@ -870,6 +886,7 @@ router.post('/', requireAuth, async (req: Request, res) => {
             lifecycle_status: 'active' as GoalLifecycleStatus,
             rollover_prompt_pending: false,
             imported_from_goal: false,
+            completed_via_focus: false,
             goal_kind: normalizedGoalKind,
             unit_type: normalizedUnitType,
             execution_mode: normalizedExecutionMode,
@@ -943,6 +960,7 @@ router.post('/:id/rollover-action', requireAuth, async (req: Request, res) => {
                 lifecycle_status: 'active' as GoalLifecycleStatus,
                 rollover_prompt_pending: false,
                 imported_from_goal: normalizeGoalImportedFromGoal(goal.imported_from_goal),
+                completed_via_focus: false,
                 goal_kind: getGoalKindFromRecord(goal),
                 unit_type: getGoalUnitTypeFromRecord(goal),
                 execution_mode: getGoalExecutionModeFromRecord(goal),
@@ -1203,9 +1221,11 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
             if (normalizedStatus === 'completed') {
                 updates.completed = true;
                 updates.completed_at = new Date();
+                updates.completed_via_focus = false;
             } else if (goal.completed) {
                 updates.completed = false;
                 updates.completed_at = null;
+                updates.completed_via_focus = false;
             }
         }
 
@@ -1264,6 +1284,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         const lifecycleStatus: GoalLifecycleStatus = completed ? 'active' : (goal.lifecycle_status || 'active');
         updates.completed = completed;
         updates.completed_at = completedAt;
+        updates.completed_via_focus = false;
         updates.lifecycle_status = lifecycleStatus;
         updates.rollover_prompt_pending = false;
         if (completed) {
@@ -1466,6 +1487,7 @@ router.post('/repeat-plan', requireAuth, async (req: Request, res) => {
                 lifecycle_status: 'active' as GoalLifecycleStatus,
                 rollover_prompt_pending: false,
                 imported_from_goal: normalizeGoalImportedFromGoal(goal.imported_from_goal),
+                completed_via_focus: false,
                 goal_kind: getGoalKindFromRecord(goal),
                 unit_type: getGoalUnitTypeFromRecord(goal),
                 execution_mode: getGoalExecutionModeFromRecord(goal),
@@ -1540,6 +1562,7 @@ router.post('/:id/repeat', requireAuth, async (req: Request, res) => {
             lifecycle_status: 'active' as GoalLifecycleStatus,
             rollover_prompt_pending: false,
             imported_from_goal: normalizeGoalImportedFromGoal(sourceGoal.imported_from_goal),
+            completed_via_focus: false,
             goal_kind: getGoalKindFromRecord(sourceGoal),
             unit_type: getGoalUnitTypeFromRecord(sourceGoal),
             execution_mode: getGoalExecutionModeFromRecord(sourceGoal),

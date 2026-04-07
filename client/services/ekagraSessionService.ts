@@ -5,10 +5,7 @@ import { dataService } from "@/utils/dataService";
  * Session rules:
  * - Only one Ekagra session can be active at a time.
  * - Open sessions are only "active" or "paused".
- * - Imported goal activation can conflict with an already active session.
- * - Conflict modal decides:
- *   - No: revert imported goal back to manual.
- *   - Yes: pause current active session, activate imported goal session.
+ * - Goals stay in the Goals domain and sessions only link to them by goalId.
  * - Completed/discarded sessions leave the open-session list.
  * - Refresh should restore timer snapshot from persisted session state.
  */
@@ -145,8 +142,3 @@ export const completeSession = async (
 export const discardSession = async (sessionId: string) => {
     return dataService.discardEkagraSession(sessionId);
 };
-
-export const revertImportedGoal = async (goalId: string) => {
-    return dataService.revertImportedGoalFromEkagra(goalId);
-};
-

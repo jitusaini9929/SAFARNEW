@@ -189,30 +189,6 @@ export const dataService = {
         };
     },
 
-    async transferGoalToEkagra(goalId: string): Promise<Goal> {
-        const res = await apiFetch(`${API_URL}/goals/${encodeURIComponent(goalId)}/transfer-to-ekagra`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-        });
-        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to transfer goal to Ekagra"));
-        const data = await res.json();
-        if (!data?.goal) throw new Error("Missing transferred goal in response");
-        return data.goal as Goal;
-    },
-
-    async revertImportedGoalFromEkagra(goalId: string): Promise<Goal> {
-        const res = await apiFetch(`${API_URL}/goals/${encodeURIComponent(goalId)}/revert-from-ekagra-import`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-        });
-        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to revert imported goal"));
-        const data = await res.json();
-        if (!data?.goal) throw new Error("Missing reverted goal in response");
-        return data.goal as Goal;
-    },
-
     async getEkagraSessions(options?: { forceFresh?: boolean }): Promise<EkagraModeSession[]> {
         return withReadCache(EKAGRA_SESSIONS_CACHE_KEY, 8000, Boolean(options?.forceFresh), async () => {
             const res = await apiFetch(`${API_URL}/ekagra-sessions`, {

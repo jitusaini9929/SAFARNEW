@@ -376,6 +376,17 @@ export default function StudyWithMe() {
         }
     }, [status, user?.id]);
 
+    const refreshEkagraTasksFromServer = useCallback(async () => {
+        if (status !== "authenticated" || !user?.id) return;
+
+        try {
+            const goals = await dataService.getGoals();
+            setTasks(extractEkagraTasks(goals));
+        } catch (error) {
+            console.error("Refresh Ekagra tasks error:", error);
+        }
+    }, [status, user?.id]);
+
     // Audio/Video refs and states
     const videoRef = useRef<HTMLVideoElement>(null);
     const [customTimerInput, setCustomTimerInput] = useState("");
@@ -515,6 +526,7 @@ export default function StudyWithMe() {
                     runtimeSessionIdRef.current = null;
                     setRuntimeActiveSessionId(null);
                     await refreshRuntimeSessions();
+                    await refreshEkagraTasksFromServer();
                 } catch (error) {
                     console.error("Auto-complete Ekagra session error:", error);
                 }
@@ -522,7 +534,7 @@ export default function StudyWithMe() {
         }
 
         const taskToComplete = currentTask;
-        if (taskToComplete && !isNamedSession) {
+        if (taskToComplete && !isNamedSession && (status !== "authenticated" || !runtimeSessionId || !user?.id)) {
             const completedAt = new Date().toISOString();
             updateTasks((prev) =>
                 prev.map(task =>
@@ -532,16 +544,22 @@ export default function StudyWithMe() {
             setCompletedTask(null);
             setAwaitingProceed(false);
             setShowDurationPrompt(false);
-            if (associatedGoalId && !isNamedSession) {
-                setAssociatedGoal(null, null);
-            }
         }
+
+        if (associatedGoalId && !isNamedSession) {
+            setAssociatedGoal(null, null);
+        }
+
+        // A timer hitting zero should behave like a finished session, not a paused 00:00 state.
+        resetTimer();
     }, [
         associatedGoalId,
         currentTask,
         mode,
+        refreshEkagraTasksFromServer,
         refreshRuntimeSessions,
         remainingSeconds,
+        resetTimer,
         runtimeActiveSessionId,
         runtimeSessions,
         setAssociatedGoal,
@@ -865,12 +883,14 @@ export default function StudyWithMe() {
                 runtimeSessionIdRef.current = null;
                 setRuntimeActiveSessionId(null);
                 await refreshRuntimeSessions();
+                await refreshEkagraTasksFromServer();
             } catch (error) {
                 console.error("Complete Ekagra session error:", error);
+                return;
             }
         }
 
-        if (!isNamedSession) {
+        if (!isNamedSession && (status !== "authenticated" || !runtimeSessionId || !user?.id)) {
             const goalIdToComplete = runtimeGoalId && !runtimeGoalId.startsWith("named:")
                 ? runtimeGoalId
                 : currentTask?.id;
@@ -911,6 +931,7 @@ export default function StudyWithMe() {
         associatedGoalId,
         currentTask,
         isRunning,
+        refreshEkagraTasksFromServer,
         refreshRuntimeSessions,
         remainingSeconds,
         resetTimer,
@@ -923,22 +944,6 @@ export default function StudyWithMe() {
         totalSeconds,
         user?.id,
     ]);
-
-    const handleCompleteSessionGoal = useCallback(async (goalId: string, completedAt: string, _sessionStatus: string) => {
-        if (status !== "authenticated" || !user?.id) return;
-
-        try {
-            await dataService.updateGoal(goalId, true, completedAt);
-            setTasks((prev) => sortTasks(prev.map((task) =>
-                task.id === goalId ? { ...task, completed: true, completedAt } : task
-            )));
-            if (associatedGoalId === goalId) {
-                setAssociatedGoal(null, null);
-            }
-        } catch (error) {
-            console.error("Complete Ekagra task from session error:", error);
-        }
-    }, [associatedGoalId, setAssociatedGoal, status, user?.id]);
 
     const handleCreateSessionFromOverlay = useCallback(async (title: string) => {
         await handleManualTaskAdd(title);
@@ -1078,16 +1083,6 @@ export default function StudyWithMe() {
         if (status !== "authenticated" || !user?.id) return;
 
         try {
-            if (sessionId.startsWith("planned-imported-")) {
-                const goalId = sessionId.slice("planned-imported-".length).trim();
-                if (goalId) {
-                    await dataService.revertImportedGoalFromEkagra(goalId);
-                    const refreshedGoals = await dataService.getGoals();
-                    setTasks(extractEkagraTasks(refreshedGoals));
-                }
-                return;
-            }
-
             const wasRuntimeSession = (runtimeSessionIdRef.current || runtimeActiveSessionId) === sessionId;
             await dataService.deleteEkagraSession(sessionId);
             if (wasRuntimeSession) {
@@ -1115,19 +1110,6 @@ export default function StudyWithMe() {
             toggleTimer();
         }
     }, [currentTask, isRunning, mode, toggleTimer]);
-
-    const handleSelectPlannedSessionGoal = useCallback(async (goalId: string, goalTitle: string) => {
-        const safeGoalId = String(goalId || "").trim();
-        if (!safeGoalId) return;
-
-        const taskTitle = tasks.find((task) => task.id === safeGoalId)?.text || "";
-        const safeGoalTitle = String(goalTitle || taskTitle || "").trim() || null;
-
-        setAssociatedGoal(safeGoalId, safeGoalTitle);
-        if (mode !== "Timer") {
-            setMode("Timer");
-        }
-    }, [mode, setAssociatedGoal, setMode, tasks]);
 
     const handleStartNamedSession = useCallback(async (title: string) => {
         const sessionTitle = String(title || "").trim();
@@ -1674,19 +1656,15 @@ export default function StudyWithMe() {
             <TasksSidebar
                 isOpen={isTasksOpen}
                 onClose={() => setIsTasksOpen(false)}
-                tasks={tasks}
-                onTasksChange={persistTasks}
                 sessions={runtimeSessions}
                 activeSessionId={runtimeActiveSessionId}
                 liveSessionPreview={liveSessionPreview}
                 onResumeSession={handleResumeSession}
                 onDiscardSession={handleDiscardSession}
                 onDeleteSession={handleDeleteSession}
-                onCompleteSessionGoal={handleCompleteSessionGoal}
                 onPauseLiveSession={handlePauseLiveSession}
                 onCompleteLiveSession={handleCompleteCurrentTask}
                 onSwitchLiveSession={handleSwitchLiveSession}
-                onSelectPlannedSessionGoal={handleSelectPlannedSessionGoal}
                 onCreateSession={handleCreateSessionFromOverlay}
                 sessionOverlayTrigger={sessionOverlayTrigger}
             />
@@ -1702,14 +1680,7 @@ export default function StudyWithMe() {
                         <div className="w-full max-w-2xl mb-4 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 text-white backdrop-blur-md shadow-lg">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Linked Goal</div>
-                                        {linkedGoalTask?.importedFromGoal && (
-                                            <span className="inline-flex items-center rounded-full border border-emerald-200/40 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-100">
-                                                Imported from Goals
-                                            </span>
-                                        )}
-                                    </div>
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Linked Goal</div>
                                     <div className="mt-1 flex items-center gap-2 text-sm font-semibold">
                                         <Target className="h-4 w-4 shrink-0" />
                                         <span className="truncate">{associatedGoalTitle}</span>

@@ -139,6 +139,142 @@ const normalizeTaskLabel = (raw: unknown) => {
     return value;
 };
 
+const getSessionGoalId = (doc: any) => String(doc?.goal_id || doc?.goalId || "").trim();
+
+const isNamedSessionRecord = (doc: any) => {
+    const goalId = getSessionGoalId(doc);
+    const sessionType = normalizeSessionType(doc?.session_type ?? doc?.sessionType);
+    return sessionType === "named" || goalId.startsWith("named:");
+};
+
+const normalizeAnalyticsSessionType = (raw: unknown, fallbackMode?: unknown): AnalyticsSessionType => {
+    const value = String(raw || "").trim().toLowerCase();
+    if (value === "short_break") return "short_break";
+    if (value === "long_break") return "long_break";
+    if (value === "focus") return "focus";
+    return toSessionType(normalizeMode(fallbackMode));
+};
+
+const getAssociatedGoalId = (doc: any) => {
+    const value = String(doc?.associated_goal_id || "").trim();
+    return value || null;
+};
+
+const getAnalyticsStartedAt = (doc: any) =>
+    getSessionTimestamp(doc, ["started_at", "session_started_at", "created_at"]);
+
+const getAnalyticsEndedAt = (doc: any) =>
+    getSessionTimestamp(doc, ["completed_at", "ended_at", "updated_at", "created_at"]);
+
+const getAnalyticsActualMinutes = (doc: any, sessionType: AnalyticsSessionType) => {
+    if (sessionType === "focus") {
+        return Math.max(0, Math.round(Number(doc?.actual_duration_minutes ?? doc?.duration_minutes ?? 0)));
+    }
+    return Math.max(0, Math.round(Number(doc?.break_minutes ?? 0)));
+};
+
+const getAnalyticsPlannedMinutes = (doc: any, sessionType: AnalyticsSessionType) => {
+    const planned = Number(doc?.planned_duration_minutes);
+    if (Number.isFinite(planned) && planned >= 0) {
+        return Math.round(planned);
+    }
+    const fallback = sessionType === "focus"
+        ? Number(doc?.actual_duration_minutes ?? doc?.duration_minutes ?? 0)
+        : Number(doc?.break_minutes ?? 0);
+    return Math.max(0, Math.round(Number.isFinite(fallback) ? fallback : 0));
+};
+
+const getAnalyticsPauseCount = (doc: any) => Math.max(0, Math.round(Number(doc?.pause_count ?? 0)));
+
+const getAnalyticsTaskTitle = (doc: any, linkedGoalTitleMap?: Map<string, string | null>) => {
+    const associatedGoalId = getAssociatedGoalId(doc);
+    const linkedGoalTitle = associatedGoalId && linkedGoalTitleMap ? linkedGoalTitleMap.get(associatedGoalId) : null;
+    return normalizeTaskLabel(doc?.task_title || doc?.session_title || doc?.goal_title || linkedGoalTitle) || null;
+};
+
+const getAnalyticsSortTimestamp = (doc: any) => {
+    const endedAt = getAnalyticsEndedAt(doc);
+    return endedAt ? endedAt.getTime() : 0;
+};
+
+const upsertFocusLogFromEkagraSession = async (
+    userId: string,
+    session: any,
+    options: {
+        mode: EkagraTimerMode;
+        plannedTotalSeconds: number;
+        elapsedSeconds: number;
+        completedAt: Date;
+        sessionStartedAt: Date | null;
+    },
+) => {
+    const sourceSessionId = String(session?.id || "").trim();
+    if (!sourceSessionId) return;
+
+    const existing = await collections.focusSessions().findOne(
+        { user_id: userId, source_session_id: sourceSessionId },
+        { projection: { id: 1 } },
+    );
+    if (existing?.id) return existing.id;
+
+    const sessionType = toSessionType(options.mode);
+    const plannedMinutes = Math.max(0, Math.round(options.plannedTotalSeconds / 60));
+    const elapsedMinutes = Math.max(0, Math.round(options.elapsedSeconds / 60));
+    const isNamedSession = isNamedSessionRecord(session);
+    const associatedGoalId = !isNamedSession ? getSessionGoalId(session) || null : null;
+    const taskTitle = normalizeTaskLabel(session?.session_title || session?.goal_title) || null;
+    const startedAt = options.sessionStartedAt
+        || parseIso(session?.session_started_at)
+        || parseIso(session?.created_at)
+        || options.completedAt;
+
+    const focusMinutes = sessionType === "focus" ? elapsedMinutes : 0;
+    const breakMinutes = sessionType === "focus" ? 0 : elapsedMinutes;
+    const logId = uuidv4();
+    const dateKey = toLocalDayKey(options.completedAt);
+
+    await collections.focusSessions().insertOne({
+        id: logId,
+        user_id: userId,
+        duration_minutes: focusMinutes,
+        actual_duration_minutes: focusMinutes,
+        planned_duration_minutes: plannedMinutes,
+        break_minutes: breakMinutes,
+        completed: true,
+        associated_goal_id: associatedGoalId,
+        interrupted: false,
+        started_at: startedAt,
+        completed_at: options.completedAt,
+        pause_count: getAnalyticsPauseCount(session),
+        task_title: taskTitle,
+        session_type: sessionType,
+        timer_mode: options.mode,
+        source_session_id: sourceSessionId,
+        session_domain: "ekagra",
+        created_at: options.completedAt,
+    });
+
+    await collections.focusSessionLogs().insertOne({
+        id: uuidv4(),
+        user_id: userId,
+        duration_minutes: focusMinutes,
+        associated_goal_id: associatedGoalId,
+        interrupted: false,
+        completed: true,
+        timestamp: options.completedAt,
+        date_key: dateKey,
+        created_at: options.completedAt,
+        pause_count: getAnalyticsPauseCount(session),
+        task_title: taskTitle,
+        session_type: sessionType,
+        timer_mode: options.mode,
+        source_session_id: sourceSessionId,
+        session_domain: "ekagra",
+    });
+
+    return logId;
+};
+
 const normalizeSessionResponse = (doc: any) => {
     const createdAt = doc?.created_at instanceof Date ? doc.created_at : new Date(doc?.created_at || Date.now());
     const updatedAt = doc?.updated_at instanceof Date ? doc.updated_at : new Date(doc?.updated_at || Date.now());
@@ -222,15 +358,7 @@ router.get("/", requireAuth, async (req: Request, res) => {
             .limit(LIST_LIMIT)
             .maxTimeMS(QUERY_TIMEOUT_MS)
             .toArray();
-
-        const recentClosed = await collections.ekagraModeSessions()
-            .find({ user_id: userId, status: { $in: ["completed", "ended_early", "discarded"] } })
-            .sort({ updated_at: -1 })
-            .limit(RECENT_CLOSED_LIMIT)
-            .maxTimeMS(QUERY_TIMEOUT_MS)
-            .toArray();
-
-        const sessions = [...openSessions, ...recentClosed].map(normalizeSessionResponse);
+        const sessions = openSessions.map(normalizeSessionResponse);
         res.json({ sessions });
     } catch (error) {
         console.error("Get Ekagra sessions error:", error);
@@ -252,34 +380,48 @@ router.get("/active", requireAuth, async (req: Request, res) => {
 router.get("/analytics", requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
-        const docs = await collections.ekagraModeSessions()
+        const docs = await collections.focusSessions()
             .find(
-                {
-                    user_id: userId,
-                    status: { $in: ["completed", "ended_early"] },
-                },
+                { user_id: userId },
                 {
                     projection: {
                         _id: 0,
                         id: 1,
-                        mode: 1,
-                        status: 1,
-                        goal_title: 1,
-                        session_title: 1,
+                        associated_goal_id: 1,
+                        task_title: 1,
                         session_type: 1,
-                        total_seconds: 1,
-                        remaining_seconds: 1,
+                        timer_mode: 1,
+                        planned_duration_minutes: 1,
+                        duration_minutes: 1,
+                        actual_duration_minutes: 1,
+                        break_minutes: 1,
                         pause_count: 1,
-                        session_started_at: 1,
-                        ended_at: 1,
+                        started_at: 1,
                         completed_at: 1,
-                        updated_at: 1,
                         created_at: 1,
                     },
                 },
             )
             .maxTimeMS(QUERY_TIMEOUT_MS)
             .toArray();
+
+        const linkedGoalIds = Array.from(new Set(
+            docs
+                .map((doc) => getAssociatedGoalId(doc))
+                .filter((goalId): goalId is string => Boolean(goalId)),
+        ));
+        const linkedGoals = linkedGoalIds.length > 0
+            ? await collections.goals()
+                .find(
+                    { user_id: userId, id: { $in: linkedGoalIds } },
+                    { projection: { id: 1, title: 1, text: 1 } },
+                )
+                .maxTimeMS(QUERY_TIMEOUT_MS)
+                .toArray()
+            : [];
+        const linkedGoalTitleMap = new Map<string, string | null>(
+            linkedGoals.map((goal) => [String(goal.id || ""), normalizeTaskLabel(goal.title || goal.text) || null]),
+        );
 
         const weeklyData = [0, 0, 0, 0, 0, 0, 0];
         const weeklyBreaks = [0, 0, 0, 0, 0, 0, 0];
@@ -300,7 +442,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
         let totalBreakMinutes = 0;
         let totalSessions = 0;
         let completedSessions = 0;
-        let endedEarlySessions = 0;
+        const endedEarlySessions = 0;
 
         const recentRows: Array<{
             id: string;
@@ -311,6 +453,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
             completed: boolean;
             status: "completed";
             taskText: string | null;
+            associatedGoalId: string | null;
             pauseCount: number;
             sessionType: AnalyticsSessionType;
             sortTs: number;
@@ -324,115 +467,103 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
             status: "completed";
             rawStatus: AnalyticsClosedStatus;
             taskText: string | null;
+            associatedGoalId: string | null;
             pauseCount: number;
             sortTs: number;
         }> = [];
 
         for (const doc of docs) {
-            const status = normalizeStatus(doc?.status);
-            if (!status) continue;
-
-            const mode = normalizeMode(doc?.mode);
-            const sessionType = toSessionType(mode);
-            const durationMinutes = toDurationMinutes(doc);
-            const endedAt = getSessionTimestamp(doc, ["ended_at", "completed_at", "updated_at", "created_at"]);
+            const sessionType = normalizeAnalyticsSessionType(doc?.session_type, doc?.timer_mode);
+            const durationMinutes = getAnalyticsPlannedMinutes(doc, sessionType);
+            const actualMinutes = getAnalyticsActualMinutes(doc, sessionType);
+            const endedAt = getAnalyticsEndedAt(doc);
             if (!endedAt) continue;
-
-            const actualSeconds = toActualSeconds(doc);
-            const actualMinutes = toActualMinutes(doc);
-            const isClosedStatus = status === "completed" || status === "ended_early";
-
-            const startedAt = getSessionTimestamp(doc, ["session_started_at", "created_at"]);
+            const startedAt = getAnalyticsStartedAt(doc);
             const localDayKey = toLocalDayKey(endedAt);
+            const associatedGoalId = getAssociatedGoalId(doc);
+            const taskLabel = getAnalyticsTaskTitle(doc, linkedGoalTitleMap);
+            const pauseCount = getAnalyticsPauseCount(doc);
 
             if (sessionType === "focus") {
-                if (durationMinutes > 0) {
-                    timerUsageCount += 1;
-                    plannedFocusMinutesTotal += durationMinutes;
-                    focusDurationUsageMap.set(durationMinutes, (focusDurationUsageMap.get(durationMinutes) || 0) + 1);
-                    if (durationMinutes >= 60) {
-                        longDurationSessionCount += 1;
-                    }
+                timerUsageCount += 1;
+                totalSessions += 1;
+                completedSessions += 1;
+                completedFocusDaySet.add(localDayKey);
+                plannedFocusMinutesTotal += durationMinutes;
+                focusDurationUsageMap.set(durationMinutes, (focusDurationUsageMap.get(durationMinutes) || 0) + 1);
+                if (durationMinutes >= 60) {
+                    longDurationSessionCount += 1;
                 }
 
-                if (isClosedStatus && actualSeconds > 0) {
-                    totalFocusMinutes += actualMinutes;
-                    // Legacy ended_early sessions are treated as completed in new model.
-                    completedSessions += 1;
-                    completedFocusDaySet.add(localDayKey);
-
+                totalFocusMinutes += actualMinutes;
+                if (actualMinutes > 0) {
                     const hourBucket = getLocalHourBucket(endedAt);
                     if (hourBucket >= 0 && hourBucket <= 23) {
                         hourlyDistribution[hourBucket] += actualMinutes;
                     }
+                }
 
-                    const taskLabel = normalizeTaskLabel(doc?.session_title || doc?.goal_title) || "Unlabeled";
-                    const taskEntry = topTaskMap.get(taskLabel) || { label: taskLabel, minutes: 0, count: 0 };
-                    taskEntry.minutes += actualMinutes;
-                    taskEntry.count += 1;
-                    topTaskMap.set(taskLabel, taskEntry);
+                const taskEntry = topTaskMap.get(taskLabel || "Unlabeled") || {
+                    label: taskLabel || "Unlabeled",
+                    minutes: 0,
+                    count: 0,
+                };
+                taskEntry.minutes += actualMinutes;
+                taskEntry.count += 1;
+                topTaskMap.set(taskEntry.label, taskEntry);
 
-                    if (last7DayKeySet.has(localDayKey)) {
-                        const weekdayIndex = getLocalWeekdayIndex(endedAt);
-                        weeklyData[weekdayIndex] += actualMinutes;
-                    }
+                if (last7DayKeySet.has(localDayKey)) {
+                    const weekdayIndex = getLocalWeekdayIndex(endedAt);
+                    weeklyData[weekdayIndex] += actualMinutes;
                 }
             } else {
-                if (durationMinutes > 0) {
-                    breakSessionsCount += 1;
-                    if (sessionType === "short_break") shortBreakSessionsCount += 1;
-                    if (sessionType === "long_break") longBreakSessionsCount += 1;
-                }
-                if (actualMinutes > 0) {
-                    totalBreakMinutes += actualMinutes;
-                    if (last7DayKeySet.has(localDayKey)) {
-                        const weekdayIndex = getLocalWeekdayIndex(endedAt);
-                        weeklyBreaks[weekdayIndex] += actualMinutes;
-                    }
+                breakSessionsCount += 1;
+                if (sessionType === "short_break") shortBreakSessionsCount += 1;
+                if (sessionType === "long_break") longBreakSessionsCount += 1;
+                totalBreakMinutes += actualMinutes;
+                if (last7DayKeySet.has(localDayKey)) {
+                    const weekdayIndex = getLocalWeekdayIndex(endedAt);
+                    weeklyBreaks[weekdayIndex] += actualMinutes;
                 }
             }
 
-            if (durationMinutes > 0) {
-                const usageKey = `${sessionType}:${durationMinutes}`;
-                const usageEntry = durationUsageMap.get(usageKey)
-                    || { durationMinutes, count: 0, sessionType };
-                usageEntry.count += 1;
-                durationUsageMap.set(usageKey, usageEntry);
-            }
+            const usageKey = `${sessionType}:${durationMinutes}`;
+            const usageEntry = durationUsageMap.get(usageKey)
+                || { durationMinutes, count: 0, sessionType };
+            usageEntry.count += 1;
+            durationUsageMap.set(usageKey, usageEntry);
 
-            if (isClosedStatus && actualSeconds > 0) {
-                recentRows.push({
+            recentRows.push({
+                id: String(doc?.id || ""),
+                startedAt: startedAt ? startedAt.toISOString() : null,
+                endedAt: endedAt.toISOString(),
+                durationMinutes,
+                actualMinutes,
+                completed: true,
+                status: "completed",
+                taskText: taskLabel,
+                associatedGoalId,
+                pauseCount,
+                sessionType,
+                sortTs: getAnalyticsSortTimestamp(doc),
+            });
+
+            if (sessionType === "focus") {
+                focusSessionRows.push({
                     id: String(doc?.id || ""),
                     startedAt: startedAt ? startedAt.toISOString() : null,
                     endedAt: endedAt.toISOString(),
                     durationMinutes,
                     actualMinutes,
-                    completed: status === "completed",
                     status: "completed",
-                    taskText: normalizeTaskLabel(doc?.session_title || doc?.goal_title) || null,
-                    pauseCount: Math.max(0, Number(doc?.pause_count || 0)),
-                    sessionType,
-                    sortTs: getSessionSortTimestamp(doc),
+                    rawStatus: "completed",
+                    taskText: taskLabel,
+                    associatedGoalId,
+                    pauseCount,
+                    sortTs: getAnalyticsSortTimestamp(doc),
                 });
-
-                if (sessionType === "focus") {
-                    focusSessionRows.push({
-                        id: String(doc?.id || ""),
-                        startedAt: startedAt ? startedAt.toISOString() : null,
-                        endedAt: endedAt.toISOString(),
-                        durationMinutes,
-                        actualMinutes,
-                        status: "completed",
-                        rawStatus: status,
-                        taskText: normalizeTaskLabel(doc?.session_title || doc?.goal_title) || null,
-                        pauseCount: Math.max(0, Number(doc?.pause_count || 0)),
-                        sortTs: getSessionSortTimestamp(doc),
-                    });
-                }
             }
         }
-
-        totalSessions = timerUsageCount;
 
         let focusStreak = 0;
         const maxStreakWindow = 3650;
@@ -522,10 +653,11 @@ router.post("/activate", requireAuth, async (req: Request, res) => {
             if (!goal) {
                 return res.status(404).json({ message: "Goal not found or unauthorized" });
             }
-            const goalSource = String(goal.source || "").toLowerCase();
-            const linkedFocusEnabled = Boolean(goal.linked_focus_enabled ?? goal.linkedFocusEnabled);
-            if (goalSource !== "ekagra" && !linkedFocusEnabled) {
-                return res.status(409).json({ message: "Only Ekagra goals can be activated in Ekagra sessions" });
+            const lifecycleStatus = String(goal.lifecycle_status || goal.lifecycleStatus || "active").toLowerCase();
+            const isArchived = lifecycleStatus === "abandoned" || lifecycleStatus === "rolled_over";
+            const isCompleted = Boolean(goal.completed || goal.completed_at || goal.completedAt);
+            if (isCompleted || isArchived) {
+                return res.status(409).json({ message: "Completed or archived goals cannot be focused in Ekagra" });
             }
         }
 
@@ -751,13 +883,13 @@ router.post("/:id/complete", requireAuth, async (req: Request, res) => {
             elapsedSeconds = Math.max(0, plannedTotalSeconds - Math.max(0, Math.round(payloadRemainingSeconds)));
         }
 
-        const status: EkagraSessionStatus = "completed";
         const normalizedElapsedSeconds = Math.max(0, Math.min(24 * 60 * 60, elapsedSeconds));
         const remainingSeconds = Math.max(0, plannedTotalSeconds - normalizedElapsedSeconds);
         const resolvedMode = normalizeMode(req.body?.mode ?? session.mode);
         const now = new Date();
-        const updates = {
-            status,
+        const completedDoc = {
+            ...session,
+            status: "completed" as EkagraSessionStatus,
             mode: resolvedMode,
             total_seconds: plannedTotalSeconds,
             remaining_seconds: remainingSeconds,
@@ -768,27 +900,44 @@ router.post("/:id/complete", requireAuth, async (req: Request, res) => {
             ended_at: now,
         };
 
-        await collections.ekagraModeSessions().updateOne({ id, user_id: userId }, { $set: updates });
+        await upsertFocusLogFromEkagraSession(userId, completedDoc, {
+            mode: resolvedMode,
+            plannedTotalSeconds,
+            elapsedSeconds: normalizedElapsedSeconds,
+            completedAt: now,
+            sessionStartedAt: parseIso(req.body?.sessionStartedAt) || parseIso(session.session_started_at) || parseIso(session.created_at),
+        });
 
-        // Ensure linked Ekagra goal is marked complete whenever session ends via complete endpoint.
-        const goalId = String(session.goal_id || "").trim();
+        const goalId = getSessionGoalId(session);
         if (resolvedMode === "Timer" && goalId && !goalId.startsWith("named:")) {
+            const linkedGoal = await collections.goals().findOne(
+                { id: goalId, user_id: userId },
+                { projection: { unit_type: 1, target_value: 1, achieved_value: 1 } },
+            );
+            const goalUpdates: Record<string, unknown> = {
+                completed: true,
+                completed_at: now,
+                completed_via_focus: true,
+                status_value: "completed",
+                lifecycle_status: "active",
+                updated_at: now,
+            };
+            const targetValue = Number(linkedGoal?.target_value);
+            const achievedValue = Number(linkedGoal?.achieved_value);
+            if (Number.isFinite(targetValue) && targetValue >= 0) {
+                goalUpdates.achieved_value = Math.max(targetValue, Number.isFinite(achievedValue) ? achievedValue : 0);
+            } else if (String(linkedGoal?.unit_type || "").trim().toLowerCase() === "binary") {
+                goalUpdates.achieved_value = 1;
+            }
             await collections.goals().updateOne(
                 { id: goalId, user_id: userId },
-                {
-                    $set: {
-                        completed: true,
-                        completed_at: now,
-                        status_value: "completed",
-                        lifecycle_status: "active",
-                        updated_at: now,
-                    },
-                },
+                { $set: goalUpdates },
             );
         }
 
-        const updated = await collections.ekagraModeSessions().findOne({ id, user_id: userId });
-        return res.json({ session: normalizeSessionResponse(updated) });
+        await collections.ekagraModeSessions().deleteOne({ id, user_id: userId });
+
+        return res.json({ session: normalizeSessionResponse(completedDoc) });
     } catch (error) {
         console.error("Complete Ekagra session error:", error);
         return res.status(500).json({ message: "Failed to complete Ekagra session" });
@@ -806,8 +955,9 @@ router.post("/:id/discard", requireAuth, async (req: Request, res) => {
 
         const now = new Date();
 
-        const updates: Record<string, any> = {
-            status: "discarded",
+        const discardedDoc = {
+            ...session,
+            status: "discarded" as EkagraSessionStatus,
             is_running: false,
             ended_at: null,
             completed_at: null,
@@ -815,9 +965,8 @@ router.post("/:id/discard", requireAuth, async (req: Request, res) => {
             updated_at: now,
         };
 
-        await collections.ekagraModeSessions().updateOne({ id, user_id: userId }, { $set: updates });
-        const updated = await collections.ekagraModeSessions().findOne({ id, user_id: userId });
-        return res.json({ session: normalizeSessionResponse(updated) });
+        await collections.ekagraModeSessions().deleteOne({ id, user_id: userId });
+        return res.json({ session: normalizeSessionResponse(discardedDoc) });
     } catch (error) {
         console.error("Discard Ekagra session error:", error);
         return res.status(500).json({ message: "Failed to discard Ekagra session" });

@@ -11,7 +11,6 @@ import {
   formatDateLabel, 
   formatISTDate, 
   getISTMinutesSinceMidnight, 
-  formatTimeFromMinutes,
   diffISTDays
 } from "@/utils/dateUtils";
 import { 
@@ -40,8 +39,6 @@ import {
   GOAL_CARRY_FORWARD_OPTIONS,
   GOAL_STATUS_OPTIONS,
   formatTime,
-  formatDuration,
-  MAX_DAILY_GOAL_DURATION_MS,
   DAY_MS,
   parseValidDate,
   normalizeGoalKind,
@@ -59,10 +56,10 @@ import {
   getStatusBucket,
   getGoalCompletedDate,
   isGoalCompleted,
-  getGoalLifecycleDurationMs,
   getGoalCreatedTime,
-  getGoalCreatedDateKey,
+  getGoalHistoryDateKey,
   getDailyCompletionMetrics,
+  LEGACY_ONE_TIME_GOAL_KIND_OPTION,
 } from "@/utils/goalUtils";
 
 const MAX_COMPLETED_DISPLAY = 5;
@@ -129,7 +126,6 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
 
 const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideActions = false, hideMeta = false, createdMeta }: any) => {
   const { t } = useTranslation();
-  const durationMs = goal.source !== "ekagra" ? getGoalLifecycleDurationMs(goal) : null;
   const completedAt = getGoalCompletedDate(goal);
   const completedDateLabel = completedAt ? formatDateLabel(completedAt.toISOString()) : "";
   const completedTimeLabel = completedAt ? formatTime(completedAt) : "";
@@ -139,6 +135,7 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
   const achievedValue = normalizeAchievedValue(goal);
   const status = normalizeGoalStatus(goal);
   const linkedFocusEnabled = Boolean(goal.linkedFocusEnabled ?? (goal as any).linked_focus_enabled);
+  const showProgress = unitType !== "binary" && (unitType === "checklist" || targetValue !== null);
   
   const primaryMeta = goal.completed
     ? completedTimeLabel
@@ -146,10 +143,7 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
       : t("goals.meta.completed", { date: completedDateLabel })
     : (goal.scheduledDate ? t("goals.meta.due", { date: formatDateLabel(goal.scheduledDate) }) : "");
 
-  const secondaryMeta = goal.completed && durationMs
-    ? t("goals.meta.took", { duration: formatDuration(durationMs) })
-    : "";
-  const metaPieces = [primaryMeta, secondaryMeta, createdMeta].filter(Boolean);
+  const metaPieces = [primaryMeta, createdMeta].filter(Boolean);
 
   return (
     <div className={`p-4 rounded-xl transition-all duration-200 group flex items-start gap-4 
@@ -196,7 +190,7 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
             {goal.description}
           </p>
         )}
-        {unitType !== "binary" && (
+        {showProgress && (
           <p className="text-[11px] text-muted-foreground mt-2">
             {targetValue !== null
               ? `Progress ${achievedValue} / ${targetValue}${unitType === "duration_minutes" ? " min" : ""}`
@@ -256,8 +250,14 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   const [desc, setDesc] = useState(goal?.description || "");
   const [goalKind, setGoalKind] = useState<GoalKind>(() => {
     const raw = String(goal?.goalKind || goal?.goal_kind || "").trim();
-    return raw === "one_time" || raw === "today" || raw === "repeat" ? (raw as GoalKind) : "today";
+    if (isEdit && (raw === "one_time" || raw === "today" || raw === "repeat")) {
+      return raw as GoalKind;
+    }
+    return raw === "repeat" ? "repeat" : "today";
   });
+  const goalKindOptions = isEdit && (goal?.goalKind === "one_time" || goal?.goal_kind === "one_time" || goalKind === "one_time")
+    ? [LEGACY_ONE_TIME_GOAL_KIND_OPTION, ...GOAL_KIND_OPTIONS]
+    : GOAL_KIND_OPTIONS;
   const [unitType, setUnitType] = useState<GoalUnitType>(() => {
     const raw = String(goal?.unitType || goal?.unit_type || "").trim();
     return raw === "binary" || raw === "count" || raw === "duration_minutes" || raw === "checklist"
@@ -316,9 +316,15 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
       .filter((entry: GoalSubtask) => entry.text.length > 0);
   });
   const unitOptions = useMemo(() => {
-    if (goalKind !== "one_time") return GOAL_UNIT_OPTIONS;
-    return GOAL_UNIT_OPTIONS.filter((option) => option.value === "binary" || option.value === "checklist");
-  }, [goalKind]);
+    let options = GOAL_UNIT_OPTIONS;
+    if (isEdit && unitType === "count" && !options.some((option) => option.value === "count")) {
+      options = [...options, { value: "count", label: "By number (count)" }];
+    }
+    if (isEdit && unitType === "checklist" && !options.some((option) => option.value === "checklist")) {
+      options = [...options, { value: "checklist", label: "Checklist points" }];
+    }
+    return options;
+  }, [isEdit, unitType]);
 
   const addSubtask = () => {
     const text = newSubtaskText.trim();
@@ -347,15 +353,6 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   }, [goalKind, isEdit, todayKey]);
 
   useEffect(() => {
-    if (goalKind !== "one_time") return;
-    if (unitType === "count" || unitType === "duration_minutes") {
-      setUnitType("binary");
-      setTargetValue("");
-      setLinkedFocusEnabled(false);
-    }
-  }, [goalKind, unitType]);
-
-  useEffect(() => {
     if (unitType !== "duration_minutes") {
       setLinkedFocusEnabled(false);
       return;
@@ -372,9 +369,15 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
     const effectiveDurationTarget = Number.isFinite(parsedTargetValue) && parsedTargetValue > 0
       ? Math.round(parsedTargetValue)
       : null;
+    const existingTargetValue = isEdit ? Number(goal?.targetValue ?? goal?.target_value ?? null) : null;
+    const existingPlannedMinutes = isEdit ? Number(goal?.plannedFocusMinutes ?? goal?.planned_focus_minutes ?? null) : null;
+    const fallbackDurationTarget = Number.isFinite(existingPlannedMinutes) && existingPlannedMinutes > 0
+      ? Math.round(existingPlannedMinutes)
+      : Number.isFinite(existingTargetValue) && existingTargetValue > 0
+        ? Math.round(existingTargetValue)
+        : null;
 
     if (unitType === "count" && (targetValue === "" || parsedTargetValue < 0)) return;
-    if (unitType === "duration_minutes" && effectiveDurationTarget === null) return;
     const scheduleDateKey = goalKind === "today"
       ? todayKey
       : goalKind === "one_time"
@@ -385,9 +388,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
       : null;
 
     const plannedFocusMinutes = unitType === "duration_minutes"
-      ? Number.isFinite(parsedTargetValue) && parsedTargetValue > 0
-        ? Math.round(parsedTargetValue)
-        : null
+      ? (effectiveDurationTarget ?? fallbackDurationTarget)
       : null;
 
     onSave({
@@ -404,7 +405,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
         unitType === "binary" || unitType === "checklist"
           ? null
           : unitType === "duration_minutes"
-            ? effectiveDurationTarget
+            ? (effectiveDurationTarget ?? fallbackDurationTarget)
             : Number(targetValue),
       achievedValue: achievedValue ? Number(achievedValue) : 0,
       status: isCreate ? "not_started" : status,
@@ -414,12 +415,10 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
         .filter((item) => item.text.length > 0),
     });
   };
-  const requiresTarget = unitType === "count" || unitType === "duration_minutes";
+  const requiresTarget = unitType === "count";
   const parsedTargetForValidation = Number(targetValue);
   const hasValidTarget = !requiresTarget
-    || (unitType === "duration_minutes"
-      ? Number.isFinite(parsedTargetForValidation) && parsedTargetForValidation > 0
-      : targetValue !== "" && parsedTargetForValidation >= 0);
+    || (targetValue !== "" && parsedTargetForValidation >= 0);
   const canSubmit = Boolean(title.trim()) && hasValidTarget;
 
   return (
@@ -434,7 +433,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
           </button>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto overscroll-contain">
+        <div className="overflow-y-auto overflow-x-hidden overscroll-contain p-5 sm:p-6 space-y-5">
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
               What do you want to do?
@@ -461,7 +460,6 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                 <FieldInfo>
                   <ul className="list-disc pl-3 space-y-1 text-muted-foreground">
                     <li><strong className="text-foreground">Today:</strong> sirf aaj ke liye.</li>
-                    <li><strong className="text-foreground">One-time:</strong> jab complete ho tab.</li>
                     <li><strong className="text-foreground">Repeat:</strong> regular basis par karna hai.</li>
                   </ul>
                 </FieldInfo>
@@ -471,14 +469,14 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                 value={goalKind}
                 onChange={(e) => setGoalKind(e.target.value as GoalKind)}
               >
-                {GOAL_KIND_OPTIONS.map((option) => (
+                {goalKindOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
               <p className="text-[11px] text-muted-foreground pl-1">
-                {GOAL_KIND_OPTIONS.find((option) => option.value === goalKind)?.hint}
+                {goalKindOptions.find((option) => option.value === goalKind)?.hint}
               </p>
             </div>
             <div className="space-y-2">
@@ -487,13 +485,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                 <FieldInfo>
                   <ul className="list-disc pl-3 space-y-1.5 text-muted-foreground">
                     <li><strong className="text-foreground">Done/Not done:</strong> bas complete mark.</li>
-                    {goalKind !== "one_time" && (
-                      <li><strong className="text-foreground">Number:</strong> count track hoga.</li>
-                    )}
-                    {goalKind !== "one_time" && (
-                      <li><strong className="text-foreground">Time:</strong> minutes track honge.</li>
-                    )}
-                    <li><strong className="text-foreground">Checklist:</strong> points-wise track.</li>
+                    <li><strong className="text-foreground">Time:</strong> focus timer ke through track hoga.</li>
                   </ul>
                 </FieldInfo>
               </label>
@@ -510,28 +502,6 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
               </select>
             </div>
           </div>
-
-          {(unitType === "count" || unitType === "duration_minutes") && (
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
-                {unitType === "count" ? "Target number" : "Target time (minutes)"}
-                <FieldInfo>
-                  <p>{unitType === "count" ? "Total kitna karna hai wo number do." : "Total focus/study minutes do."}</p>
-                  <p className="text-muted-foreground mt-1">
-                    {unitType === "count" ? "Jaise: 20" : "Jaise: 90 ya 120"}
-                  </p>
-                </FieldInfo>
-              </label>
-              <input
-                type="number"
-                min={0}
-                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                placeholder={unitType === "count" ? "For example, 20" : "For example, 120"}
-                value={targetValue}
-                onChange={(e) => setTargetValue(e.target.value)}
-              />
-            </div>
-          )}
 
           {unitType === "duration_minutes" && (
             <div className="space-y-3 rounded-2xl border bg-amber-500/5 border-amber-500/20 p-4">
@@ -809,10 +779,14 @@ export default function Goals() {
 
   const standardGoals = useMemo(() => goals.filter(g => g.source !== "ekagra"), [goals]);
   const manualCompletedGoals = useMemo(
-    () => standardGoals.filter((goal) => isGoalCompleted(goal)),
+    () =>
+      standardGoals.filter((goal) => {
+        const completedViaFocus = Boolean((goal as any).completedViaFocus ?? (goal as any).completed_via_focus);
+        return isGoalCompleted(goal) && !completedViaFocus;
+      }),
     [standardGoals],
   );
-  const historyGoals = useMemo(() => goals.filter(g => isGoalCompleted(g) || g.source === "ekagra"), [goals]);
+  const historyGoals = useMemo(() => goals.filter((goal) => isGoalCompleted(goal)), [goals]);
   const pendingGoals = useMemo(
     () =>
       standardGoals
@@ -832,7 +806,18 @@ export default function Goals() {
         .slice(0, MAX_COMPLETED_DISPLAY),
     [standardGoals],
   );
-  const filteredHistory = useMemo(() => historyDateFilter ? historyGoals.filter(g => getGoalCreatedDateKey(g) === historyDateFilter) : historyGoals, [historyGoals, historyDateFilter]);
+  const effectiveHistoryDateFilter = historyDateFilter || todayKey;
+  const filteredHistory = useMemo(
+    () =>
+      historyGoals
+        .filter((goal) => getGoalHistoryDateKey(goal) === effectiveHistoryDateFilter)
+        .sort((a, b) => {
+          const aTime = getGoalCompletedDate(a)?.getTime() ?? getGoalCreatedTime(a);
+          const bTime = getGoalCompletedDate(b)?.getTime() ?? getGoalCreatedTime(b);
+          return bTime - aTime;
+        }),
+    [effectiveHistoryDateFilter, historyGoals],
+  );
   const manualCompletedLast7Days = useMemo(
     () =>
       manualCompletedGoals.filter((goal) => {
@@ -844,38 +829,10 @@ export default function Goals() {
       }),
     [manualCompletedGoals, todayKey],
   );
-  const manualTotalLifecycleDurationMs = useMemo(
-    () => manualCompletedLast7Days
-      .map((goal) => getGoalLifecycleDurationMs(goal))
-      .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0)
-      .reduce((sum, value) => sum + value, 0),
-    [manualCompletedLast7Days],
-  );
 
   const handleFocusGoal = async (goal: UIGoal) => {
-    const linkedFocusEnabled = Boolean(goal.linkedFocusEnabled ?? (goal as any).linked_focus_enabled);
     const goalTitle = goal.title || goal.text || "Focus session";
-
-    if (goal.source === "ekagra" || linkedFocusEnabled || normalizeGoalUnitType(goal) === "duration_minutes") {
-      navigate(`/study?goalId=${encodeURIComponent(goal.id)}&goalTitle=${encodeURIComponent(goalTitle)}`);
-      return;
-    }
-
-    try {
-      const transferredGoal = await dataService.transferGoalToEkagra(goal.id);
-      setGoals((prev) => prev.map((entry) => entry.id === goal.id
-        ? {
-            ...entry,
-            source: "ekagra",
-            importedFromGoal: Boolean((transferredGoal as any).importedFromGoal ?? (transferredGoal as any).imported_from_goal),
-          }
-        : entry));
-      const transferTitle = transferredGoal.title || transferredGoal.text || goal.title;
-      navigate(`/study?goalId=${encodeURIComponent(transferredGoal.id)}&goalTitle=${encodeURIComponent(transferTitle)}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t("goals.toast.operation_failed");
-      toast.error(message);
-    }
+    navigate(`/study?goalId=${encodeURIComponent(goal.id)}&goalTitle=${encodeURIComponent(goalTitle)}`);
   };
 
   const todayMetrics = useMemo(
@@ -964,14 +921,10 @@ export default function Goals() {
       })),
     [sevenDaySeries],
   );
-
-  const averageCompletionDuration = useMemo(() => {
-    const values = manualCompletedGoals
-      .map((goal) => getGoalLifecycleDurationMs(goal))
-      .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0);
-    if (values.length === 0) return 0;
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-  }, [manualCompletedGoals]);
+  const timerLinkedGoalsCount = useMemo(
+    () => standardGoals.filter((goal) => Boolean(goal.linkedFocusEnabled ?? (goal as any).linked_focus_enabled)).length,
+    [standardGoals],
+  );
 
   return (
     <NishthaLayout>
@@ -1001,7 +954,7 @@ export default function Goals() {
           </header>
 
           <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-            <div className="flex items-center p-1 bg-muted/50 rounded-2xl border w-full md:w-fit overflow-x-auto no-scrollbar">
+            <div className="grid w-full grid-cols-3 items-center rounded-2xl border bg-muted/50 p-1 md:flex md:w-fit">
               {[
                 { id: "goals", label: t('goals.tab_goals'), icon: Check },
                 { id: "history", label: t('goals.tab_history'), icon: Clock },
@@ -1010,11 +963,11 @@ export default function Goals() {
                 <button
                   key={tabItem.id}
                   onClick={() => setTab(tabItem.id)}
-                  className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-[14px] text-sm font-bold transition-all whitespace-nowrap
+                  className={`min-w-0 flex items-center justify-center gap-2 rounded-[14px] px-3 py-3 text-sm font-bold transition-all sm:px-4 md:flex-none md:px-6
                     ${tab === tabItem.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   <tabItem.icon size={16} />
-                  {tabItem.label}
+                  <span className="truncate">{tabItem.label}</span>
                 </button>
               ))}
             </div>
@@ -1068,71 +1021,24 @@ export default function Goals() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-7 p-8 bg-card border rounded-[32px] shadow-sm">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold flex items-center gap-2"><Calendar className="text-primary w-4 h-4" /> Weekly Growth Pulse</h3>
-                    <span className="text-xs text-muted-foreground">{averageDailyCompletionThisWeek} avg completions/day</span>
-                  </div>
-                  <div className="space-y-3">
-                    {sevenDaySeries.map((entry) => (
-                      <div key={entry.dayKey} className="rounded-2xl border bg-muted/20 p-3">
-                        <div className="flex items-center justify-between text-xs font-semibold mb-2">
-                          <span>{entry.dayLabel}</span>
-                          <span className="text-muted-foreground">{entry.completed}/{entry.total || 0} done</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden mb-2">
-                          <div className="h-full bg-emerald-500 transition-all" style={{ width: `${entry.total > 0 ? Math.round((entry.completed / entry.total) * 100) : 0}%` }} />
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">Average progress: {entry.avgProgress}%</p>
+              <div className="p-8 bg-card border rounded-[32px] shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold flex items-center gap-2"><Calendar className="text-primary w-4 h-4" /> Weekly Growth Pulse</h3>
+                  <span className="text-xs text-muted-foreground">{averageDailyCompletionThisWeek} avg completions/day</span>
+                </div>
+                <div className="space-y-3">
+                  {sevenDaySeries.map((entry) => (
+                    <div key={entry.dayKey} className="rounded-2xl border bg-muted/20 p-3">
+                      <div className="flex items-center justify-between text-xs font-semibold mb-2">
+                        <span>{entry.dayLabel}</span>
+                        <span className="text-muted-foreground">{entry.completed}/{entry.total || 0} done</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="lg:col-span-5 space-y-6">
-                  <div className="p-6 bg-card border rounded-[28px] shadow-sm">
-                    <h4 className="font-bold mb-4">Status Split</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between"><span>Completed</span><span className="font-bold">{statusBreakdown.completed}</span></div>
-                      <div className="flex items-center justify-between"><span>In progress / Open</span><span className="font-bold">{statusBreakdown.open}</span></div>
-                      <div className="flex items-center justify-between"><span>Partial</span><span className="font-bold">{statusBreakdown.partial}</span></div>
-                      <div className="flex items-center justify-between"><span>Missed</span><span className="font-bold">{statusBreakdown.missed}</span></div>
-                      <div className="flex items-center justify-between"><span>Cancelled</span><span className="font-bold">{statusBreakdown.cancelled}</span></div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden mb-2">
+                        <div className="h-full bg-emerald-500 transition-all" style={{ width: `${entry.total > 0 ? Math.round((entry.completed / entry.total) * 100) : 0}%` }} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">Average progress: {entry.avgProgress}%</p>
                     </div>
-                  </div>
-
-                  <div className="p-6 bg-card border rounded-[28px] shadow-sm">
-                    <h4 className="font-bold mb-4">Goal Type Mix</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between"><span>Today</span><span className="font-bold">{kindBreakdown.today}</span></div>
-                      <div className="flex items-center justify-between"><span>One-time</span><span className="font-bold">{kindBreakdown.one_time}</span></div>
-                      <div className="flex items-center justify-between"><span>Repeat</span><span className="font-bold">{kindBreakdown.repeat}</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="p-6 bg-card border rounded-[28px] shadow-sm">
-                  <h4 className="font-bold mb-4">Tracking Method Insights</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between"><span>Done / Not done</span><span className="font-bold">{unitBreakdown.binary}</span></div>
-                    <div className="flex items-center justify-between"><span>Number based</span><span className="font-bold">{unitBreakdown.count}</span></div>
-                    <div className="flex items-center justify-between"><span>Time based</span><span className="font-bold">{unitBreakdown.duration_minutes}</span></div>
-                    <div className="flex items-center justify-between"><span>Checklist based</span><span className="font-bold">{unitBreakdown.checklist}</span></div>
-                  </div>
-                </div>
-
-                <div className="p-6 bg-card border rounded-[28px] shadow-sm">
-                  <h4 className="font-bold mb-4">Effort & Rhythm</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between"><span>Completed in last 7 days</span><span className="font-bold">{completedLast7DaysCount}</span></div>
-                    <div className="flex items-center justify-between"><span>Total lifecycle duration (7 days)</span><span className="font-bold">{formatDuration(manualTotalLifecycleDurationMs) || "0m"}</span></div>
-                    <div className="flex items-center justify-between"><span>Average completion duration</span><span className="font-bold">{formatDuration(averageCompletionDuration) || "0m"}</span></div>
-                    <div className="flex items-center justify-between"><span>Today's completions</span><span className="font-bold">{todayMetrics.count}</span></div>
-                    <div className="flex items-center justify-between"><span>Today's avg completion time</span><span className="font-bold">{todayMetrics.avgCompletionMinutes !== null ? formatTimeFromMinutes(todayMetrics.avgCompletionMinutes) : "-"}</span></div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1175,11 +1081,11 @@ export default function Goals() {
                       <div className="flex items-center gap-2">
                         <input 
                           type="date"
-                          value={historyDateFilter}
+                          value={historyDateFilter || todayKey}
                           onChange={e => setHistoryDateFilter(e.target.value)}
                           className="bg-muted border rounded-xl px-3 py-2 text-xs focus:outline-none color-scheme-dark"
                         />
-                        <button onClick={() => setHistoryDateFilter("")} className="p-2 text-muted-foreground hover:text-foreground">
+                        <button onClick={() => setHistoryDateFilter(todayKey)} className="p-2 text-muted-foreground hover:text-foreground">
                           <RotateCcw size={16} />
                         </button>
                       </div>
@@ -1221,10 +1127,10 @@ export default function Goals() {
                           <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-70">{t("goals.focus_activity")}</p>
                           <p className="text-lg font-black">{t("goals.completed_count", { count: todayMetrics.count })}</p>
                           <p className="text-xs text-muted-foreground">
-                            {t("goals.total_duration", { duration: formatDuration(todayMetrics.totalDuration) || "0m" })}
+                            {pendingGoals.length} open manual goals
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {t("goals.avg_completion_time", { time: todayMetrics.avgCompletionMinutes !== null ? formatTimeFromMinutes(todayMetrics.avgCompletionMinutes) : "-" })}
+                            {manualCompletionRate}% overall completion rate
                           </p>
                         </div>
                         <TrendingUp className="text-emerald-500 w-8 h-8 opacity-20" />
@@ -1287,7 +1193,7 @@ export default function Goals() {
                   <ol className="list-decimal pl-5 space-y-1">
                     <li><strong>What do you want to do?</strong>: Goal title likho. Clear action likho.</li>
                     <li><strong>Goal Type</strong>: Today, One-time, Repeat me se choose karo.</li>
-                    <li><strong>How will you track it?</strong>: Done, Number, Time, ya Checklist choose karo.</li>
+                    <li><strong>How will you track it?</strong>: Done ya Time choose karo.</li>
                   </ol>
                 </section>
 
@@ -1304,19 +1210,14 @@ export default function Goals() {
                   <h3 className="font-bold text-base">3. Tracking Method ka matlab</h3>
                   <ul className="list-disc pl-5 space-y-1">
                     <li><strong>Done / Not done</strong>: binary completion.</li>
-                    <li><strong>By number (count)</strong>: jaise 20 questions, 5 pages (Today/Repeat goals me).</li>
-                    <li><strong>Track by focused time</strong>: total minutes target set hota hai (Today/Repeat goals me).</li>
-                    <li><strong>Checklist points</strong>: task ko small subtasks me tod do.</li>
-                    <li><strong>One-time goals</strong>: yahan Done/Checklist hi dikhte hain — time/count hide hota hai.</li>
+                    <li><strong>Track by focused time</strong>: focus timer ke sessions se time track hota hai.</li>
                   </ul>
                 </section>
 
                 <section className="space-y-2">
                   <h3 className="font-bold text-base">4. Conditional fields ka use</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Target number/time</strong>: count aur time mode me mandatory.</li>
                     <li><strong>Enable linked focus sessions</strong>: sirf time-based goals ke liye. Ekagra timer sessions goal ke saath link honge.</li>
-                    <li><strong>Checklist points</strong>: har point add karo, complete hone par tick karo.</li>
                     <li><strong>Add due date</strong>: one-time goal me optional reminder. Timer link nahi hota.</li>
                     <li><strong>Repeat setting</strong>: recurring goal behavior define karta hai.</li>
                   </ul>
@@ -1337,7 +1238,6 @@ export default function Goals() {
                   <h3 className="font-bold text-base">6. Recommended flow</h3>
                   <ol className="list-decimal pl-5 space-y-1">
                     <li>Title + Type + Tracking method set karo.</li>
-                    <li>Target fill karo (agar required ho).</li>
                     <li>Time-based goal ho to linked focus ON rakho.</li>
                     <li>Create Goal dabao.</li>
                     <li>Goal card se Start Focus dabakar Ekagra session start karo.</li>

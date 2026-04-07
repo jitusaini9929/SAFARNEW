@@ -14,7 +14,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { useAuth } from "@/contexts/AuthContext";
 import safarLogo from "@/assets/safar-logo.png.webp";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ui/theme-toggle";
 import GlobalSidebar from "./GlobalSidebar";
 import LanguageToggle from "./LanguageToggle";
@@ -26,10 +26,18 @@ interface TopNavbarProps {
   userAvatar?: string;
   onLogout?: () => void;
   showMobileMenu?: boolean;
+  showMenuButton?: boolean;
   homeRoute?: string;
 }
 
-export default function TopNavbar({ userName = "Student", userAvatar = "", onLogout, showMobileMenu = true, homeRoute = "/home" }: TopNavbarProps) {
+export default function TopNavbar({
+  userName = "Student",
+  userAvatar = "",
+  onLogout,
+  showMobileMenu = true,
+  showMenuButton = true,
+  homeRoute = "/home",
+}: TopNavbarProps) {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { resetTourHistory } = useGuidedTour();
@@ -37,6 +45,13 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
   const { t } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const canShowLanguageToggle = canAccessLanguageToggle(user?.email);
+
+  useEffect(() => {
+    if (!showMobileMenu) return;
+    const handler = () => setIsMobileMenuOpen(true);
+    window.addEventListener("global-menu:open", handler);
+    return () => window.removeEventListener("global-menu:open", handler);
+  }, [showMobileMenu]);
 
   const handleLogout = async () => {
     try {
@@ -67,13 +82,16 @@ export default function TopNavbar({ userName = "Student", userAvatar = "", onLog
           {/* Left side - Hamburger (mobile) + Logo and Portal Name */}
           <div className="flex items-center gap-3">
             {/* Hamburger Menu Button (visible on all screens if showMobileMenu is true) */}
-            {showMobileMenu && (
+            {showMobileMenu && showMenuButton && (
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                className="px-3 py-2 min-h-[44px] flex items-center justify-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
                 aria-label="Open menu"
               >
                 <Menu className="w-5 h-5" />
+                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 hidden sm:inline">
+                  {t('nav.menu') || "Menu"}
+                </span>
               </button>
             )}
 

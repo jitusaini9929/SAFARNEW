@@ -1,9 +1,11 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { History } from "lucide-react";
-import { EkagraModeSession } from "@shared/api";
+import { EkagraAnalyticsFocusSession } from "@shared/api";
+import { dataService } from "@/utils/dataService";
 
 interface FocusHistoryPanelProps {
-    sessions: EkagraModeSession[];
+    isOpen: boolean;
+    refreshKey?: string;
 }
 
 interface TodayHistoryItem {
@@ -27,38 +29,10 @@ const toDateMillis = (value: unknown) => {
     return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
 };
 
-const getSessionEndDate = (session: EkagraModeSession): Date => {
-    const candidates = [
-        session.completedAt || session.completed_at,
-        session.endedAt || session.ended_at,
-        session.createdAt || session.created_at,
-    ];
-    for (const candidate of candidates) {
-        const millis = toDateMillis(candidate);
-        if (millis > 0) return new Date(millis);
-    }
-    return new Date();
+const getSessionEndDate = (session: EkagraAnalyticsFocusSession): Date => {
+    const millis = toDateMillis(session.endedAt || session.startedAt);
+    return millis > 0 ? new Date(millis) : new Date();
 };
-
-const getActualMinutes = (session: EkagraModeSession): number => {
-    const total = Number(session.totalSeconds ?? session.total_seconds ?? 0);
-    const remaining = Number(session.remainingSeconds ?? session.remaining_seconds ?? 0);
-    return Math.max(0, Math.round((Math.max(total, 0) - Math.max(remaining, 0)) / 60));
-};
-
-const getPlannedMinutes = (session: EkagraModeSession): number => {
-    const total = Number(session.totalSeconds ?? session.total_seconds ?? 0);
-    return Math.max(0, Math.round(Math.max(total, 0) / 60));
-};
-
-const getSessionTitle = (session: EkagraModeSession, fallback: string) =>
-    String(
-        session.sessionTitle
-        || session.session_title
-        || session.goalTitle
-        || session.goal_title
-        || fallback,
-    ).trim() || fallback;
 
 const formatMinutes = (minutes: number) =>
     minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
@@ -104,7 +78,7 @@ const renderHistorySection = (
                                 </span>
                             </div>
                             <div className="text-[11px] text-muted-foreground">
-                                Planned {formatMinutes(row.plannedMinutes)} • Actual {formatMinutes(row.actualMinutes)}
+                                Planned {formatMinutes(row.plannedMinutes)} | Actual {formatMinutes(row.actualMinutes)}
                             </div>
                         </div>
                     ))
@@ -118,37 +92,78 @@ const renderHistorySection = (
     );
 };
 
-export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ sessions }) => {
+export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ isOpen, refreshKey = "" }) => {
+    const [focusSessions, setFocusSessions] = useState<EkagraAnalyticsFocusSession[]>([]);
+    const [loading, setLoading] = useState(true);
     const todayKey = getLocalDateKey(new Date());
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        let cancelled = false;
+        const isVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
+
+        const load = async () => {
+            try {
+                const stats = await dataService.getEkagraAnalytics({ forceFresh: true });
+                if (cancelled) return;
+                setFocusSessions(Array.isArray(stats.focusSessions) ? stats.focusSessions : []);
+            } catch (error) {
+                if (!cancelled) {
+                    console.error("Load focus history error:", error);
+                    setFocusSessions([]);
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        void load();
+
+        const onVisibilityChange = () => {
+            if (isVisible()) {
+                void load();
+            }
+        };
+
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        const intervalId = window.setInterval(() => {
+            if (isVisible()) {
+                void load();
+            }
+        }, 20000);
+
+        return () => {
+            cancelled = true;
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+            window.clearInterval(intervalId);
+        };
+    }, [isOpen, refreshKey]);
 
     const todayFocusSessions = useMemo(
         () =>
-            sessions.filter((session) => {
-                const status = String(session.status || "").toLowerCase();
-                const mode = String(session.mode || "").toLowerCase();
-                if (mode === "short" || mode === "long") return false;
-                if (status !== "completed" && status !== "ended_early") return false;
-                return getLocalDateKey(getSessionEndDate(session)) === todayKey;
-            }),
-        [sessions, todayKey],
+            focusSessions.filter((session) => getLocalDateKey(getSessionEndDate(session)) === todayKey),
+        [focusSessions, todayKey],
     );
 
     const todayTotalFocusMinutes = useMemo(
-        () => todayFocusSessions.reduce((sum, session) => sum + getActualMinutes(session), 0),
+        () => todayFocusSessions.reduce((sum, session) => sum + Math.max(0, Number(session.actualMinutes || 0)), 0),
         [todayFocusSessions],
     );
 
     const linkedGoals = useMemo(
         () =>
             todayFocusSessions
-                .filter((session) => Boolean(session.importedFromGoal || session.imported_from_goal))
+                .filter((session) => Boolean(session.associatedGoalId))
                 .map((session) => ({
                     id: session.id,
-                    title: getSessionTitle(session, "Untitled goal"),
+                    title: String(session.taskText || "Untitled goal").trim() || "Untitled goal",
                     sessionTime: formatSessionTime(getSessionEndDate(session)),
                     sessionTimestamp: getSessionEndDate(session).getTime(),
-                    plannedMinutes: getPlannedMinutes(session),
-                    actualMinutes: getActualMinutes(session),
+                    plannedMinutes: Math.max(0, Number(session.durationMinutes || 0)),
+                    actualMinutes: Math.max(0, Number(session.actualMinutes || 0)),
                 }))
                 .sort((a, b) => b.sessionTimestamp - a.sessionTimestamp),
         [todayFocusSessions],
@@ -157,18 +172,26 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ sessions })
     const unlinkedGoals = useMemo(
         () =>
             todayFocusSessions
-                .filter((session) => !Boolean(session.importedFromGoal || session.imported_from_goal))
+                .filter((session) => !session.associatedGoalId)
                 .map((session) => ({
                     id: session.id,
-                    title: getSessionTitle(session, "Untitled session"),
+                    title: String(session.taskText || "Untitled session").trim() || "Untitled session",
                     sessionTime: formatSessionTime(getSessionEndDate(session)),
                     sessionTimestamp: getSessionEndDate(session).getTime(),
-                    plannedMinutes: getPlannedMinutes(session),
-                    actualMinutes: getActualMinutes(session),
+                    plannedMinutes: Math.max(0, Number(session.durationMinutes || 0)),
+                    actualMinutes: Math.max(0, Number(session.actualMinutes || 0)),
                 }))
                 .sort((a, b) => b.sessionTimestamp - a.sessionTimestamp),
         [todayFocusSessions],
     );
+
+    if (loading) {
+        return (
+            <div className="rounded-2xl border border-border/60 bg-card/80 p-6">
+                <div className="text-sm text-muted-foreground">Loading today&apos;s focus history...</div>
+            </div>
+        );
+    }
 
     if (todayFocusSessions.length === 0) {
         return (
@@ -184,7 +207,7 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ sessions })
     return (
         <div className="rounded-2xl border border-border/60 bg-card/80 p-4 space-y-4">
             <div>
-                <h3 className="text-base font-bold text-foreground">Today's Focus</h3>
+                <h3 className="text-base font-bold text-foreground">Today&apos;s Focus</h3>
                 <p className="text-xs text-muted-foreground mt-1">Today only.</p>
             </div>
 
@@ -210,13 +233,4 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ sessions })
             )}
         </div>
     );
-};
-
-export type HistoryTask = {
-    id: string;
-    text: string;
-    completed: boolean;
-    createdAt: string;
-    completedAt: string | null;
-    importedFromGoal?: boolean;
 };

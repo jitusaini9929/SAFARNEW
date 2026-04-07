@@ -7,7 +7,6 @@ interface SessionOverlayProps {
     onClose: () => void;
     sessions: EkagraModeSession[];
     activeSessionId?: string | null;
-    importedQueueCount?: number;
     onCreateSession?: (title: string) => Promise<void> | void;
     onSwitchSession?: (sessionId: string) => Promise<void> | void;
     onPauseSession?: (sessionId: string) => Promise<void> | void;
@@ -15,8 +14,6 @@ interface SessionOverlayProps {
     onDiscardSession?: (sessionId: string) => Promise<void> | void;
     onDeleteSession?: (sessionId: string) => Promise<void> | void;
 }
-
-/* ─── helpers ───────────────────────────────────────── */
 
 const toMs = (value: unknown) => {
     const parsed = new Date(String(value || ""));
@@ -60,35 +57,26 @@ const getModeIcon = (session: EkagraModeSession) => {
     return Timer;
 };
 
-const isPlannedImportedSession = (session: EkagraModeSession) =>
-    Boolean(session.importedFromGoal || session.imported_from_goal) &&
-    String(session.id || "").startsWith("planned-imported-");
-
-/* ─── component ─────────────────────────────────────── */
-
 export const SessionOverlay: React.FC<SessionOverlayProps> = ({
     open,
     onClose,
     sessions,
     activeSessionId = null,
-    importedQueueCount = 0,
     onSwitchSession,
     onPauseSession,
     onCompleteSession,
-    onDiscardSession,
     onDeleteSession,
 }) => {
-    /* Separate into current (active) and saved (paused) */
     const { current, saved } = useMemo(() => {
         const sorted = [...sessions].sort(
             (a, b) => toMs(b.updatedAt || b.updated_at) - toMs(a.updatedAt || a.updated_at),
         );
 
-        const activeSessions = sorted.filter((s) => String(s.status || "").toLowerCase() === "active");
-        const pausedSessions = sorted.filter((s) => String(s.status || "").toLowerCase() === "paused");
+        const activeSessions = sorted.filter((session) => String(session.status || "").toLowerCase() === "active");
+        const pausedSessions = sorted.filter((session) => String(session.status || "").toLowerCase() === "paused");
 
         const currentSession =
-            sorted.find((s) => s.id === activeSessionId) ||
+            activeSessions.find((session) => session.id === activeSessionId) ||
             activeSessions[0] ||
             null;
 
@@ -107,26 +95,21 @@ export const SessionOverlay: React.FC<SessionOverlayProps> = ({
             <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm" onClick={onClose} />
             <div className="fixed inset-0 z-[81] p-4 sm:p-6 flex items-center justify-center">
                 <div className="w-full max-w-2xl max-h-[85vh] rounded-3xl border border-border/60 bg-background/95 shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col">
-                    {/* ─── Header ─────────────────────── */}
                     <div className="flex items-center justify-between gap-3 p-5 pb-0">
                         <div>
                             <h2 className="text-xl font-extrabold text-foreground">Focus Sessions</h2>
-                            <p className="text-xs text-muted-foreground mt-0.5">Manage running, paused, or queued sessions.</p>
-                            {importedQueueCount > 0 && (
-                                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-semibold">
-                                    {importedQueueCount} queued goal{importedQueueCount > 1 ? "s" : ""}
-                                </p>
-                            )}
+                            <p className="text-xs text-muted-foreground mt-0.5">Manage running and paused sessions.</p>
                         </div>
-                        <button type="button" onClick={onClose} className="h-9 w-9 rounded-lg border border-border/60 bg-background flex items-center justify-center hover:bg-muted transition-colors">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="h-9 w-9 rounded-lg border border-border/60 bg-background flex items-center justify-center hover:bg-muted transition-colors"
+                        >
                             <X className="w-4 h-4" />
                         </button>
                     </div>
 
-                    {/* ─── Content ────────────────────── */}
                     <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-5">
-
-                        {/* ─── Current Session ───────── */}
                         <section className="space-y-2">
                             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Running Now</h3>
                             {current ? (
@@ -143,12 +126,11 @@ export const SessionOverlay: React.FC<SessionOverlayProps> = ({
                             )}
                         </section>
 
-                        {/* ─── Saved for Later ───────── */}
                         <section className="space-y-2">
                             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Paused</h3>
                             {saved.length === 0 ? (
                                 <div className="rounded-xl border border-dashed border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
-                                    No paused or queued sessions.
+                                    No paused sessions.
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -165,7 +147,6 @@ export const SessionOverlay: React.FC<SessionOverlayProps> = ({
                             )}
                         </section>
 
-                        {/* ─── Empty State ────────────── */}
                         {isEmpty && (
                             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                                 <Timer className="w-12 h-12 mb-4 opacity-15" />
@@ -179,8 +160,6 @@ export const SessionOverlay: React.FC<SessionOverlayProps> = ({
         </>
     );
 };
-
-/* ─── Current Session Card ──────────────────────────── */
 
 const CurrentSessionCard: React.FC<{
     session: EkagraModeSession;
@@ -200,7 +179,7 @@ const CurrentSessionCard: React.FC<{
                             <ModeIcon className="w-3.5 h-3.5" />
                             {getModeLabel(session)}
                         </span>
-                        <span>•</span>
+                        <span>|</span>
                         <span>{getElapsedMinutes(session)}m spent</span>
                     </div>
                 </div>
@@ -209,7 +188,6 @@ const CurrentSessionCard: React.FC<{
                 </span>
             </div>
 
-            {/* Actions */}
             <div className="flex items-center gap-2 pt-1">
                 <button
                     type="button"
@@ -243,8 +221,6 @@ const CurrentSessionCard: React.FC<{
     );
 };
 
-/* ─── Saved Session Card ────────────────────────────── */
-
 const SavedSessionCard: React.FC<{
     session: EkagraModeSession;
     onResume?: (id: string) => Promise<void> | void;
@@ -252,7 +228,6 @@ const SavedSessionCard: React.FC<{
     onDelete?: (id: string) => Promise<void> | void;
 }> = ({ session, onResume, onEnd, onDelete }) => {
     const ModeIcon = getModeIcon(session);
-    const plannedImported = isPlannedImportedSession(session);
 
     return (
         <div className="rounded-xl border border-amber-500/40 bg-card/80 p-3 space-y-2">
@@ -264,25 +239,13 @@ const SavedSessionCard: React.FC<{
                             <ModeIcon className="w-3 h-3" />
                             {getModeLabel(session)}
                         </span>
-                        {plannedImported ? (
-                            <span>Ready to start</span>
-                        ) : (
-                            <>
-                                <span>{getElapsedMinutes(session)}m spent</span>
-                                <span>•</span>
-                                <span>{formatAgo(session.updatedAt || session.updated_at)}</span>
-                            </>
-                        )}
+                        <span>{getElapsedMinutes(session)}m spent</span>
+                        <span>|</span>
+                        <span>{formatAgo(session.updatedAt || session.updated_at)}</span>
                     </div>
                 </div>
-                <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0 ${
-                        plannedImported
-                            ? "border border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
-                            : "border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                    }`}
-                >
-                    {plannedImported ? "Queue" : "Paused"}
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0 border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                    Paused
                 </span>
             </div>
 
@@ -294,19 +257,17 @@ const SavedSessionCard: React.FC<{
                     className="h-8 px-4 rounded-md bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50 inline-flex items-center gap-1.5 hover:opacity-90 transition-opacity"
                 >
                     <Play className="w-3.5 h-3.5" />
-                    {plannedImported ? "Start" : "Resume"}
+                    Resume
                 </button>
-                {!plannedImported && (
-                    <button
-                        type="button"
-                        onClick={() => onEnd?.(session.id)}
-                        disabled={!onEnd}
-                        className="h-8 px-4 rounded-md border border-rose-300/60 bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300 text-xs font-semibold disabled:opacity-50 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
-                    >
-                        <Square className="w-3 h-3 mr-1 inline" />
-                        End Session
-                    </button>
-                )}
+                <button
+                    type="button"
+                    onClick={() => onEnd?.(session.id)}
+                    disabled={!onEnd}
+                    className="h-8 px-4 rounded-md border border-rose-300/60 bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300 text-xs font-semibold disabled:opacity-50 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
+                >
+                    <Square className="w-3 h-3 mr-1 inline" />
+                    End Session
+                </button>
                 <button
                     type="button"
                     onClick={() => onDelete?.(session.id)}
@@ -314,7 +275,7 @@ const SavedSessionCard: React.FC<{
                     className="h-8 px-3 rounded-md border border-border/60 bg-background text-foreground text-xs font-semibold disabled:opacity-50 hover:bg-muted transition-colors inline-flex items-center gap-1"
                 >
                     <Trash2 className="w-3 h-3" />
-                    {plannedImported ? "Remove" : "Delete"}
+                    Delete
                 </button>
             </div>
         </div>

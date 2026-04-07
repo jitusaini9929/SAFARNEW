@@ -8,6 +8,7 @@
 // Access token lives in module scope and is restored via refresh on boot.
 let _accessToken: string | null = null;
 let _refreshPromise: Promise<RefreshResult> | null = null;
+const AUTH_REQUEST_TIMEOUT_MS = 5000;
 
 export const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
 
@@ -51,9 +52,27 @@ function isTerminalRefreshFailure(status: number, errorCode: unknown): boolean {
   );
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs = AUTH_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: init.signal ?? controller.signal,
+    });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 async function doRefresh(): Promise<RefreshResult> {
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetchWithTimeout(`${API_BASE}/auth/refresh`, {
       method: "POST",
       credentials: "include",
     });
@@ -101,7 +120,7 @@ export async function apiFetch(
   options: RequestInit = {},
 ): Promise<Response> {
   const makeRequest = (token: string | null) =>
-    fetch(url, {
+    fetchWithTimeout(url, {
       ...options,
       headers: {
         "Content-Type": "application/json",

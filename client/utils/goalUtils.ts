@@ -11,17 +11,20 @@ export interface UIGoal extends Goal {
   title: string;
 }
 
-export const GOAL_KIND_OPTIONS: Array<{ value: GoalKind; label: string; hint: string }> = [
-  { value: "one_time", label: "One-time", hint: "No fixed day. Complete it when done." },
+export const GOAL_KIND_OPTIONS: Array<{ value: Exclude<GoalKind, "one_time">; label: string; hint: string }> = [
   { value: "today", label: "Today", hint: "Only for today." },
   { value: "repeat", label: "Repeat", hint: "Do this regularly." },
 ];
 
+export const LEGACY_ONE_TIME_GOAL_KIND_OPTION: { value: GoalKind; label: string; hint: string } = {
+  value: "one_time",
+  label: "One-time",
+  hint: "No fixed day. Complete it when done.",
+};
+
 export const GOAL_UNIT_OPTIONS: Array<{ value: GoalUnitType; label: string }> = [
   { value: "binary", label: "Done / Not done" },
-  { value: "count", label: "By number (count)" },
   { value: "duration_minutes", label: "Track by focused time" },
-  { value: "checklist", label: "Checklist points" },
 ];
 
 export const GOAL_CARRY_FORWARD_OPTIONS: Array<{ value: GoalCarryForwardMode; label: string }> = [
@@ -45,17 +48,6 @@ export const formatTime = (date?: Date | null) => {
   if (!date || !Number.isFinite(date.getTime())) return "";
   return formatISTDate(date, { hour: "numeric", minute: "2-digit" });
 };
-
-export const formatDuration = (ms?: number | null) => {
-  if (!ms || !Number.isFinite(ms) || ms <= 0) return "";
-  const totalMinutes = Math.round(ms / 60000);
-  if (totalMinutes < 60) return `${totalMinutes}m`;
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
-};
-
-export const MAX_DAILY_GOAL_DURATION_MS = 24 * 60 * 60 * 1000;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const parseValidDate = (raw: unknown) => {
@@ -77,6 +69,7 @@ export const normalizeGoalUnitType = (goal: UIGoal): GoalUnitType => {
 };
 
 export const normalizeGoalStatus = (goal: UIGoal): GoalExecutionStatus => {
+  if (isGoalCompleted(goal)) return "completed";
   const raw = String(goal.status || (goal as any).status_value || "").trim();
   if (
     raw === "not_started" ||
@@ -90,7 +83,7 @@ export const normalizeGoalStatus = (goal: UIGoal): GoalExecutionStatus => {
   ) {
     return raw as GoalExecutionStatus;
   }
-  return isGoalCompleted(goal) ? "completed" : "not_started";
+  return "not_started";
 };
 
 export const normalizeCarryForwardMode = (goal: UIGoal): GoalCarryForwardMode => {
@@ -180,22 +173,10 @@ export const getGoalCompletedDate = (goal: UIGoal) =>
 export const isGoalCompleted = (goal: UIGoal) =>
   Boolean(goal.completed || getGoalCompletedDate(goal));
 
-export const getGoalLifecycleDurationMs = (goal: UIGoal) => {
+export const getGoalHistoryDateKey = (goal: UIGoal) => {
   const completedAt = getGoalCompletedDate(goal);
-  if (!completedAt) return null;
-
-  const rawStart = (goal as any).startedAt || (goal as any).started_at || (goal as any).createdAt || (goal as any).created_at;
-  const startAt = parseValidDate(rawStart);
-  if (!startAt) return null;
-
-  const completedMs = completedAt.getTime();
-  const istMinutesSinceMidnight = getISTMinutesSinceMidnight(completedAt);
-  const istDayStartMs = completedMs - (istMinutesSinceMidnight * 60 * 1000);
-  const normalizedStartMs = Math.max(startAt.getTime(), istDayStartMs);
-  const rawDuration = completedMs - normalizedStartMs;
-
-  if (!Number.isFinite(rawDuration) || rawDuration <= 0) return null;
-  return Math.min(rawDuration, MAX_DAILY_GOAL_DURATION_MS);
+  if (completedAt) return getISTDateKey(completedAt);
+  return getGoalAnchorDateKey(goal);
 };
 
 export const getGoalCreatedTime = (goal: UIGoal) => {
@@ -218,19 +199,5 @@ export const getDailyCompletionMetrics = (
     const completedAt = getGoalCompletedDate(goal);
     return Boolean(completedAt && getISTDateKey(completedAt) === dayKey);
   });
-  const durations = dayGoals
-    .map((goal) => getGoalLifecycleDurationMs(goal))
-    .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
-  const totalDuration = durations.reduce((sum, v) => sum + v, 0);
-  const avgDuration = durations.length ? totalDuration / durations.length : 0;
-  const completionMinutes = dayGoals
-    .map((goal) => {
-      const completedAt = getGoalCompletedDate(goal);
-      return completedAt ? getISTMinutesSinceMidnight(completedAt) : null;
-    })
-    .filter((v): v is number => v !== null && Number.isFinite(v));
-  const avgCompletionMinutes = completionMinutes.length
-    ? completionMinutes.reduce((sum, v) => sum + v, 0) / completionMinutes.length
-    : null;
-  return { count: dayGoals.length, totalDuration, avgDuration, avgCompletionMinutes };
+  return { count: dayGoals.length };
 };

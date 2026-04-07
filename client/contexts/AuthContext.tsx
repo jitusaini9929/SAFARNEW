@@ -44,7 +44,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(cachedUser);
       }
 
-      const initializedUser = await authService.initAuth();
+      let initializedUser: User | null = null;
+      try {
+        initializedUser = await authService.initAuth();
+      } catch (error) {
+        console.error("[AUTH] initAuth failed:", error);
+      }
+
       if (isCancelled) return;
 
       if (initializedUser) {

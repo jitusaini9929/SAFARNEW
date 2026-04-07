@@ -493,11 +493,20 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       </div>
 
       <nav className="relative w-full min-h-14 sm:min-h-16 glass-2-0 rounded-2xl z-50 px-2 sm:px-4 md:px-6 py-2 sm:py-0 flex items-center justify-between border border-slate-200 dark:border-white/5 bg-white/40 dark:bg-black/40 backdrop-blur-2xl shadow-lg shadow-black/5 dark:shadow-black/20 gap-1.5 sm:gap-2 mt-2 sm:mt-4 mb-4 sm:mb-6">
-        <Link to="/home" className="flex items-center gap-2 sm:gap-3 group cursor-pointer text-inherit no-underline shrink-0">
-          <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
-            <span className="text-white font-bold text-sm sm:text-lg tracking-tight whitespace-nowrap break-normal">{t('mehfil.title')}</span>
-          </div>
-        </Link>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <button
+            onClick={() => setIsGlobalSidebarOpen(true)}
+            className="p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+            title={t('mehfil.menu')}
+          >
+            <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
+          </button>
+          <Link to="/home" className="flex items-center gap-2 sm:gap-3 group cursor-pointer text-inherit no-underline shrink-0">
+            <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
+              <span className="text-white font-bold text-sm sm:text-lg tracking-tight whitespace-nowrap break-normal">{t('mehfil.title')}</span>
+            </div>
+          </Link>
+        </div>
 
         <div className="relative flex-1 min-w-0 md:flex-none group">
           <Search className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 w-4 h-4 z-10" />
@@ -534,15 +543,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             )}
           </button>
 
-          <button
-            onClick={() => setIsGlobalSidebarOpen(true)}
-            className="p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-            title={t('mehfil.menu')}
-          >
-            <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-
-          <div className="hidden sm:flex items-center gap-2 md:gap-5 md:pr-6 border-l border-slate-200 dark:border-slate-800 ml-1 sm:ml-2 pl-2">
+            <div className="hidden sm:flex items-center gap-2 md:gap-5 md:pr-6 border-l border-slate-200 dark:border-slate-800 ml-1 sm:ml-2 pl-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center justify-center w-8 h-8 sm:w-[40px] sm:h-[40px] p-0.5 rounded-full transition-all duration-200 hover:scale-105 cursor:pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 outline-none">
