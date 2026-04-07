@@ -146,8 +146,6 @@ const TIMER_SLIDER_MAX = 120;
 const BREAK_MINUTES_MIN = 5;
 const BREAK_STEP_MINUTES = 5;
 const BREAK_MAX_MINUTES = 60;
-const COMPLETION_TOLERANCE_PERCENT = 0.25;
-const COMPLETION_DRIFT_SECONDS = 2;
 
 const createTaskId = () =>
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -158,15 +156,6 @@ const normalizeMinutes = (value: number, min = TIMER_MINUTES_MIN, step = TIMER_S
     if (!Number.isFinite(value)) return min;
     const rounded = Math.round(value / step) * step;
     return Math.max(min, rounded);
-};
-
-const isWithinCompletionTolerance = (elapsedSeconds: number, plannedSeconds: number) => {
-    const lowerBoundSeconds = plannedSeconds * (1 - COMPLETION_TOLERANCE_PERCENT);
-    const upperBoundSeconds = plannedSeconds * (1 + COMPLETION_TOLERANCE_PERCENT);
-    return (
-        elapsedSeconds >= Math.max(0, Math.floor(lowerBoundSeconds) - COMPLETION_DRIFT_SECONDS)
-        && elapsedSeconds <= Math.ceil(upperBoundSeconds) + COMPLETION_DRIFT_SECONDS
-    );
 };
 
 const getTasksStorageKey = (userId?: string) => (userId ? `focus-tasks-${userId}` : "focus-tasks");
@@ -339,13 +328,6 @@ export default function StudyWithMe() {
     const runtimeSessionIdRef = useRef<string | null>(null);
     const [showNamedSessionPrompt, setShowNamedSessionPrompt] = useState(false);
     const [namedSessionTitleInput, setNamedSessionTitleInput] = useState("");
-    const [earlyFinishPrompt, setEarlyFinishPrompt] = useState<{
-        sessionId: string;
-        plannedSeconds: number;
-        elapsedSeconds: number;
-        remainingSeconds: number;
-        sessionStartedAt?: string | null;
-    } | null>(null);
 
     const linkedGoalTask = associatedGoalId ? tasks.find((task) => task.id === associatedGoalId) : undefined;
     const linkedActiveTask = linkedGoalTask && !linkedGoalTask.completed ? linkedGoalTask : undefined;
@@ -779,19 +761,6 @@ export default function StudyWithMe() {
                 Number(runtimeSession?.remainingSeconds ?? (runtimeSession as any)?.remaining_seconds ?? remainingSeconds) || remainingSeconds,
             );
             const elapsedSeconds = Math.max(0, plannedSeconds - remaining);
-            const completedWithinTolerance = isWithinCompletionTolerance(elapsedSeconds, plannedSeconds);
-
-            if (!completedWithinTolerance) {
-                setEarlyFinishPrompt({
-                    sessionId: runtimeSessionId,
-                    plannedSeconds,
-                    elapsedSeconds,
-                    remainingSeconds: remaining,
-                    sessionStartedAt: runtimeSession?.sessionStartedAt || (runtimeSession as any)?.session_started_at || null,
-                });
-                return;
-            }
-
             try {
                 await dataService.completeEkagraSession(runtimeSessionId, {
                     mode: "Timer",
@@ -884,18 +853,6 @@ export default function StudyWithMe() {
             Number(runtimeSession?.remainingSeconds ?? (runtimeSession as any)?.remaining_seconds ?? remainingSeconds) || remainingSeconds,
         );
         const elapsedSeconds = Math.max(0, plannedSeconds - remaining);
-        const completedWithinTolerance = isWithinCompletionTolerance(elapsedSeconds, plannedSeconds);
-
-        if (isNamedSession && runtimeSessionId && !completedWithinTolerance) {
-            setEarlyFinishPrompt({
-                sessionId: runtimeSessionId,
-                plannedSeconds,
-                elapsedSeconds,
-                remainingSeconds: remaining,
-                sessionStartedAt: runtimeSession?.sessionStartedAt || (runtimeSession as any)?.session_started_at || null,
-            });
-            return;
-        }
 
         if (runtimeSessionId && status === "authenticated" && user?.id) {
             try {
@@ -914,13 +871,16 @@ export default function StudyWithMe() {
         }
 
         if (!isNamedSession) {
-            if (!currentTask) return;
+            const goalIdToComplete = runtimeGoalId && !runtimeGoalId.startsWith("named:")
+                ? runtimeGoalId
+                : currentTask?.id;
+            if (!goalIdToComplete) return;
             const completedAt = new Date().toISOString();
             if (status === "authenticated" && user?.id) {
                 try {
-                    await dataService.updateGoal(currentTask.id, true, completedAt);
+                    await dataService.updateGoal(goalIdToComplete, true, completedAt);
                     setTasks((prev) => sortTasks(prev.map((task) =>
-                        task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
+                        task.id === goalIdToComplete ? { ...task, completed: true, completedAt } : task
                     )));
                 } catch (error) {
                     console.error("Complete Ekagra task error:", error);
@@ -928,7 +888,7 @@ export default function StudyWithMe() {
                 }
             } else {
                 const nextTasks = sortTasks(tasks.map((task) =>
-                    task.id === currentTask.id ? { ...task, completed: true, completedAt } : task
+                    task.id === goalIdToComplete ? { ...task, completed: true, completedAt } : task
                 ));
                 setTasks(nextTasks);
                 saveTasks(nextTasks, user?.id);
@@ -964,18 +924,14 @@ export default function StudyWithMe() {
         user?.id,
     ]);
 
-    const handleCompleteSessionGoal = useCallback(async (goalId: string, completedAt: string, sessionStatus: string) => {
+    const handleCompleteSessionGoal = useCallback(async (goalId: string, completedAt: string, _sessionStatus: string) => {
         if (status !== "authenticated" || !user?.id) return;
 
         try {
-            const normalizedStatus = String(sessionStatus || "").toLowerCase();
-            const shouldCompleteGoal = normalizedStatus === "completed";
-            if (shouldCompleteGoal) {
-                await dataService.updateGoal(goalId, true, completedAt);
-                setTasks((prev) => sortTasks(prev.map((task) =>
-                    task.id === goalId ? { ...task, completed: true, completedAt } : task
-                )));
-            }
+            await dataService.updateGoal(goalId, true, completedAt);
+            setTasks((prev) => sortTasks(prev.map((task) =>
+                task.id === goalId ? { ...task, completed: true, completedAt } : task
+            )));
             if (associatedGoalId === goalId) {
                 setAssociatedGoal(null, null);
             }
@@ -1034,25 +990,20 @@ export default function StudyWithMe() {
         if (isNamedSession && !sessionTitle) return;
 
         try {
-            const normalizedSource = String(session.source || "").toLowerCase();
-            const source = normalizedSource === "imported"
-                ? "imported"
-                : isNamedSession
-                    ? "manual"
-                    : "goal_continue";
-
-            const activated = await dataService.activateEkagraSession({
-                ...(isNamedSession
-                    ? { sessionType: "named" as const, sessionTitle }
-                    : { goalId, goalTitle }),
-                source,
-                importedFromGoal: Boolean(session.importedFromGoal || (session as any).imported_from_goal),
-                overrideActive: true,
+            const resumed = await dataService.updateEkagraSession(sessionId, {
+                status: "active",
                 mode: "Timer",
                 totalSeconds: nextTotalSeconds,
                 remainingSeconds: nextRemainingSeconds,
                 isRunning: true,
                 sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
+                goalTitle: isNamedSession ? sessionTitle : goalTitle,
+                source: String(session.source || "").toLowerCase() === "imported"
+                    ? "imported"
+                    : isNamedSession
+                        ? "manual"
+                        : "goal_continue",
+                importedFromGoal: Boolean(session.importedFromGoal || (session as any).imported_from_goal),
             });
 
             if (isNamedSession) {
@@ -1070,12 +1021,38 @@ export default function StudyWithMe() {
                 sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
             });
 
-            runtimeSessionIdRef.current = activated.id;
-            setRuntimeActiveSessionId(activated.id);
+            runtimeSessionIdRef.current = resumed.id;
+            setRuntimeActiveSessionId(resumed.id);
             toggleTimer();
             await refreshRuntimeSessions();
         } catch (error) {
-            console.error("Resume Ekagra session error:", error);
+            try {
+                const normalizedSource = String(session.source || "").toLowerCase();
+                const source = normalizedSource === "imported"
+                    ? "imported"
+                    : isNamedSession
+                        ? "manual"
+                        : "goal_continue";
+                const activated = await dataService.activateEkagraSession({
+                    ...(isNamedSession
+                        ? { sessionType: "named" as const, sessionTitle }
+                        : { goalId, goalTitle }),
+                    source,
+                    importedFromGoal: Boolean(session.importedFromGoal || (session as any).imported_from_goal),
+                    overrideActive: true,
+                    mode: "Timer",
+                    totalSeconds: nextTotalSeconds,
+                    remainingSeconds: nextRemainingSeconds,
+                    isRunning: true,
+                    sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
+                });
+                runtimeSessionIdRef.current = activated.id;
+                setRuntimeActiveSessionId(activated.id);
+                toggleTimer();
+                await refreshRuntimeSessions();
+            } catch (resumeError) {
+                console.error("Resume Ekagra session error:", resumeError);
+            }
         }
     }, [applyRuntimeSnapshot, refreshRuntimeSessions, runtimeSessions, setAssociatedGoal, status, toggleTimer, totalSeconds, user?.id]);
 
@@ -1251,57 +1228,6 @@ export default function StudyWithMe() {
         setShowNamedSessionPrompt(false);
         setNamedSessionTitleInput("");
     }, []);
-
-    const handleConfirmEarlyFinishLog = useCallback(async () => {
-        const prompt = earlyFinishPrompt;
-        if (!prompt || status !== "authenticated" || !user?.id) return;
-        setEarlyFinishPrompt(null);
-
-        try {
-            await dataService.completeEkagraSession(prompt.sessionId, {
-                mode: "Timer",
-                elapsedSeconds: prompt.elapsedSeconds,
-                remainingSeconds: prompt.remainingSeconds,
-                sessionStartedAt: prompt.sessionStartedAt || null,
-            });
-            runtimeSessionIdRef.current = null;
-            setRuntimeActiveSessionId(null);
-            await refreshRuntimeSessions();
-        } catch (error) {
-            console.error("Complete Ekagra session error:", error);
-        }
-
-        if (isRunning) {
-            toggleTimer();
-        }
-        resetTimer();
-        setCompletedTask(null);
-        setAwaitingProceed(false);
-        setShowDurationPrompt(false);
-    }, [earlyFinishPrompt, isRunning, refreshRuntimeSessions, resetTimer, status, toggleTimer, user?.id]);
-
-    const handleConfirmEarlyFinishDiscard = useCallback(async () => {
-        const prompt = earlyFinishPrompt;
-        if (!prompt || status !== "authenticated" || !user?.id) return;
-        setEarlyFinishPrompt(null);
-
-        try {
-            await dataService.deleteEkagraSession(prompt.sessionId);
-            runtimeSessionIdRef.current = null;
-            setRuntimeActiveSessionId(null);
-            await refreshRuntimeSessions();
-        } catch (error) {
-            console.error("Discard Ekagra session error:", error);
-        }
-
-        if (isRunning) {
-            toggleTimer();
-        }
-        resetTimer();
-        setCompletedTask(null);
-        setAwaitingProceed(false);
-        setShowDurationPrompt(false);
-    }, [earlyFinishPrompt, isRunning, refreshRuntimeSessions, resetTimer, status, toggleTimer, user?.id]);
 
     const liveSessionPreview = useMemo<EkagraModeSession | null>(() => {
         if (status === "authenticated" && user?.id) return null;
@@ -1700,32 +1626,6 @@ export default function StudyWithMe() {
                         </Button>
                         <Button onClick={handleConfirmNamedSession} disabled={!namedSessionTitleInput.trim()}>
                             Start Session
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog
-                open={Boolean(earlyFinishPrompt)}
-                onOpenChange={(open) => {
-                    if (!open) setEarlyFinishPrompt(null);
-                }}
-            >
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Finish early?</DialogTitle>
-                        <DialogDescription>
-                            {earlyFinishPrompt
-                                ? `Planned ${Math.max(1, Math.round(earlyFinishPrompt.plannedSeconds / 60))}m, completed ${Math.max(0, Math.round(earlyFinishPrompt.elapsedSeconds / 60))}m so far.`
-                                : "You ended the timer early."} Choose whether to log this as ended early or discard it.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={handleConfirmEarlyFinishDiscard}>
-                            Discard
-                        </Button>
-                        <Button onClick={handleConfirmEarlyFinishLog}>
-                            Log as ended early
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -2268,7 +2168,7 @@ export default function StudyWithMe() {
                                 <h3 className="text-sm font-bold mb-2">What changed (quick recap)</h3>
                                 <ul className="list-disc pl-5 space-y-1">
                                     <li>Sessions list ab Analytics tab me move ho gayi hai.</li>
-                                    <li>End Session par status auto decide hota hai (Completed vs Ended Early).</li>
+                                    <li>End Session par session completed mark hota hai.</li>
                                     <li>Delete session se instantly clean-up hota hai.</li>
                                     <li>Linked goal banner end/delete ke baad auto clear hota hai.</li>
                                 </ul>
@@ -2288,7 +2188,7 @@ export default function StudyWithMe() {
                                     <li><strong>Play/Pause</strong>: session ko run ya hold karta hai.</li>
                                     <li><strong>Reset</strong>: current timer cycle ko reset karta hai.</li>
                                     <li><strong>Mode</strong>: Timer, short break, long break select kar sakte ho.</li>
-                                    <li><strong>End Session</strong>: session ko close karta hai — completion status timer accuracy se decide hota hai.</li>
+                                    <li><strong>End Session</strong>: session ko close karke completed mark karta hai.</li>
                                     <li><strong>PiP</strong>: timer ko mini floating view me rakhta hai.</li>
                                 </ul>
                             </section>
@@ -2298,7 +2198,7 @@ export default function StudyWithMe() {
                                 <ul className="list-disc pl-5 space-y-1 text-white/90">
                                     <li><strong>Sessions</strong>: Running Now + Paused sessions manage karne ke liye.</li>
                                     <li><strong>Switch</strong>: kisi paused session par wapas jao.</li>
-                                    <li><strong>End Session</strong>: session close hota hai — Completed vs Ended Early timer ke hisaab se.</li>
+                                    <li><strong>End Session</strong>: session close hota hai aur completed mark hota hai.</li>
                                     <li><strong>Delete</strong>: session ko list se remove karta hai.</li>
                                     <li><strong>History</strong>: overview/snapshot yahan milega; detailed list Analytics tab me hai.</li>
                                 </ul>

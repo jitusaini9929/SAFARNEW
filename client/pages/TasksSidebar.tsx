@@ -239,12 +239,25 @@ const TasksSidebar: React.FC<TasksSidebarProps> = ({
     const defaultResume = async (sessionId: string) => {
         const target = displaySessions.find((session) => session.id === sessionId);
         if (!target) return;
-        await dataService.activateEkagraSession({
-            goalId: String(target.goalId || target.goal_id || ""),
-            goalTitle: String(target.goalTitle || target.goal_title || ""),
-            importedFromGoal: Boolean(target.importedFromGoal || target.imported_from_goal),
-            overrideActive: true,
-        });
+        if (target.id && !String(target.id).startsWith("planned-imported-")) {
+            await dataService.updateEkagraSession(target.id, {
+                status: "active",
+                mode: "Timer",
+                totalSeconds: Number(target.totalSeconds ?? target.total_seconds ?? 25 * 60),
+                remainingSeconds: Number(target.remainingSeconds ?? target.remaining_seconds ?? 25 * 60),
+                isRunning: true,
+                sessionStartedAt: target.sessionStartedAt || target.session_started_at || null,
+                goalTitle: String(target.goalTitle || target.goal_title || ""),
+                importedFromGoal: Boolean(target.importedFromGoal || target.imported_from_goal),
+            });
+        } else {
+            await dataService.activateEkagraSession({
+                goalId: String(target.goalId || target.goal_id || ""),
+                goalTitle: String(target.goalTitle || target.goal_title || ""),
+                importedFromGoal: Boolean(target.importedFromGoal || target.imported_from_goal),
+                overrideActive: true,
+            });
+        }
         await refreshLocalSessions();
     };
 

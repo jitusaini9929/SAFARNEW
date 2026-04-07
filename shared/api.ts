@@ -93,7 +93,7 @@ export type EkagraSessionStatus = "active" | "paused" | "completed" | "ended_ear
 export type EkagraTimerMode = "Timer" | "short" | "long";
 export type EkagraSessionType = "goal" | "named";
 export type EkagraAnalyticsSessionType = "focus" | "short_break" | "long_break";
-export type EkagraAnalyticsQualityStatus = "completed" | "abandoned";
+export type EkagraAnalyticsQualityStatus = "completed";
 
 export interface EkagraModeSession {
   id: string;
@@ -141,7 +141,7 @@ export interface EkagraAnalyticsRecentSession {
   durationMinutes: number;
   actualMinutes: number;
   completed: boolean;
-  status: "completed" | "ended_early";
+  status: "completed";
   taskText: string | null;
   pauseCount: number;
   sessionType: EkagraAnalyticsSessionType;
@@ -165,7 +165,7 @@ export interface EkagraAnalyticsFocusSession {
   endedAt: string | null;
   durationMinutes: number;
   actualMinutes: number;
-  status: EkagraAnalyticsQualityStatus;
+  status: "completed";
   rawStatus: "completed" | "ended_early";
   taskText: string | null;
   pauseCount: number;

@@ -81,6 +81,7 @@ type FocusSessionSnapshot = {
     totalSeconds: number;
     remainingSeconds: number;
     isRunning: boolean;
+    resumeEligible?: boolean;
     savedAt: number;
     sessionStartedAt?: string | null;
     associatedGoalId?: string | null;
@@ -133,6 +134,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const modeRef = useRef(mode);
     const lastTickRef = useRef<number>(Date.now());
     const activeFocusSessionRef = useRef<ActiveFocusSession | null>(null);
+    const resumeEligibleRef = useRef(false);
 
     // PiP
     const [isPiPActive, setIsPiPActive] = useState(false);
@@ -212,9 +214,13 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             const baseRemaining = Math.max(0, Number(parsed.remainingSeconds || 0));
             const total = Math.max(1, Number(parsed.totalSeconds || 1500));
             const wasRunning = Boolean(parsed.isRunning);
-            const savedAt = Number(parsed.savedAt || Date.now());
-            const elapsedSeconds = Math.max(0, Math.floor((Date.now() - savedAt) / 1000));
-            const recoveredRemaining = wasRunning ? Math.max(0, baseRemaining - elapsedSeconds) : baseRemaining;
+            const resumeEligible = Boolean(parsed.resumeEligible);
+            const recoveredRemaining = baseRemaining;
+
+            if (wasRunning || !resumeEligible) {
+                sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+                return;
+            }
 
             if (recoveredRemaining <= 0) {
                 sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
@@ -244,7 +250,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         if (pendingResumeSnapshot) return;
 
         const hasProgress = remainingSeconds > 0 && remainingSeconds < totalSeconds;
-        const shouldPersist = isRunning || hasProgress;
+        const shouldPersist = !isRunning && hasProgress && resumeEligibleRef.current;
 
         const timer = window.setTimeout(() => {
             try {
@@ -258,6 +264,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                     totalSeconds,
                     remainingSeconds,
                     isRunning,
+                    resumeEligible: resumeEligibleRef.current,
                     savedAt: Date.now(),
                     sessionStartedAt: activeFocusSessionRef.current?.startedAt || null,
                     associatedGoalId,
@@ -316,6 +323,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const resumeStoredSession = useCallback(() => {
         const snapshot = pendingResumeSnapshot;
         if (!snapshot) return;
+        resumeEligibleRef.current = false;
 
         setMode(snapshot.mode);
         setTotalSeconds(snapshot.totalSeconds);
@@ -335,7 +343,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             }
             : null;
 
-        if (snapshot.isRunning && snapshot.remainingSeconds > 0) {
+        if (snapshot.remainingSeconds > 0) {
             isRunningRef.current = true;
             setIsRunning(true);
             setIsMusicPlaying(true);
@@ -348,6 +356,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, [pendingResumeSnapshot, setAssociatedGoal]);
 
     const discardStoredSession = useCallback(() => {
+        resumeEligibleRef.current = false;
         setPendingResumeSnapshot(null);
         activeFocusSessionRef.current = null;
         try {
@@ -370,6 +379,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, [associatedGoalTitle]);
 
     const applyRuntimeSnapshot = useCallback((snapshot: FocusRuntimeSnapshot) => {
+        resumeEligibleRef.current = false;
         const nextMode: FocusMode =
             snapshot.mode === "short" || snapshot.mode === "long" ? snapshot.mode : "Timer";
         const nextTotalSeconds = Math.max(1, Number(snapshot.totalSeconds || 25 * 60));
@@ -546,6 +556,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     // Timer Completion Detection
     useEffect(() => {
         if (remainingSeconds === 0 && isRunning) {
+            resumeEligibleRef.current = false;
             finalizeFocusSession({ completed: true, interrupted: false });
             setIsRunning(false);
             try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
@@ -822,6 +833,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
     const startTimer = useCallback(() => {
         if (remainingSecondsRef.current <= 0) return;
+        resumeEligibleRef.current = false;
         ensureActiveFocusSession();
         isRunningRef.current = true;
         setIsRunning(true);
@@ -835,6 +847,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady, ensureActiveFocusSession]);
 
     const pauseTimer = useCallback(() => {
+        const hasProgress = remainingSecondsRef.current > 0 && remainingSecondsRef.current < totalSecondsRef.current;
+        resumeEligibleRef.current = hasProgress;
         isRunningRef.current = false;
         setIsRunning(false);
         setMusicPlaying(false);
@@ -1092,6 +1106,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, [pauseTimer, startTimer]);
 
     const resetTimer = useCallback(() => {
+        resumeEligibleRef.current = false;
         finalizeFocusSession({ completed: false, interrupted: true });
 
         isRunningRef.current = false;
@@ -1104,6 +1119,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
     const handleSetMode = useCallback((newMode: FocusMode) => {
         if (newMode === modeRef.current) return;
+        resumeEligibleRef.current = false;
 
         if (modeRef.current === "Timer" && activeFocusSessionRef.current) {
             finalizeFocusSession({ completed: false, interrupted: true });
@@ -1125,6 +1141,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const handleSetTimerDuration = useCallback((mins: number) => {
         setTimerDuration(mins);
         if (mode === "Timer") {
+            resumeEligibleRef.current = false;
             if (activeFocusSessionRef.current) {
                 finalizeFocusSession({ completed: false, interrupted: true });
             }
@@ -1139,6 +1156,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const handleSetBreakDuration = useCallback((mins: number) => {
         setBreakDuration(mins);
         if (mode === "short") {
+            resumeEligibleRef.current = false;
             setTotalSeconds(mins * 60);
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
@@ -1150,6 +1168,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const handleSetLongBreakDuration = useCallback((mins: number) => {
         setLongBreakDuration(mins);
         if (mode === "long") {
+            resumeEligibleRef.current = false;
             setTotalSeconds(mins * 60);
             setRemainingSeconds(mins * 60);
             setIsRunning(false);

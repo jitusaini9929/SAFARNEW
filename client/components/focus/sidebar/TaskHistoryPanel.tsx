@@ -1,12 +1,19 @@
-import React, { useMemo, useState } from "react";
-import { BarChart3, History, Sparkles } from "lucide-react";
+import React, { useMemo } from "react";
+import { History } from "lucide-react";
 import { EkagraModeSession } from "@shared/api";
 
 interface FocusHistoryPanelProps {
     sessions: EkagraModeSession[];
 }
 
-/* ─── date helpers ──────────────────────────────────── */
+interface TodayHistoryItem {
+    id: string;
+    title: string;
+    sessionTime: string;
+    sessionTimestamp: number;
+    plannedMinutes: number;
+    actualMinutes: number;
+}
 
 const getLocalDateKey = (date: Date) => {
     const year = date.getFullYear();
@@ -15,50 +22,20 @@ const getLocalDateKey = (date: Date) => {
     return `${year}-${month}-${day}`;
 };
 
-const getDateGroupLabel = (date: Date) => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
-};
-
 const toDateMillis = (value: unknown) => {
     const parsed = new Date(String(value || ""));
     return Number.isFinite(parsed.getTime()) ? parsed.getTime() : 0;
 };
 
-const formatMinutes = (minutes: number) =>
-    minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
-
-/* ─── session helpers ───────────────────────────────── */
-
-type HistoryStatus = "completed" | "abandoned" | "break";
-
-interface HistoryRow {
-    id: string;
-    title: string;
-    dateTime: Date;
-    actualMinutes: number;
-    status: HistoryStatus;
-    linkedGoalTitle: string | null;
-    sessionType: "focus" | "short_break" | "long_break";
-    pauseCount: number;
-    importedFromGoal: boolean;
-}
-
 const getSessionEndDate = (session: EkagraModeSession): Date => {
     const candidates = [
         session.completedAt || session.completed_at,
         session.endedAt || session.ended_at,
-        session.discardedAt || session.discarded_at,
-        session.updatedAt || session.updated_at,
+        session.createdAt || session.created_at,
     ];
-    for (const c of candidates) {
-        const ms = toDateMillis(c);
-        if (ms > 0) return new Date(ms);
+    for (const candidate of candidates) {
+        const millis = toDateMillis(candidate);
+        if (millis > 0) return new Date(millis);
     }
     return new Date();
 };
@@ -69,223 +46,172 @@ const getActualMinutes = (session: EkagraModeSession): number => {
     return Math.max(0, Math.round((Math.max(total, 0) - Math.max(remaining, 0)) / 60));
 };
 
-const getSessionType = (session: EkagraModeSession): "focus" | "short_break" | "long_break" => {
-    const mode = String(session.mode || "").toLowerCase();
-    if (mode === "short") return "short_break";
-    if (mode === "long") return "long_break";
-    return "focus";
+const getPlannedMinutes = (session: EkagraModeSession): number => {
+    const total = Number(session.totalSeconds ?? session.total_seconds ?? 0);
+    return Math.max(0, Math.round(Math.max(total, 0) / 60));
 };
 
-const normalizeHistoryStatus = (session: EkagraModeSession): HistoryStatus | null => {
-    const raw = String(session.status || "").toLowerCase();
-    const sType = getSessionType(session);
+const getSessionTitle = (session: EkagraModeSession, fallback: string) =>
+    String(
+        session.sessionTitle
+        || session.session_title
+        || session.goalTitle
+        || session.goal_title
+        || fallback,
+    ).trim() || fallback;
 
-    if (raw === "completed") return sType !== "focus" ? "break" : "completed";
-    if (raw === "ended_early") return "abandoned";
-    if (raw === "discarded") return "abandoned";
-    return null;
-};
+const formatMinutes = (minutes: number) =>
+    minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
 
-const toHistoryRow = (session: EkagraModeSession): HistoryRow | null => {
-    const status = normalizeHistoryStatus(session);
-    if (!status) return null;
+const formatSessionTime = (date: Date) =>
+    date.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+    });
 
-    const title =
-        String(session.sessionTitle || session.session_title || session.goalTitle || session.goal_title || "").trim()
-        || "Unlabeled";
-    const imported = Boolean(session.importedFromGoal || session.imported_from_goal);
-
-    return {
-        id: session.id,
-        title,
-        dateTime: getSessionEndDate(session),
-        actualMinutes: getActualMinutes(session),
-        status,
-        linkedGoalTitle: imported ? title : null,
-        sessionType: getSessionType(session),
-        pauseCount: Number(session.pauseCount ?? session.pause_count ?? 0),
-        importedFromGoal: imported,
-    };
-};
-
-/* ─── filter helpers ────────────────────────────────── */
-
-type HistoryFilter = "today" | "week" | "all";
-
-const isInFilter = (when: Date, filter: HistoryFilter): boolean => {
-    if (filter === "all") return true;
-    const now = new Date();
-    if (filter === "today") return getLocalDateKey(when) === getLocalDateKey(now);
-    const dayMs = 7 * 24 * 60 * 60 * 1000;
-    return now.getTime() - when.getTime() <= dayMs;
-};
-
-/* ─── main component ────────────────────────────────── */
-
-export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ sessions }) => {
-    const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
-
-    /* Build session-based history rows */
-    const allRows = useMemo(
-        () =>
-            sessions
-                .map(toHistoryRow)
-                .filter((row): row is HistoryRow => row !== null)
-                .sort((a, b) => b.dateTime.getTime() - a.dateTime.getTime()),
-        [sessions],
-    );
-
-    const filteredRows = useMemo(
-        () => allRows.filter((row) => isInFilter(row.dateTime, historyFilter)),
-        [allRows, historyFilter],
-    );
-
-    /* ─── today summary metrics ─────────────────── */
-    const todayKey = getLocalDateKey(new Date());
-
-    const todayRows = useMemo(
-        () => allRows.filter((row) => getLocalDateKey(row.dateTime) === todayKey),
-        [allRows, todayKey],
-    );
-
-    const todayFocusMinutes = todayRows
-        .filter((r) => r.sessionType === "focus")
-        .reduce((sum, r) => sum + r.actualMinutes, 0);
-
-    const todayFocusSessions = todayRows.filter((r) => r.sessionType === "focus").length;
-
-    const todayCompletedFocus = todayRows.filter((r) => r.sessionType === "focus" && r.status === "completed");
-    const avgCompletedSession = todayCompletedFocus.length > 0
-        ? Math.round(todayCompletedFocus.reduce((sum, r) => sum + r.actualMinutes, 0) / todayCompletedFocus.length)
-        : 0;
-
-    /* ─── yesterday comparison for insight ──────── */
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayKey = getLocalDateKey(yesterday);
-
-    const yesterdayFocusMinutes = allRows
-        .filter((r) => r.sessionType === "focus" && getLocalDateKey(r.dateTime) === yesterdayKey)
-        .reduce((sum, r) => sum + r.actualMinutes, 0);
-
-    const focusDelta = todayFocusMinutes - yesterdayFocusMinutes;
-    const insightText = todayFocusMinutes === 0 && yesterdayFocusMinutes === 0
-        ? "Start a focus session to build your history."
-        : focusDelta > 0
-            ? `${focusDelta}m more focused than yesterday — great momentum!`
-            : focusDelta < 0
-                ? `${Math.abs(focusDelta)}m less than yesterday. Keep pushing!`
-                : "Matching yesterday's consistency. Solid effort.";
-
-    const filteredFocusRows = useMemo(
-        () => filteredRows.filter((row) => row.sessionType === "focus"),
-        [filteredRows],
-    );
-    const filteredCompletedRows = useMemo(
-        () => filteredFocusRows.filter((row) => row.status === "completed"),
-        [filteredFocusRows],
-    );
-    const filteredAbandonedRows = useMemo(
-        () => filteredFocusRows.filter((row) => row.status === "abandoned"),
-        [filteredFocusRows],
-    );
+const renderHistorySection = (
+    title: string,
+    subtitle: string,
+    emptyText: string,
+    rows: TodayHistoryItem[],
+    tone: "blue" | "violet",
+) => {
+    const panelTone = tone === "violet"
+        ? "border-violet-300/60 bg-violet-500/10"
+        : "border-blue-300/60 bg-blue-500/10";
+    const rowTone = tone === "violet"
+        ? "border-violet-200/70 text-violet-700 dark:text-violet-300"
+        : "border-blue-200/70 text-blue-700 dark:text-blue-300";
 
     return (
-        <div className="space-y-4">
-            {/* ─── Today's Progress Summary ───────── */}
-            <div className="rounded-2xl border border-border/60 bg-card/80 p-4 space-y-4">
-                <div>
-                    <h3 className="text-base font-bold text-foreground">Today's Progress</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Derived from your completed focus sessions.</p>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-xl border border-border/60 bg-background/80 p-3 text-center">
-                        <div className="text-2xl font-extrabold text-foreground">{formatMinutes(todayFocusMinutes)}</div>
-                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Focused</div>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-background/80 p-3 text-center">
-                        <div className="text-2xl font-extrabold text-foreground">{todayFocusSessions}</div>
-                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Sessions</div>
-                    </div>
-                    <div className="rounded-xl border border-border/60 bg-background/80 p-3 text-center">
-                        <div className="text-2xl font-extrabold text-foreground">{avgCompletedSession}m</div>
-                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Avg Session</div>
-                    </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-300/60 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                    {insightText}
-                </div>
+        <div className={`rounded-xl border p-3 ${panelTone}`}>
+            <div className="mb-2">
+                <h4 className="text-sm font-semibold text-foreground">{title}</h4>
+                <p className="text-[11px] text-muted-foreground">{subtitle}</p>
             </div>
 
-            {/* ─── Filter Tabs ────────────────────── */}
-            <div className="flex items-center justify-between gap-2">
-                <div className="inline-flex rounded-lg border border-border/60 bg-background/70 p-1">
-                    {(["today", "week", "all"] as HistoryFilter[]).map((f) => (
-                        <button
-                            key={f}
-                            type="button"
-                            onClick={() => setHistoryFilter(f)}
-                            className={`h-7 px-2.5 rounded-md text-xs font-semibold transition-colors ${
-                                historyFilter === f
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
-                            }`}
+            <div className="space-y-2">
+                {rows.length > 0 ? (
+                    rows.map((row) => (
+                        <div
+                            key={row.id}
+                            className="rounded-lg border bg-background/80 px-3 py-2 space-y-1"
                         >
-                            {f === "today" ? "Today" : f === "week" ? "7 Days" : "All"}
-                        </button>
-                    ))}
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm font-medium text-foreground truncate">{row.title}</span>
+                                <span className={`text-xs font-semibold shrink-0 ${rowTone}`}>
+                                    {row.sessionTime}
+                                </span>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                                Planned {formatMinutes(row.plannedMinutes)} • Actual {formatMinutes(row.actualMinutes)}
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="rounded-lg border border-dashed bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                        {emptyText}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ sessions }) => {
+    const todayKey = getLocalDateKey(new Date());
+
+    const todayFocusSessions = useMemo(
+        () =>
+            sessions.filter((session) => {
+                const status = String(session.status || "").toLowerCase();
+                const mode = String(session.mode || "").toLowerCase();
+                if (mode === "short" || mode === "long") return false;
+                if (status !== "completed" && status !== "ended_early") return false;
+                return getLocalDateKey(getSessionEndDate(session)) === todayKey;
+            }),
+        [sessions, todayKey],
+    );
+
+    const todayTotalFocusMinutes = useMemo(
+        () => todayFocusSessions.reduce((sum, session) => sum + getActualMinutes(session), 0),
+        [todayFocusSessions],
+    );
+
+    const linkedGoals = useMemo(
+        () =>
+            todayFocusSessions
+                .filter((session) => Boolean(session.importedFromGoal || session.imported_from_goal))
+                .map((session) => ({
+                    id: session.id,
+                    title: getSessionTitle(session, "Untitled goal"),
+                    sessionTime: formatSessionTime(getSessionEndDate(session)),
+                    sessionTimestamp: getSessionEndDate(session).getTime(),
+                    plannedMinutes: getPlannedMinutes(session),
+                    actualMinutes: getActualMinutes(session),
+                }))
+                .sort((a, b) => b.sessionTimestamp - a.sessionTimestamp),
+        [todayFocusSessions],
+    );
+
+    const unlinkedGoals = useMemo(
+        () =>
+            todayFocusSessions
+                .filter((session) => !Boolean(session.importedFromGoal || session.imported_from_goal))
+                .map((session) => ({
+                    id: session.id,
+                    title: getSessionTitle(session, "Untitled session"),
+                    sessionTime: formatSessionTime(getSessionEndDate(session)),
+                    sessionTimestamp: getSessionEndDate(session).getTime(),
+                    plannedMinutes: getPlannedMinutes(session),
+                    actualMinutes: getActualMinutes(session),
+                }))
+                .sort((a, b) => b.sessionTimestamp - a.sessionTimestamp),
+        [todayFocusSessions],
+    );
+
+    if (todayFocusSessions.length === 0) {
+        return (
+            <div className="rounded-2xl border border-border/60 bg-card/80 p-6">
+                <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+                    <History className="w-10 h-10 mb-3 opacity-20" />
+                    <p className="text-sm font-medium">No focus sessions today.</p>
                 </div>
-                <span className="text-[11px] text-muted-foreground">{filteredRows.length} sessions</span>
+            </div>
+        );
+    }
+
+    return (
+        <div className="rounded-2xl border border-border/60 bg-card/80 p-4 space-y-4">
+            <div>
+                <h3 className="text-base font-bold text-foreground">Today's Focus</h3>
+                <p className="text-xs text-muted-foreground mt-1">Today only.</p>
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-card/80 p-4 space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-foreground inline-flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4" />
-                        Session Quality Snapshot
-                    </h3>
-                    <span className="text-[11px] text-muted-foreground">{historyFilter === "all" ? "All" : historyFilter === "week" ? "Last 7 days" : "Today"}</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-emerald-300/60 bg-emerald-500/10 p-3 text-center">
-                        <div className="text-2xl font-extrabold text-foreground">{filteredCompletedRows.length}</div>
-                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Completed</div>
-                    </div>
-                    <div className="rounded-xl border border-amber-300/60 bg-amber-500/10 p-3 text-center">
-                        <div className="text-2xl font-extrabold text-foreground">{filteredAbandonedRows.length}</div>
-                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Abandoned</div>
-                    </div>
-                </div>
-
-                <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-                    Detailed session list has moved to the Analytics tab under Sessions.
-                </div>
+            <div className="rounded-xl border border-border/60 bg-background/80 p-3 text-center">
+                <div className="text-2xl font-extrabold text-foreground">{formatMinutes(todayTotalFocusMinutes)}</div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total Focus Time</div>
             </div>
 
-            {/* ─── Empty States ────────────────────── */}
-            {allRows.length === 0 && (
-                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-                    <History className="w-12 h-12 mb-4 opacity-20" />
-                    <p className="text-sm font-medium">No focus history yet.</p>
-                    <p className="text-xs opacity-70 mt-1">Complete a focus session to see it here.</p>
-                </div>
+            {renderHistorySection(
+                "Linked Goals",
+                "Today's linked goals with time set.",
+                "No linked goals today.",
+                linkedGoals,
+                "violet",
             )}
-            {allRows.length > 0 && filteredRows.length === 0 && (
-                <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-                    <History className="w-12 h-12 mb-4 opacity-20" />
-                    <p className="text-sm">No sessions in this time range.</p>
-                    <p className="text-xs opacity-70 mt-1">Try switching to "All".</p>
-                </div>
+
+            {renderHistorySection(
+                "Unlinked Goals",
+                "Today's unlinked goals with time set.",
+                "No unlinked goals today.",
+                unlinkedGoals,
+                "blue",
             )}
         </div>
     );
 };
 
-/* Re-export for backward compatibility */
 export type HistoryTask = {
     id: string;
     text: string;

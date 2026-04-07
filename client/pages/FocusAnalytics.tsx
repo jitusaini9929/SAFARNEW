@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CalendarClock, CheckCircle2, ListChecks, XCircle } from "lucide-react";
+import { ArrowLeft, CalendarClock, ListChecks } from "lucide-react";
 import { ekagraAnalyticsService } from "@/services/ekagraAnalyticsService";
 import { EkagraAnalyticsFocusSession, EkagraAnalyticsStats, EkagraTimerDurationUsage } from "@shared/api";
 
@@ -61,9 +61,6 @@ const formatSessionDateTime = (value: string | null | undefined) => {
         minute: "2-digit",
     });
 };
-
-const formatSessionStatusLabel = (status: EkagraAnalyticsFocusSession["status"]) =>
-    status === "completed" ? "Completed" : "Abandoned";
 
 const MetricCard: React.FC<{ label: string; value: string; sub?: string }> = ({ label, value, sub }) => (
     <div className="rounded-2xl border border-border/60 bg-card p-4">
@@ -127,10 +124,9 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
     const focusSessions = useMemo(() => stats?.focusSessions || [], [stats?.focusSessions]);
 
     const completedSessionsCount = Number(stats?.completedSessions || 0);
-    const abandonedSessionsCount = Number(stats?.abandonedSessions ?? stats?.endedEarlySessions ?? 0);
-    const completionTotal = toWholeMinutes(completedSessionsCount + abandonedSessionsCount);
-    const completionSummary = completionTotal > 0
-        ? `${Math.round((completedSessionsCount / completionTotal) * 100)}% completion`
+    const closedSessionsCount = Number(stats?.totalSessions || 0);
+    const completionSummary = closedSessionsCount > 0
+        ? `${completedSessionsCount} completed sessions`
         : "No closed sessions yet";
 
     const chartGradient = useMemo(() => {
@@ -208,8 +204,8 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                                 value={stats?.mostUsedTimerDurationMinutes ? `${toWholeMinutes(stats.mostUsedTimerDurationMinutes)}m` : "-"}
                             />
                             <MetricCard
-                                label="Completed vs abandoned"
-                                value={`${completedSessionsCount} / ${abandonedSessionsCount}`}
+                                label="Completed sessions"
+                                value={`${completedSessionsCount}`}
                                 sub={completionSummary}
                             />
                         </section>
@@ -257,7 +253,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                             </h2>
                             <span className="text-xs text-muted-foreground">{focusSessions.length} sessions</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">All closed focus sessions are listed here with timer-based quality status.</p>
+                        <p className="text-xs text-muted-foreground mt-1">All closed focus sessions are listed here.</p>
 
                         {focusSessions.length === 0 ? (
                             <div className="mt-4 rounded-xl border border-border/60 bg-background/70 p-4 text-sm text-muted-foreground">
@@ -267,7 +263,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                             <div className="mt-4 space-y-2">
                                 {focusSessions.map((session) => (
                                     <div key={session.id} className="rounded-xl border border-border/60 bg-background/70 p-3">
-                                        <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-3">
                                             <div className="min-w-0">
                                                 <p className="text-sm font-semibold truncate text-foreground">{session.taskText || "Unlabeled task"}</p>
                                                 <div className="mt-1 text-xs text-muted-foreground inline-flex items-center gap-1.5 flex-wrap">
@@ -287,20 +283,6 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                                                     )}
                                                 </div>
                                             </div>
-                                            <span
-                                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
-                                                    session.status === "completed"
-                                                        ? "text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border-emerald-300/60"
-                                                        : "text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-300/60"
-                                                }`}
-                                            >
-                                                {session.status === "completed" ? (
-                                                    <CheckCircle2 className="w-3 h-3" />
-                                                ) : (
-                                                    <XCircle className="w-3 h-3" />
-                                                )}
-                                                {formatSessionStatusLabel(session.status)}
-                                            </span>
                                         </div>
                                     </div>
                                 ))}
@@ -313,7 +295,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                     <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
                         <h2 className="text-base font-bold text-foreground">Session Quality</h2>
                         <p className="text-xs text-muted-foreground">
-                            Completed means elapsed time stayed within +/-25% of the planned timer duration. If it goes beyond this range (too early or too late), it is marked abandoned.
+                            Sessions are counted as completed when you end them. Focus time uses actual consumed timer minutes.
                         </p>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -321,21 +303,21 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                                 <p className="text-xs uppercase tracking-wide font-semibold text-emerald-700 dark:text-emerald-300">Completed</p>
                                 <p className="mt-2 text-3xl font-black text-foreground">{completedSessionsCount}</p>
                             </div>
-                            <div className="rounded-xl border border-amber-300/60 bg-amber-500/10 p-4">
-                                <p className="text-xs uppercase tracking-wide font-semibold text-amber-700 dark:text-amber-300">Abandoned</p>
-                                <p className="mt-2 text-3xl font-black text-foreground">{abandonedSessionsCount}</p>
+                            <div className="rounded-xl border border-blue-300/60 bg-blue-500/10 p-4">
+                                <p className="text-xs uppercase tracking-wide font-semibold text-blue-700 dark:text-blue-300">Total Closed</p>
+                                <p className="mt-2 text-3xl font-black text-foreground">{closedSessionsCount}</p>
                             </div>
                         </div>
 
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>Completion Quality</span>
+                                <span>Completion Count</span>
                                 <span>{completionSummary}</span>
                             </div>
                             <div className="h-3 rounded-full bg-muted overflow-hidden">
                                 <div
                                     className="h-full bg-emerald-500"
-                                    style={{ width: completionTotal > 0 ? `${Math.round((completedSessionsCount / completionTotal) * 100)}%` : "0%" }}
+                                    style={{ width: closedSessionsCount > 0 ? `${Math.round((completedSessionsCount / closedSessionsCount) * 100)}%` : "0%" }}
                                 />
                             </div>
                         </div>

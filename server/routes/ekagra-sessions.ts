@@ -15,8 +15,6 @@ const LIST_LIMIT = 40;
 const RECENT_CLOSED_LIMIT = 50;
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-const COMPLETION_TOLERANCE_PERCENT = 0.25;
-const COMPLETION_DRIFT_SECONDS = 2;
 const ANALYTICS_CLOSED_STATUSES = ["completed", "ended_early"] as const;
 
 type AnalyticsClosedStatus = (typeof ANALYTICS_CLOSED_STATUSES)[number];
@@ -258,7 +256,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
             .find(
                 {
                     user_id: userId,
-                    status: { $in: ["completed", "ended_early", "discarded"] },
+                    status: { $in: ["completed", "ended_early"] },
                 },
                 {
                     projection: {
@@ -311,7 +309,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
             durationMinutes: number;
             actualMinutes: number;
             completed: boolean;
-            status: AnalyticsClosedStatus;
+            status: "completed";
             taskText: string | null;
             pauseCount: number;
             sessionType: AnalyticsSessionType;
@@ -323,7 +321,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
             endedAt: string | null;
             durationMinutes: number;
             actualMinutes: number;
-            status: "completed" | "abandoned";
+            status: "completed";
             rawStatus: AnalyticsClosedStatus;
             taskText: string | null;
             pauseCount: number;
@@ -359,12 +357,9 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
 
                 if (isClosedStatus && actualSeconds > 0) {
                     totalFocusMinutes += actualMinutes;
-                    if (status === "completed") {
-                        completedSessions += 1;
-                        completedFocusDaySet.add(localDayKey);
-                    } else {
-                        endedEarlySessions += 1;
-                    }
+                    // Legacy ended_early sessions are treated as completed in new model.
+                    completedSessions += 1;
+                    completedFocusDaySet.add(localDayKey);
 
                     const hourBucket = getLocalHourBucket(endedAt);
                     if (hourBucket >= 0 && hourBucket <= 23) {
@@ -413,7 +408,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
                     durationMinutes,
                     actualMinutes,
                     completed: status === "completed",
-                    status,
+                    status: "completed",
                     taskText: normalizeTaskLabel(doc?.session_title || doc?.goal_title) || null,
                     pauseCount: Math.max(0, Number(doc?.pause_count || 0)),
                     sessionType,
@@ -427,7 +422,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
                         endedAt: endedAt.toISOString(),
                         durationMinutes,
                         actualMinutes,
-                        status: status === "completed" ? "completed" : "abandoned",
+                        status: "completed",
                         rawStatus: status,
                         taskText: normalizeTaskLabel(doc?.session_title || doc?.goal_title) || null,
                         pauseCount: Math.max(0, Number(doc?.pause_count || 0)),
@@ -483,7 +478,7 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
             totalSessions,
             completedSessions,
             endedEarlySessions,
-            abandonedSessions: endedEarlySessions,
+            abandonedSessions: 0,
             weeklyData,
             weeklyBreaks,
             focusStreak,
@@ -756,30 +751,42 @@ router.post("/:id/complete", requireAuth, async (req: Request, res) => {
             elapsedSeconds = Math.max(0, plannedTotalSeconds - Math.max(0, Math.round(payloadRemainingSeconds)));
         }
 
-        const lowerBoundSeconds = plannedTotalSeconds * (1 - COMPLETION_TOLERANCE_PERCENT);
-        const upperBoundSeconds = plannedTotalSeconds * (1 + COMPLETION_TOLERANCE_PERCENT);
-        const completedWithinTimer =
-            elapsedSeconds >= Math.max(0, Math.floor(lowerBoundSeconds) - COMPLETION_DRIFT_SECONDS)
-            && elapsedSeconds <= Math.ceil(upperBoundSeconds) + COMPLETION_DRIFT_SECONDS;
-        const status: EkagraSessionStatus = completedWithinTimer ? "completed" : "ended_early";
+        const status: EkagraSessionStatus = "completed";
         const normalizedElapsedSeconds = Math.max(0, Math.min(24 * 60 * 60, elapsedSeconds));
-        const remainingSeconds = completedWithinTimer
-            ? 0
-            : Math.max(0, plannedTotalSeconds - normalizedElapsedSeconds);
+        const remainingSeconds = Math.max(0, plannedTotalSeconds - normalizedElapsedSeconds);
+        const resolvedMode = normalizeMode(req.body?.mode ?? session.mode);
         const now = new Date();
         const updates = {
             status,
-            mode: normalizeMode(req.body?.mode ?? session.mode),
+            mode: resolvedMode,
             total_seconds: plannedTotalSeconds,
             remaining_seconds: remainingSeconds,
             is_running: false,
             session_started_at: parseIso(req.body?.sessionStartedAt) || session.session_started_at || null,
             updated_at: now,
-            completed_at: completedWithinTimer ? now : null,
+            completed_at: now,
             ended_at: now,
         };
 
         await collections.ekagraModeSessions().updateOne({ id, user_id: userId }, { $set: updates });
+
+        // Ensure linked Ekagra goal is marked complete whenever session ends via complete endpoint.
+        const goalId = String(session.goal_id || "").trim();
+        if (resolvedMode === "Timer" && goalId && !goalId.startsWith("named:")) {
+            await collections.goals().updateOne(
+                { id: goalId, user_id: userId },
+                {
+                    $set: {
+                        completed: true,
+                        completed_at: now,
+                        status_value: "completed",
+                        lifecycle_status: "active",
+                        updated_at: now,
+                    },
+                },
+            );
+        }
+
         const updated = await collections.ekagraModeSessions().findOne({ id, user_id: userId });
         return res.json({ session: normalizeSessionResponse(updated) });
     } catch (error) {
@@ -797,24 +804,16 @@ router.post("/:id/discard", requireAuth, async (req: Request, res) => {
             return res.status(404).json({ message: "Ekagra session not found" });
         }
 
-        // If the session had meaningful elapsed time (>5s), treat as ended_early, not discarded
-        const totalSec = Number(session.total_seconds || 0);
-        const remainingSec = Number(session.remaining_seconds || 0);
-        const elapsedSec = Math.max(0, totalSec - remainingSec);
-        const meaningfullyStarted = elapsedSec > 5 && session.session_started_at;
         const now = new Date();
 
         const updates: Record<string, any> = {
-            status: meaningfullyStarted ? "ended_early" : "discarded",
+            status: "discarded",
             is_running: false,
+            ended_at: null,
+            completed_at: null,
+            discarded_at: now,
             updated_at: now,
         };
-
-        if (meaningfullyStarted) {
-            updates.ended_at = now;
-        } else {
-            updates.discarded_at = now;
-        }
 
         await collections.ekagraModeSessions().updateOne({ id, user_id: userId }, { $set: updates });
         const updated = await collections.ekagraModeSessions().findOne({ id, user_id: userId });
