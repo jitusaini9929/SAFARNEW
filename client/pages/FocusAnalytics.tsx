@@ -157,7 +157,7 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                     </button>
                     <div>
                         <h1 className="text-2xl font-extrabold">Timer Analytics</h1>
-                        <p className="text-sm text-muted-foreground">Focused metrics and session quality from Ekagra timer sessions</p>
+                        <p className="text-sm text-muted-foreground">Focused metrics and session history from Ekagra timer sessions</p>
                     </div>
                 </header>
 

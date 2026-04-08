@@ -974,6 +974,7 @@ export default function Goals() {
 
             <button
               onClick={() => setModal({ mode: "add", goal: null })}
+              data-tour="add-goal"
               className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all w-full md:w-auto"
             >
               <Plus size={18} strokeWidth={3} /> {t('goals.add_goal')}
@@ -1047,7 +1048,7 @@ export default function Goals() {
               <div className="lg:col-span-8 space-y-6">
                 
                 {tab === "goals" && (
-                  <div className="bg-card border rounded-[32px] shadow-sm overflow-hidden">
+                  <div className="bg-card border rounded-[32px] shadow-sm overflow-hidden" data-tour="goal-cards">
                     <div className="p-6 border-b bg-muted/10 flex items-center justify-between">
                       <h3 className="font-bold flex items-center gap-2">
                         <Check size={18} className="text-emerald-500" /> {t('goals.pending_section')}
@@ -1183,64 +1184,62 @@ export default function Goals() {
                 <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-foreground">
                   <h3 className="text-sm font-bold mb-2">What changed (quick recap)</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li>One-time goals ka matlab aap jab complete click kardoge tbahi complete hoga.</li>
-                    <li>Due date sirf reminder hai, timer link imply nahi hota.</li>
-                    <li>Linked focus sessions ab optional aur sirf time-based goals ke liye hain.</li>
+                    <li>Goals analytics now shows completion insights only, not time spent.</li>
+                    <li>Timer-based study time now lives only inside Ekagra analytics.</li>
+                    <li>Linked focus sessions stay attached to the same goal instead of moving it.</li>
                   </ul>
                 </div>
                 <section className="space-y-2">
                   <h3 className="font-bold text-base">1. Basic setup</h3>
                   <ol className="list-decimal pl-5 space-y-1">
-                    <li><strong>What do you want to do?</strong>: Goal title likho. Clear action likho.</li>
-                    <li><strong>Goal Type</strong>: Today, One-time, Repeat me se choose karo.</li>
-                    <li><strong>How will you track it?</strong>: Done ya Time choose karo.</li>
+                    <li><strong>What do you want to do?</strong>: Write the goal in simple words.</li>
+                    <li><strong>Goal Type</strong>: Pick Today or Repeat.</li>
+                    <li><strong>How will you track it?</strong>: Choose Done / Not done or Track by focused time.</li>
                   </ol>
                 </section>
 
                 <section className="space-y-2">
                   <h3 className="font-bold text-base">2. Goal Type ka matlab</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Today</strong>: sirf aaj ke liye relevant task.</li>
-                    <li><strong>One-time</strong>: ek baar complete hone wala task, optional due date ke saath.</li>
-                    <li><strong>Repeat</strong>: daily ya recurring behavior build karne ke liye.</li>
+                    <li><strong>Today</strong>: use this for something you want to finish today.</li>
+                    <li><strong>Repeat</strong>: use this for a habit or a goal that comes back regularly.</li>
                   </ul>
                 </section>
 
                 <section className="space-y-2">
                   <h3 className="font-bold text-base">3. Tracking Method ka matlab</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Done / Not done</strong>: binary completion.</li>
-                    <li><strong>Track by focused time</strong>: focus timer ke sessions se time track hota hai.</li>
+                    <li><strong>Done / Not done</strong>: good for simple goals where you only care whether it got done.</li>
+                    <li><strong>Track by focused time</strong>: use this when you want to work on the goal through the Ekagra timer.</li>
                   </ul>
                 </section>
 
                 <section className="space-y-2">
                   <h3 className="font-bold text-base">4. Conditional fields ka use</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Enable linked focus sessions</strong>: sirf time-based goals ke liye. Ekagra timer sessions goal ke saath link honge.</li>
-                    <li><strong>Add due date</strong>: one-time goal me optional reminder. Timer link nahi hota.</li>
-                    <li><strong>Repeat setting</strong>: recurring goal behavior define karta hai.</li>
+                    <li><strong>Enable linked focus sessions</strong>: this lets the goal open directly inside Ekagra.</li>
+                    <li><strong>Repeat setting</strong>: this decides how the goal behaves on the next day if it is a repeating goal.</li>
                   </ul>
                 </section>
 
                 <section className="space-y-2">
                   <h3 className="font-bold text-base">5. More options (advanced)</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Add details</strong>: context/notes likho.</li>
-                    <li><strong>What if you do not finish?</strong>: carry-forward behavior set karo.</li>
-                    <li><strong>Already started?</strong>: existing progress number enter karo.</li>
-                    <li><strong>Start time (IST)</strong>: optional start-time stamp.</li>
-                    <li><strong>Execution status</strong>: edit mode me workflow status manage karo.</li>
+                    <li><strong>Add details</strong>: add notes if the goal needs extra context.</li>
+                    <li><strong>What if you do not finish?</strong>: choose what should happen next for repeating goals.</li>
+                    <li><strong>Already started?</strong>: use this only if you have already made some progress before saving.</li>
+                    <li><strong>Start time (IST)</strong>: optional planning time if you want to start later in the day.</li>
+                    <li><strong>Execution status</strong>: mainly useful while editing an existing goal.</li>
                   </ul>
                 </section>
 
                 <section className="space-y-2">
                   <h3 className="font-bold text-base">6. Recommended flow</h3>
                   <ol className="list-decimal pl-5 space-y-1">
-                    <li>Title + Type + Tracking method set karo.</li>
-                    <li>Time-based goal ho to linked focus ON rakho.</li>
-                    <li>Create Goal dabao.</li>
-                    <li>Goal card se Start Focus dabakar Ekagra session start karo.</li>
+                    <li>Write the goal title.</li>
+                    <li>Pick Today or Repeat.</li>
+                    <li>If you want to complete it with the timer, choose Track by focused time and keep linked focus on.</li>
+                    <li>Create the goal, then click Focus from the goal card when you are ready to work.</li>
                   </ol>
                 </section>
               </div>

@@ -277,9 +277,6 @@ export default function StudyWithMe() {
         setAssociatedGoal,
         associatedGoalId,
         associatedGoalTitle,
-        hasPendingResume,
-        resumeStoredSession,
-        discardStoredSession,
         applyRuntimeSnapshot,
     } = useFocus(); // Use Context
 
@@ -326,6 +323,7 @@ export default function StudyWithMe() {
     const [runtimeSessions, setRuntimeSessions] = useState<EkagraModeSession[]>([]);
     const [runtimeActiveSessionId, setRuntimeActiveSessionId] = useState<string | null>(null);
     const runtimeSessionIdRef = useRef<string | null>(null);
+    const [dismissedPausedReminder, setDismissedPausedReminder] = useState(false);
     const [showNamedSessionPrompt, setShowNamedSessionPrompt] = useState(false);
     const [namedSessionTitleInput, setNamedSessionTitleInput] = useState("");
 
@@ -352,6 +350,21 @@ export default function StudyWithMe() {
     const activeRuntimeSessionType = String(
         activeRuntimeSession?.sessionType || (activeRuntimeSession as any)?.session_type || "",
     ).toLowerCase();
+    const pausedRuntimeSessions = useMemo(
+        () => runtimeSessions.filter((session) => String(session.status || "").toLowerCase() === "paused"),
+        [runtimeSessions],
+    );
+    const pausedSessionCount = pausedRuntimeSessions.length;
+    const pausedSessionPreviewTitle =
+        String(
+            pausedRuntimeSessions[0]?.sessionTitle
+            || (pausedRuntimeSessions[0] as any)?.session_title
+            || pausedRuntimeSessions[0]?.goalTitle
+            || (pausedRuntimeSessions[0] as any)?.goal_title
+            || "",
+        ).trim() || null;
+    const showPausedSessionReminder =
+        !showAnalytics && !activeRuntimeSession && !isRunning && pausedSessionCount > 0 && !dismissedPausedReminder;
 
     const refreshRuntimeSessions = useCallback(async () => {
         if (status !== "authenticated" || !user?.id) {
@@ -400,6 +413,12 @@ export default function StudyWithMe() {
             setShowAnalytics(true);
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        if (pausedSessionCount > 0) {
+            setDismissedPausedReminder(false);
+        }
+    }, [pausedSessionCount]);
 
     useEffect(() => {
         if (status !== "authenticated" || !user?.id) return;
@@ -1710,7 +1729,6 @@ export default function StudyWithMe() {
                             </div>
                         </div>
                     )}
-
                     {/* Timer Card */}
                     <TimerCard
                         minutes={minutes}
@@ -1969,6 +1987,7 @@ export default function StudyWithMe() {
                     {/* History Button */}
                     <button
                         onClick={() => setIsTasksOpen(true)}
+                        data-tour="history-button"
                         className={`flex items-center gap-2 h-10 px-4 rounded-full transition-all group ${
                             showAnalytics 
                             ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200" 
@@ -1982,19 +2001,30 @@ export default function StudyWithMe() {
 
                     <button
                         onClick={handleOpenSessionOverlay}
-                        className={`flex items-center gap-2 h-10 px-4 rounded-full transition-all group ${
+                        data-tour="sessions-button"
+                        className={`relative flex items-center gap-2 h-10 px-4 rounded-full transition-all group ${
                             showAnalytics
                                 ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
                                 : "hover:bg-white/10 text-white"
-                        }`}
+                        } ${pausedSessionCount > 0 && !showAnalytics ? "bg-white/10 ring-1 ring-amber-300/50" : ""}`}
                         title="Focus Sessions"
                     >
                         <Layers3 className="w-4 h-4 group-hover:scale-110 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline">Sessions</span>
+                        {pausedSessionCount > 0 && (
+                            <span className={`inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
+                                showAnalytics
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-amber-300 text-slate-900"
+                            }`}>
+                                {pausedSessionCount}
+                            </span>
+                        )}
                     </button>
 
                     <button
                         onClick={() => setShowEkagraGuide(true)}
+                        data-tour="guide-button"
                         className={`flex items-center gap-2 h-10 px-4 rounded-full transition-all group ${
                             showAnalytics
                                 ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
@@ -2058,6 +2088,7 @@ export default function StudyWithMe() {
                     {/* Analytics Toggle */}
                     <button
                         onClick={() => setShowAnalytics(!showAnalytics)}
+                        data-tour="analytics-link"
                         className={`hidden sm:flex items-center justify-center w-10 h-10 rounded-full transition-all ${
                             showAnalytics 
                             ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" 
@@ -2115,6 +2146,31 @@ export default function StudyWithMe() {
                     </DropdownMenu>
                 </div>
             </div>
+            {showPausedSessionReminder && (
+                <div className="fixed top-20 right-4 sm:right-8 z-[55]">
+                    <div className="flex items-center gap-2 rounded-full border border-amber-200/35 bg-slate-950/45 px-3 py-2 text-white shadow-lg backdrop-blur-xl">
+                        <button
+                            onClick={handleOpenSessionOverlay}
+                            className="flex items-center gap-2 rounded-full text-sm font-medium text-white/90 transition-colors hover:text-white"
+                        >
+                            <Clock className="h-4 w-4 text-amber-300" />
+                            <span className="hidden sm:inline">
+                                {pausedSessionCount === 1
+                                    ? `${pausedSessionPreviewTitle ? `${pausedSessionPreviewTitle} is` : "Paused session is"} safe in Sessions`
+                                    : `${pausedSessionCount} paused sessions safe in Sessions`}
+                            </span>
+                            <span className="sm:hidden">{pausedSessionCount} paused</span>
+                        </button>
+                        <button
+                            onClick={() => setDismissedPausedReminder(true)}
+                            className="rounded-full p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                            aria-label="Dismiss paused session hint"
+                        >
+                            <X className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {showEkagraGuide && (
                 <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm p-4 flex items-center justify-center">
@@ -2138,70 +2194,70 @@ export default function StudyWithMe() {
                             <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-white/90">
                                 <h3 className="text-sm font-bold mb-2">What changed (quick recap)</h3>
                                 <ul className="list-disc pl-5 space-y-1">
-                                    <li>Sessions list ab Analytics tab me move ho gayi hai.</li>
-                                    <li>End Session par session completed mark hota hai.</li>
-                                    <li>Delete session se instantly clean-up hota hai.</li>
-                                    <li>Linked goal banner end/delete ke baad auto clear hota hai.</li>
+                                    <li>Goals stay in Goals. Ekagra only links to them while you focus.</li>
+                                    <li>Finished sessions move out of the Sessions overlay and into History and Analytics.</li>
+                                    <li>Ending a linked session marks that goal completed.</li>
+                                    <li>Timer analytics now uses actual timer time used by the session.</li>
                                 </ul>
                             </div>
                             <section className="space-y-2">
-                                <h3 className="font-bold text-base">1. Session start kaise karein</h3>
+                                <h3 className="font-bold text-base">1. How to start a session</h3>
                                 <ol className="list-decimal pl-5 space-y-1 text-white/90">
-                                    <li>Goal card se Start Focus dabao ya yahan manual task add karo.</li>
-                                    <li>Timer duration set karo (slider ya custom input).</li>
-                                    <li>Play dabao — Running session start ho jayega.</li>
+                                    <li>Open Ekagra from a goal using Focus, or start an unlinked session with your own task title.</li>
+                                    <li>Set the timer duration from the sidebar.</li>
+                                    <li>Press Start to begin the active focus session.</li>
                                 </ol>
                             </section>
 
                             <section className="space-y-2">
-                                <h3 className="font-bold text-base">2. Timer controls ka meaning</h3>
+                                <h3 className="font-bold text-base">2. Timer controls</h3>
                                 <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li><strong>Play/Pause</strong>: session ko run ya hold karta hai.</li>
-                                    <li><strong>Reset</strong>: current timer cycle ko reset karta hai.</li>
-                                    <li><strong>Mode</strong>: Timer, short break, long break select kar sakte ho.</li>
-                                    <li><strong>End Session</strong>: session ko close karke completed mark karta hai.</li>
-                                    <li><strong>PiP</strong>: timer ko mini floating view me rakhta hai.</li>
+                                    <li><strong>Start / Pause</strong>: begins or pauses the current session.</li>
+                                    <li><strong>Reset</strong>: resets the current timer cycle.</li>
+                                    <li><strong>Modes</strong>: switch between focus, short break, and long break.</li>
+                                    <li><strong>End Session</strong>: finishes the session and saves it to focus history.</li>
+                                    <li><strong>PiP</strong>: opens a mini timer window while you work elsewhere.</li>
                                 </ul>
                             </section>
 
                             <section className="space-y-2">
-                                <h3 className="font-bold text-base">3. Sessions panel (History/Sessions)</h3>
+                                <h3 className="font-bold text-base">3. History and Sessions</h3>
                                 <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li><strong>Sessions</strong>: Running Now + Paused sessions manage karne ke liye.</li>
-                                    <li><strong>Switch</strong>: kisi paused session par wapas jao.</li>
-                                    <li><strong>End Session</strong>: session close hota hai aur completed mark hota hai.</li>
-                                    <li><strong>Delete</strong>: session ko list se remove karta hai.</li>
-                                    <li><strong>History</strong>: overview/snapshot yahan milega; detailed list Analytics tab me hai.</li>
+                                    <li><strong>Sessions</strong>: manage running and paused live sessions here.</li>
+                                    <li><strong>Reload safety</strong>: if you pause and reload, your session stays safe under <strong>Sessions</strong>.</li>
+                                    <li><strong>Resume</strong>: reopens the same paused session and starts the timer again.</li>
+                                    <li><strong>Delete</strong>: removes a live session completely.</li>
+                                    <li><strong>History</strong>: shows today's finished focus work, split into linked and unlinked items.</li>
                                 </ul>
                             </section>
 
                             <section className="space-y-2">
-                                <h3 className="font-bold text-base">4. Linked goal behavior</h3>
+                                <h3 className="font-bold text-base">4. Linked goal behaviour</h3>
                                 <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li>Linked goal top section me visible rahega.</li>
-                                    <li>Goal imported ho to badge dikhega.</li>
-                                    <li>Unlink button se current timer ko goal se alag kar sakte ho.</li>
-                                    <li>End/Delete ke baad linked goal banner auto clear ho jata hai.</li>
+                                    <li>The linked goal appears at the top so you always know what you are working on.</li>
+                                    <li>The goal stays inside Goals; Ekagra only links to it.</li>
+                                    <li>Unlink removes the connection without deleting the goal.</li>
+                                    <li>When the linked session ends, the goal is completed and the banner clears.</li>
                                 </ul>
                             </section>
 
                             <section className="space-y-2">
-                                <h3 className="font-bold text-base">5. Audio + environment controls</h3>
+                                <h3 className="font-bold text-base">5. Audio and environment</h3>
                                 <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li>Theme button se visual background change hota hai.</li>
-                                    <li>Music play/pause aur mute controls quick toolbar me hain.</li>
-                                    <li>Volume slider fixed hai, direct adjust kar sakte ho.</li>
+                                    <li>Theme changes the visual background of your focus room.</li>
+                                    <li>Music controls are in the top toolbar.</li>
+                                    <li>Volume can be adjusted directly from the slider.</li>
                                 </ul>
                             </section>
 
                             <section className="space-y-2">
-                                <h3 className="font-bold text-base">6. Recommended usage flow</h3>
+                                <h3 className="font-bold text-base">6. Recommended flow</h3>
                                 <ol className="list-decimal pl-5 space-y-1 text-white/90">
-                                    <li>Goal pick karo ya manual task add karo.</li>
-                                    <li>Duration realistic set karo (progress bar ke niche checkpoints follow karo).</li>
-                                    <li>Session run karo, interruptions par pause use karo.</li>
-                                    <li>End Session par status auto decide hoga — phir Analytics me Session Quality check karo.</li>
-                                    <li>Consistency review ke liye Analytics ke Sessions tab pe jao.</li>
+                                    <li>Pick a linked goal or create a simple unlinked focus session.</li>
+                                    <li>Set a realistic duration before you start.</li>
+                                    <li>Pause only when needed, then resume the same session.</li>
+                                    <li>End the session when you finish. It will move into History and Timer Analytics automatically.</li>
+                                    <li>Open Analytics when you want to review total focus time and session logs.</li>
                                 </ol>
                             </section>
                         </div>
@@ -2221,25 +2277,6 @@ export default function StudyWithMe() {
             {/* Tour Prompt */}
             <TourPrompt tour={focusTimerTour} featureName="Focus Timer" />
             <PiPNudgeToast />
-
-            <Dialog open={hasPendingResume} onOpenChange={(open) => { if (!open) discardStoredSession(); }}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Resume your session?</DialogTitle>
-                        <DialogDescription>
-                            We found an unfinished focus timer from your last page load.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={discardStoredSession}>
-                            Start Fresh
-                        </Button>
-                        <Button onClick={resumeStoredSession}>
-                            Resume
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

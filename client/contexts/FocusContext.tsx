@@ -76,18 +76,6 @@ const PIP_CANVAS_WIDTH = 720;
 const PIP_CANVAS_HEIGHT = 405;
 const FOCUS_SESSION_SNAPSHOT_KEY = "focus_timer_session_snapshot_v1";
 
-type FocusSessionSnapshot = {
-    mode: FocusMode;
-    totalSeconds: number;
-    remainingSeconds: number;
-    isRunning: boolean;
-    resumeEligible?: boolean;
-    savedAt: number;
-    sessionStartedAt?: string | null;
-    associatedGoalId?: string | null;
-    associatedGoalTitle?: string | null;
-};
-
 type ActiveFocusSession = {
     startedAt: string;
     plannedDurationMinutes: number;
@@ -150,7 +138,6 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const pipReadyPromiseRef = useRef<Promise<void> | null>(null);
     const [showPiPNudge, setShowPiPNudge] = useState(false);
     const prevPiPActiveRef = useRef(false);
-    const [pendingResumeSnapshot, setPendingResumeSnapshot] = useState<FocusSessionSnapshot | null>(null);
 
     // Notification sound ref — plays when any timer mode completes
     const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -205,40 +192,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         try {
-            const raw = sessionStorage.getItem(FOCUS_SESSION_SNAPSHOT_KEY);
-            if (!raw) return;
-
-            const parsed = JSON.parse(raw) as FocusSessionSnapshot;
-            if (!parsed || typeof parsed !== "object") return;
-
-            const baseRemaining = Math.max(0, Number(parsed.remainingSeconds || 0));
-            const total = Math.max(1, Number(parsed.totalSeconds || 1500));
-            const wasRunning = Boolean(parsed.isRunning);
-            const resumeEligible = Boolean(parsed.resumeEligible);
-            const recoveredRemaining = baseRemaining;
-
-            if (wasRunning || !resumeEligible) {
-                sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
-                return;
-            }
-
-            if (recoveredRemaining <= 0) {
-                sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
-                return;
-            }
-
-            setPendingResumeSnapshot({
-                mode: parsed.mode === "short" || parsed.mode === "long" ? parsed.mode : "Timer",
-                totalSeconds: total,
-                remainingSeconds: recoveredRemaining,
-                isRunning: wasRunning,
-                savedAt: Date.now(),
-                sessionStartedAt: parsed.sessionStartedAt || null,
-                associatedGoalId: parsed.associatedGoalId || null,
-                associatedGoalTitle: parsed.associatedGoalTitle || null,
-            });
+            sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
         } catch {
-            // Ignore invalid snapshots
+            // Ignore storage failures
         }
     }, []);
 
@@ -247,37 +203,12 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, [userId]);
 
     useEffect(() => {
-        if (pendingResumeSnapshot) return;
-
-        const hasProgress = remainingSeconds > 0 && remainingSeconds < totalSeconds;
-        const shouldPersist = !isRunning && hasProgress && resumeEligibleRef.current;
-
-        const timer = window.setTimeout(() => {
-            try {
-                if (!shouldPersist) {
-                    sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
-                    return;
-                }
-
-                const snapshot: FocusSessionSnapshot = {
-                    mode,
-                    totalSeconds,
-                    remainingSeconds,
-                    isRunning,
-                    resumeEligible: resumeEligibleRef.current,
-                    savedAt: Date.now(),
-                    sessionStartedAt: activeFocusSessionRef.current?.startedAt || null,
-                    associatedGoalId,
-                    associatedGoalTitle,
-                };
-                sessionStorage.setItem(FOCUS_SESSION_SNAPSHOT_KEY, JSON.stringify(snapshot));
-            } catch {
-                // Ignore storage failures
-            }
-        }, 350);
-
-        return () => window.clearTimeout(timer);
-    }, [mode, totalSeconds, remainingSeconds, isRunning, pendingResumeSnapshot, associatedGoalId, associatedGoalTitle]);
+        try {
+            sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+        } catch {
+            // Ignore storage failures
+        }
+    }, [mode, totalSeconds, remainingSeconds, isRunning, associatedGoalId, associatedGoalTitle]);
 
     // Sync refs
     useEffect(() => {
@@ -321,43 +252,15 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const resumeStoredSession = useCallback(() => {
-        const snapshot = pendingResumeSnapshot;
-        if (!snapshot) return;
-        resumeEligibleRef.current = false;
-
-        setMode(snapshot.mode);
-        setTotalSeconds(snapshot.totalSeconds);
-        setRemainingSeconds(snapshot.remainingSeconds);
-
-        const modeMinutes = Math.max(1, Math.floor(snapshot.totalSeconds / 60));
-        if (snapshot.mode === "Timer") setTimerDuration(modeMinutes);
-        if (snapshot.mode === "short") setBreakDuration(modeMinutes);
-        if (snapshot.mode === "long") setLongBreakDuration(modeMinutes);
-
-        setAssociatedGoal(snapshot.associatedGoalId || null, snapshot.associatedGoalTitle || null);
-        activeFocusSessionRef.current = snapshot.mode === "Timer"
-            ? {
-                startedAt: snapshot.sessionStartedAt || new Date(Date.now() - Math.max(0, snapshot.totalSeconds - snapshot.remainingSeconds) * 1000).toISOString(),
-                plannedDurationMinutes: Math.max(1, Math.round(snapshot.totalSeconds / 60)),
-                associatedGoalId: snapshot.associatedGoalId || null,
-            }
-            : null;
-
-        if (snapshot.remainingSeconds > 0) {
-            isRunningRef.current = true;
-            setIsRunning(true);
-            setIsMusicPlaying(true);
-        } else {
-            isRunningRef.current = false;
-            setIsRunning(false);
+        try {
+            sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+        } catch {
+            // Ignore storage failures
         }
-
-        setPendingResumeSnapshot(null);
-    }, [pendingResumeSnapshot, setAssociatedGoal]);
+    }, []);
 
     const discardStoredSession = useCallback(() => {
         resumeEligibleRef.current = false;
-        setPendingResumeSnapshot(null);
         activeFocusSessionRef.current = null;
         try {
             sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
@@ -421,7 +324,6 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setIsMusicPlaying(true);
         }
 
-        setPendingResumeSnapshot(null);
     }, [setAssociatedGoal]);
 
     useEffect(() => {
@@ -1195,7 +1097,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         pauseTimer,
         toggleTimer,
         resetTimer,
-        hasPendingResume: Boolean(pendingResumeSnapshot),
+        hasPendingResume: false,
         resumeStoredSession,
         discardStoredSession,
         getRuntimeSnapshot,

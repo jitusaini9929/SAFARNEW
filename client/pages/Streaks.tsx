@@ -10,7 +10,6 @@ import {
   Flame,
   Heart,
   ArrowRight,
-  TrendingUp,
   ChevronLeft,
   ChevronRight,
   Zap,
@@ -29,7 +28,6 @@ export default function Streaks() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [streakData, setStreakData] = useState<any>(null);
-  const [consistencyData, setConsistencyData] = useState<any[]>([]);
   const [goalsData, setGoalsData] = useState<any[]>([]);
   const [moodsData, setMoodsData] = useState<any[]>([]);
   const [journalData, setJournalData] = useState<any[]>([]);
@@ -56,23 +54,6 @@ export default function Streaks() {
         setMoodsData(moods);
         setJournalData(journal);
         setLoginData(logins);
-
-        // Consistency data (7 days)
-        const last7 = Array.from({length: 7}, (_, i) => {
-          const d = new Date(dateKeyToUtcDate(todayKey).getTime() - (6 - i) * 86400000);
-          const key = getISTDateKey(d);
-          const dayGoals = goals.filter((g: any) => getISTDateKey(new Date(g.createdAt || g.created_at)) === key);
-          const completed = dayGoals.filter((g: any) => g.completed).length;
-          const score = dayGoals.length > 0 ? Math.round((completed / dayGoals.length) * 100) : 0;
-          return {
-            day: formatISTDate(d, { weekday: "short" }),
-            date: key,
-            created: dayGoals.length,
-            completed,
-            score
-          };
-        });
-        setConsistencyData(last7);
       } catch (error) {
         console.error("Failed to load streak data:", error);
       }
@@ -118,7 +99,7 @@ export default function Streaks() {
             <p className="text-muted-foreground font-medium pl-1">{t('streaks.subtitle')}</p>
           </header>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Streak Cards */}
             <div data-tour="streak-cards" className="p-8 bg-emerald-500/10 border-2 border-emerald-500/20 rounded-[32px] relative overflow-hidden group hover:border-emerald-500/40 transition-all shadow-xl shadow-emerald-500/5">
               <Heart className="absolute -top-6 -right-6 w-32 h-32 text-emerald-500 opacity-10 group-hover:scale-110 transition-transform duration-500 rotate-12" />
@@ -148,23 +129,6 @@ export default function Streaks() {
                  </div>
                  <p className="text-orange-600/80 font-bold text-sm bg-orange-500/10 px-3 py-1.5 rounded-xl border border-orange-500/10 w-fit">✨ {t('streaks.amazing')}</p>
               </div>
-            </div>
-
-            {/* Consistency Summary */}
-            <div className="p-8 bg-card border-2 rounded-[32px] shadow-sm flex flex-col justify-between">
-               <h3 className="font-bold flex items-center gap-2 text-muted-foreground uppercase text-[10px] tracking-widest"><TrendingUp size={16} /> 7-Day Health</h3>
-               <div className="space-y-4">
-                 <div className="flex justify-between items-end">
-                   <div>
-                     <p className="text-4xl font-black">{consistencyData.reduce((acc, c) => acc + c.score, 0) / 7 | 0}%</p>
-                     <p className="text-[10px] font-bold text-muted-foreground uppercase">Average Focus Score</p>
-                   </div>
-                   <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary"><TrendingUp /></div>
-                 </div>
-                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                   <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${consistencyData.reduce((acc, c) => acc + c.score, 0) / 7}%` }} />
-                 </div>
-               </div>
             </div>
           </div>
 
