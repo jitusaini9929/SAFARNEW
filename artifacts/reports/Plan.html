@@ -1,0 +1,335 @@
+
+<style>
+:root { --r: var(--border-radius-md); --rl: var(--border-radius-lg); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-size: 14px; line-height: 1.6; color: var(--color-text-primary); }
+.wrap { padding: 0 0 2rem; max-width: 680px; }
+.section { margin: 2rem 0; }
+.sec-label { font-size: 11px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-tertiary); margin-bottom: .75rem; }
+.card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--rl); padding: 1rem 1.25rem; margin-bottom: .75rem; }
+.card-danger { border-left: 3px solid #E24B4A; border-radius: 0 var(--rl) var(--rl) 0; }
+.card-warn { border-left: 3px solid #EF9F27; border-radius: 0 var(--rl) var(--rl) 0; }
+.card-ok { border-left: 3px solid #639922; border-radius: 0 var(--rl) var(--rl) 0; }
+.card-blue { border-left: 3px solid #378ADD; border-radius: 0 var(--rl) var(--rl) 0; }
+.card-purple { border-left: 3px solid #7F77DD; border-radius: 0 var(--rl) var(--rl) 0; }
+.card-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: .3rem; }
+.card-body { font-size: 13px; color: var(--color-text-secondary); line-height: 1.65; }
+.card-body code { font-family: var(--font-mono); font-size: 11.5px; background: var(--color-background-secondary); padding: 1px 5px; border-radius: 4px; color: var(--color-text-primary); }
+.badge { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 12px; margin-right: 4px; text-transform: uppercase; letter-spacing: .05em; }
+.badge-red { background: #FCEBEB; color: #A32D2D; }
+.badge-amber { background: #FAEEDA; color: #854F0B; }
+.badge-green { background: #EAF3DE; color: #3B6D11; }
+.badge-blue { background: #E6F1FB; color: #185FA5; }
+.badge-purple { background: #EEEDFE; color: #534AB7; }
+h2 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin-bottom: .25rem; }
+h3 { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+.divider { height: 0.5px; background: var(--color-border-tertiary); margin: 2rem 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; }
+.stat-box { background: var(--color-background-secondary); border-radius: var(--r); padding: .85rem 1rem; }
+.stat-num { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.tag-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.feature-row { display: flex; align-items: flex-start; gap: .75rem; padding: .65rem 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.feature-row:last-child { border-bottom: none; }
+.feature-icon { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; font-weight: 500; margin-top: 1px; }
+.fi-kill { background: #FCEBEB; color: #A32D2D; }
+.fi-add { background: #EAF3DE; color: #3B6D11; }
+.fi-fix { background: #FAEEDA; color: #854F0B; }
+.fi-keep { background: #E6F1FB; color: #185FA5; }
+.fi-ai { background: #EEEDFE; color: #534AB7; }
+.tier-row { display: grid; grid-template-columns: 140px 1fr; gap: 1rem; align-items: start; padding: .85rem 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.tier-row:last-child { border-bottom: none; }
+.tier-name { font-size: 13px; font-weight: 500; }
+.tier-price { font-size: 11px; color: var(--color-text-tertiary); margin-top: 2px; }
+.tier-desc { font-size: 13px; color: var(--color-text-secondary); }
+.score-bar-wrap { margin-top: .4rem; }
+.score-bar { height: 5px; border-radius: 3px; background: var(--color-background-secondary); overflow: hidden; }
+.score-fill { height: 100%; border-radius: 3px; }
+.module-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; }
+.module-card { background: var(--color-background-secondary); border-radius: var(--r); padding: .75rem 1rem; }
+.module-title { font-size: 12px; font-weight: 500; color: var(--color-text-primary); }
+.module-sub { font-size: 11.5px; color: var(--color-text-tertiary); margin-top: 2px; }
+.flow-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin: .75rem 0; }
+.flow-chip { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-secondary); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--color-text-secondary); }
+.flow-arrow { font-size: 12px; color: var(--color-text-tertiary); }
+.ask-btn { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--r); padding: .5rem 1rem; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; width: 100%; text-align: left; margin-top: .5rem; }
+.ask-btn:hover { background: var(--color-background-primary); }
+</style>
+<div class="wrap">
+
+<h2 style="padding-top:1rem">Brutal audit — StudyPlannerPage.tsx</h2>
+<p style="font-size:13px; color:var(--color-text-secondary); margin:.4rem 0 1.5rem">Code-level + UX + product. No softening.</p>
+
+<div class="grid3" style="margin-bottom:1.5rem">
+  <div class="stat-box"><div class="stat-num" style="color:#E24B4A">6</div><div class="stat-label">Fatal UX flaws</div></div>
+  <div class="stat-box"><div class="stat-num" style="color:#EF9F27">9</div><div class="stat-label">Missing features</div></div>
+  <div class="stat-box"><div class="stat-num" style="color:#639922">4</div><div class="stat-label">Good bones to keep</div></div>
+</div>
+
+<div class="sec-label">Fatal flaws — fix before anything else</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="badge badge-red">UX</span> 4-step wizard to create a plan — students will abandon at step 2</div>
+  <div class="card-body">SSC students open this at 11pm under pressure. A wizard with 4 screens before they see any value is dead on arrival. Zero feedback loop during setup — you don't see the plan taking shape until the very end. Fix: collapse to a single smart screen. Show a live preview of the generated schedule in real time as they fill in the date and topics.</div>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="badge badge-red">UX</span> No preset exam templates for SSC CGL, CHSL, MTS, Railway NTPC etc.</div>
+  <div class="card-body">The #1 pain point for Indian students is manually typing out 200+ topics. You're asking them to either type everything from scratch or use a "bulk paste" format they've never seen. The free tier of every competitor already ships with pre-loaded syllabuses. This is table stakes, not a feature.</div>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="badge badge-red">Code</span> Sequential topic creation — N+1 API waterfall</div>
+  <div class="card-body">In <code>createPlanAndSyllabus()</code>, you loop: <code>POST /plans</code> → <code>POST /subjects</code> (sequential) → <code>POST /chapters</code> → <code>POST /topics</code> for every topic. For a 40-topic syllabus that's 40+ sequential network calls. On a 4G mobile connection in a tier-2 city, this is 8–15 seconds of loading. Student closes the tab. Fix: batch endpoint — send entire syllabus as one JSON payload.</div>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="badge badge-red">UX</span> Zero visual feedback during the 8-15s generation wait</div>
+  <div class="card-body">Button changes to "Generating..." — that's it. No progress indicator, no step markers, no estimated time. Students will click it twice, create a duplicate plan, and have no way to recover. You need an animated step-through: "Creating plan → Adding subjects → Distributing schedule → Done"</div>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="badge badge-red">Product</span> No analytics attached to any user action</div>
+  <div class="card-body">You track zero user behaviour. No session logging, no topic completion timestamps, no time-per-topic, no streak tracking, no missed-day detection. The "adaptive planner that understands progress" you want to build has no data foundation to stand on. This is the most important missing piece for the ₹500 ask.</div>
+</div>
+
+<div class="card card-danger">
+  <div class="card-title"><span class="badge badge-red">UX</span> Empty state is a dead-end card with one button</div>
+  <div class="card-body">When no plan exists, the student sees a white card with "Create your first study plan" and nothing else. No exam countdown, no motivating copy, no social proof, no quick-start options. This is the moment to hook them — and you're showing them a loading screen aesthetic instead.</div>
+</div>
+
+<div class="divider"></div>
+<div class="sec-label">What's actually good — keep these</div>
+
+<div class="card card-ok">
+  <div class="card-title"><span class="badge badge-green">Keep</span> Bulk paste parser logic — genuinely clever</div>
+  <div class="card-body">The <code>parseBulkPaste()</code> function handles multiple formats (colon, dash, indented bullets) intelligently. This is the seed of a "paste your syllabus PDF text and we'll parse it" feature. Don't remove it — make it more visible and powerful.</div>
+</div>
+<div class="card card-ok">
+  <div class="card-title"><span class="badge badge-green">Keep</span> Off-days + daily topic goal — right concept</div>
+  <div class="card-body">The study capacity model (N topics/day, blocked weekdays) is exactly the right mental model for a realistic SSC planner. Just surface it better — show students the projection: "At 3 topics/day with Sundays off, you'll finish 2 days before exam."</div>
+</div>
+<div class="card card-ok">
+  <div class="card-title"><span class="badge badge-green">Keep</span> <code>auto-distribute</code> API + <code>lockExistingDates</code> — powerful primitives</div>
+  <div class="card-body">Auto-distribution with locked dates is the core of adaptive rescheduling. This is your moat if you build on it. The concept of "reschedule what's left without disturbing what's done" is exactly what the ₹500 ask needs to justify itself.</div>
+</div>
+<div class="card card-ok">
+  <div class="card-title"><span class="badge badge-green">Keep</span> Section routing — today / plan / syllabus / calendar</div>
+  <div class="card-body">Clean URL-based navigation with section normalization. Good architecture for deep-linking. Keep it and extend it — add <code>/analytics</code> and <code>/insights</code> as new route segments.</div>
+</div>
+
+<div class="divider"></div>
+<div class="sec-label">Saas conversion — what needs to be built</div>
+
+<div class="card card-blue">
+  <div class="card-title" style="font-size:14px">The single positioning line for Indian students</div>
+  <div class="card-body" style="margin-top:.4rem">"The only study planner that automatically adjusts your schedule when you fall behind — so you always know exactly what to study today to still clear your exam."</div>
+</div>
+
+<div style="margin:1.25rem 0">
+  <div class="sec-label">Feature audit — kill / fix / add / ai</div>
+
+  <div class="feature-row">
+    <div class="feature-icon fi-kill">✕</div>
+    <div><div class="card-title">4-step wizard</div><div class="card-body">Replace with a single-screen "Quick Start" that generates a plan in under 60 seconds. Show a live calendar preview as they fill in the date.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-kill">✕</div>
+    <div><div class="card-title">Manual subject/topic entry as default</div><div class="card-body">Kill as the first thing a user sees. Replace with: "Pick your exam" → prefilled syllabus → "Customize topics" as optional step.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-kill">✕</div>
+    <div><div class="card-title">Sequential topic API calls</div><div class="card-body">Replace with a single <code>POST /plans/bulk-create</code> endpoint accepting the full tree in one payload.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-fix">~</div>
+    <div><div class="card-title">Today view</div><div class="card-body">Currently unknown (lives in StudyPlanner component). Must show: today's topics with checkboxes, exam countdown, daily completion ring, and a single motivating message. No clutter.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-fix">~</div>
+    <div><div class="card-title">Empty state screen</div><div class="card-body">Replace with a full landing experience: exam selector, days-until-exam counter, testimonial from "SSC CGL 2024 AIR 112", and one-tap plan creation.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-fix">~</div>
+    <div><div class="card-title">Plan generation feedback</div><div class="card-body">Animated 4-step progress during generation. Each step resolves before the next starts. On error: show exactly which step failed and a retry button for just that step.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-add">+</div>
+    <div><div class="card-title">Exam template library</div><div class="card-body">Pre-loaded syllabuses: SSC CGL (Tier 1+2), SSC CHSL, Railway NTPC, RRB Group D, Bank PO, Bank Clerk, UPSC Prelims, State PSC. Student picks an exam → full syllabus loads instantly.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-add">+</div>
+    <div><div class="card-title">Daily check-in + streak</div><div class="card-body">Mark topics done with a single tap. Streak counter with fire animation. Miss a day → planner auto-redistributes the missed topics across remaining days. This is the core adaptive feature.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-add">+</div>
+    <div><div class="card-title">Activity analytics dashboard</div><div class="card-body">Topics completed per day (bar chart), subject-wise coverage % (ring chart), study time heatmap (GitHub-style), velocity trend (are you ahead or behind pace?), weak subjects detector (low completion rate).</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-add">+</div>
+    <div><div class="card-title">Exam countdown widget</div><div class="card-body">Persistent banner: "47 days left · 68% complete · Need 4 topics/day to finish on time". Updates every time a topic is checked. This creates the urgency that makes students come back daily.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-add">+</div>
+    <div><div class="card-title">Revision scheduler</div><div class="card-body">After a topic is marked done, auto-schedule a spaced repetition review (Day+1, Day+3, Day+7). Show revision tasks as a separate section in today's view. This is a premium differentiator.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-add">+</div>
+    <div><div class="card-title">Weakness radar</div><div class="card-body">Track which subjects the student delays repeatedly. Show a warning: "You've skipped Reasoning 4 times. It's now 3 days behind schedule." Surface this prominently — not buried in analytics.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-add">+</div>
+    <div><div class="card-title">Mobile-first today view</div><div class="card-body">90% of Indian students access on mobile. The daily view must be a single thumb-scroll screen. Topic card → tap to mark done → satisfying animation → next topic auto-focuses. No navigation required.</div></div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon fi-ai">AI</div>
+    <div><div class="card-title">Smart rescheduling engine (the ₹500 feature)</div><div class="card-body">When a student falls behind, the system calculates exactly how to redistribute the backlog. It accounts for: remaining days, off-days, daily capacity, topic weights (some chapters take longer), and upcoming high-priority subjects. Shows "Here's your revised plan — you can still make it."</div></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="sec-label">Analytics architecture — end to end</div>
+
+<div class="card card-purple">
+  <div class="card-title">Events to track (every user action becomes a data point)</div>
+  <div class="card-body" style="margin-top:.5rem">
+    <div class="flow-row">
+      <span class="flow-chip">topic_completed</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip">session_started</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip">session_ended</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-chip">topic_skipped</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip">reschedule_triggered</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip">streak_broken</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-chip">revision_due</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip">revision_completed</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip">plan_pace_changed</span>
+    </div>
+    Each event stores: <code>user_id</code>, <code>plan_id</code>, <code>topic_id</code>, <code>subject_id</code>, <code>timestamp</code>, <code>session_duration_sec</code>, <code>device_type</code>
+  </div>
+</div>
+
+<div class="module-grid" style="margin-top:.75rem">
+  <div class="module-card">
+    <div class="module-title">Velocity score</div>
+    <div class="module-sub">Topics done / topics planned per day. &lt;0.8 = falling behind. Triggers rescheduler.</div>
+  </div>
+  <div class="module-card">
+    <div class="module-title">Subject health</div>
+    <div class="module-sub">Per-subject completion %. Red if &lt;50% with &lt;30 days left.</div>
+  </div>
+  <div class="module-card">
+    <div class="module-title">Streak engine</div>
+    <div class="module-sub">Daily consecutive check-ins. Break = notification + soft reschedule prompt.</div>
+  </div>
+  <div class="module-card">
+    <div class="module-title">Pace projection</div>
+    <div class="module-sub">At current velocity, will student finish before exam? Updated daily.</div>
+  </div>
+  <div class="module-card">
+    <div class="module-title">Time-of-day pattern</div>
+    <div class="module-sub">Detect peak study hours. Nudge with "Your best study window is 9–11 PM"</div>
+  </div>
+  <div class="module-card">
+    <div class="module-title">Avoidance detector</div>
+    <div class="module-sub">Topics skipped 2+ times flagged as "needs attention". Surface to student proactively.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="sec-label">Pricing — ₹500 is achievable, here's how</div>
+
+<div class="card" style="padding:0">
+  <div style="padding:1rem 1.25rem">
+    <div class="tier-row">
+      <div><div class="tier-name">Free</div><div class="tier-price">₹0 forever</div></div>
+      <div class="tier-desc">1 plan · SSC CGL template only · Today view · Manual check-in · No analytics · No revision scheduler</div>
+    </div>
+    <div class="tier-row">
+      <div><div class="tier-name">Pro</div><div class="tier-price">₹499 / 6 months</div></div>
+      <div class="tier-desc">Unlimited plans · All exam templates · Analytics dashboard · Smart rescheduler · Spaced revision · Streak tracking · Weakness radar · PDF export of plan · Priority support</div>
+    </div>
+    <div class="tier-row">
+      <div><div class="tier-name">Batch / Institute</div><div class="tier-price">₹299 / student / month</div></div>
+      <div class="tier-desc">All Pro features · Teacher dashboard · Student progress monitoring · Bulk plan assignment · Custom syllabus upload · WhatsApp daily digest</div>
+    </div>
+  </div>
+</div>
+
+<div class="card card-blue" style="margin-top:.75rem">
+  <div class="card-title">Why students will pay ₹500 for this specifically</div>
+  <div class="card-body" style="margin-top:.35rem">SSC coaching centres charge ₹15,000–40,000. A ₹499 tool that tells a student exactly what to study today, automatically adjusts when they fall behind, and shows them a credible path to clearing the exam — is a <strong>no-brainer</strong> purchase at 3% of the coaching fee. The positioning is not "study planner" — it is "exam clearing assistant that keeps you on track automatically". Frame every feature through that lens.</div>
+</div>
+
+<div class="divider"></div>
+<div class="sec-label">Adaptive planner — how the real-time adjustment works</div>
+
+<div class="card">
+  <div class="card-title">The core loop (this is what makes it ₹500-worthy)</div>
+  <div class="card-body" style="margin-top:.5rem">
+    <div class="flow-row">
+      <span class="flow-chip" style="background:#EAF3DE;color:#3B6D11">Student checks in daily</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip">Topics marked done / skipped</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-chip">System recalculates remaining topics</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip">Checks days left × capacity</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-chip">Detects gap (backlog)</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip" style="background:#EEEDFE;color:#534AB7">Auto-redistributes schedule</span>
+    </div>
+    <div class="flow-row">
+      <span class="flow-chip" style="background:#E6F1FB;color:#185FA5">Shows updated "Today" plan</span>
+      <span class="flow-arrow">→</span>
+      <span class="flow-chip">Student never has to manually re-plan</span>
+    </div>
+    <div style="margin-top:.75rem;font-size:13px;color:var(--color-text-secondary)">
+      <strong style="color:var(--color-text-primary)">Reschedule triggers:</strong> 3 skipped topics, missed 2 days, velocity &lt; 0.7 for 3 days running, or student manually requests it. Never silently increase daily load past 1.5× the original goal — ask for permission first ("You're 8 topics behind. We can add 2 topics/day or extend your plan by 4 days. Which do you prefer?").
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="sec-label">Immediate next steps — ordered by impact</div>
+
+<div class="card card-blue" style="margin-bottom:.6rem">
+  <div class="card-title">1. Build the exam template library first</div>
+  <div class="card-body">This is the single highest-leverage thing. SSC CGL syllabus is publicly available. Pre-loading it means a student can go from landing on your site to having a full personalised plan in under 2 minutes. That's your demo, your viral loop, your conversion hook.</div>
+</div>
+<div class="card card-blue" style="margin-bottom:.6rem">
+  <div class="card-title">2. Replace wizard with single-screen quick-start</div>
+  <div class="card-body">Exam picker → date → topics/day → generate. Live preview of the schedule rendering as they type. The wizard is killing your conversion. This is a 1–2 day rebuild.</div>
+</div>
+<div class="card card-blue" style="margin-bottom:.6rem">
+  <div class="card-title">3. Instrument every user action with an event log</div>
+  <div class="card-body">Even if the analytics UI doesn't exist yet, start logging <code>topic_completed</code>, <code>session_started</code>, <code>plan_created</code> today. You can't build adaptive scheduling without this data foundation.</div>
+</div>
+<div class="card card-blue" style="margin-bottom:.6rem">
+  <div class="card-title">4. Build the adaptive rescheduler as a standalone API</div>
+  <div class="card-body">The <code>auto-distribute</code> endpoint you already have is 70% of this. Extend it to accept a "topics completed so far" payload and return a revised distribution. This becomes the engine for the ₹500 positioning.</div>
+</div>
+<div class="card card-blue">
+  <div class="card-title">5. Launch with 3 SSC exams, a 7-day free trial, and a ₹499 paywall</div>
+  <div class="card-body">Don't build a 30-exam library before validating. Launch lean: SSC CGL + Railway NTPC + Bank PO. Get 50 paying students. Charge ₹499 for 6 months. That's ₹25,000 in first-month revenue to validate the concept before building anything else.</div>
+</div>
+
+<button class="ask-btn" onclick="sendPrompt('Build the quick-start single-screen plan creator replacing the 4-step wizard, with live schedule preview')">↗ Build the new quick-start screen</button>
+<button class="ask-btn" onclick="sendPrompt('Design the analytics dashboard for the study planner — velocity score, subject health, streak, pace projection, heatmap')">↗ Design the analytics dashboard</button>
+<button class="ask-btn" onclick="sendPrompt('Build the adaptive rescheduler logic — when student falls behind, auto-redistribute remaining topics across remaining days')">↗ Build the adaptive rescheduler</button>
+<button class="ask-btn" onclick="sendPrompt('Create the SSC CGL exam template with full Tier 1 and Tier 2 syllabus structured as subject → chapter → topics')">↗ Generate SSC CGL template data</button>
+
+</div>
