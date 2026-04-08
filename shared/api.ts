@@ -216,6 +216,7 @@ export interface Streak {
 }
 
 export interface MonthlyReport {
+  version?: number;
   month: string;
   generatedAt: string;
   executiveSummary: {
@@ -224,9 +225,15 @@ export interface MonthlyReport {
     focusDepth: number;
     daysLoggedIn: number;
     daysInMonth: number;
+    evaluationDays: number;
+    consistentDays: number;
     goalsCreated: number;
     goalsCompleted: number;
     totalFocusMinutes: number;
+    focusDays: number;
+    reflectionDays: number;
+    checkInDays: number;
+    journalDays: number;
     consistencyMessage: string;
     completionMessage: string;
     focusMessage: string;
@@ -246,17 +253,6 @@ export interface MonthlyReport {
       weakestDay: string | null;
       weakestDayCompletionRate: number | null;
       message: string;
-    };
-  };
-  badgeSummary: {
-    theFinisher: boolean;
-    earlyBird: boolean;
-    nightOwl: boolean;
-    metrics: {
-      weeklyCreated: number;
-      weeklyCompleted: number;
-      completedBefore9: number;
-      completedAfter22: number;
     };
   };
   radar: Array<{ subject: string; score: number; fullMark: number }>;
