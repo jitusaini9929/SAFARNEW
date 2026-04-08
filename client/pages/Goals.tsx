@@ -839,6 +839,19 @@ export default function Goals() {
     () => getDailyCompletionMetrics(manualCompletedGoals, todayKey),
     [manualCompletedGoals, todayKey],
   );
+  const todaysManualGoals = useMemo(
+    () =>
+      standardGoals.filter((goal) => {
+        const completedViaFocus = Boolean((goal as any).completedViaFocus ?? (goal as any).completed_via_focus);
+        return !completedViaFocus && getGoalAnchorDateKey(goal) === todayKey;
+      }),
+    [standardGoals, todayKey],
+  );
+  const dailyProgressPercent = useMemo(() => {
+    if (todaysManualGoals.length === 0) return 0;
+    const completedCount = todaysManualGoals.filter((goal) => isGoalCompleted(goal)).length;
+    return Math.round((completedCount / todaysManualGoals.length) * 100);
+  }, [todaysManualGoals]);
 
   const completedLast7DaysCount = useMemo(() => manualCompletedLast7Days.length, [manualCompletedLast7Days]);
   const manualGoalsCount = useMemo(() => standardGoals.length, [standardGoals]);
@@ -1140,10 +1153,10 @@ export default function Goals() {
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs font-bold">
                           <span>{t("goals.daily_progress")}</span>
-                          <span className="text-primary">{Math.round((todayMetrics.count / 5) * 100)}%</span>
+                          <span className="text-primary">{dailyProgressPercent}%</span>
                         </div>
                         <div className="h-3 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, (todayMetrics.count / 5) * 100)}%` }} />
+                          <div className="h-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, dailyProgressPercent)}%` }} />
                         </div>
                       </div>
                     </div>

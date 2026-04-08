@@ -141,14 +141,14 @@ export default function LeftSidebar({ homeRoute = "/home", showHome = true }: Le
     { label: t('nav.checkin'), href: "/nishtha/check-in", icon: Heart },
     { label: t('nav.journal'), href: "/nishtha/journal", icon: BookOpen },
     { label: t('nav.goals'), href: "/nishtha/goals", icon: Target },
+    { label: t('nav.streaks'), href: "/nishtha/streaks", icon: Flame },
   ];
 
   const menuTrigger = (
     <Sheet>
       <SheetTrigger asChild>
-        <button className="flex flex-col items-center justify-center gap-1 flex-1 py-1 text-slate-500 dark:text-slate-400 hover:text-[#6EE7B7] transition-colors">
-          <Menu className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Menu</span>
+        <button aria-label="Menu" className="flex flex-col items-center justify-center flex-1 py-1 text-slate-950 dark:text-slate-200 hover:text-[#6EE7B7] transition-colors">
+          <Menu className="w-6 h-6" />
         </button>
       </SheetTrigger>
       <SheetContent side="left" className="w-[80%] sm:w-[350px] p-0 border-r border-border bg-card/95 backdrop-blur-xl">
@@ -158,6 +158,18 @@ export default function LeftSidebar({ homeRoute = "/home", showHome = true }: Le
           </SheetTitle>
         </SheetHeader>
         <div className="flex flex-col h-full overflow-y-auto pb-20 pt-4 px-4 space-y-1">
+          {!showHome && (
+            <SheetClose asChild>
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("global-menu:open"))}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-slate-950 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white text-left w-full"
+              >
+                <Menu className="w-5 h-5 group-hover:text-[#6EE7B7] transition-colors" />
+                <span className="flex-1 font-medium">{t('nav.apps') || "Main Menu"}</span>
+              </button>
+            </SheetClose>
+          )}
           {navItems.map((item) => (
             <SheetClose key={item.href} asChild>
               <NavLink item={item} />
@@ -212,11 +224,11 @@ export default function LeftSidebar({ homeRoute = "/home", showHome = true }: Le
                 to={item.href}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 flex-1 py-1 transition-all duration-300",
-                  isActive ? "text-[#6EE7B7] -translate-y-1" : "text-slate-500 dark:text-slate-400"
+                  isActive ? "text-[#6EE7B7] -translate-y-1" : "text-slate-950 dark:text-slate-200"
                 )}
               >
-                <Icon className={cn("w-5 h-5", isActive && "fill-current/20")} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <Icon className={cn("w-6 h-6", isActive && "fill-current/20")} />
+
               </Link>
             );
           })}
