@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 
 // Helper functions (same as Meditation.tsx)
 const ADMIN_EMAIL = "steve123@gmail.com";
-const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/rXGlSKg_IOE?si=JR0M731OqUcejS3U";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/Ts6H9bbVt1Y";
 const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.webp";
 
 const getYoutubeVideoId = (url: string) => {

@@ -138,7 +138,7 @@ const sessions: Session[] = [
 
 
 const ADMIN_EMAIL = "steve123@gmail.com";
-const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/rXGlSKg_IOE?si=JR0M731OqUcejS3U";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/Ts6H9bbVt1Y";
 const VISUAL_GUIDANCE_PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLriBGSFKTHVY1YKUDRrQiSjXE2-XE31u8";
 const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.webp";
 const DEFAULT_DHYAN_AUDIO_URL = "/Dhyan_processed.mp3";
