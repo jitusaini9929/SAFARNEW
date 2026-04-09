@@ -1261,7 +1261,7 @@ export default function Goals() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in slide-in-from-bottom-4 duration-500">
-              <div className="lg:col-span-8 space-y-6">
+              <div className="lg:col-span-7 space-y-6">
                 
                 {tab === "goals" && (
                   <div className="bg-card border rounded-[32px] shadow-sm overflow-hidden" data-tour="goal-cards">
@@ -1334,7 +1334,7 @@ export default function Goals() {
                 )}
               </div>
 
-              <div className="lg:col-span-4 space-y-6">
+              <div className="lg:col-span-5 space-y-6">
                 <div className="p-8 bg-card border rounded-[32px] shadow-sm space-y-6">
                   <div>
                     <h3 className="text-sm font-bold opacity-60 uppercase tracking-widest mb-6">{t("goals.live_pulse")}</h3>
@@ -1360,6 +1360,24 @@ export default function Goals() {
                         </div>
                         <div className="h-3 bg-muted rounded-full overflow-hidden">
                           <div className="h-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, dailyProgressPercent)}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 bg-muted/20 p-4 rounded-2xl border">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Time Studied</p>
+                        <div className="space-y-3 pt-1">
+                           <div className="flex items-center justify-between text-sm">
+                             <span className="text-muted-foreground font-medium flex items-center gap-2">
+                               <Clock size={16} className="text-indigo-500"/> Ekagra Mode
+                             </span>
+                             <span className="font-black text-indigo-500 text-base">{formatStudyTime(focusTotalMinutes)}</span>
+                           </div>
+                           <div className="flex items-center justify-between text-sm">
+                             <span className="text-muted-foreground font-medium flex items-center gap-2">
+                               <BookOpen size={16} className="text-teal-500"/> Manual Goal
+                             </span>
+                             <span className="font-black text-teal-500 text-base">{formatStudyTime(totalStudiedMinutes)}</span>
+                           </div>
                         </div>
                       </div>
                     </div>
