@@ -294,25 +294,32 @@ export default function Dashboard() {
                         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-emerald-500/10 via-teal-500/10 to-cyan-500/10 rounded-full blur-[60px] translate-y-1/3 -translate-x-1/4"></div>
 
                         <div className="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,360px)] gap-6 md:gap-8 items-stretch">
-                            <div className="min-w-0 flex flex-col justify-between text-center md:text-left">
-                                <div>
-                                    <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                        <span className="text-xs font-semibold uppercase tracking-wider text-green-500">{t('dashboard.online')}</span>
+                            <div className="min-w-0 flex flex-col justify-center text-center md:text-left gap-8 h-full py-4 z-10 relative">
+                                <div className="space-y-3">
+                                    <div className="inline-flex items-center gap-3 mb-2">
+                                        <div className="relative flex h-2.5 w-2.5">
+                                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                        </div>
+                                        <span className="text-[11px] font-bold tracking-[0.2em] text-emerald-600 dark:text-emerald-400 uppercase">{t('dashboard.online')}</span>
                                     </div>
-                                    <h1 className="text-4xl md:text-5xl font-bold text-foreground leading-tight mb-3">
-                                        {t('dashboard.welcome_back')}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-500">{user.name}</span>
+                                    <h1 className="text-5xl md:text-6xl tracking-tighter font-semibold text-slate-900 dark:text-white leading-[1.1]">
+                                        {t('dashboard.welcome_back')}, <span className="capitalize">{user.name}</span>.
                                     </h1>
+                                    <p className="text-lg text-slate-500 dark:text-slate-400 max-w-xl font-medium tracking-tight">
+                                        Ready to conquer your goals today? Here's a quick overview of your progress.
+                                    </p>
                                 </div>
 
-                                <div className="mt-6 md:mt-8 max-w-2xl text-left">
-                                    <div className="inline-flex items-center gap-2 mb-3 text-primary/90">
-                                        <Quote className="w-4 h-4" />
-                                        <span className="text-xs font-semibold uppercase tracking-wider">Daily Inspiration</span>
+                                <div className="max-w-xl mt-4">
+                                    <div className="flex gap-5">
+                                        <div className="w-[3px] bg-slate-200 dark:bg-slate-800 rounded-full shrink-0" />
+                                        <div className="space-y-2 py-1">
+                                            <p className="text-xl md:text-2xl font-serif italic text-slate-700 dark:text-slate-300 tracking-tight leading-snug">
+                                                "{getDailyQuote()}"
+                                            </p>
+                                        </div>
                                     </div>
-                                    <blockquote className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-base md:text-lg font-medium italic text-foreground/90 leading-relaxed mb-6">
-                                        "{getDailyQuote()}"
-                                    </blockquote>
                                 </div>
                             </div>
 
@@ -560,53 +567,6 @@ export default function Dashboard() {
                                     <div className="h-[250px] w-full" />
                                 )}
                             </div>
-                        </div>
-
-                        {/* Goal History Section */}
-                        <div className="lg:col-span-12 glass-high rounded-2xl p-6 relative">
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
-                                    <h3 className="text-lg font-semibold text-foreground">{t('dashboard.goal_history')}</h3>
-                                    <p className="text-sm text-muted-foreground">{t('dashboard.goal_history_desc_long')}</p>
-                                </div>
-                                <button
-                                    onClick={() => navigate('/nishtha/history')}
-                                    className="text-sm font-semibold text-primary hover:underline"
-                                >
-                                    {t('dashboard.view_full_history')}
-                                </button>
-                            </div>
-                            <p className="text-muted-foreground text-sm mb-6">{t('dashboard.showing_last_completed')}</p>
-
-                            {allGoals.length === 0 ? (
-                                <div className="text-center py-10 text-muted-foreground">
-                                    <p>{t('dashboard.no_completed_goals')}</p>
-                                    <p className="text-xs mt-1">{t('dashboard.complete_goal_to_see')}</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {allGoals
-                                        .filter(g => g.completed)
-                                        .sort((a, b) => new Date(b.updated_at || b.updatedAt).getTime() - new Date(a.updated_at || a.updatedAt).getTime())
-                                        .slice(0, 5)
-                                        .map(goal => (
-                                            <div key={goal.id} className="bg-muted/50 p-4 rounded-lg flex items-center justify-between gap-4">
-                                                <div className="flex items-center gap-3">
-                                                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                                                    <div>
-                                                        <p className="text-foreground font-medium">{goal.text}</p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {t('dashboard.completed_on')} {new Date(goal.updated_at || goal.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <span className="text-xs font-semibold bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded-full">
-                                                    {t('dashboard.completed_label')}
-                                                </span>
-                                            </div>
-                                        ))}
-                                </div>
-                            )}
                         </div>
 
 

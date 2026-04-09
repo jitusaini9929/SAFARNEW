@@ -50,12 +50,12 @@ export default function NishthaLayout({
     };
 
     return (
-        <div className="flex flex-col min-h-[100dvh] bg-background transition-colors duration-300 relative">
+        <div className="flex flex-col h-[100dvh] overflow-hidden bg-background transition-colors duration-300 relative">
             {showWelcome && <WelcomeDialog onClose={handleCloseWelcome} userName={userName} />}
 
-            <div className="flex flex-1 overflow-hidden relative">
+            <div className="flex flex-1 overflow-hidden relative min-h-0">
                 <LeftSidebar showHome={false} />
-                <div className="flex flex-col flex-1 relative z-10 w-full overflow-hidden">
+                <div className="flex flex-col flex-1 relative z-10 w-full overflow-hidden min-h-0 min-w-0">
                     <TopNavbar
                         userName={userName}
                         userAvatar={userAvatar}

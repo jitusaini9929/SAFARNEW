@@ -28,7 +28,9 @@ import {
   X,
   Info,
   BookOpen,
-  AlertTriangle
+  AlertTriangle,
+  ChevronDown,
+  CalendarClock
 } from "lucide-react";
 import ChartErrorBoundary from "@/components/charts/ChartErrorBoundary";
 
@@ -65,6 +67,7 @@ import {
   getGoalHistoryDateKey,
   getDailyCompletionMetrics,
   LEGACY_ONE_TIME_GOAL_KIND_OPTION,
+  isScheduledAndDormant,
 } from "@/utils/goalUtils";
 
 const MAX_COMPLETED_DISPLAY = 5;
@@ -260,6 +263,74 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
   );
 };
 
+const ScheduledTasksSection = ({ goals, onEdit, onDelete, t }: { goals: UIGoal[]; onEdit: (goal: UIGoal) => void; onDelete: (id: string) => void; t: any }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="bg-card/50 border rounded-[32px] shadow-sm overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full p-6 flex items-center justify-between hover:bg-muted/10 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <CalendarClock size={18} className="text-violet-500" />
+          <h3 className="font-bold text-sm">Scheduled Tasks</h3>
+          <span className="px-2.5 py-0.5 bg-violet-500/10 text-violet-600 dark:text-violet-400 rounded-full text-[10px] font-bold">
+            {goals.length} upcoming
+          </span>
+        </div>
+        <ChevronDown size={18} className={`text-muted-foreground transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {expanded && (
+        <div className="divide-y divide-muted/50 border-t">
+          {goals.map(goal => {
+            const scheduledKey = goal.scheduledDate || (goal as any).scheduled_date || '';
+            const scheduledDisplay = scheduledKey
+              ? new Date(scheduledKey + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+              : '';
+            
+            return (
+              <div key={goal.id} className="p-5 flex items-center gap-4 group hover:bg-muted/5 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+                  <CalendarClock size={18} className="text-violet-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-foreground truncate">{goal.title || goal.text}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      📅 {scheduledDisplay}
+                    </span>
+                    {goal.description && (
+                      <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">{goal.description}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => onEdit(goal)}
+                    className="p-2 rounded-lg bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors"
+                    title="Edit"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                  <button
+                    onClick={() => onDelete(goal.id)}
+                    className="p-2 rounded-lg bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) => {
   const { t } = useTranslation();
   const isEdit = mode === "edit";
@@ -359,6 +430,11 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
     setSubtasks((prev) => prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)));
   };
 
+  const tomorrowKey = useMemo(() => {
+    const base = dateKeyToUtcDate(todayKey);
+    return getISTDateKey(new Date(base.getTime() + DAY_MS));
+  }, [todayKey]);
+
   useEffect(() => {
     if (goalKind === "today") {
       setDate(todayKey);
@@ -367,8 +443,11 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
       if (!isEdit) setCarryForwardMode("ask");
     } else if (goalKind === "one_time") {
       if (!isEdit) setCarryForwardMode("none");
+    } else if (goalKind === "scheduled") {
+      if (!isEdit && date <= todayKey) setDate(tomorrowKey);
+      if (!isEdit) setCarryForwardMode("none");
     }
-  }, [goalKind, isEdit, todayKey]);
+  }, [goalKind, isEdit, todayKey, tomorrowKey]);
 
   useEffect(() => {
     if (unitType !== "duration_minutes") {
@@ -398,9 +477,11 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
     if (unitType === "count" && (targetValue === "" || parsedTargetValue < 0)) return;
     const scheduleDateKey = goalKind === "today"
       ? todayKey
-      : goalKind === "one_time"
-        ? (showDueDate ? date : undefined)
-        : todayKey;
+      : goalKind === "scheduled"
+        ? date
+        : goalKind === "one_time"
+          ? (showDueDate ? date : undefined)
+          : todayKey;
     const startedAt = isEdit
       ? (goal?.startedAt || goal?.started_at || null)
       : null;
@@ -437,7 +518,9 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   const parsedTargetForValidation = Number(targetValue);
   const hasValidTarget = !requiresTarget
     || (targetValue !== "" && parsedTargetForValidation >= 0);
-  const canSubmit = Boolean(title.trim()) && hasValidTarget;
+  const needsFutureDate = goalKind === "scheduled" && !isEdit;
+  const hasFutureDate = !needsFutureDate || (date > todayKey);
+  const canSubmit = Boolean(title.trim()) && hasValidTarget && hasFutureDate;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
@@ -601,6 +684,32 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                   min={todayKey}
                   max={maxDateKey}
                 />
+              )}
+            </div>
+          )}
+
+          {goalKind === "scheduled" && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest pl-1 flex items-center gap-2">
+                <CalendarClock size={14} /> When should this activate?
+                <FieldInfo>
+                  <div className="space-y-1">
+                    <p>Yeh goal tab tak dormant rahega jab tak scheduled date nahi aa jaati.</p>
+                    <p className="text-muted-foreground">Us din yeh automatically pending tasks mein show hoga.</p>
+                  </div>
+                </FieldInfo>
+              </label>
+              <input
+                type="date"
+                className="w-full bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                min={tomorrowKey}
+              />
+              {date && date > todayKey && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium pl-1">
+                  This goal will activate on {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
               )}
             </div>
           )}
@@ -872,6 +981,38 @@ export default function Goals() {
     }
   };
 
+  const handleRepeatGoal = async (goal: UIGoal) => {
+    try {
+      const createdGoal = await dataService.addGoal({
+        title: goal.title || goal.text || '',
+        description: goal.description || '',
+        scheduledDate: todayKey,
+        startedAt: null,
+        subtasks: Array.isArray(goal.subtasks) 
+            ? goal.subtasks.map((t: any) => ({ text: t.text, done: false, id: crypto.randomUUID() })) 
+            : [],
+        goalKind: "one_time",
+        unitType: goal.unitType || 'binary',
+        executionMode: goal.executionMode || 'manual',
+        linkedFocusEnabled: goal.linkedFocusEnabled || false,
+        plannedFocusMinutes: goal.plannedFocusMinutes || null,
+        targetValue: goal.targetValue ?? null,
+        achievedValue: 0,
+        status: 'not_started',
+        carryForwardMode: 'none',
+      });
+      if (goal.unitType === "duration_minutes" && goal.linkedFocusEnabled && createdGoal?.id) {
+          toast.success("Goal repeated. Use Start Focus to begin linked timer sessions.");
+      } else {
+          toast.success(t("goals.toast.created"));
+      }
+      fetchGoals();
+    } catch (error) {
+      console.error(error);
+      toast.error(t("goals.toast.operation_failed"));
+    }
+  };
+
   const saveGoal = async (data: any) => {
     setModal(null);
     try {
@@ -940,9 +1081,16 @@ export default function Goals() {
   const pendingGoals = useMemo(
     () =>
       standardGoals
-        .filter((goal) => !isGoalCompleted(goal))
+        .filter((goal) => !isGoalCompleted(goal) && !isScheduledAndDormant(goal, todayKey))
         .sort((a, b) => (a.scheduledDate || "") > (b.scheduledDate || "") ? 1 : -1),
-    [standardGoals],
+    [standardGoals, todayKey],
+  );
+  const dormantScheduledGoals = useMemo(
+    () =>
+      standardGoals
+        .filter((goal) => !isGoalCompleted(goal) && isScheduledAndDormant(goal, todayKey))
+        .sort((a, b) => (a.scheduledDate || "") > (b.scheduledDate || "") ? 1 : -1),
+    [standardGoals, todayKey],
   );
   const completedRecent = useMemo(
     () =>
@@ -1282,11 +1430,20 @@ export default function Goals() {
                     ) : (
                       <div className="divide-y divide-muted/50">
                         {pendingGoals.map(g => (
-                          <GoalCard key={g.id} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={(goal: any) => setModal({ mode: "repeat", goal })} onFocus={() => handleFocusGoal(g)} />
+                              <GoalCard key={g.id} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={handleRepeatGoal} onFocus={() => handleFocusGoal(g)} />
                         ))}
                       </div>
                     )}
                   </div>
+                )}
+
+                {tab === "goals" && dormantScheduledGoals.length > 0 && (
+                  <ScheduledTasksSection
+                    goals={dormantScheduledGoals}
+                    onEdit={(goal: any) => setModal({ mode: "edit", goal })}
+                    onDelete={deleteGoal}
+                    t={t}
+                  />
                 )}
 
                 {tab === "history" && (

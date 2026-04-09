@@ -13,7 +13,7 @@ export interface UIGoal extends Goal {
 
 export const GOAL_KIND_OPTIONS: Array<{ value: Exclude<GoalKind, "one_time">; label: string; hint: string }> = [
   { value: "today", label: "Today", hint: "Only for today." },
-  { value: "repeat", label: "Repeat", hint: "Do this regularly." },
+  { value: "scheduled", label: "Schedule Task", hint: "Set a goal for a future date." },
 ];
 
 export const LEGACY_ONE_TIME_GOAL_KIND_OPTION: { value: GoalKind; label: string; hint: string } = {
@@ -58,7 +58,7 @@ export const parseValidDate = (raw: unknown) => {
 
 export const normalizeGoalKind = (goal: UIGoal): GoalKind => {
   const raw = String(goal.goalKind || (goal as any).goal_kind || "").trim();
-  if (raw === "one_time" || raw === "today" || raw === "repeat") return raw as GoalKind;
+  if (raw === "one_time" || raw === "today" || raw === "repeat" || raw === "scheduled") return raw as GoalKind;
   return "today";
 };
 
@@ -110,7 +110,20 @@ export const normalizeAchievedValue = (goal: UIGoal): number => {
 export const getGoalKindBadgeLabel = (kind: GoalKind) => {
   if (kind === "one_time") return "One-time";
   if (kind === "repeat") return "Repeat";
+  if (kind === "scheduled") return "Scheduled";
   return "Today";
+};
+
+export const isScheduledAndDormant = (goal: UIGoal, todayKey: string): boolean => {
+  const kind = normalizeGoalKind(goal);
+  if (kind !== "scheduled") return false;
+  const scheduledKey = goal.scheduledDate || (goal as any).scheduled_date || null;
+  if (!scheduledKey) return false;
+  const dateKey = typeof scheduledKey === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(scheduledKey)
+    ? scheduledKey
+    : (() => { const d = new Date(scheduledKey); return Number.isFinite(d.getTime()) ? getISTDateKey(d) : null; })();
+  if (!dateKey) return false;
+  return dateKey > todayKey;
 };
 
 export const getGoalUnitBadgeLabel = (unit: GoalUnitType) => {

@@ -27,7 +27,7 @@ export interface GoalSubtask {
   done: boolean;
 }
 
-export type GoalKind = "one_time" | "today" | "repeat";
+export type GoalKind = "one_time" | "today" | "repeat" | "scheduled";
 export type GoalUnitType = "binary" | "count" | "duration_minutes" | "checklist";
 export type GoalExecutionMode = "manual" | "timed" | "hybrid";
 export type GoalExecutionStatus =
