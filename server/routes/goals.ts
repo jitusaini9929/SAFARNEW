@@ -171,6 +171,13 @@ const normalizeGoalAchievedValue = (raw: unknown): number | null => {
     return parsed >= 0 ? parsed : null;
 };
 
+const normalizeStudiedMinutes = (raw: unknown): number => {
+    if (raw === undefined || raw === null || raw === '') return 0;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return Math.round(parsed);
+};
+
 const getGoalKindFromRecord = (goal: any): GoalKind => {
     return normalizeGoalKind(goal.goal_kind ?? goal.goalKind) || 'today';
 };
@@ -293,6 +300,7 @@ const normalizeGoalResponse = (goal: any) => {
     const status = getGoalStatusFromRecord(goal);
     const carryForwardMode = getGoalCarryForwardModeFromRecord(goal);
     const subtasks = normalizeGoalSubtasks(goal.subtasks) || [];
+    const studiedMinutes = normalizeStudiedMinutes(goal.studied_minutes ?? goal.studiedMinutes);
     return {
         ...goal,
         text: title,
@@ -313,6 +321,7 @@ const normalizeGoalResponse = (goal: any) => {
         status,
         carryForwardMode,
         subtasks,
+        studiedMinutes,
         createdAt: createdAt.toISOString(),
         completedAt: completedAt ? completedAt.toISOString() : null,
         startedAt: startedAt ? startedAt.toISOString() : null,
@@ -330,6 +339,7 @@ const normalizeGoalResponse = (goal: any) => {
         achieved_value: achievedValue,
         status_value: status,
         carry_forward_mode: carryForwardMode,
+        studied_minutes: studiedMinutes,
     };
 };
 
@@ -1040,6 +1050,7 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
     const hasAchievedValueUpdate = req.body && 'achievedValue' in req.body;
     const hasStatusUpdate = req.body && 'status' in req.body;
     const hasCarryForwardModeUpdate = req.body && 'carryForwardMode' in req.body;
+    const hasStudiedMinutesUpdate = req.body && 'studiedMinutes' in req.body;
     const normalizedTitle = hasTitleUpdate ? normalizeGoalTitle(req.body?.title, req.body?.text) : null;
     const normalizedDescription = hasDescriptionUpdate ? normalizeGoalDescription(req.body?.description) : undefined;
     const normalizedType = hasTypeUpdate ? normalizeGoalType(req.body?.type) : null;
@@ -1071,7 +1082,8 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         !hasTargetValueUpdate &&
         !hasAchievedValueUpdate &&
         !hasStatusUpdate &&
-        !hasCarryForwardModeUpdate
+        !hasCarryForwardModeUpdate &&
+        !hasStudiedMinutesUpdate
     ) {
         return res.status(400).json({ message: 'Nothing to update' });
     }
@@ -1287,6 +1299,9 @@ router.patch('/:id', requireAuth, async (req: Request, res) => {
         updates.completed_via_focus = false;
         updates.lifecycle_status = lifecycleStatus;
         updates.rollover_prompt_pending = false;
+        if (hasStudiedMinutesUpdate) {
+            updates.studied_minutes = normalizeStudiedMinutes(req.body.studiedMinutes);
+        }
         if (completed) {
             const existingTarget = getGoalTargetValueFromRecord(goal);
             updates.status_value = 'completed';

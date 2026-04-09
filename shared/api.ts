@@ -63,6 +63,7 @@ export interface Goal {
   completed: boolean;
   createdAt: string;
   completedAt?: string | null;
+  studiedMinutes?: number | null;
   startedAt?: string | null;
   expiresAt?: string | null;
   lifecycleStatus?: "active" | "missed" | "rolled_over" | "abandoned";
@@ -74,6 +75,7 @@ export interface Goal {
   subtasks?: GoalSubtask[];
   created_at?: string;
   completed_at?: string;
+  studied_minutes?: number | null;
   expires_at?: string;
   lifecycle_status?: "active" | "missed" | "rolled_over" | "abandoned";
   scheduled_date?: string;
@@ -230,6 +232,7 @@ export interface MonthlyReport {
     goalsCreated: number;
     goalsCompleted: number;
     totalFocusMinutes: number;
+    totalManualStudyMinutes: number;
     focusDays: number;
     reflectionDays: number;
     checkInDays: number;

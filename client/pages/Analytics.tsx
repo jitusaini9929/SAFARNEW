@@ -15,6 +15,7 @@ import {
     ChevronRight,
     Search,
     Heart,
+    BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -175,6 +176,16 @@ export default function Analytics() {
             icon: Heart,
             color: "text-rose-500",
             bg: "bg-rose-500/10",
+        },
+        {
+            label: "Manual Study Time",
+            val: formatMinutes(report.executiveSummary.totalManualStudyMinutes || 0),
+            msg: report.executiveSummary.totalManualStudyMinutes > 0
+                ? `Self-reported study time from ${report.executiveSummary.goalsCompleted} completed manual goals.`
+                : "Complete goals and log study time to see this metric.",
+            icon: BookOpen,
+            color: "text-teal-500",
+            bg: "bg-teal-500/10",
         },
     ] : [];
 

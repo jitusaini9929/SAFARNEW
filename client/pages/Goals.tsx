@@ -26,11 +26,16 @@ import {
   BarChart3,
   HelpCircle,
   X,
-  Info
+  Info,
+  BookOpen,
+  AlertTriangle
 } from "lucide-react";
 import ChartErrorBoundary from "@/components/charts/ChartErrorBoundary";
 
 const StreaksConsistencyChart = lazy(() => import("@/components/charts/StreaksConsistencyChart"));
+const StudyTimeDonutChart = lazy(() => import("@/components/charts/StudyTimeDonutChart"));
+
+import { ekagraAnalyticsService } from "@/services/ekagraAnalyticsService";
 
 import {
   UIGoal,
@@ -74,11 +79,11 @@ const formatTimeInputFromISTDate = (date: Date) => {
 };
 
 const FieldInfo = ({ text, children }: { text?: string, children?: React.ReactNode }) => (
-  <span className="relative inline-flex items-center group normal-case tracking-normal">
+  <span className="relative inline-flex items-center group/info normal-case tracking-normal">
     <span className="inline-flex items-center justify-center text-muted-foreground/60 hover:text-muted-foreground transition-colors cursor-help">
       <Info size={14} strokeWidth={2.5} />
     </span>
-    <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 rounded-xl border bg-background/95 backdrop-blur-md p-3.5 text-[11px] font-medium leading-relaxed text-foreground opacity-0 shadow-xl transition-opacity duration-150 group-hover:opacity-100 text-left">
+    <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 rounded-xl border bg-background/95 backdrop-blur-md p-3.5 text-[11px] font-medium leading-relaxed text-foreground opacity-0 shadow-xl transition-all duration-150 group-hover/info:opacity-100 text-left scale-95 group-hover/info:scale-100">
       {children || text}
     </span>
   </span>
@@ -143,6 +148,11 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
       : t("goals.meta.completed", { date: completedDateLabel })
     : (goal.scheduledDate ? t("goals.meta.due", { date: formatDateLabel(goal.scheduledDate) }) : "");
 
+  const studiedMins = Number(goal.studiedMinutes ?? (goal as any).studied_minutes ?? 0);
+  const studiedLabel = studiedMins > 0
+    ? `${Math.floor(studiedMins / 60) > 0 ? `${Math.floor(studiedMins / 60)}h ` : ''}${studiedMins % 60}m studied`
+    : null;
+
   const metaPieces = [primaryMeta, createdMeta].filter(Boolean);
 
   return (
@@ -202,6 +212,14 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
             <Clock size={12} className="text-muted-foreground" />
             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
               {metaPieces.join(" · ")}
+            </span>
+          </div>
+        )}
+        {goal.completed && studiedLabel && (
+          <div className="flex items-center gap-2 mt-1.5">
+            <BookOpen size={12} className="text-emerald-500" />
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+              {studiedLabel}
             </span>
           </div>
         )}
@@ -424,18 +442,22 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
       <div className="w-full max-w-lg bg-card border shadow-2xl rounded-3xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-500 p-6 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+        <div className="bg-gradient-to-r from-emerald-800 to-emerald-600 p-5 relative overflow-hidden">
+          <button 
+            type="button"
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all z-20"
+          >
+            <X size={14} strokeWidth={3} />
+          </button>
+          <h2 className="text-lg font-bold text-white relative z-10 flex items-center gap-2">
             <Plus className="w-5 h-5" /> {isEdit ? t("goals.edit_goal") : t("goals.new_goal")}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
-            <X size={20} />
-          </button>
         </div>
 
-        <div className="overflow-y-auto overflow-x-hidden overscroll-contain p-5 sm:p-6 space-y-5">
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+        <div className="overflow-y-auto overflow-x-hidden overscroll-contain p-5 sm:p-6 space-y-6">
+          <div className="space-y-2 group">
+            <label className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest pl-1 flex items-center gap-2 group-focus-within:text-emerald-600">
               What do you want to do?
               <FieldInfo>
                 <div className="space-y-1">
@@ -445,7 +467,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
               </FieldInfo>
             </label>
             <input 
-              className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+              className="w-full bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
               placeholder={t("goals.modal.title_placeholder")}
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -457,15 +479,9 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
                 Goal type
-                <FieldInfo>
-                  <ul className="list-disc pl-3 space-y-1 text-muted-foreground">
-                    <li><strong className="text-foreground">Today:</strong> sirf aaj ke liye.</li>
-                    <li><strong className="text-foreground">Repeat:</strong> regular basis par karna hai.</li>
-                  </ul>
-                </FieldInfo>
               </label>
               <select
-                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                className="w-full bg-background border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer"
                 value={goalKind}
                 onChange={(e) => setGoalKind(e.target.value as GoalKind)}
               >
@@ -475,22 +491,13 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-muted-foreground pl-1">
-                {goalKindOptions.find((option) => option.value === goalKind)?.hint}
-              </p>
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
                 How will you track it?
-                <FieldInfo>
-                  <ul className="list-disc pl-3 space-y-1.5 text-muted-foreground">
-                    <li><strong className="text-foreground">Done/Not done:</strong> bas complete mark.</li>
-                    <li><strong className="text-foreground">Time:</strong> focus timer ke through track hoga.</li>
-                  </ul>
-                </FieldInfo>
               </label>
               <select
-                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                className="w-full bg-background border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer"
                 value={unitType}
                 onChange={(e) => setUnitType(e.target.value as GoalUnitType)}
               >
@@ -507,15 +514,15 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
             <div className="space-y-3 rounded-2xl border bg-amber-500/5 border-amber-500/20 p-4">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-foreground">Work on this with a timer</p>
-                <p className="text-xs text-muted-foreground">Goal alag rahega, focus sessions alag rahengi, but session is goal ke saath link hogi.</p>
+                <p className="text-xs text-muted-foreground font-medium">Goal alag rahega, focus sessions alag rahengi, but session is goal ke saath link hogi.</p>
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-foreground">
+              <label className="flex items-center gap-2 text-sm text-foreground font-medium cursor-pointer">
                 <input
                   type="checkbox"
                   checked={linkedFocusEnabled}
                   onChange={(e) => setLinkedFocusEnabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-border"
+                  className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500/20"
                 />
                 Enable linked focus sessions
               </label>
@@ -524,16 +531,12 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
 
           {unitType === "checklist" && (
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+              <label className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest pl-1 flex items-center gap-2">
                 Checklist points
-                <FieldInfo>
-                  <p>Bade goal ko chhote steps mein tod do.</p>
-                  <p className="text-muted-foreground mt-1">Har step tick karke progress track hoga.</p>
-                </FieldInfo>
               </label>
               <div className="flex gap-2">
                 <input
-                  className="flex-1 bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                  className="flex-1 bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                   placeholder={t("goals.modal.subtask_placeholder")}
                   value={newSubtaskText}
                   onChange={(e) => setNewSubtaskText(e.target.value)}
@@ -547,7 +550,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                 <button
                   type="button"
                   onClick={addSubtask}
-                  className="px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors"
+                  className="px-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold transition-all active:scale-95 shadow-lg shadow-emerald-500/10"
                 >
                   {t("goals.modal.add")}
                 </button>
@@ -560,16 +563,14 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                         type="button"
                         onClick={() => toggleSubtaskDone(item.id)}
                         className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-border text-transparent'}`}
-                        title={t("goals.modal.toggle_subtask")}
                       >
                         <Check size={12} strokeWidth={3} />
                       </button>
-                      <span className={`flex-1 text-sm ${item.done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{item.text}</span>
+                      <span className={`flex-1 text-sm ${item.done ? 'line-through text-muted-foreground font-medium' : 'text-foreground font-medium'}`}>{item.text}</span>
                       <button
                         type="button"
                         onClick={() => removeSubtask(item.id)}
                         className="p-1 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-colors"
-                        title={t("goals.modal.remove_subtask")}
                       >
                         <X size={14} />
                       </button>
@@ -582,23 +583,19 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
 
           {goalKind === "one_time" && (
             <div className="space-y-3 rounded-2xl border bg-muted/20 p-4">
-              <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <label className="flex items-center gap-2 text-sm font-semibold text-foreground cursor-pointer">
                 <input
                   type="checkbox"
                   checked={showDueDate}
                   onChange={(e) => setShowDueDate(e.target.checked)}
-                  className="h-4 w-4 rounded border-border"
+                  className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500/20"
                 />
                 Add due date (optional)
-                <FieldInfo>
-                  <p>Agar is goal ki deadline fix karni hai to date select karo.</p>
-                  <p className="text-muted-foreground mt-1">Optional hai. Timer link nahi hota.</p>
-                </FieldInfo>
               </label>
               {showDueDate && (
                 <input
                   type="date"
-                  className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all color-scheme-dark"
+                  className="w-full bg-background border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all color-scheme-dark"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   min={todayKey}
@@ -608,50 +605,189 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
             </div>
           )}
 
-          {goalKind === "repeat" && (
-            <div className="space-y-2 rounded-2xl border bg-muted/20 p-4">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
-                Repeat setting
-                <FieldInfo>
-                  <p>Ye batata hai goal kitni baar automatically aayega.</p>
-                  <p className="text-muted-foreground mt-1">Abhi Daily active hai.</p>
-                </FieldInfo>
-              </label>
-              <select
-                className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                value={repeatRule}
-                onChange={(e) => setRepeatRule(e.target.value as "daily" | "weekdays" | "custom")}
-              >
-                <option value="daily">Daily</option>
-                <option value="weekdays" disabled>Weekdays only (coming soon)</option>
-                <option value="custom" disabled>Custom days (coming soon)</option>
-              </select>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
+          <div className="space-y-2 group">
+            <label className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest pl-1 flex items-center gap-2 group-focus-within:text-emerald-600">
               Add details (optional)
-              <FieldInfo>
-                <p>Goal ke extra notes likh sakte ho.</p>
-                <p className="text-muted-foreground mt-1">Jaise topic, context ya reminder.</p>
-              </FieldInfo>
             </label>
             <textarea
-              className="w-full bg-muted/50 border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all min-h-[90px] resize-none"
+              className="w-full bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all min-h-[90px] resize-none"
               placeholder={t("goals.modal.description_placeholder")}
               value={desc}
               onChange={e => setDesc(e.target.value)}
             />
           </div>
 
-          <button
-            onClick={submit}
-            disabled={!canSubmit}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] mt-2"
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              onClick={onClose}
+              className="py-3.5 rounded-xl bg-gradient-to-br from-[#800020] to-[#5a0018] text-white font-bold text-xs shadow-lg shadow-rose-950/20 hover:from-[#5a0018] hover:to-[#400010] transition-all active:scale-[0.98]"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submit}
+              disabled={!canSubmit}
+              className="py-3.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-emerald-950/20 transition-all active:scale-[0.98]"
+            >
+              {isEdit ? t("goals.modal.save_changes") : t("goals.modal.create_goal")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StudyDurationModal = ({ goalTitle, onConfirm, onClose }: {
+  goalTitle: string;
+  onConfirm: (minutes: number) => void;
+  onClose: () => void;
+}) => {
+  const [hours, setHours] = useState("00");
+  const [minutes, setMinutes] = useState("00");
+  const [showWarning, setShowWarning] = useState(false);
+
+  const totalMinutes = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
+
+  const handleSubmit = () => {
+    if (totalMinutes > 1440 && !showWarning) {
+      setShowWarning(true);
+      return;
+    }
+    onConfirm(totalMinutes);
+  };
+
+  const handleSkip = () => {
+    onConfirm(0);
+  };
+
+  const applyQuickSelect = (addMins: number) => {
+    const newTotal = totalMinutes + addMins;
+    const h = Math.floor(newTotal / 60);
+    const m = newTotal % 60;
+    setHours(h.toString().padStart(2, "0"));
+    setMinutes(m.toString().padStart(2, "0"));
+    setShowWarning(false);
+  };
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.select();
+  };
+
+  const handleBlur = (type: "h" | "m", val: string) => {
+    let num = parseInt(val) || 0;
+    if (type === "m" && num > 59) num = 59;
+    if (type === "h") setHours(num.toString().padStart(2, "0"));
+    if (type === "m") setMinutes(num.toString().padStart(2, "0"));
+  };
+
+  const handleTimeChange = (type: "h" | "m", val: string) => {
+    // Only allow digits up to length 2
+    const clean = val.replace(/\D/g, "").slice(0, 2);
+    if (type === "h") setHours(clean);
+    else setMinutes(clean);
+    setShowWarning(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-sm bg-card border shadow-2xl rounded-3xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="bg-gradient-to-r from-emerald-800 to-emerald-600 p-5 relative overflow-hidden">
+          <button 
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all z-20"
           >
-            {isEdit ? t("goals.modal.save_changes") : t("goals.modal.create_goal")}
+            <X size={14} strokeWidth={3} />
           </button>
+          <h2 className="text-lg font-bold text-white relative z-10">
+            How long did you study?
+          </h2>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="flex items-center justify-center gap-4">
+            <div className="flex flex-col items-center gap-2 group">
+              <label className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest transition-colors group-focus-within:text-emerald-600">
+                Hours
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={hours}
+                onFocus={handleFocus}
+                onBlur={e => handleBlur("h", e.target.value)}
+                onChange={e => handleTimeChange("h", e.target.value)}
+                className="w-24 text-center bg-emerald-50/50 dark:bg-emerald-950/20 border-2 border-emerald-100 dark:border-emerald-900/50 rounded-2xl px-2 py-4 text-4xl font-black text-emerald-800 dark:text-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all font-mono"
+              />
+            </div>
+            <div className="flex flex-col items-center pt-6">
+              <span className="text-3xl font-black text-emerald-300 dark:text-emerald-800 animate-pulse">:</span>
+            </div>
+            <div className="flex flex-col items-center gap-2 group">
+              <label className="text-[10px] font-bold text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest transition-colors group-focus-within:text-emerald-600">
+                Minutes
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={minutes}
+                onFocus={handleFocus}
+                onBlur={e => handleBlur("m", e.target.value)}
+                onChange={e => handleTimeChange("m", e.target.value)}
+                className="w-24 text-center bg-emerald-50/50 dark:bg-emerald-950/20 border-2 border-emerald-100 dark:border-emerald-900/50 rounded-2xl px-2 py-4 text-4xl font-black text-emerald-800 dark:text-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {[15, 30, 60, 120].map(mins => (
+              <button
+                key={mins}
+                onClick={() => applyQuickSelect(mins)}
+                className="px-3 py-1.5 rounded-full border border-border/50 bg-muted/30 text-xs font-bold text-muted-foreground hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400 dark:hover:border-emerald-500/30 transition-all active:scale-95"
+              >
+                +{mins >= 60 ? `${mins / 60}h` : `${mins}m`}
+              </button>
+            ))}
+            {totalMinutes > 0 && (
+              <button
+                onClick={() => { setHours("00"); setMinutes("00"); }}
+                className="px-2 py-1.5 rounded-full text-[10px] font-bold text-muted-foreground hover:text-destructive transition-colors ml-1 uppercase hover:bg-destructive/10"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {showWarning && (
+            <div className="flex items-start gap-2 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 animate-in slide-in-from-top-2 duration-200">
+              <AlertTriangle size={18} className="text-amber-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-amber-700 dark:text-amber-400 font-medium leading-relaxed">
+                Over 24 hours study time. Are you sure? Click Done to confirm.
+              </p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-3">
+            <button
+              onClick={onClose}
+              className="py-3 rounded-xl bg-gradient-to-br from-[#800020] to-[#5a0018] text-white font-bold text-xs shadow-lg shadow-rose-950/20 hover:from-[#5a0018] hover:to-[#400010] transition-all active:scale-[0.98]"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSkip}
+              className="py-3 rounded-xl border bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border-emerald-500/10 font-bold text-xs hover:bg-emerald-500/10 transition-all active:scale-[0.98]"
+            >
+              Skip
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs shadow-lg shadow-emerald-950/20 transition-all active:scale-[0.98]"
+            >
+              {showWarning ? 'Confirm' : 'Done'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -666,6 +802,8 @@ export default function Goals() {
   const [goals, setGoals] = useState<UIGoal[]>([]);
   const [modal, setModal] = useState<any>(null);
   const [showGoalsGuide, setShowGoalsGuide] = useState(false);
+  const [durationModal, setDurationModal] = useState<{ goalId: string; goalTitle: string } | null>(null);
+  const [focusTotalMinutes, setFocusTotalMinutes] = useState(0);
   const [tab, setTab] = useState("goals");
   const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
   const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
@@ -691,6 +829,12 @@ export default function Goals() {
 
   useEffect(() => {
     fetchGoals();
+    ekagraAnalyticsService.getEkagraAnalytics().then(stats => {
+      const goalLinkedMins = (stats.focusSessions || [])
+        .filter(s => s.associatedGoalId)
+        .reduce((sum, s) => sum + (s.actualMinutes || 0), 0);
+      setFocusTotalMinutes(Math.round(goalLinkedMins));
+    }).catch(() => {});
     const interval = setInterval(() => setTodayKey(getISTDateKey(new Date())), 60000);
     return () => clearInterval(interval);
   }, []);
@@ -700,10 +844,16 @@ export default function Goals() {
       toast.info(t("goals.toast.already_completed"));
       return;
     }
+    const goal = goals.find(g => g.id === id);
+    setDurationModal({ goalId: id, goalTitle: goal?.title || '' });
+  };
+
+  const confirmGoalCompletion = async (goalId: string, studiedMinutes: number) => {
+    setDurationModal(null);
     const nowIso = new Date().toISOString();
-    setGoals(gs => gs.map(g => g.id !== id ? g : { ...g, completed: true, completedAt: nowIso }));
+    setGoals(gs => gs.map(g => g.id !== goalId ? g : { ...g, completed: true, completedAt: nowIso, studiedMinutes }));
     try {
-      await dataService.updateGoal(id, true, nowIso);
+      await dataService.updateGoal(goalId, true, nowIso, studiedMinutes);
       toast.success(t("goals.toast.completed"));
     } catch (error) {
       toast.error(t("goals.toast.update_failed"));
@@ -865,6 +1015,21 @@ export default function Goals() {
     return Math.round(sum / standardGoals.length);
   }, [standardGoals]);
 
+  const totalStudiedMinutes = useMemo(
+    () => manualCompletedGoals.reduce((acc, g) => acc + Number(g.studiedMinutes ?? (g as any).studied_minutes ?? 0), 0),
+    [manualCompletedGoals],
+  );
+  const avgStudiedMinutes = useMemo(
+    () => manualCompletedGoals.length > 0 ? Math.round(totalStudiedMinutes / manualCompletedGoals.length) : 0,
+    [totalStudiedMinutes, manualCompletedGoals.length],
+  );
+  const formatStudyTime = (mins: number) => {
+    if (mins === 0) return '0m';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+  };
+
   const kindBreakdown = useMemo(() => {
     const counts: Record<GoalKind, number> = { today: 0, one_time: 0, repeat: 0 };
     for (const goal of standardGoals) counts[normalizeGoalKind(goal)] += 1;
@@ -1016,6 +1181,44 @@ export default function Goals() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Current Streak</p>
                   <p className="text-4xl font-black text-amber-500">{currentCompletionStreak}d</p>
                   <p className="text-xs text-muted-foreground mt-2">Consecutive days with completions</p>
+                </div>
+              </div>
+
+              <div className="bg-card border rounded-[32px] p-8 shadow-sm">
+                <div className="mb-6">
+                  <h3 className="text-xl font-black flex items-center gap-3">
+                    <BarChart3 size={24} className="text-teal-500" /> Study Time Breakdown
+                  </h3>
+                  <p className="text-sm font-medium text-muted-foreground mt-2">How your total study time is distributed</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                  <ChartErrorBoundary>
+                    <Suspense fallback={<div className="h-[200px] w-full" />}>
+                      <StudyTimeDonutChart manualMinutes={totalStudiedMinutes} focusMinutes={focusTotalMinutes} />
+                    </Suspense>
+                  </ChartErrorBoundary>
+                  <div className="space-y-4">
+                    <div className="p-5 rounded-2xl border bg-teal-500/5 border-teal-500/20">
+                      <div className="flex items-center gap-2 mb-1">
+                        <BookOpen size={14} className="text-teal-500" />
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Manual Study</p>
+                      </div>
+                      <p className="text-3xl font-black text-teal-500">{formatStudyTime(totalStudiedMinutes)}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Self-reported when completing goals</p>
+                    </div>
+                    <div className="p-5 rounded-2xl border bg-indigo-500/5 border-indigo-500/20">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock size={14} className="text-indigo-500" />
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Focus Timer</p>
+                      </div>
+                      <p className="text-3xl font-black text-indigo-500">{formatStudyTime(focusTotalMinutes)}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Ekagra sessions linked to goals only</p>
+                    </div>
+                    <div className="p-5 rounded-2xl border bg-muted/30">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Avg per Completed Goal</p>
+                      <p className="text-2xl font-black text-foreground">{formatStudyTime(avgStudiedMinutes)}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1261,6 +1464,14 @@ export default function Goals() {
         )}
 
         {modal && <GoalModal goal={modal.goal} mode={modal.mode} onSave={saveGoal} onClose={() => setModal(null)} todayKey={todayKey} maxDateKey={maxDateKey} />}
+
+        {durationModal && (
+          <StudyDurationModal
+            goalTitle={durationModal.goalTitle}
+            onConfirm={(mins) => confirmGoalCompletion(durationModal.goalId, mins)}
+            onClose={() => setDurationModal(null)}
+          />
+        )}
       </div>
     </NishthaLayout>
   );

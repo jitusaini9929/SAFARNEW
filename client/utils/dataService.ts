@@ -433,11 +433,11 @@ export const dataService = {
         return res.json();
     },
 
-    async updateGoal(id: string, completed: boolean, completedAt?: string): Promise<void> {
+    async updateGoal(id: string, completed: boolean, completedAt?: string, studiedMinutes?: number): Promise<void> {
         const res = await apiFetch(`${API_URL}/goals/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ completed, ...(completedAt ? { completedAt } : {}) }),
+            body: JSON.stringify({ completed, ...(completedAt ? { completedAt } : {}), ...(studiedMinutes !== undefined ? { studiedMinutes } : {}) }),
             credentials: 'include',
         });
         if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update goal"));

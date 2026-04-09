@@ -161,6 +161,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
                         completed_at: 1,
                         completed: 1,
                         status_value: 1,
+                        studied_minutes: 1,
                     },
                 },
             )
@@ -263,6 +264,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
 
     let goalsCreated = 0;
     let goalsCompleted = 0;
+    let totalManualStudyMinutes = 0;
     for (const goal of goals) {
         if (!isManualGoal(goal)) continue;
 
@@ -287,6 +289,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
         if (completedKey && completedKey.startsWith(monthKey)) {
             goalsCompleted += 1;
             ensureDayStat(completedKey).goalsCompleted += 1;
+            totalManualStudyMinutes += getPositiveNumber((goal as any)?.studied_minutes);
         }
     }
 
@@ -426,6 +429,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
             goalsCreated,
             goalsCompleted,
             totalFocusMinutes,
+            totalManualStudyMinutes,
             focusDays,
             reflectionDays,
             checkInDays: moodDaySet.size,
