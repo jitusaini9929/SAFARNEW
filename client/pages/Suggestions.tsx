@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/MainLayout';
 import {
@@ -78,10 +78,21 @@ const difficultyColors: Record<string, string> = {
   'Hard': 'text-rose-700 bg-rose-100 border-rose-200 dark:text-rose-300 dark:bg-rose-500/10 dark:border-rose-500/20',
 };
 
-const moodEmojis: Record<string, string> = {
+const moodEmojis: Record<string, ReactNode> = {
   low: '😔',
   neutral: '😊',
-  high: '🔥',
+  high: (
+    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" className="bi bi-fire inline-block" viewBox="0 0 16 16">
+      <defs>
+        <linearGradient id="fireGradient" x1="8" y1="0" x2="8" y2="16" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#FFD166"/>
+          <stop offset="45%" stopColor="#FF7A18"/>
+          <stop offset="100%" stopColor="#E63946"/>
+        </linearGradient>
+      </defs>
+      <path fill="url(#fireGradient)" d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16m0-1c-1.657 0-3-1-3-2.75 0-.75.25-2 1.25-3C6.125 10 7 10.5 7 10.5c-.375-1.25.5-3.25 2-3.5-.179 1-.25 2 1 3 .625.5 1 1.364 1 2.25C11 14 9.657 15 8 15"/>
+    </svg>
+  ),
 };
 
 const CRISIS_HELPLINE = {
@@ -124,7 +135,7 @@ export default function Suggestions() {
 
   if (loading) {
     return (
-      <MainLayout>
+      <MainLayout showHome={false}>
         <div className="min-h-[100dvh] flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
@@ -137,7 +148,7 @@ export default function Suggestions() {
 
   if (!data) {
     return (
-      <MainLayout>
+      <MainLayout showHome={false}>
         <div className="min-h-[100dvh] flex items-center justify-center">
           <p className="text-slate-600 dark:text-slate-400">Could not load suggestions. Please try again.</p>
         </div>
@@ -146,7 +157,7 @@ export default function Suggestions() {
   }
 
   return (
-    <MainLayout>
+    <MainLayout showHome={false}>
       <div className="min-h-[100dvh] pb-20 px-4 md:px-6 max-w-5xl mx-auto">
 
         {/* ═══════ Hero Section ═══════ */}

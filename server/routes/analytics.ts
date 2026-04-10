@@ -71,6 +71,24 @@ const getActualFocusMinutes = (row: any) => {
     return Number.isFinite(duration) && duration >= 0 ? Math.round(duration) : 0;
 };
 
+const parseDateOnly = (value: string, endOfDay: boolean): Date | null => {
+    if (!value) return null;
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [yearStr, monthStr, dayStr] = value.split("-");
+        const year = Number(yearStr);
+        const monthIndex = Number(monthStr) - 1;
+        const day = Number(dayStr);
+        if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) return null;
+        return new Date(Date.UTC(year, monthIndex, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0));
+    }
+
+    const parsed = new Date(String(value));
+    if (!Number.isFinite(parsed.getTime())) return null;
+    const ist = toISTDate(parsed);
+    return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate(), endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0));
+};
+
 const getMonthWindow = (monthInput?: string) => {
     let year: number;
     let monthIndex: number;
@@ -92,29 +110,100 @@ const getMonthWindow = (monthInput?: string) => {
     const evaluationDay = isCurrentMonth ? nowIST.getUTCDate() : endIST.getUTCDate();
     const evaluationEndIST = new Date(Date.UTC(year, monthIndex, evaluationDay, 23, 59, 59, 999));
 
+    const monthKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+    const rangeStartKey = `${monthKey}-01`;
+    const rangeEndKey = `${monthKey}-${String(evaluationDay).padStart(2, "0")}`;
+
     return {
-        monthKey: `${year}-${String(monthIndex + 1).padStart(2, "0")}`,
+        reportKey: monthKey,
         startUTC: new Date(startIST.getTime() - IST_OFFSET_MS),
         endUTC: new Date(endIST.getTime() - IST_OFFSET_MS),
         evaluationEndUTC: new Date(evaluationEndIST.getTime() - IST_OFFSET_MS),
         daysInMonth: endIST.getUTCDate(),
         evaluationDays: evaluationDay,
-        year,
-        monthIndex,
+        rangeStartKey,
+        rangeEndKey,
     };
 };
 
-async function generateMonthlyReport(userId: string, monthInput?: string) {
+const getRangeWindow = (rangeInput?: string, startInput?: string, endInput?: string) => {
+    const nowIST = toISTDate(new Date());
+    const normalizedRange = String(rangeInput || "").trim().toLowerCase();
+
+    let startIST: Date | null = null;
+    let endIST: Date | null = null;
+    let reportKey = "";
+
+    if (normalizedRange === "all") {
+        startIST = new Date(Date.UTC(1970, 0, 1, 0, 0, 0, 0));
+        endIST = new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate(), 23, 59, 59, 999));
+        reportKey = "all-time";
+    } else if (startInput || endInput) {
+        startIST = parseDateOnly(startInput || "", false);
+        endIST = parseDateOnly(endInput || "", true);
+        if (!endIST) {
+            endIST = new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate(), 23, 59, 59, 999));
+        }
+        if (!startIST) {
+            const fallbackStart = new Date(endIST.getTime() - (29 * DAY_MS));
+            startIST = new Date(Date.UTC(fallbackStart.getUTCFullYear(), fallbackStart.getUTCMonth(), fallbackStart.getUTCDate(), 0, 0, 0, 0));
+        }
+        if (startIST.getTime() > endIST.getTime()) {
+            const temp = startIST;
+            startIST = endIST;
+            endIST = temp;
+        }
+        const startKey = toISTDateKey(new Date(startIST.getTime() - IST_OFFSET_MS));
+        const endKey = toISTDateKey(new Date(endIST.getTime() - IST_OFFSET_MS));
+        reportKey = `range:${startKey}..${endKey}`;
+    } else {
+        endIST = new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate(), 23, 59, 59, 999));
+        const startFallback = new Date(endIST.getTime() - (29 * DAY_MS));
+        startIST = new Date(Date.UTC(startFallback.getUTCFullYear(), startFallback.getUTCMonth(), startFallback.getUTCDate(), 0, 0, 0, 0));
+        reportKey = "last-30-days";
+    }
+
+    const startUTC = new Date(startIST.getTime() - IST_OFFSET_MS);
+    const evaluationEndUTC = new Date(endIST.getTime() - IST_OFFSET_MS);
+    const daysInRange = Math.max(1, Math.floor((endIST.getTime() - startIST.getTime()) / DAY_MS) + 1);
+    const rangeStartKey = toISTDateKey(startUTC);
+    const rangeEndKey = toISTDateKey(evaluationEndUTC);
+
+    return {
+        reportKey,
+        startUTC,
+        endUTC: evaluationEndUTC,
+        evaluationEndUTC,
+        daysInMonth: daysInRange,
+        evaluationDays: daysInRange,
+        rangeStartKey,
+        rangeEndKey,
+    };
+};
+
+const getReportWindow = (options: { monthInput?: string; range?: string; start?: string; end?: string; allowRange?: boolean }) => {
+    if (options.allowRange && !options.monthInput) {
+        return getRangeWindow(options.range, options.start, options.end);
+    }
+    return getMonthWindow(options.monthInput);
+};
+
+async function generateMonthlyReport(
+    userId: string,
+    options: { monthInput?: string; range?: string; start?: string; end?: string; allowRange?: boolean } = {},
+) {
     const {
-        monthKey,
+        reportKey,
         startUTC,
         evaluationEndUTC,
         endUTC,
         daysInMonth,
         evaluationDays,
-        year,
-        monthIndex,
-    } = getMonthWindow(monthInput);
+        rangeStartKey,
+        rangeEndKey,
+    } = getReportWindow(options);
+    const monthKey = reportKey;
+    const isWithinRange = (dayKey: string) => dayKey >= rangeStartKey && dayKey <= rangeEndKey;
 
     const [loginRows, moodSnapshots, journalRows, goals, focusRows] = await Promise.all([
         collections.loginHistory()
@@ -220,7 +309,8 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
     };
 
     for (let day = 1; day <= daysInMonth; day += 1) {
-        const key = `${monthKey}-${String(day).padStart(2, "0")}`;
+        const dayUTC = new Date(startUTC.getTime() + (day - 1) * DAY_MS);
+        const key = toISTDateKey(dayUTC);
         ensureDayStat(key);
     }
 
@@ -229,7 +319,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
         const ts = parseDate((row as any)?.timestamp);
         if (!ts) continue;
         const dayKey = toISTDateKey(ts);
-        if (!dayKey.startsWith(monthKey)) continue;
+        if (!isWithinRange(dayKey)) continue;
         loginDaySet.add(dayKey);
         ensureDayStat(dayKey).logins += 1;
     }
@@ -239,7 +329,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
         const ts = parseDate((row as any)?.timestamp);
         if (!ts) continue;
         const dayKey = toISTDateKey(ts);
-        if (!dayKey.startsWith(monthKey)) continue;
+        if (!isWithinRange(dayKey)) continue;
         journalDaySet.add(dayKey);
         ensureDayStat(dayKey).journalCount += 1;
     }
@@ -249,7 +339,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
         const ts = parseDate((row as any)?.timestamp);
         if (!ts) continue;
         const dayKey = toISTDateKey(ts);
-        if (!dayKey.startsWith(monthKey)) continue;
+        if (!isWithinRange(dayKey)) continue;
         const score = getMoodScore(row);
         const day = ensureDayStat(dayKey);
         moodDaySet.add(dayKey);
@@ -259,7 +349,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
         }
     }
 
-    const evaluationEndKey = `${monthKey}-${String(evaluationDays).padStart(2, "0")}`;
+    const evaluationEndKey = rangeEndKey;
     const weekdayGoalStats = new Map<string, { planned: number; completed: number }>();
 
     let goalsCreated = 0;
@@ -273,20 +363,20 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
         const anchorKey = anchorDate ? toISTDateKey(anchorDate) : null;
         const completedKey = completedDate ? toISTDateKey(completedDate) : null;
 
-        if (anchorKey && anchorKey >= `${monthKey}-01` && anchorKey <= evaluationEndKey) {
+        if (anchorKey && anchorKey >= rangeStartKey && anchorKey <= evaluationEndKey) {
             goalsCreated += 1;
             ensureDayStat(anchorKey).goalsPlanned += 1;
 
             const weekday = toISTDate(anchorDate!).toLocaleDateString("en-IN", { weekday: "long" });
             const existing = weekdayGoalStats.get(weekday) || { planned: 0, completed: 0 };
             existing.planned += 1;
-            if (completedKey && completedKey.startsWith(monthKey)) {
+            if (completedKey && isWithinRange(completedKey)) {
                 existing.completed += 1;
             }
             weekdayGoalStats.set(weekday, existing);
         }
 
-        if (completedKey && completedKey.startsWith(monthKey)) {
+        if (completedKey && isWithinRange(completedKey)) {
             goalsCompleted += 1;
             ensureDayStat(completedKey).goalsCompleted += 1;
             totalManualStudyMinutes += getPositiveNumber((goal as any)?.studied_minutes);
@@ -301,7 +391,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
         const completedAt = parseDate((row as any)?.completed_at);
         if (!completedAt) continue;
         const dayKey = toISTDateKey(completedAt);
-        if (!dayKey.startsWith(monthKey)) continue;
+        if (!isWithinRange(dayKey)) continue;
         const actualMinutes = getActualFocusMinutes(row);
         totalFocusMinutes += actualMinutes;
         focusDaySet.add(dayKey);
@@ -397,7 +487,8 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
 
     const heatmap = [];
     for (let day = 1; day <= daysInMonth; day += 1) {
-        const dayKey = `${monthKey}-${String(day).padStart(2, "0")}`;
+        const dayUTC = new Date(startUTC.getTime() + (day - 1) * DAY_MS);
+        const dayKey = toISTDateKey(dayUTC);
         const entry = ensureDayStat(dayKey);
         const activityPoints =
             (entry.moodCount > 0 ? 1 : 0)
@@ -405,7 +496,7 @@ async function generateMonthlyReport(userId: string, monthInput?: string) {
             + (entry.goalsCompleted * 2)
             + Math.round(entry.focusMinutes / 25);
         const intensity = activityPoints >= 8 ? 4 : activityPoints >= 5 ? 3 : activityPoints >= 2 ? 2 : activityPoints >= 1 ? 1 : 0;
-        const date = new Date(Date.UTC(year, monthIndex, day, 0, 0, 0, 0));
+        const date = toISTDate(dayUTC);
         heatmap.push({
             date: dayKey,
             dayOfWeek: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getUTCDay()],
@@ -490,10 +581,19 @@ router.get("/monthly-report", requireAuth, async (req: any, res) => {
     try {
         const userId = req.session.userId!;
         const monthInput = req.query.month ? String(req.query.month) : undefined;
-        const { monthKey } = getMonthWindow(monthInput);
+        const rangeInput = req.query.range ? String(req.query.range) : undefined;
+        const startInput = req.query.start ? String(req.query.start) : undefined;
+        const endInput = req.query.end ? String(req.query.end) : undefined;
+        const { reportKey } = getReportWindow({
+            monthInput,
+            range: rangeInput,
+            start: startInput,
+            end: endInput,
+            allowRange: true,
+        });
 
         const cached = await collections.monthlyReports().findOne(
-            { user_id: userId, month: monthKey },
+            { user_id: userId, month: reportKey },
             { projection: { report_json: 1, updated_at: 1 } },
         );
         const cacheAgeMs = cached?.updated_at ? Date.now() - new Date(cached.updated_at).getTime() : Infinity;
@@ -504,7 +604,13 @@ router.get("/monthly-report", requireAuth, async (req: any, res) => {
             return res.json(cached.report_json);
         }
 
-        const report = await generateMonthlyReport(userId, monthInput);
+        const report = await generateMonthlyReport(userId, {
+            monthInput,
+            range: rangeInput,
+            start: startInput,
+            end: endInput,
+            allowRange: true,
+        });
         res.set("Cache-Control", "private, max-age=300");
         return res.json(report);
     } catch (error) {
@@ -517,7 +623,7 @@ router.post("/monthly-report/generate", requireAuth, async (req: any, res) => {
     try {
         const userId = req.session.userId!;
         const monthInput = req.body?.month ? String(req.body.month) : (req.query.month ? String(req.query.month) : undefined);
-        const report = await generateMonthlyReport(userId, monthInput);
+        const report = await generateMonthlyReport(userId, { monthInput, allowRange: false });
         return res.json(report);
     } catch (error) {
         console.error("Generate monthly report error:", error);

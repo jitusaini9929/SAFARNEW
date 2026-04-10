@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Socket } from "socket.io-client";
-import { apiFetch, API_BASE } from "@/utils/apiFetch";
+import { apiFetch, API_BASE, getAccessToken, refreshAccessToken } from "@/utils/apiFetch";
 
 export type DMRequestState = "idle" | "pending" | "accepted" | "declined";
 export type DMContextType = "post" | "comment";
@@ -340,6 +340,14 @@ export const useDMStore = create<DMStore>((set, get) => ({
 
   loadSavedHandles: async () => {
     try {
+      if (!get().currentUserId) return;
+
+      // Ensure auth is available before calling protected endpoint to avoid noisy 401s.
+      if (!getAccessToken()) {
+        const refreshResult = await refreshAccessToken();
+        if (refreshResult.status !== "ok") return;
+      }
+
       const response = await apiFetch(`${API_BASE}/dm/handles/me`, { credentials: "include" });
       if (!response.ok) return;
       const data = await response.json();

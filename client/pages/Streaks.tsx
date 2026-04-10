@@ -161,8 +161,8 @@ export default function Streaks() {
               </div>
 
               <div className="grid grid-cols-7 gap-y-4 max-w-5xl mx-auto">
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
-                  <div key={d} className="text-[12px] font-black text-muted-foreground uppercase tracking-widest text-center mb-6">{d}</div>
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                  <div key={`weekday-${i}`} className="text-[12px] font-black text-muted-foreground uppercase tracking-widest text-center mb-6">{d}</div>
                 ))}
                 {calendarDays.map((d, i) => (
                   <div key={i} className="flex justify-center p-0.5">

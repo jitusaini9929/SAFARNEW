@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { X, Play } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -104,6 +104,12 @@ export default function YoutubePromotionModal({ open, onOpenChange }: YoutubePro
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-md bg-white dark:bg-[#161618] border-border sm:rounded-xl p-0 shadow-2xl overflow-hidden pointer-events-auto">
+                <DialogHeader className="sr-only">
+                    <DialogTitle>Latest Video</DialogTitle>
+                    <DialogDescription>
+                        Watch the latest SAFAR YouTube video and optionally update the video URL as admin.
+                    </DialogDescription>
+                </DialogHeader>
                 <button
                     onClick={() => onOpenChange(false)}
                     className="absolute top-4 right-4 z-50 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-all backdrop-blur-md border border-white/10"

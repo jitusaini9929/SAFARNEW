@@ -49,6 +49,29 @@ const dmRoomTimeouts = new Map<string, NodeJS.Timeout>();
 const dmRequests = new Map<string, { fromUserId: string; toUserId: string; context: any; status: 'pending' }>();
 const dmRooms = new Map<string, { user1: string; user2: string; createdAt: number; messageCount: number }>();
 
+const ONLINE_COUNT_THROTTLE_MS = 5000;
+let onlineCountTimer: NodeJS.Timeout | null = null;
+let lastOnlineCountEmit = 0;
+
+function scheduleOnlineCountBroadcast(mehfil: ReturnType<Server['of']>) {
+  const now = Date.now();
+  const elapsed = now - lastOnlineCountEmit;
+
+  if (elapsed >= ONLINE_COUNT_THROTTLE_MS) {
+    lastOnlineCountEmit = now;
+    mehfil.emit('onlineCount', connectedUsers.size);
+    return;
+  }
+
+  if (onlineCountTimer) return;
+
+  onlineCountTimer = setTimeout(() => {
+    onlineCountTimer = null;
+    lastOnlineCountEmit = Date.now();
+    mehfil.emit('onlineCount', connectedUsers.size);
+  }, Math.max(0, ONLINE_COUNT_THROTTLE_MS - elapsed));
+}
+
 const DM_REQUEST_TTL_SECONDS = 60;
 const DM_ROOM_TTL_SECONDS = 2 * 60 * 60;
 const DM_SOCKET_TTL_SECONDS = 60 * 60;
@@ -617,7 +640,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
       if (MEHFIL_SOCKET_DEBUG_LOGS) {
         console.log(`[MEHFIL] User registered: ${user.name} (${userId})`);
       }
-      mehfil.emit('onlineCount', connectedUsers.size);
+      scheduleOnlineCountBroadcast(mehfil);
 
       try {
         socket.emit('postingBanStatus', toBanPayload(getActivePostingBan(null)));
@@ -930,7 +953,24 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           thoughts = cachedFeed;
         } else {
           thoughts = await collections.mehfilThoughts()
-            .find(buildThoughtQuery(room))
+            .find(buildThoughtQuery(room), {
+              projection: {
+                _id: 0,
+                id: 1,
+                user_id: 1,
+                is_anonymous: 1,
+                author_name: 1,
+                author_avatar: 1,
+                content: 1,
+                image_url: 1,
+                relatable_count: 1,
+                comments_count: 1,
+                created_at: 1,
+                category: 1,
+                ai_tags: 1,
+                ai_score: 1,
+              },
+            })
             .sort({ created_at: -1 })
             .skip(skip)
             .limit(limit)
@@ -949,13 +989,14 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           const [reactions, saves] = await Promise.all([
             collections.mehfilReactions()
               .find({ user_id: userId, thought_id: { $in: thoughtIds } })
+              .project({ _id: 0, thought_id: 1 })
               .toArray(),
             collections.mehfilSaves()
               .find({ user_id: userId, thought_id: { $in: thoughtIds } })
-              .project({ thought_id: 1 })
+              .project({ _id: 0, thought_id: 1 })
               .toArray(),
           ]);
-          userReactions = reactions.map((r) => r.thought_id);
+          userReactions = reactions.map((r) => String(r.thought_id));
           savedThoughtIds = new Set(saves.map((entry) => String(entry.thought_id)));
         }
 
@@ -1309,7 +1350,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           clearDmRoomTimer(roomId);
         }
       }
-      mehfil.emit('onlineCount', connectedUsers.size);
+      scheduleOnlineCountBroadcast(mehfil);
     });
   });
 

@@ -11,6 +11,20 @@ export interface UIGoal extends Goal {
   title: string;
 }
 
+export interface GoalVisualTone {
+  badgeClassName: string;
+  softClassName: string;
+  accentClassName: string;
+}
+
+export interface GoalScheduledInfo {
+  isValid: boolean;
+  date: Date | null;
+  dateKey: string | null;
+  display: string;
+  rawHint: string;
+}
+
 export const GOAL_KIND_OPTIONS: Array<{ value: Exclude<GoalKind, "one_time">; label: string; hint: string }> = [
   { value: "today", label: "Today", hint: "Only for today." },
   { value: "scheduled", label: "Schedule Task", hint: "Set a goal for a future date." },
@@ -114,6 +128,30 @@ export const getGoalKindBadgeLabel = (kind: GoalKind) => {
   return "Today";
 };
 
+export const getGoalKindTone = (kind: GoalKind): GoalVisualTone => {
+  if (kind === "scheduled") {
+    return {
+      badgeClassName: "bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/15",
+      softClassName: "bg-violet-500/8 border-violet-500/15",
+      accentClassName: "text-violet-600 dark:text-violet-300",
+    };
+  }
+
+  if (kind === "repeat") {
+    return {
+      badgeClassName: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/15",
+      softClassName: "bg-sky-500/8 border-sky-500/15",
+      accentClassName: "text-sky-600 dark:text-sky-300",
+    };
+  }
+
+  return {
+    badgeClassName: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/15",
+    softClassName: "bg-emerald-500/8 border-emerald-500/15",
+    accentClassName: "text-emerald-600 dark:text-emerald-300",
+  };
+};
+
 export const isScheduledAndDormant = (goal: UIGoal, todayKey: string): boolean => {
   const kind = normalizeGoalKind(goal);
   if (kind !== "scheduled") return false;
@@ -126,6 +164,38 @@ export const isScheduledAndDormant = (goal: UIGoal, todayKey: string): boolean =
   return dateKey > todayKey;
 };
 
+export const getGoalUnitTone = (unit: GoalUnitType): GoalVisualTone => {
+  if (unit === "duration_minutes") {
+    return {
+      badgeClassName: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/15",
+      softClassName: "bg-amber-500/8 border-amber-500/15",
+      accentClassName: "text-amber-600 dark:text-amber-300",
+    };
+  }
+
+  if (unit === "checklist") {
+    return {
+      badgeClassName: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/15",
+      softClassName: "bg-indigo-500/8 border-indigo-500/15",
+      accentClassName: "text-indigo-600 dark:text-indigo-300",
+    };
+  }
+
+  if (unit === "count") {
+    return {
+      badgeClassName: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/15",
+      softClassName: "bg-cyan-500/8 border-cyan-500/15",
+      accentClassName: "text-cyan-600 dark:text-cyan-300",
+    };
+  }
+
+  return {
+    badgeClassName: "bg-muted text-muted-foreground border border-border/70",
+    softClassName: "bg-muted/50 border-border/60",
+    accentClassName: "text-foreground",
+  };
+};
+
 export const getGoalUnitBadgeLabel = (unit: GoalUnitType) => {
   if (unit === "duration_minutes") return "Time";
   if (unit === "count") return "Count";
@@ -136,6 +206,38 @@ export const getGoalUnitBadgeLabel = (unit: GoalUnitType) => {
 export const getGoalStatusLabel = (status: GoalExecutionStatus) => {
   const entry = GOAL_STATUS_OPTIONS.find((option) => option.value === status);
   return entry?.label || status.replace(/_/g, " ");
+};
+
+export const getGoalStatusTone = (status: GoalExecutionStatus): GoalVisualTone => {
+  if (status === "completed") {
+    return {
+      badgeClassName: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/15",
+      softClassName: "bg-emerald-500/8 border-emerald-500/15",
+      accentClassName: "text-emerald-600 dark:text-emerald-300",
+    };
+  }
+
+  if (status === "in_progress" || status === "partial") {
+    return {
+      badgeClassName: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/15",
+      softClassName: "bg-amber-500/8 border-amber-500/15",
+      accentClassName: "text-amber-600 dark:text-amber-300",
+    };
+  }
+
+  if (status === "missed" || status === "expired" || status === "cancelled") {
+    return {
+      badgeClassName: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/15",
+      softClassName: "bg-rose-500/8 border-rose-500/15",
+      accentClassName: "text-rose-600 dark:text-rose-300",
+    };
+  }
+
+  return {
+    badgeClassName: "bg-muted text-muted-foreground border border-border/70",
+    softClassName: "bg-muted/50 border-border/60",
+    accentClassName: "text-foreground",
+  };
 };
 
 export const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
@@ -164,6 +266,86 @@ export const getGoalProgressPercent = (goal: UIGoal) => {
 
   return isCompleted ? 100 : 0;
 };
+
+export const getGoalScheduledInfo = (raw: unknown): GoalScheduledInfo => {
+  if (raw === null || raw === undefined || raw === "") {
+    return { isValid: false, date: null, dateKey: null, display: "", rawHint: "" };
+  }
+
+  if (raw instanceof Date) {
+    if (!Number.isFinite(raw.getTime())) {
+      return { isValid: false, date: null, dateKey: null, display: "", rawHint: "Invalid Date" };
+    }
+
+    return {
+      isValid: true,
+      date: raw,
+      dateKey: getISTDateKey(raw),
+      display: formatDateLabel(raw.toISOString()),
+      rawHint: raw.toISOString(),
+    };
+  }
+
+  if (typeof raw === "number") {
+    const ms = raw < 1_000_000_000_000 ? raw * 1000 : raw;
+    const parsed = new Date(ms);
+    if (!Number.isFinite(parsed.getTime())) {
+      return { isValid: false, date: null, dateKey: null, display: "", rawHint: String(raw) };
+    }
+
+    return {
+      isValid: true,
+      date: parsed,
+      dateKey: getISTDateKey(parsed),
+      display: formatDateLabel(parsed.toISOString()),
+      rawHint: String(raw),
+    };
+  }
+
+  if (typeof raw === "object" && raw) {
+    const maybeTimestamp = raw as { seconds?: unknown };
+    if (typeof maybeTimestamp.seconds === "number") {
+      const parsed = new Date(maybeTimestamp.seconds * 1000);
+      if (Number.isFinite(parsed.getTime())) {
+        const rawHint = (() => {
+          try {
+            return JSON.stringify(raw);
+          } catch {
+            return String(raw);
+          }
+        })();
+
+        return {
+          isValid: true,
+          date: parsed,
+          dateKey: getISTDateKey(parsed),
+          display: formatDateLabel(parsed.toISOString()),
+          rawHint,
+        };
+      }
+    }
+  }
+
+  const rawText = typeof raw === "string" ? raw.trim() : String(raw);
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(rawText)
+    ? new Date(`${rawText}T00:00:00`)
+    : parseValidDate(rawText);
+
+  if (!parsed || !Number.isFinite(parsed.getTime())) {
+    return { isValid: false, date: null, dateKey: null, display: "", rawHint: rawText };
+  }
+
+  return {
+    isValid: true,
+    date: parsed,
+    dateKey: getISTDateKey(parsed),
+    display: formatDateLabel(parsed.toISOString()),
+    rawHint: rawText,
+  };
+};
+
+export const isGoalActiveForToday = (goal: UIGoal, todayKey: string) =>
+  !isScheduledAndDormant(goal, todayKey);
 
 export const getGoalAnchorDateKey = (goal: UIGoal) => {
   const scheduled = goal.scheduledDate ? parseValidDate(goal.scheduledDate) : null;

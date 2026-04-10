@@ -187,10 +187,10 @@ export default function Dashboard() {
                         const uiG = g as UIGoal;
                         const anchorKey = getGoalAnchorDateKey(uiG);
                         if (anchorKey === todayISTStr) return true;
-                        
+
                         const completedDate = getGoalCompletedDate(uiG);
                         if (completedDate && getISTDateKey(completedDate) === todayISTStr) return true;
-                        
+
                         return false;
                     });
 
@@ -296,13 +296,14 @@ export default function Dashboard() {
                         <div className="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,360px)] gap-6 md:gap-8 items-stretch">
                             <div className="min-w-0 flex flex-col justify-center text-center md:text-left gap-8 h-full py-4 z-10 relative">
                                 <div className="space-y-3">
-                                    <div className="inline-flex items-center gap-3 mb-2">
-                                        <div className="relative flex h-2.5 w-2.5">
-                                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                                        </div>
-                                        <span className="text-[11px] font-bold tracking-[0.2em] text-emerald-600 dark:text-emerald-400 uppercase">{t('dashboard.online')}</span>
-                                    </div>
+                                    <button
+                                        onClick={() => setIsGlobalSidebarOpen(true)}
+                                        className="ui-pressable group inline-flex items-center gap-2.5 mb-4 w-fit bg-slate-200/60 dark:bg-white/5 border border-slate-800 dark:border-white/10 px-5 py-2.5 hover:bg-slate-300/60 dark:hover:bg-white/10 transition-colors"
+                                        style={{ borderRadius: '3px' }}
+                                    >
+                                        <Menu className="w-[21px] h-[21px] text-slate-700 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
+                                        <span className="text-[14px] font-bold tracking-[0.2em] text-slate-700 dark:text-slate-300 uppercase group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{t('nav.menu') || "MENU"}</span>
+                                    </button>
                                     <h1 className="text-5xl md:text-6xl tracking-tighter font-semibold text-slate-900 dark:text-white leading-[1.1]">
                                         {t('dashboard.welcome_back')}, <span className="capitalize">{user.name}</span>.
                                     </h1>
@@ -368,15 +369,15 @@ export default function Dashboard() {
                                 <p className="text-muted-foreground text-sm mb-6">{t('dashboard.how_feeling')}</p>
 
                                 {todayMood ? (
-                                     <div className="m-auto text-center flex flex-col items-center justify-center h-full">
-                                         <span className="text-7xl mb-4">{getMoodEmoji(todayMood.mood)}</span>
-                                         <p className="text-2xl font-semibold capitalize text-foreground">{todayMood.mood}</p>
+                                    <div className="m-auto text-center flex flex-col items-center justify-center h-full">
+                                        <span className="text-7xl mb-4">{getMoodEmoji(todayMood.mood)}</span>
+                                        <p className="text-2xl font-semibold capitalize text-foreground">{todayMood.mood}</p>
                                         <p className="text-muted-foreground">{t('dashboard.mood_intensity')}: {todayMood.intensity}/5</p>
-                                     </div>
-                                 ) : (
-                                     <div className="m-auto text-center flex flex-col items-center justify-center h-full">
-                                         <p className="text-muted-foreground mb-4">{t('dashboard.no_checkin')}</p>
-                                         <button
+                                    </div>
+                                ) : (
+                                    <div className="m-auto text-center flex flex-col items-center justify-center h-full">
+                                        <p className="text-muted-foreground mb-4">{t('dashboard.no_checkin')}</p>
+                                        <button
                                             onClick={() => navigate('/nishtha/check-in')}
                                             className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 group"
                                         >
@@ -480,13 +481,14 @@ export default function Dashboard() {
                                             const isDone = isGoalCompleted(goal as UIGoal);
                                             const title = goal.title || goal.text;
                                             return (
-                                            <div key={goal.id} className={`flex items-center gap-3 p-2 rounded-lg ${isDone ? 'bg-green-500/10' : 'bg-muted/50'}`}>
-                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isDone ? 'bg-green-500' : 'border-2 border-muted-foreground'}`}>
-                                                    {isDone && <Check className="w-3 h-3 text-white" />}
+                                                <div key={goal.id} className={`flex items-center gap-3 p-2 rounded-lg ${isDone ? 'bg-green-500/10' : 'bg-muted/50'}`}>
+                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isDone ? 'bg-green-500' : 'border-2 border-muted-foreground'}`}>
+                                                        {isDone && <Check className="w-3 h-3 text-white" />}
+                                                    </div>
+                                                    <span className={`flex-1 text-sm ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{title}</span>
                                                 </div>
-                                                <span className={`flex-1 text-sm ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{title}</span>
-                                            </div>
-                                        )})}
+                                            )
+                                        })}
                                 </div>
                             ) : (
                                 <div className="text-center my-auto">
@@ -555,13 +557,13 @@ export default function Dashboard() {
                             <div className="w-full">
                                 {isClient ? (
                                     <ChartErrorBoundary>
-                                    <Suspense fallback={<div className="h-[250px] w-full" />}>
-                                        <DashboardMoodChart
-                                            data={weeklyMoods}
-                                            moodIntensityLabel={t('dashboard.mood_intensity')}
-                                            moodLabel={t('dashboard.mood_label')}
-                                        />
-                                    </Suspense>
+                                        <Suspense fallback={<div className="h-[250px] w-full" />}>
+                                            <DashboardMoodChart
+                                                data={weeklyMoods}
+                                                moodIntensityLabel={t('dashboard.mood_intensity')}
+                                                moodLabel={t('dashboard.mood_label')}
+                                            />
+                                        </Suspense>
                                     </ChartErrorBoundary>
                                 ) : (
                                     <div className="h-[250px] w-full" />

@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { checkInTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   HelpCircle,
   CheckCircle,
   Edit3,
@@ -21,10 +21,10 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { 
-  getISTDateKey, 
-  formatISTDate, 
-  formatDateLabel 
+import {
+  getISTDateKey,
+  formatISTDate,
+  formatDateLabel
 } from "@/utils/dateUtils";
 
 type MoodType = "peaceful" | "happy" | "okay" | "motivated" | "anxious" | "low" | "frustrated" | "overwhelmed" | "numb";
@@ -114,7 +114,7 @@ export default function CheckIn() {
   return (
     <NishthaLayout userName={user.name} userAvatar={user.avatar}>
       <div className="flex-1 min-h-screen bg-background p-4 sm:p-6 md:p-10 animate-in fade-in duration-700 font-sans">
-        
+
         {/* Glow Backgrounds */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-emerald-500/5 blur-[120px] rounded-full" />
@@ -122,7 +122,7 @@ export default function CheckIn() {
         </div>
 
         <div className="max-w-7xl mx-auto space-y-10 relative z-10">
-          
+
           <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 md:gap-6">
             <div className="space-y-1">
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight">{t('checkin.title')}</h1>
@@ -137,7 +137,7 @@ export default function CheckIn() {
           </header>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
+
             {/* Mood Grid */}
             <div className="lg:col-span-8 bg-card border-2 rounded-[28px] md:rounded-[40px] p-5 sm:p-8 lg:p-10 shadow-sm space-y-8 animate-in slide-in-from-bottom-8 duration-500">
               <div className="flex items-center justify-between">
@@ -153,8 +153,8 @@ export default function CheckIn() {
                     key={m.type}
                     onClick={() => setSelectedMood(m.type)}
                     className={`relative p-6 rounded-[28px] border-2 transition-all duration-300 group flex flex-col items-center gap-3
-                      ${selectedMood === m.type 
-                        ? `bg-gradient-to-br ${m.gradient} border-primary/30 shadow-2xl shadow-primary/10 scale-[1.02]` 
+                      ${selectedMood === m.type
+                        ? `bg-gradient-to-br ${m.gradient} border-primary/30 shadow-2xl shadow-primary/10 scale-[1.02]`
                         : 'bg-muted/20 border-transparent hover:bg-muted/40 hover:border-muted'}`}
                   >
                     <span className="text-5xl group-hover:scale-110 transition-transform duration-300 filter drop-shadow-md">{m.emoji}</span>
@@ -173,7 +173,7 @@ export default function CheckIn() {
               <div className="bg-card border-2 rounded-[40px] p-10 shadow-sm text-center space-y-8 relative overflow-hidden group min-h-[400px] flex flex-col">
                 <div className={`absolute inset-0 bg-gradient-to-b opacity-10 transition-colors duration-700
                   ${intensity > 3 ? 'from-rose-500/20' : intensity > 2 ? 'from-amber-500/20' : 'from-primary/20'} to-transparent`} />
-                
+
                 <div className="relative z-10 space-y-2">
                   <h3 className="font-black flex items-center justify-center gap-2 text-muted-foreground uppercase text-[10px] tracking-[0.2em]"><Zap size={14} className="text-amber-500" /> {t('checkin.intensity')}</h3>
                   <div className="flex items-baseline justify-center gap-1">
@@ -183,7 +183,7 @@ export default function CheckIn() {
                 </div>
 
                 <div data-tour="intensity-slider" className="flex-1 flex justify-center py-6 relative z-10">
-                   <div className="h-48 group-hover:scale-y-110 transition-transform duration-500">
+                  <div className="h-48 group-hover:scale-y-110 transition-transform duration-500">
                     <Slider
                       defaultValue={[3]}
                       value={[intensity]}
@@ -192,7 +192,7 @@ export default function CheckIn() {
                       orientation="vertical"
                       className="h-full"
                     />
-                   </div>
+                  </div>
                 </div>
 
                 <div className="relative z-10 flex justify-between text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground px-4">
@@ -223,8 +223,8 @@ export default function CheckIn() {
 
               <div className="lg:col-span-4 flex flex-col justify-between space-y-8">
                 <div className="space-y-6">
-                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Heart size={14} /> {t('checkin.context_tags')}</h4>
-                   <div data-tour="quick-tags" className="flex flex-wrap gap-2.5">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Heart size={14} /> {t('checkin.context_tags')}</h4>
+                  <div data-tour="quick-tags" className="flex flex-wrap gap-2.5">
                     {QUICK_TAGS.map(tag => (
                       <button
                         key={tag}
@@ -237,7 +237,7 @@ export default function CheckIn() {
                         {t(`tags.${tag}`)}
                       </button>
                     ))}
-                   </div>
+                  </div>
                 </div>
 
                 <button
@@ -253,39 +253,39 @@ export default function CheckIn() {
 
             {/* History List */}
             <div className="lg:col-span-12 bg-card border-2 rounded-[28px] md:rounded-[40px] p-5 sm:p-8 md:p-10 shadow-sm animate-in slide-in-from-bottom-8 duration-700 delay-200">
-               <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-xl font-black flex items-center gap-3">
-                    <div className="p-2 bg-muted rounded-xl"><LucideHistory size={20} className="text-primary" /></div>
-                    {t('checkin.mood_history')}
-                  </h3>
-                  <div className="px-5 py-2 bg-muted/50 rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">{moodHistory.length} Check-ins</div>
-               </div>
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-black flex items-center gap-3">
+                  <div className="p-2 bg-muted rounded-xl"><LucideHistory size={20} className="text-primary" /></div>
+                  {t('checkin.mood_history')}
+                </h3>
+                <div className="px-5 py-2 bg-muted/50 rounded-full text-[10px] font-black uppercase tracking-widest text-muted-foreground">{moodHistory.length} Check-ins</div>
+              </div>
 
-               {moodHistory.length === 0 ? (
-                 <div className="py-20 text-center space-y-4">
-                    <Clock size={48} className="mx-auto text-muted-foreground/30 animate-pulse" />
-                    <div className="space-y-1">
-                      <p className="font-black text-xl">{t('checkin.no_history')}</p>
-                      <p className="text-muted-foreground font-medium">{t('checkin.history_hint')}</p>
-                    </div>
-                 </div>
-               ) : (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {moodHistory.slice(0, 9).map((m: any, idx: number) => (
-                      <div key={m.id || idx} className="p-6 bg-muted/20 border-2 border-transparent hover:border-primary/10 rounded-3xl transition-all group flex gap-5 items-start">
-                         <div className="text-4xl filter drop-shadow-sm group-hover:scale-110 transition-transform">{MOOD_OPTIONS.find(o => o.type === m.mood)?.emoji || '😐'}</div>
-                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                               <p className="font-black capitalize">{m.mood}</p>
-                               <span className="text-[10px] font-black text-primary px-2.5 py-1 bg-primary/10 rounded-lg">{m.intensity}/5</span>
-                            </div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">{formatDateLabel(m.timestamp || m.createdAt)}</p>
-                            {m.notes && <p className="text-sm font-medium text-muted-foreground line-clamp-2 leading-relaxed italic border-l-2 pl-3">{m.notes}</p>}
-                         </div>
+              {moodHistory.length === 0 ? (
+                <div className="py-20 text-center space-y-4">
+                  <Clock size={48} className="mx-auto text-muted-foreground/30 animate-pulse" />
+                  <div className="space-y-1">
+                    <p className="font-black text-xl">{t('checkin.no_history')}</p>
+                    <p className="text-muted-foreground font-medium">{t('checkin.history_hint')}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {moodHistory.slice(0, 9).map((m: any, idx: number) => (
+                    <div key={m.id || idx} className="p-6 bg-muted/20 border-2 border-transparent hover:border-primary/10 rounded-3xl transition-all group flex gap-5 items-start">
+                      <div className="text-4xl filter drop-shadow-sm group-hover:scale-110 transition-transform">{MOOD_OPTIONS.find(o => o.type === m.mood)?.emoji || '😐'}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-black capitalize">{m.mood}</p>
+                          <span className="text-[10px] font-black text-primary px-2.5 py-1 bg-primary/10 rounded-lg">{m.intensity}/5</span>
+                        </div>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">{formatDateLabel(m.timestamp || m.createdAt)}</p>
+                        {m.notes && <p className="text-sm font-medium text-muted-foreground line-clamp-2 leading-relaxed italic border-l-2 pl-3">{m.notes}</p>}
                       </div>
-                    ))}
-                 </div>
-               )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

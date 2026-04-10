@@ -75,29 +75,18 @@ export default function TopNavbar({
     setIsMobileMenuOpen(false);
   };
 
+
+
   return (
     <>
-      <nav className="h-16 bg-card/90 backdrop-blur-xl border-b border-border sticky top-0 z-40 shadow-sm">
-        <div className="h-full px-6 flex items-center justify-between">
+      <nav className="sticky top-0 z-40 border-b border-border/70 bg-card/94 shadow-sm backdrop-blur-md">
+        <div className="mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
           {/* Left side - Hamburger (mobile) + Logo and Portal Name */}
           <div className="flex items-center gap-3">
-            {/* Hamburger Menu Button (visible on all screens if showMobileMenu is true) */}
-            {showMobileMenu && showMenuButton && (
-              <button
-                onClick={() => setIsMobileMenuOpen(true)}
-                className="px-3 py-2 min-h-[44px] flex items-center justify-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition-colors"
-                aria-label="Open menu"
-              >
-                <Menu className="w-5 h-5" />
-                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 hidden sm:inline">
-                  {t('nav.menu') || "Menu"}
-                </span>
-              </button>
-            )}
+            {/* Removed internal Hamburger Menu Button per user request (accessed via sidebar instead) */}
 
-            <Link to={homeRoute} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              {/* Logo with teal gradient background like Landing page */}
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#6EE7B7] to-teal-600 flex items-center justify-center text-black font-serif text-xl font-bold shadow-lg shadow-[#6EE7B7]/20 overflow-hidden">
+            <Link to={homeRoute} className="ui-pressable flex items-center gap-3 rounded-2xl pr-2 hover:opacity-90">
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted shadow-sm">
                 <img
                   src={safarLogo}
                   alt="Safar Logo"
@@ -105,22 +94,22 @@ export default function TopNavbar({
                 />
               </div>
 
-              <h1 className="text-xl font-serif font-bold text-slate-900 dark:text-white tracking-tight">
+              <h1 className="text-xl font-serif font-bold text-slate-900 dark:text-white tracking-tight sm:text-[2rem]">
                 SAFAR
               </h1>
             </Link>
           </div>
 
           {/* Right side - Theme Toggle and User Avatar */}
-          <div className="flex items-center gap-5 pr-6">
+          <div className="flex items-center gap-3 sm:gap-4">
             {/* Theme Toggle Button */}
             <ThemeToggle />
             {canShowLanguageToggle && <LanguageToggle />}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center justify-center w-[40px] h-[40px] p-0.5 rounded-full transition-all duration-200 hover:scale-105 cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 outline-none">
-                  <Avatar className="h-full w-full border border-slate-200 dark:border-white/10 transition-transform">
+                <button className="ui-pressable flex h-[44px] w-[44px] items-center justify-center rounded-full border border-transparent bg-transparent p-0.5 outline-none hover:border-border/70 hover:bg-muted/70">
+                  <Avatar className="h-full w-full border border-slate-200/80 dark:border-white/10 shadow-sm transition-transform">
                     <AvatarImage
                       src={userAvatar}
                       alt={userName}
@@ -136,7 +125,7 @@ export default function TopNavbar({
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 mt-2 bg-card/95 backdrop-blur-xl border-border rounded-2xl shadow-xl p-2">
+              <DropdownMenuContent align="end" sideOffset={10} className="mt-2 w-60 p-2">
                 <div className="px-3 py-2">
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{userName}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Student</p>

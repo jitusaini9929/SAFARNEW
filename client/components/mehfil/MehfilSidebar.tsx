@@ -76,7 +76,9 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
 
     setLoading(true);
     try {
-      const response = await apiFetch(`${API_URL}/mehfil/saved-posts`, {
+      const page = 1;
+      const limit = 50;
+      const response = await apiFetch(`${API_URL}/mehfil/saved-posts?page=${page}&limit=${limit}`, {
         credentials: 'include',
       });
       if (response.ok) {

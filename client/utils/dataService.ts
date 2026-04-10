@@ -130,8 +130,11 @@ export const dataService = {
     },
 
     // --- Journal ---
-    async getJournalEntries(): Promise<JournalEntry[]> {
-        const res = await apiFetch(`${API_URL}/journal`, {
+    async getJournalEntries(options?: { limit?: number; page?: number }): Promise<JournalEntry[]> {
+        const limit = Math.min(500, Math.max(1, Number(options?.limit || 200)));
+        const page = Math.max(1, Math.floor(Number(options?.page || 1)));
+        const params = new URLSearchParams({ limit: String(limit), page: String(page) });
+        const res = await apiFetch(`${API_URL}/journal?${params.toString()}`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             credentials: 'include',
@@ -190,7 +193,7 @@ export const dataService = {
     },
 
     async getEkagraSessions(options?: { forceFresh?: boolean }): Promise<EkagraModeSession[]> {
-        return withReadCache(EKAGRA_SESSIONS_CACHE_KEY, 8000, Boolean(options?.forceFresh), async () => {
+        return withReadCache(EKAGRA_SESSIONS_CACHE_KEY, 30000, Boolean(options?.forceFresh), async () => {
             const res = await apiFetch(`${API_URL}/ekagra-sessions`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
@@ -203,7 +206,7 @@ export const dataService = {
     },
 
     async getActiveEkagraSession(options?: { forceFresh?: boolean }): Promise<EkagraModeSession | null> {
-        return withReadCache(EKAGRA_ACTIVE_CACHE_KEY, 8000, Boolean(options?.forceFresh), async () => {
+        return withReadCache(EKAGRA_ACTIVE_CACHE_KEY, 30000, Boolean(options?.forceFresh), async () => {
             const res = await apiFetch(`${API_URL}/ekagra-sessions/active`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
@@ -216,7 +219,7 @@ export const dataService = {
     },
 
     async getEkagraAnalytics(options?: { forceFresh?: boolean }): Promise<EkagraAnalyticsStats> {
-        return withReadCache(EKAGRA_ANALYTICS_CACHE_KEY, 15000, Boolean(options?.forceFresh), async () => {
+        return withReadCache(EKAGRA_ANALYTICS_CACHE_KEY, 60000, Boolean(options?.forceFresh), async () => {
             const res = await apiFetch(`${API_URL}/ekagra-sessions/analytics`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
@@ -596,8 +599,22 @@ export const dataService = {
         return res.json();
     },
 
-    async getMonthlyReport(month?: string): Promise<MonthlyReport> {
-        const suffix = month ? `?month=${encodeURIComponent(month)}` : "";
+    async getMonthlyReport(
+        monthOrOptions?: string | { range?: "last30" | "all"; start?: string; end?: string },
+    ): Promise<MonthlyReport> {
+        const params = new URLSearchParams();
+
+        if (typeof monthOrOptions === "string") {
+            params.set("month", monthOrOptions);
+        } else if (monthOrOptions) {
+            if (monthOrOptions.range) params.set("range", monthOrOptions.range);
+            if (monthOrOptions.start) params.set("start", monthOrOptions.start);
+            if (monthOrOptions.end) params.set("end", monthOrOptions.end);
+        } else {
+            params.set("range", "last30");
+        }
+
+        const suffix = params.toString() ? `?${params.toString()}` : "";
         const res = await apiFetch(`${API_URL}/analytics/monthly-report${suffix}`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },

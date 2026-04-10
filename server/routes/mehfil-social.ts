@@ -129,6 +129,7 @@ mehfilSocialRouter.get("/saved-posts", async (req: any, res: Response) => {
     const saves = await collections.mehfilSaves()
       .find({ user_id: userId })
       .sort({ created_at: -1 })
+      .project({ _id: 0, thought_id: 1, created_at: 1 })
       .skip(skip)
       .limit(limit)
       .toArray();
@@ -149,6 +150,19 @@ mehfilSocialRouter.get("/saved-posts", async (req: any, res: Response) => {
           { $or: [{ status: 'approved' }, { status: { $exists: false } }] },
           { $or: [{ expires_at: { $exists: false } }, { expires_at: null }, { expires_at: { $gt: new Date() } }] },
         ],
+      }, {
+        projection: {
+          _id: 0,
+          id: 1,
+          user_id: 1,
+          is_anonymous: 1,
+          author_name: 1,
+          author_avatar: 1,
+          content: 1,
+          image_url: 1,
+          relatable_count: 1,
+          created_at: 1,
+        },
       })
       .toArray();
     const thoughtMap = new Map(thoughts.map(t => [t.id, t]));

@@ -299,6 +299,7 @@ const normalizeGoalResponse = (goal: any) => {
     const achievedValue = getGoalAchievedValueFromRecord(goal);
     const status = getGoalStatusFromRecord(goal);
     const carryForwardMode = getGoalCarryForwardModeFromRecord(goal);
+    const scheduledDateKey = getGoalScheduledISTDateKey(goal);
     const subtasks = normalizeGoalSubtasks(goal.subtasks) || [];
     const studiedMinutes = normalizeStudiedMinutes(goal.studied_minutes ?? goal.studiedMinutes);
     return {
@@ -326,7 +327,7 @@ const normalizeGoalResponse = (goal: any) => {
         completedAt: completedAt ? completedAt.toISOString() : null,
         startedAt: startedAt ? startedAt.toISOString() : null,
         expiresAt: expiresAt.toISOString(),
-        scheduledDate: goal.scheduled_date ? new Date(goal.scheduled_date).toISOString() : null,
+        scheduledDate: scheduledDateKey,
         lifecycleStatus: (goal.lifecycle_status || 'active') as GoalLifecycleStatus,
         imported_from_goal: importedFromGoal,
         completed_via_focus: completedViaFocus,
@@ -1546,18 +1547,12 @@ router.post('/:id/repeat', requireAuth, async (req: Request, res) => {
         }
 
         const now = new Date();
-        // Parse date - expect ISO string YYYY-MM-DD...
-        const scheduledDateKey = scheduledDate ? scheduledDate.split('T')[0] : getISTDateKey(now);
+        const scheduledDateKey = parseScheduledDateInput(scheduledDate) || getISTDateKey(now);
         const scheduledDateObj = new Date(`${scheduledDateKey}T00:00:00.000Z`);
 
         const newId = uuidv4();
         const goalType: GoalType = 'daily';
-
-        // Calculate expiry based on scheduled date
-        let expiresAt = new Date(scheduledDateObj);
-        expiresAt.setUTCHours(23, 59, 59, 999);
-        // Adjust for IST if needed, but simple UTC end of day is usually fine for this logic
-        // reusing logic from create goal would be better but this is sufficient for now
+        const expiresAt = calculateExpiryUTC(goalType, now, scheduledDateObj);
 
         const newGoal = {
             id: newId,

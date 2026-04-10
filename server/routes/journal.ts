@@ -9,13 +9,27 @@ const router = Router();
 // Get all journal entries
 router.get('/', requireAuth, async (req: Request, res) => {
     try {
+        const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
+        const requestedLimit = Number(req.query.limit) || 200;
+        const limit = Math.min(500, Math.max(1, Math.floor(requestedLimit)));
+        const skip = (page - 1) * limit;
+
         const rows = await collections.journal()
             .find({ user_id: req.session.userId })
             .sort({ timestamp: -1 })
+            .skip(skip)
+            .limit(limit + 1)
             .maxTimeMS(QUERY_TIMEOUT_MS)
             .toArray();
+
+        const hasMore = rows.length > limit;
+        const payload = hasMore ? rows.slice(0, limit) : rows;
+
         res.set('Cache-Control', CACHE_CONTROL.SHORT);
-        res.json(rows);
+        res.set('X-Has-More', String(hasMore));
+        res.set('X-Page', String(page));
+        res.set('X-Limit', String(limit));
+        res.json(payload);
     } catch (error) {
         console.error('Get journal error:', error);
         res.status(500).json({ message: 'Internal server error' });
