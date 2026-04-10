@@ -40,63 +40,30 @@ export interface UpdateEntry {
 // ──────────────────────────────────────────────────────────────────────────────
 export const updates: UpdateEntry[] = [
   {
-    version: "V2.0",
-    name: "The Precision & Focus Update",
+    version: "V2.1",
+    name: "Goals aur Focus update",
     date: "April 2026",
     summary:
-      "Ekagra aur Goals ka pura flow refine kiya gaya hai. Sessions, analytics aur goal linking ab zyada clear, faster aur reliable hai.",
-    tags: ["New Feature", "Bug Fix", "UX Improvement", "Architecture"],
+      "Goals me future planning ka option aaya. Ekagra me bina session banaye bhi timer chala sakte ho. Aur ab focus time sahi se count hota hai analytics me.",
+    tags: ["New Feature", "UX Improvement"],
     features: [
       {
-        title: "Focus Analytics Revamp",
+        title: "Schedule Task — Goals me",
         description:
-          "Sessions ab Analytics tab me shift ho gaye hain, aur new Session Quality view me Completed vs Abandoned ka clear breakdown milta hai. Timer accuracy ke hisaab se completion decide hota hai (±25% tolerance).",
+          "Ab tum aaj ki jagah future date ke liye bhi goal bana sakte ho. Ye goal pending list me tab hi aayega jab woh din aa jaaye. Purane goals ke beech clutter nahi hoga.",
       },
       {
-        title: "Ekagra Session Control",
+        title: "Scheduled Tasks Section",
         description:
-          "Running aur Paused sessions ka UI simplify hua hai, End Session ka behavior fix hua hai, aur Delete session se clean removal milta hai. Progress bar ke niche checkpoints bhi add ho gaye hain.",
+          "Goals page pe ek alag 'Scheduled Tasks' section hai jahan future goals dikhte hain. Collapse aur expand kar sakte ho.",
       },
       {
-        title: "Goals + Ekagra Linking Update",
+        title: "Quick Start Timer — Ekagra me",
         description:
-          "Time-based goals me linked focus sessions optional hain, aur one-time goals ke liye time/count tracking hide hota hai. Due date sirf reminder hai — timer imply nahi karta.",
+          "Ab timer shuru karne ke liye session banana zaroori nahi. 'Just Start Timer' dabao aur seedha focus karo — koi naam, koi session record nahi.",
       },
     ],
-    patches: [
-      {
-        id: "Patch 01",
-        title: "Session Completion Accuracy",
-        issue: "Timer end aur manual end ke beech mismatch se analytics confusion ho raha tha.",
-        correction:
-          "Completion rule ab ±25% tolerance par based hai. Completed vs Ended Early clear hai, aur abandoned sessions goals ko auto-complete nahi karte.",
-        tags: ["Bug Fix", "Architecture"],
-      },
-      {
-        id: "Patch 02",
-        title: "Sessions List Ab Analytics me",
-        issue: "Task History me sessions list se screen clutter aur mismatch ho raha tha.",
-        correction:
-          "Session list ko Analytics ke Sessions tab me move kiya gaya. Task History ab sirf quick snapshot dikhata hai.",
-        tags: ["UX Improvement"],
-      },
-      {
-        id: "Patch 03",
-        title: "End Session UI Response",
-        issue: "End Session ke baad active session clear hone me delay aa raha tha.",
-        correction:
-          "End Session par UI ab instantly update hota hai, aur backend sync ke baad list refresh hoti hai.",
-        tags: ["Bug Fix", "UX Improvement"],
-      },
-      {
-        id: "Patch 04",
-        title: "One-time Goals ka Clean UX",
-        issue: "One-time goals me time/count tracking aur timer expectation confuse kar raha tha.",
-        correction:
-          "One-time goals ke liye tracking options limited hain (Done/Checklist). Due date sirf reminder hai, timer link nahi hota.",
-        tags: ["UX Improvement"],
-      },
-    ],
+    patches: [],
   },
 ];
 
