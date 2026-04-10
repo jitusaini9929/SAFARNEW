@@ -789,20 +789,16 @@ export default function StudyWithMe() {
         const isNamedSession = runtimeSessionType === "named" || runtimeGoalId.startsWith("named:");
 
         if (mode === "Timer" && runtimeSessionId && isNamedSession && status === "authenticated" && user?.id) {
-            const plannedSeconds = Math.max(
-                1,
-                Number(runtimeSession?.totalSeconds ?? (runtimeSession as any)?.total_seconds ?? totalSeconds) || totalSeconds,
-            );
-            const remaining = Math.max(
-                0,
-                Number(runtimeSession?.remainingSeconds ?? (runtimeSession as any)?.remaining_seconds ?? remainingSeconds) || remainingSeconds,
-            );
-            const elapsedSeconds = Math.max(0, plannedSeconds - remaining);
+            // Always use the live local timer values — the server-cached
+            // runtimeSession.remainingSeconds is only updated on pause and
+            // will be stale (equal to totalSeconds) if the user resets
+            // without pausing first.
+            const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
             try {
                 await dataService.completeEkagraSession(runtimeSessionId, {
                     mode: "Timer",
                     elapsedSeconds,
-                    remainingSeconds: Math.max(0, remaining),
+                    remainingSeconds: Math.max(0, remainingSeconds),
                     sessionStartedAt: runtimeSession?.sessionStartedAt || (runtimeSession as any)?.session_started_at || null,
                 });
                 runtimeSessionIdRef.current = null;
@@ -881,22 +877,17 @@ export default function StudyWithMe() {
 
         if (!runtimeSessionId && !currentTask) return;
 
-        const plannedSeconds = Math.max(
-            1,
-            Number(runtimeSession?.totalSeconds ?? (runtimeSession as any)?.total_seconds ?? totalSeconds) || totalSeconds,
-        );
-        const remaining = Math.max(
-            0,
-            Number(runtimeSession?.remainingSeconds ?? (runtimeSession as any)?.remaining_seconds ?? remainingSeconds) || remainingSeconds,
-        );
-        const elapsedSeconds = Math.max(0, plannedSeconds - remaining);
+        // Always use the live local timer values — the server-cached
+        // runtimeSession.remainingSeconds is only updated on pause and
+        // will be stale if the user completes without pausing first.
+        const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
 
         if (runtimeSessionId && status === "authenticated" && user?.id) {
             try {
                 await dataService.completeEkagraSession(runtimeSessionId, {
                     mode: "Timer",
                     elapsedSeconds,
-                    remainingSeconds: Math.max(0, remaining),
+                    remainingSeconds: Math.max(0, remainingSeconds),
                     sessionStartedAt: null,
                 });
                 runtimeSessionIdRef.current = null;
@@ -1229,6 +1220,12 @@ export default function StudyWithMe() {
         setShowNamedSessionPrompt(false);
         setNamedSessionTitleInput("");
     }, []);
+
+    const handleQuickStartTimer = useCallback(() => {
+        setShowNamedSessionPrompt(false);
+        setNamedSessionTitleInput("");
+        toggleTimer();
+    }, [toggleTimer]);
 
     const liveSessionPreview = useMemo<EkagraModeSession | null>(() => {
         if (status === "authenticated" && user?.id) return null;
@@ -1607,9 +1604,9 @@ export default function StudyWithMe() {
             >
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Name this session</DialogTitle>
+                        <DialogTitle>Start a focus session</DialogTitle>
                         <DialogDescription>
-                            Add a title so you can recognize it later in Ekagra history.
+                            Name your session to track it in analytics, or just start the timer.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex items-center gap-3">
@@ -1617,11 +1614,25 @@ export default function StudyWithMe() {
                             type="text"
                             value={namedSessionTitleInput}
                             onChange={(e) => setNamedSessionTitleInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && namedSessionTitleInput.trim()) {
+                                    handleConfirmNamedSession();
+                                }
+                            }}
                             placeholder="e.g., Read Maths"
                             className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            autoFocus
                         />
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <Button
+                            variant="ghost"
+                            onClick={handleQuickStartTimer}
+                            className="sm:mr-auto text-muted-foreground hover:text-foreground"
+                        >
+                            <Play className="w-3.5 h-3.5 mr-1.5" />
+                            Just Start Timer
+                        </Button>
                         <Button variant="outline" onClick={handleCancelNamedSession}>
                             Cancel
                         </Button>
