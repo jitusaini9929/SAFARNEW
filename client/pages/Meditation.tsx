@@ -4,6 +4,7 @@ import BreathingVisualizer from "@/components/meditation/BreathingVisualizer";
 import meditationBg from "@/assets/meditation-bg.webp";
 import safarLogo from "@/assets/safar-logo.png.webp";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import ThemeToggle from "@/components/ui/theme-toggle";
 
 import {
@@ -35,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import BottomSheet from '@/components/ui/bottom-sheet';
 import FloatingActionButton from '@/components/ui/floating-action-button';
 import GlobalSidebar from "@/components/GlobalSidebar";
+import { cn } from "@/lib/utils";
 
 interface Session {
     id: string;
@@ -51,6 +53,31 @@ interface Session {
         holdOut: number;
     };
 }
+
+interface BreathingModalCloseButtonProps {
+    onClick: () => void;
+    ariaLabel: string;
+    className?: string;
+}
+
+const BreathingModalCloseButton: React.FC<BreathingModalCloseButtonProps> = ({
+    onClick,
+    ariaLabel,
+    className = "",
+}) => (
+    <button
+        type="button"
+        aria-label={ariaLabel}
+        onClick={onClick}
+        className={cn(
+            "inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-transparent bg-card/95 text-muted-foreground shadow-sm transition-all duration-200 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 cursor-pointer",
+            className
+        )}
+    >
+        <span className="sr-only">{ariaLabel}</span>
+        <X className="pointer-events-none h-5 w-5" />
+    </button>
+);
 
 const sessions: Session[] = [
     {
@@ -174,6 +201,7 @@ const defaultDhyanSession: Session = {
 export default function Meditation() {
     const navigate = useNavigate();
     const { user, status } = useAuth();
+    const { theme } = useTheme();
     const [selectedSession, setSelectedSession] = useState<Session>(defaultDhyanSession);
     const [isActive, setIsActive] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -191,6 +219,7 @@ export default function Meditation() {
     const [isSavingVideo, setIsSavingVideo] = useState(false);
     const [videoThumbnailSrc, setVideoThumbnailSrc] = useState(() => getYoutubeThumbnailPair(DEFAULT_MEDITATION_VIDEO_URL).primary);
     const isMeditationAdmin = String(user?.email || "").toLowerCase() === ADMIN_EMAIL;
+    const isLightTheme = theme === "light";
     const { primary: primaryVideoThumbnail, fallback: fallbackVideoThumbnail } = getYoutubeThumbnailPair(meditationVideoUrl);
 
 
@@ -402,6 +431,12 @@ export default function Meditation() {
         setShowInstructions(false);
         setIsModalOpen(true);
         setIsActive(true);
+    };
+
+    const closeActiveSession = () => {
+        setIsModalOpen(false);
+        setIsActive(false);
+        handleReset();
     };
 
     const handleSaveMeditationVideo = async () => {
@@ -768,18 +803,31 @@ export default function Meditation() {
 
             {/* Fullscreen Active Session */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 bg-[#0e0e0f] animate-in fade-in duration-300 flex flex-col h-[100dvh] w-screen overflow-hidden">
-                    <button
-                        onClick={() => { setIsModalOpen(false); setIsActive(false); handleReset(); }}
-                        className="absolute top-4 right-4 z-50 p-3 rounded-full bg-white/5 hover:bg-red-500/20 text-[#adaaab] hover:text-red-400 transition-all"
-                    >
-                        <X className="w-6 h-6" />
-                    </button>
+                <div
+                    className={cn(
+                        "fixed inset-0 z-50 animate-in fade-in duration-300 flex flex-col h-[100dvh] w-screen overflow-hidden",
+                        isLightTheme
+                            ? "bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.12),_transparent_28%),linear-gradient(180deg,_#fffdf8_0%,_#f4ede1_100%)] text-slate-900"
+                            : "bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.12),_transparent_28%),linear-gradient(180deg,_#0b1012_0%,_#09090b_100%)] text-white"
+                    )}
+                >
+                    <div className="pointer-events-none fixed inset-x-0 top-0 z-[70] flex justify-end p-4 md:p-5">
+                        <BreathingModalCloseButton
+                            onClick={closeActiveSession}
+                            ariaLabel="Close active session"
+                            className={cn(
+                                "pointer-events-auto h-14 w-14 rounded-2xl border shadow-lg focus-visible:ring-primary/60",
+                                isLightTheme
+                                    ? "border-slate-300/80 bg-white/90 text-slate-600 hover:border-slate-400 hover:bg-white hover:text-slate-900 hover:shadow-xl focus-visible:ring-offset-[#fbf6ee]"
+                                    : "border-white/10 bg-black/25 text-slate-300 hover:border-red-400/30 hover:bg-red-500/15 hover:text-red-300 hover:shadow-red-500/10 focus-visible:ring-offset-[#09090b]"
+                            )}
+                        />
+                    </div>
 
                     <div className="flex-1 flex flex-col items-center h-full w-full relative pt-14 pb-8 px-4">
                         <div className="text-center mb-8 w-full max-w-4xl mx-auto">
-                            <h2 className="text-3xl lg:text-4xl font-serif text-white tracking-tight">{selectedSession.title}</h2>
-                            <p className="text-sm md:text-base text-[#adaaab] max-w-xl mx-auto mt-2">{selectedSession.description}</p>
+                            <h2 className={cn("text-3xl lg:text-4xl font-serif tracking-tight", isLightTheme ? "text-slate-900" : "text-white")}>{selectedSession.title}</h2>
+                            <p className={cn("text-sm md:text-base max-w-xl mx-auto mt-2", isLightTheme ? "text-slate-600" : "text-[#adaaab]")}>{selectedSession.description}</p>
                         </div>
 
                         <div className="flex-1 w-full flex flex-col items-center justify-between">
@@ -819,11 +867,13 @@ export default function Meditation() {
             {showInstructions && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="bg-card w-full max-w-lg rounded-lg shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-border overflow-hidden">
-                        <button onClick={() => setShowInstructions(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-muted text-muted-foreground transition-colors z-10">
-                            <X className="w-5 h-5" />
-                        </button>
+                        <BreathingModalCloseButton
+                            onClick={() => setShowInstructions(false)}
+                            ariaLabel="Close instructions"
+                            className="absolute top-3 right-3 z-30"
+                        />
 
-                        <div className="text-center mb-8 relative z-10">
+                        <div className="text-center mb-8 relative z-0">
                             <div className="w-16 h-16 mx-auto bg-primary/20 rounded-3xl flex items-center justify-center text-primary mb-6 shadow-sm">
                                 <Wind className="w-8 h-8" />
                             </div>
@@ -831,7 +881,7 @@ export default function Meditation() {
                             <p className="text-muted-foreground italic font-medium leading-relaxed">{selectedSession.longDescription}</p>
                         </div>
 
-                        <div data-tour="session-info" className="bg-muted/50 rounded-3xl p-6 mb-8 text-left border border-border">
+                        <div data-tour="session-info" className="relative z-0 bg-muted/50 rounded-3xl p-6 mb-8 text-left border border-border">
                             <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-4">The Ritual</h3>
                             <div className="space-y-4">
                                 {selectedSession.steps.map((step, idx) => (
@@ -854,11 +904,13 @@ export default function Meditation() {
             {showResources && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="relative w-full max-w-2xl md:max-w-3xl rounded-lg border border-border bg-card p-4 md:p-8 shadow-2xl animate-in zoom-in-95 duration-200 font-sans">
-                        <button onClick={() => setShowResources(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-[#adaaab] transition-colors z-10">
-                            <X className="w-5 h-5" />
-                        </button>
+                        <BreathingModalCloseButton
+                            onClick={() => setShowResources(false)}
+                            ariaLabel="Close resources"
+                            className="absolute top-3 right-3 z-30"
+                        />
 
-                        <div className="mb-6 pr-10">
+                        <div className="relative z-0 mb-6 pr-12">
                             <h2 className="text-2xl font-semibold tracking-tight text-foreground mb-2">Dhyan Resources</h2>
                             <p className="text-sm text-muted-foreground">Guided experiences and editorial content to deepen your practice.</p>
                         </div>
