@@ -952,7 +952,7 @@ export default function Goals() {
   const [modal, setModal] = useState<any>(null);
   const [showGoalsGuide, setShowGoalsGuide] = useState(false);
   const [durationModal, setDurationModal] = useState<{ goalId: string; goalTitle: string } | null>(null);
-  const [focusTotalMinutes, setFocusTotalMinutes] = useState(0);
+  const [ekagraFocusSessions, setEkagraFocusSessions] = useState<any[]>([]);
   const [tab, setTab] = useState("goals");
   const [todayKey, setTodayKey] = useState(() => getISTDateKey(new Date()));
   const [historyDateFilter, setHistoryDateFilter] = useState(() => getISTDateKey(new Date()));
@@ -979,10 +979,7 @@ export default function Goals() {
   useEffect(() => {
     fetchGoals();
     ekagraAnalyticsService.getEkagraAnalytics().then(stats => {
-      const goalLinkedMins = (stats.focusSessions || [])
-        .filter(s => s.associatedGoalId)
-        .reduce((sum, s) => sum + (s.actualMinutes || 0), 0);
-      setFocusTotalMinutes(Math.round(goalLinkedMins));
+      setEkagraFocusSessions(stats.focusSessions || []);
     }).catch(() => {});
     const interval = setInterval(() => setTodayKey(getISTDateKey(new Date())), 60000);
     return () => clearInterval(interval);
@@ -1206,6 +1203,31 @@ export default function Goals() {
     const sum = analyticsGoals.reduce((acc, goal) => acc + getGoalProgressPercent(goal), 0);
     return Math.round(sum / analyticsGoals.length);
   }, [analyticsGoals]);
+
+  const focusTotalMinutes = useMemo(() => {
+    return Math.round(
+      ekagraFocusSessions
+        .filter(s => s.associatedGoalId)
+        .reduce((sum, s) => sum + (s.actualMinutes || 0), 0)
+    );
+  }, [ekagraFocusSessions]);
+
+  const focusTodayMinutes = useMemo(() => {
+    return Math.round(
+      ekagraFocusSessions
+        .filter(s => s.associatedGoalId && s.startedAt && getISTDateKey(new Date(s.startedAt)) === todayKey)
+        .reduce((sum, s) => sum + (s.actualMinutes || 0), 0)
+    );
+  }, [ekagraFocusSessions, todayKey]);
+
+  const todaysStudiedMinutes = useMemo(() => {
+    return manualCompletedGoals
+      .filter((goal) => {
+        const completedAt = getGoalCompletedDate(goal);
+        return completedAt && getISTDateKey(completedAt) === todayKey;
+      })
+      .reduce((acc, g) => acc + Number(g.studiedMinutes ?? (g as any).studied_minutes ?? 0), 0);
+  }, [manualCompletedGoals, todayKey]);
 
   const totalStudiedMinutes = useMemo(
     () => manualCompletedGoals.reduce((acc, g) => acc + Number(g.studiedMinutes ?? (g as any).studied_minutes ?? 0), 0),
@@ -1602,6 +1624,24 @@ export default function Goals() {
                         <TrendingUp className="text-emerald-500 w-8 h-8 opacity-20" />
                       </div>
                       
+                      <div className="bg-muted/30 p-4 rounded-2xl space-y-3 shadow-sm border border-border/50">
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-emerald-500" />
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-70">Study Time Today</p>
+                        </div>
+                        <p className="text-2xl font-black text-emerald-500">{formatStudyTime(todaysStudiedMinutes + focusTodayMinutes)}</p>
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Manual</p>
+                            <p className="text-sm font-bold text-foreground">{formatStudyTime(todaysStudiedMinutes)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Ekagra</p>
+                            <p className="text-sm font-bold text-foreground">{formatStudyTime(focusTodayMinutes)}</p>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs font-bold">
                           <span>{t("goals.daily_progress")}</span>
