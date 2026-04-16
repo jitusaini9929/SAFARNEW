@@ -203,20 +203,28 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                 </div>
                 <div className="relative z-20 w-full max-w-[1400px] px-6 md:px-8 mt-24 md:mt-12">
                     <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 drop-shadow-2xl font-playfair">
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400">{titlePart1}</span>
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-cyan-400 mt-2">{titlePart2}</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-white">{titlePart1}</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-white mt-2">{titlePart2}</span>
                     </h1>
                     <p className="text-base md:text-lg lg:text-xl text-slate-800 dark:text-slate-100 font-satoshi mb-10 md:mb-12 max-w-xl md:max-w-2xl leading-relaxed whitespace-pre-line">
                         {subtitleBody}
                     </p>
 
-                    <div className="flex flex-col sm:flex-row gap-3 md:gap-5 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-5 w-full sm:w-auto">
                         <Link
                             to="/dashboard"
                             className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-[#1e3a8a] to-[#1e40af] text-white px-7 py-3.5 md:px-10 md:py-4 rounded-full text-base md:text-lg font-semibold shadow-lg shadow-blue-900/30 ring-1 ring-white/10 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-900/40 group"
                         >
                             <span>{t('landing.start_btn')}</span>
                             <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
+                        </Link>
+
+                        <Link
+                            to="/study/planner"
+                            className="group relative flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-8 py-4 md:px-10 md:py-4 rounded-full font-semibold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 shadow-lg shadow-teal-500/30 ring-1 ring-white/20 hover:shadow-xl hover:shadow-teal-500/40"
+                        >
+                            <span className="relative z-10">Try Study Planner</span>
+                            <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
                         </Link>
 
                         <Link

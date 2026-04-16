@@ -94,6 +94,8 @@ export default function TourTooltip({
                 }
 
                 setPosition({ top, left });
+            } else {
+                setPosition(null);
             }
 
             animationRef.current = requestAnimationFrame(updatePosition);

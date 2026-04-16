@@ -1514,6 +1514,65 @@ select {
   }
 }
 
+/* Template description hover marquee (QuickStart cards) */
+.template-desc-marquee {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.template-desc-static {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 1;
+  transition: opacity 120ms linear;
+  transition-delay: 0ms;
+}
+
+.template-desc-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5rem;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform: translateX(0);
+  transition: opacity 120ms linear;
+  transition-delay: 0ms;
+  animation: none;
+  animation-delay: 0ms;
+}
+
+.template-desc-track > span {
+  flex: 0 0 auto;
+}
+
+.template-card:hover .template-desc-static {
+  opacity: 0;
+  transition-delay: 1000ms;
+}
+
+.template-card:hover .template-desc-track {
+  opacity: 1;
+  transition-delay: 1000ms;
+  animation: template-desc-marquee 8s linear infinite;
+  animation-delay: 1000ms;
+}
+
+@keyframes template-desc-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-50% - 1.25rem));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .gradient-blob {
     animation: none !important;
@@ -1535,5 +1594,19 @@ select {
   .glass-button:hover,
   .ui-pressable:active {
     transform: none !important;
+  }
+
+  /* Allow explicit user-triggered marquee even in reduce-motion mode */
+  .template-card:hover .template-desc-static {
+    opacity: 0 !important;
+    transition-delay: 1000ms !important;
+  }
+
+  .template-card:hover .template-desc-track {
+    opacity: 1 !important;
+    transition-delay: 1000ms !important;
+    animation-duration: 8s !important;
+    animation-iteration-count: infinite !important;
+    animation-delay: 1000ms !important;
   }
 }

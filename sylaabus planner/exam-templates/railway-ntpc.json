@@ -1,0 +1,217 @@
+{
+  "id": "railway-ntpc",
+  "name": "Railway NTPC CBT-1",
+  "examBody": "RRB",
+  "category": "government",
+  "description": "Non-Technical Popular Categories CBT-1 — 100 questions, 100 marks, 90 minutes",
+  "estimatedTopics": 148,
+  "recommendedDailyGoal": 4,
+  "tags": ["railway", "ntpc", "rrb", "cbt1", "government"],
+  "subjects": [
+    {
+      "name": "Mathematics",
+      "color": "#3b82f6",
+      "chapters": [
+        {
+          "name": "Number System",
+          "topics": [
+            "LCM & HCF",
+            "Divisibility & Remainder",
+            "Fractions & Decimals",
+            "Square Root & Cube Root"
+          ]
+        },
+        {
+          "name": "Simplification",
+          "topics": [
+            "BODMAS",
+            "Surds & Indices",
+            "Approximation"
+          ]
+        },
+        {
+          "name": "Percentage",
+          "topics": [
+            "Basic Percentage",
+            "Percentage Change & Applications"
+          ]
+        },
+        {
+          "name": "Ratio, Proportion & Partnership",
+          "topics": [
+            "Ratio & Proportion",
+            "Partnership"
+          ]
+        },
+        {
+          "name": "Average & Ages",
+          "topics": [
+            "Average",
+            "Problems on Ages"
+          ]
+        },
+        {
+          "name": "Profit, Loss & Discount",
+          "topics": [
+            "Profit & Loss Basics",
+            "Discount & Marked Price",
+            "Successive Discounts"
+          ]
+        },
+        {
+          "name": "Simple & Compound Interest",
+          "topics": [
+            "SI Problems",
+            "CI Problems",
+            "Difference SI vs CI"
+          ]
+        },
+        {
+          "name": "Time & Work",
+          "topics": [
+            "Time & Work",
+            "Pipes & Cisterns"
+          ]
+        },
+        {
+          "name": "Speed, Time & Distance",
+          "topics": [
+            "Speed & Distance Basics",
+            "Trains",
+            "Boats & Streams"
+          ]
+        },
+        {
+          "name": "Algebra",
+          "topics": [
+            "Linear Equations",
+            "Algebraic Identities"
+          ]
+        },
+        {
+          "name": "Geometry & Mensuration",
+          "topics": [
+            "Triangles & Circles",
+            "Area of 2D Shapes",
+            "Volume of 3D Shapes",
+            "Surface Area"
+          ]
+        },
+        {
+          "name": "Trigonometry",
+          "topics": [
+            "Trigonometric Ratios",
+            "Height & Distance"
+          ]
+        },
+        {
+          "name": "Data Interpretation",
+          "topics": [
+            "Bar & Pie Chart",
+            "Tables & Line Graph"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "General Intelligence & Reasoning",
+      "color": "#f59e0b",
+      "chapters": [
+        {
+          "name": "Verbal Reasoning",
+          "topics": [
+            "Analogy",
+            "Classification",
+            "Series Completion",
+            "Coding-Decoding",
+            "Blood Relations",
+            "Direction Sense",
+            "Order Ranking",
+            "Seating Arrangement",
+            "Syllogism"
+          ]
+        },
+        {
+          "name": "Non-Verbal Reasoning",
+          "topics": [
+            "Figure Series & Pattern",
+            "Mirror & Water Image",
+            "Paper Folding & Cutting",
+            "Embedded & Counting Figures",
+            "Dice Problems"
+          ]
+        },
+        {
+          "name": "Logical Reasoning",
+          "topics": [
+            "Venn Diagrams",
+            "Statement & Conclusion",
+            "Mathematical Operations",
+            "Puzzles & Arrangement"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "General Awareness",
+      "color": "#8b5cf6",
+      "chapters": [
+        {
+          "name": "History",
+          "topics": [
+            "Ancient India",
+            "Medieval India",
+            "Modern India & Freedom Struggle",
+            "Indian Art & Culture"
+          ]
+        },
+        {
+          "name": "Geography",
+          "topics": [
+            "Indian Physical Geography",
+            "Indian Rivers & Climate",
+            "World Geography Basics",
+            "Natural Resources & Agriculture"
+          ]
+        },
+        {
+          "name": "Indian Polity",
+          "topics": [
+            "Constitution — Preamble & Features",
+            "Fundamental Rights & DPSP",
+            "Parliament & State Legislature",
+            "Judiciary & Local Government"
+          ]
+        },
+        {
+          "name": "Indian Economy",
+          "topics": [
+            "Economic Planning & Five Year Plans",
+            "Banking — RBI & Monetary Policy",
+            "Budget & Fiscal Policy",
+            "Government Schemes & Programs"
+          ]
+        },
+        {
+          "name": "General Science",
+          "topics": [
+            "Physics Basics",
+            "Chemistry Basics",
+            "Biology — Human Body & Diseases",
+            "Everyday Science & Technology"
+          ]
+        },
+        {
+          "name": "Static GK & Current Affairs",
+          "topics": [
+            "Indian Railways — Facts & History",
+            "National Symbols & Honors",
+            "Books, Authors & Awards",
+            "Sports & Important Days",
+            "Current Affairs — Last 6 Months"
+          ]
+        }
+      ]
+    }
+  ]
+}

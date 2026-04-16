@@ -1,0 +1,191 @@
+{
+  "id": "bank-po-prelims",
+  "name": "Bank PO Prelims",
+  "examBody": "IBPS / SBI",
+  "category": "banking",
+  "description": "IBPS PO / SBI PO Preliminary Exam — 100 questions, 100 marks, 60 minutes",
+  "estimatedTopics": 130,
+  "recommendedDailyGoal": 3,
+  "tags": ["bank", "ibps", "sbi", "po", "prelims", "banking"],
+  "subjects": [
+    {
+      "name": "Quantitative Aptitude",
+      "color": "#3b82f6",
+      "chapters": [
+        {
+          "name": "Number System & Simplification",
+          "topics": [
+            "LCM, HCF & Divisibility",
+            "BODMAS & Simplification",
+            "Surds & Indices",
+            "Approximation"
+          ]
+        },
+        {
+          "name": "Percentage & Ratio",
+          "topics": [
+            "Percentage",
+            "Ratio & Proportion",
+            "Partnership"
+          ]
+        },
+        {
+          "name": "Average & Ages",
+          "topics": [
+            "Average",
+            "Problems on Ages"
+          ]
+        },
+        {
+          "name": "Profit, Loss & Interest",
+          "topics": [
+            "Profit & Loss",
+            "Discount",
+            "Simple Interest",
+            "Compound Interest"
+          ]
+        },
+        {
+          "name": "Time & Work",
+          "topics": [
+            "Time & Work Basics",
+            "Pipes & Cisterns"
+          ]
+        },
+        {
+          "name": "Speed, Time & Distance",
+          "topics": [
+            "Speed & Distance",
+            "Trains",
+            "Boats & Streams"
+          ]
+        },
+        {
+          "name": "Algebra",
+          "topics": [
+            "Linear & Quadratic Equations",
+            "Inequalities"
+          ]
+        },
+        {
+          "name": "Mensuration & Geometry",
+          "topics": [
+            "Area & Perimeter",
+            "Volume & Surface Area"
+          ]
+        },
+        {
+          "name": "Data Interpretation",
+          "topics": [
+            "Bar Graph & Pie Chart",
+            "Line Graph & Table DI",
+            "Caselet DI",
+            "Mixed DI"
+          ]
+        },
+        {
+          "name": "Number Series",
+          "topics": [
+            "Missing Number in Series",
+            "Wrong Number in Series"
+          ]
+        },
+        {
+          "name": "Data Sufficiency",
+          "topics": [
+            "Quantitative Data Sufficiency"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reasoning Ability",
+      "color": "#f59e0b",
+      "chapters": [
+        {
+          "name": "Arrangement & Puzzles",
+          "topics": [
+            "Linear Seating Arrangement",
+            "Circular Seating Arrangement",
+            "Floor-based Puzzles",
+            "Box-based Puzzles",
+            "Scheduling & Day-based Puzzles"
+          ]
+        },
+        {
+          "name": "Coding-Decoding & Series",
+          "topics": [
+            "New Pattern Coding-Decoding",
+            "Alphabet & Number Series",
+            "Input-Output Machine"
+          ]
+        },
+        {
+          "name": "Logical Reasoning",
+          "topics": [
+            "Syllogism",
+            "Inequality (Coded & Direct)",
+            "Blood Relations",
+            "Direction & Distance",
+            "Order & Ranking"
+          ]
+        },
+        {
+          "name": "Miscellaneous",
+          "topics": [
+            "Alphanumeric Series",
+            "Data Sufficiency — Reasoning",
+            "Verbal Reasoning",
+            "Critical Reasoning"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "English Language",
+      "color": "#10b981",
+      "chapters": [
+        {
+          "name": "Reading Comprehension",
+          "topics": [
+            "RC — Factual Passages",
+            "RC — Inference Based",
+            "Vocabulary from RC"
+          ]
+        },
+        {
+          "name": "Grammar & Error Detection",
+          "topics": [
+            "Spotting Errors",
+            "Sentence Correction",
+            "Phrase Replacement"
+          ]
+        },
+        {
+          "name": "Vocabulary",
+          "topics": [
+            "Synonyms & Antonyms",
+            "Idioms & Phrases",
+            "One Word Substitution"
+          ]
+        },
+        {
+          "name": "Sentence Arrangement",
+          "topics": [
+            "Para Jumbles",
+            "Cloze Test",
+            "Fill in the Blanks — Single & Double"
+          ]
+        },
+        {
+          "name": "Miscellaneous",
+          "topics": [
+            "Word Usage & Column-based",
+            "Sentence Connectors",
+            "Odd Sentence Out"
+          ]
+        }
+      ]
+    }
+  ]
+}

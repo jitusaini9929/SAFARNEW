@@ -1,0 +1,320 @@
+{
+  "id": "ssc-cgl-tier1",
+  "name": "SSC CGL Tier-1",
+  "examBody": "SSC",
+  "category": "government",
+  "description": "Combined Graduate Level Examination Tier-1 — 100 questions, 200 marks, 60 minutes",
+  "estimatedTopics": 196,
+  "recommendedDailyGoal": 4,
+  "tags": ["ssc", "cgl", "tier1", "government"],
+  "subjects": [
+    {
+      "name": "Quantitative Aptitude",
+      "color": "#3b82f6",
+      "chapters": [
+        {
+          "name": "Number System",
+          "topics": [
+            "LCM & HCF",
+            "Divisibility Rules",
+            "Remainder Theorem",
+            "Unit Digit & Last Two Digits",
+            "Factors & Multiples",
+            "Prime & Composite Numbers",
+            "Fraction & Decimals"
+          ]
+        },
+        {
+          "name": "Simplification & Approximation",
+          "topics": [
+            "BODMAS Rule",
+            "Surds & Indices",
+            "Square Root & Cube Root",
+            "Approximation Techniques"
+          ]
+        },
+        {
+          "name": "Percentage",
+          "topics": [
+            "Basic Percentage Problems",
+            "Percentage Change",
+            "Successive Percentage",
+            "Population & Depreciation Problems"
+          ]
+        },
+        {
+          "name": "Ratio & Proportion",
+          "topics": [
+            "Simple Ratio",
+            "Compound Ratio",
+            "Proportion & Variation",
+            "Partnership Problems"
+          ]
+        },
+        {
+          "name": "Average",
+          "topics": [
+            "Basic Average",
+            "Weighted Average",
+            "Average Speed",
+            "Age-based Average Problems"
+          ]
+        },
+        {
+          "name": "Profit, Loss & Discount",
+          "topics": [
+            "Basic Profit & Loss",
+            "Successive Discounts",
+            "Marked Price & Selling Price",
+            "Dishonest Dealer Problems",
+            "Mixture Problems in Profit/Loss"
+          ]
+        },
+        {
+          "name": "Simple & Compound Interest",
+          "topics": [
+            "Simple Interest",
+            "Compound Interest",
+            "Difference Between SI & CI",
+            "Installment Problems"
+          ]
+        },
+        {
+          "name": "Time & Work",
+          "topics": [
+            "Basic Time & Work",
+            "Pipes & Cisterns",
+            "Work & Wages",
+            "Alternate Day Problems",
+            "Efficiency-based Problems"
+          ]
+        },
+        {
+          "name": "Speed, Time & Distance",
+          "topics": [
+            "Basic Speed Problems",
+            "Relative Speed",
+            "Trains",
+            "Boats & Streams",
+            "Circular Motion & Races"
+          ]
+        },
+        {
+          "name": "Algebra",
+          "topics": [
+            "Linear Equations",
+            "Quadratic Equations",
+            "Algebraic Identities",
+            "Polynomials & Factorization"
+          ]
+        },
+        {
+          "name": "Geometry",
+          "topics": [
+            "Lines & Angles",
+            "Triangles — Properties & Theorems",
+            "Circles — Chords, Tangents, Arcs",
+            "Quadrilaterals & Polygons",
+            "Coordinate Geometry Basics"
+          ]
+        },
+        {
+          "name": "Mensuration",
+          "topics": [
+            "Area — Triangle, Circle, Quadrilateral",
+            "Volume — Cube, Cuboid, Cylinder",
+            "Volume — Cone, Sphere, Hemisphere",
+            "Surface Area Problems",
+            "Combined Solid Problems"
+          ]
+        },
+        {
+          "name": "Trigonometry",
+          "topics": [
+            "Trigonometric Ratios & Identities",
+            "Complementary Angles",
+            "Height & Distance",
+            "Maximum & Minimum Values"
+          ]
+        },
+        {
+          "name": "Data Interpretation",
+          "topics": [
+            "Bar Graph",
+            "Pie Chart",
+            "Line Graph",
+            "Table-based DI",
+            "Mixed DI"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "English Language",
+      "color": "#10b981",
+      "chapters": [
+        {
+          "name": "Reading Comprehension",
+          "topics": [
+            "Passage-based Questions",
+            "Inference & Conclusion",
+            "Vocabulary in Context",
+            "Author's Tone & Purpose"
+          ]
+        },
+        {
+          "name": "Grammar",
+          "topics": [
+            "Tenses",
+            "Subject-Verb Agreement",
+            "Articles & Determiners",
+            "Prepositions",
+            "Conjunctions",
+            "Modals & Auxiliaries",
+            "Direct & Indirect Speech",
+            "Active & Passive Voice",
+            "Conditionals"
+          ]
+        },
+        {
+          "name": "Vocabulary",
+          "topics": [
+            "Synonyms & Antonyms",
+            "One Word Substitution",
+            "Idioms & Phrases",
+            "Phrasal Verbs",
+            "Spelling Errors"
+          ]
+        },
+        {
+          "name": "Error Detection & Correction",
+          "topics": [
+            "Spotting Errors",
+            "Sentence Correction",
+            "Sentence Improvement"
+          ]
+        },
+        {
+          "name": "Sentence Arrangement",
+          "topics": [
+            "Para Jumbles",
+            "Cloze Test",
+            "Fill in the Blanks"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "General Intelligence & Reasoning",
+      "color": "#f59e0b",
+      "chapters": [
+        {
+          "name": "Verbal Reasoning",
+          "topics": [
+            "Analogy",
+            "Classification (Odd One Out)",
+            "Series — Number & Alphabet",
+            "Coding-Decoding",
+            "Blood Relations",
+            "Direction & Distance",
+            "Order & Ranking",
+            "Seating Arrangement — Linear",
+            "Seating Arrangement — Circular",
+            "Syllogism"
+          ]
+        },
+        {
+          "name": "Non-Verbal Reasoning",
+          "topics": [
+            "Figure Series",
+            "Mirror & Water Image",
+            "Paper Cutting & Folding",
+            "Embedded Figures",
+            "Counting Figures",
+            "Dice & Cubes"
+          ]
+        },
+        {
+          "name": "Logical Reasoning",
+          "topics": [
+            "Statement & Conclusion",
+            "Statement & Assumption",
+            "Cause & Effect",
+            "Venn Diagrams",
+            "Mathematical Operations",
+            "Puzzles"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "General Awareness",
+      "color": "#8b5cf6",
+      "chapters": [
+        {
+          "name": "History",
+          "topics": [
+            "Ancient India — Indus Valley to Gupta",
+            "Medieval India — Delhi Sultanate & Mughals",
+            "Modern India — British Rule & Freedom Struggle",
+            "Art & Culture",
+            "Important Dates & Events"
+          ]
+        },
+        {
+          "name": "Geography",
+          "topics": [
+            "Physical Geography — Landforms & Climate",
+            "Indian Geography — Rivers, Soils, Agriculture",
+            "World Geography — Continents & Oceans",
+            "Economic Geography — Industries & Trade",
+            "Maps & Important Places"
+          ]
+        },
+        {
+          "name": "Polity",
+          "topics": [
+            "Indian Constitution — Preamble & Features",
+            "Fundamental Rights & Duties",
+            "Parliament & State Legislature",
+            "Judiciary — Supreme Court & High Court",
+            "Local Self Government",
+            "Constitutional Amendments"
+          ]
+        },
+        {
+          "name": "Economics",
+          "topics": [
+            "Basic Economic Concepts",
+            "Indian Economy — Planning & Reforms",
+            "Banking & Finance — RBI, SEBI, NABARD",
+            "Budget & Fiscal Policy",
+            "International Organizations — IMF, WTO, World Bank",
+            "Government Schemes"
+          ]
+        },
+        {
+          "name": "General Science",
+          "topics": [
+            "Physics — Mechanics, Heat, Light, Sound",
+            "Chemistry — Elements, Compounds, Reactions",
+            "Biology — Human Body Systems",
+            "Biology — Diseases & Nutrition",
+            "Science & Technology — Current Developments",
+            "Space & Defense Technology"
+          ]
+        },
+        {
+          "name": "Static GK & Current Affairs",
+          "topics": [
+            "Books & Authors",
+            "Awards & Honours",
+            "Sports — Tournaments & Records",
+            "National & International Organizations",
+            "Current Affairs — Last 6 Months"
+          ]
+        }
+      ]
+    }
+  ]
+}

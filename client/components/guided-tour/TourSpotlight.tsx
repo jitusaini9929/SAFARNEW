@@ -57,6 +57,8 @@ export default function TourSpotlight({
                     width: rect.width + padding * 2,
                     height: rect.height + padding * 2,
                 });
+            } else {
+                setTargetRect(null);
             }
             animationRef.current = requestAnimationFrame(updatePosition);
         };

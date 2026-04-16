@@ -1,0 +1,431 @@
+{
+  "id": "jee-mains",
+  "name": "JEE Mains",
+  "examBody": "NTA",
+  "category": "engineering",
+  "description": "Joint Entrance Examination (Main) — 90 questions across Physics, Chemistry, and Mathematics. 300 marks, 3 hours.",
+  "estimatedTopics": 217,
+  "recommendedDailyGoal": 4,
+  "tags": ["jee", "mains", "engineering", "nta", "iit"],
+  "subjects": [
+    {
+      "name": "Physics",
+      "color": "#3b82f6",
+      "chapters": [
+        {
+          "name": "Units & Measurements",
+          "topics": [
+            "SI Units & Dimensional Analysis",
+            "Significant Figures & Errors",
+            "Measurement Instruments"
+          ]
+        },
+        {
+          "name": "Kinematics",
+          "topics": [
+            "Motion in a Straight Line",
+            "Motion in a Plane",
+            "Projectile Motion",
+            "Relative Motion"
+          ]
+        },
+        {
+          "name": "Laws of Motion",
+          "topics": [
+            "Newton's Laws of Motion",
+            "Friction — Static & Kinetic",
+            "Circular Motion & Banking",
+            "Pseudo Forces & Non-Inertial Frames"
+          ]
+        },
+        {
+          "name": "Work, Energy & Power",
+          "topics": [
+            "Work-Energy Theorem",
+            "Conservation of Energy",
+            "Power & Collisions",
+            "Potential Energy Functions"
+          ]
+        },
+        {
+          "name": "Rotational Motion",
+          "topics": [
+            "Moment of Inertia",
+            "Torque & Angular Momentum",
+            "Rolling Motion",
+            "Equilibrium of Rigid Bodies"
+          ]
+        },
+        {
+          "name": "Gravitation",
+          "topics": [
+            "Newton's Law of Gravitation",
+            "Gravitational Potential & Field",
+            "Orbital & Escape Velocity",
+            "Kepler's Laws & Satellites"
+          ]
+        },
+        {
+          "name": "Properties of Solids & Fluids",
+          "topics": [
+            "Elasticity & Stress-Strain",
+            "Fluid Pressure & Pascal's Law",
+            "Bernoulli's Principle",
+            "Viscosity & Surface Tension"
+          ]
+        },
+        {
+          "name": "Thermodynamics",
+          "topics": [
+            "Laws of Thermodynamics",
+            "Heat Transfer — Conduction, Convection, Radiation",
+            "Kinetic Theory of Gases",
+            "Thermal Expansion & Calorimetry",
+            "PV Diagrams & Thermodynamic Processes"
+          ]
+        },
+        {
+          "name": "Oscillations & Waves",
+          "topics": [
+            "Simple Harmonic Motion",
+            "Damped & Forced Oscillations",
+            "Transverse & Longitudinal Waves",
+            "Superposition & Standing Waves",
+            "Doppler Effect"
+          ]
+        },
+        {
+          "name": "Electrostatics",
+          "topics": [
+            "Coulomb's Law & Electric Field",
+            "Gauss's Law & Applications",
+            "Electric Potential & Capacitance",
+            "Dielectrics & Energy Stored"
+          ]
+        },
+        {
+          "name": "Current Electricity",
+          "topics": [
+            "Ohm's Law & Resistivity",
+            "Kirchhoff's Laws & Circuits",
+            "Wheatstone Bridge & Potentiometer",
+            "RC Circuits & Electrical Energy"
+          ]
+        },
+        {
+          "name": "Magnetic Effects of Current & Magnetism",
+          "topics": [
+            "Biot-Savart Law & Ampere's Law",
+            "Force on Moving Charge & Current",
+            "Magnetic Properties of Materials",
+            "Earth's Magnetism"
+          ]
+        },
+        {
+          "name": "Electromagnetic Induction & AC",
+          "topics": [
+            "Faraday's Law & Lenz's Law",
+            "Self & Mutual Inductance",
+            "AC Circuits — LCR, Resonance",
+            "Transformers & Power Transmission"
+          ]
+        },
+        {
+          "name": "Optics & Modern Physics",
+          "topics": [
+            "Ray Optics — Reflection & Refraction",
+            "Wave Optics — Interference & Diffraction",
+            "Photoelectric Effect",
+            "Atomic Models — Bohr's Theory",
+            "Nuclear Physics & Radioactivity",
+            "Semiconductor Devices — Diode & Transistor"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chemistry",
+      "color": "#10b981",
+      "chapters": [
+        {
+          "name": "Atomic Structure",
+          "topics": [
+            "Bohr Model & Quantum Numbers",
+            "Electronic Configuration & Orbitals",
+            "Photoelectric Effect & Spectra"
+          ]
+        },
+        {
+          "name": "Chemical Bonding",
+          "topics": [
+            "Ionic & Covalent Bonding",
+            "VSEPR Theory & Hybridization",
+            "Molecular Orbital Theory",
+            "Hydrogen Bonding & Metallic Bonding"
+          ]
+        },
+        {
+          "name": "States of Matter",
+          "topics": [
+            "Gas Laws & Kinetic Theory",
+            "Liquid State & Vapour Pressure",
+            "Solid State — Crystal Structures & Defects"
+          ]
+        },
+        {
+          "name": "Thermodynamics & Thermochemistry",
+          "topics": [
+            "Enthalpy & Hess's Law",
+            "Entropy & Gibbs Free Energy",
+            "Spontaneity & Equilibrium"
+          ]
+        },
+        {
+          "name": "Chemical Equilibrium",
+          "topics": [
+            "Le Chatelier's Principle",
+            "Equilibrium Constants — Kp, Kc",
+            "Ionic Equilibrium — pH & Buffers",
+            "Solubility Product"
+          ]
+        },
+        {
+          "name": "Electrochemistry",
+          "topics": [
+            "Nernst Equation & Cell Potential",
+            "Electrolysis & Faraday's Laws",
+            "Conductance & Kohlrausch's Law",
+            "Batteries & Corrosion"
+          ]
+        },
+        {
+          "name": "Chemical Kinetics",
+          "topics": [
+            "Rate Law & Order of Reaction",
+            "Arrhenius Equation & Activation Energy",
+            "Integrated Rate Equations",
+            "Catalysis"
+          ]
+        },
+        {
+          "name": "Solutions",
+          "topics": [
+            "Raoult's Law & Colligative Properties",
+            "Osmotic Pressure",
+            "Abnormal Molecular Mass — Van't Hoff Factor"
+          ]
+        },
+        {
+          "name": "Periodic Table & Classification",
+          "topics": [
+            "Periodic Trends — Electronegativity, IE, EA",
+            "s-Block Elements",
+            "p-Block Elements — Groups 13–18",
+            "d-Block & f-Block Elements",
+            "Coordination Compounds"
+          ]
+        },
+        {
+          "name": "Organic Chemistry — Basics",
+          "topics": [
+            "IUPAC Nomenclature",
+            "Isomerism — Structural & Stereoisomerism",
+            "Electronic Effects — Inductive, Resonance, Hyperconjugation",
+            "Reaction Intermediates — Carbocation, Carbanion, Free Radicals"
+          ]
+        },
+        {
+          "name": "Hydrocarbons",
+          "topics": [
+            "Alkanes — Preparation & Reactions",
+            "Alkenes — Addition Reactions",
+            "Alkynes — Preparation & Properties",
+            "Aromatic Hydrocarbons — Benzene & EAS"
+          ]
+        },
+        {
+          "name": "Organic Functional Groups",
+          "topics": [
+            "Alcohols, Phenols & Ethers",
+            "Aldehydes & Ketones",
+            "Carboxylic Acids & Derivatives",
+            "Amines & Diazonium Salts",
+            "Haloarenes & Haloalkanes"
+          ]
+        },
+        {
+          "name": "Biomolecules & Polymers",
+          "topics": [
+            "Carbohydrates — Mono & Polysaccharides",
+            "Amino Acids & Proteins",
+            "Nucleic Acids — DNA & RNA",
+            "Polymers — Addition & Condensation",
+            "Chemistry in Everyday Life"
+          ]
+        },
+        {
+          "name": "Surface Chemistry & General Principles",
+          "topics": [
+            "Adsorption & Catalysis",
+            "Colloids & Emulsions",
+            "Metallurgy — Extraction Principles",
+            "Environmental Chemistry"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Mathematics",
+      "color": "#f59e0b",
+      "chapters": [
+        {
+          "name": "Sets, Relations & Functions",
+          "topics": [
+            "Types of Sets & Venn Diagrams",
+            "Relations — Equivalence & Partial Order",
+            "Functions — Domain, Range, Types",
+            "Composition & Inverse of Functions"
+          ]
+        },
+        {
+          "name": "Complex Numbers & Quadratic Equations",
+          "topics": [
+            "Algebra of Complex Numbers",
+            "Argand Plane & Polar Form",
+            "Quadratic Equations & Discriminant",
+            "Nature of Roots"
+          ]
+        },
+        {
+          "name": "Matrices & Determinants",
+          "topics": [
+            "Types of Matrices & Operations",
+            "Determinants & Properties",
+            "Adjoint & Inverse of a Matrix",
+            "System of Linear Equations — Cramer's Rule"
+          ]
+        },
+        {
+          "name": "Permutations & Combinations",
+          "topics": [
+            "Fundamental Counting Principle",
+            "Permutations — With & Without Repetition",
+            "Combinations & Binomial Coefficients",
+            "Circular Permutations"
+          ]
+        },
+        {
+          "name": "Binomial Theorem",
+          "topics": [
+            "Binomial Expansion & General Term",
+            "Middle Term & Properties of Coefficients",
+            "Multinomial Theorem"
+          ]
+        },
+        {
+          "name": "Sequences & Series",
+          "topics": [
+            "Arithmetic Progression",
+            "Geometric Progression",
+            "Harmonic Progression & AGP",
+            "Sum of Special Series",
+            "Telescoping & Method of Differences"
+          ]
+        },
+        {
+          "name": "Limits, Continuity & Differentiability",
+          "topics": [
+            "Limits — L'Hôpital's Rule & Standard Forms",
+            "Continuity & Types of Discontinuity",
+            "Differentiability & Derivatives",
+            "Mean Value Theorem — Rolle's & Lagrange's"
+          ]
+        },
+        {
+          "name": "Differential Calculus — Applications",
+          "topics": [
+            "Tangents & Normals",
+            "Increasing & Decreasing Functions",
+            "Maxima & Minima",
+            "Rate of Change & Approximations"
+          ]
+        },
+        {
+          "name": "Integral Calculus",
+          "topics": [
+            "Indefinite Integrals — Methods",
+            "Definite Integrals — Properties",
+            "Area Under Curves",
+            "Integration by Parts & Partial Fractions",
+            "Reduction Formulas"
+          ]
+        },
+        {
+          "name": "Differential Equations",
+          "topics": [
+            "Order & Degree of DE",
+            "Variable Separable & Homogeneous DE",
+            "Linear Differential Equations",
+            "Applications of DE"
+          ]
+        },
+        {
+          "name": "Coordinate Geometry",
+          "topics": [
+            "Straight Lines — Slope, Distance, Section Formula",
+            "Circles — Equation, Tangent, Normal",
+            "Parabola — Standard Forms & Properties",
+            "Ellipse — Eccentricity & Tangents",
+            "Hyperbola — Asymptotes & Properties"
+          ]
+        },
+        {
+          "name": "Trigonometry",
+          "topics": [
+            "Trigonometric Ratios & Identities",
+            "Trigonometric Equations",
+            "Inverse Trigonometric Functions",
+            "Properties of Triangles — Sine & Cosine Rules",
+            "Heights & Distances"
+          ]
+        },
+        {
+          "name": "Vector Algebra",
+          "topics": [
+            "Types of Vectors & Operations",
+            "Dot Product & Cross Product",
+            "Scalar Triple Product",
+            "Vector Applications in Geometry"
+          ]
+        },
+        {
+          "name": "3D Geometry",
+          "topics": [
+            "Direction Cosines & Ratios",
+            "Equation of a Line in 3D",
+            "Equation of a Plane",
+            "Distance Between Lines & Planes",
+            "Angle Between Line & Plane"
+          ]
+        },
+        {
+          "name": "Probability & Statistics",
+          "topics": [
+            "Conditional Probability & Bayes' Theorem",
+            "Random Variables & Distributions",
+            "Mean, Variance & Standard Deviation",
+            "Binomial Distribution"
+          ]
+        },
+        {
+          "name": "Mathematical Reasoning & Miscellaneous",
+          "topics": [
+            "Statements & Logical Connectives",
+            "Mathematical Induction",
+            "Linear Programming"
+          ]
+        }
+      ]
+    }
+  ]
+}

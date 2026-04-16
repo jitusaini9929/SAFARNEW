@@ -1,24 +1,745 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch, API_BASE } from "@/utils/apiFetch";
+import { useTheme } from "@/contexts/ThemeContext";
 import StudyPlanner from "../../sylaabus planner/StudyPlanner";
+
+// ── Types ──
 
 interface PlanSummary {
   id: string;
   title: string;
+  examDate?: string;
+  examType?: string;
+  description?: string;
+  subjectCount?: number;
+  completionPercent?: number;
+  totalTopics?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-interface PlannerPlanResponse {
+interface TemplateSummary {
   id: string;
-  subjects: Array<{
-    id: string;
-    name: string;
-    chapters: Array<{
-      id: string;
-      name: string;
-    }>;
-  }>;
+  name: string;
+  examBody: string;
+  category: string;
+  description: string;
+  estimatedTopics: number;
+  recommendedDailyGoal: number;
+  tags: string[];
 }
+
+type PlannerSection = "today" | "syllabus" | "calendar" | "plan" | "insights";
+
+function normalizeSection(section?: string): PlannerSection {
+  if (section === "syllabus" || section === "calendar" || section === "plan" || section === "insights") {
+    return section;
+  }
+  return "today";
+}
+
+// ── Template card styling ──
+
+const TEMPLATE_ICONS: Record<string, string> = {
+  "ssc-cgl-tier1": "📋",
+  "railway-ntpc": "🚂",
+  "bank-po-prelims": "🏦",
+  "jee-mains": "⚡",
+  "neet-ug": "🧬",
+};
+
+const TEMPLATE_GRADIENTS: Record<string, string> = {
+  "ssc-cgl-tier1": "from-blue-500/20 to-indigo-500/20",
+  "railway-ntpc": "from-amber-500/20 to-orange-500/20",
+  "bank-po-prelims": "from-emerald-500/20 to-teal-500/20",
+  "jee-mains": "from-violet-500/20 to-fuchsia-500/20",
+  "neet-ug": "from-rose-500/20 to-pink-500/20",
+};
+
+const TEMPLATE_BORDER_COLORS: Record<string, string> = {
+  "ssc-cgl-tier1": "border-blue-400/30 dark:border-blue-500/20",
+  "railway-ntpc": "border-amber-400/30 dark:border-amber-500/20",
+  "bank-po-prelims": "border-emerald-400/30 dark:border-emerald-500/20",
+  "jee-mains": "border-violet-400/30 dark:border-violet-500/20",
+  "neet-ug": "border-rose-400/30 dark:border-rose-500/20",
+};
+
+const CATEGORY_BADGES: Record<string, { label: string; color: string }> = {
+  government: { label: "GOVT EXAM", color: "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40" },
+  banking: { label: "BANKING", color: "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40" },
+  engineering: { label: "ENGINEERING", color: "text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/40" },
+  medical: { label: "MEDICAL", color: "text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40" },
+};
+
+// ── QuickStart Component ──
+
+function TemplateCard({
+  template,
+  index,
+  onSelect,
+}: {
+  template: TemplateSummary;
+  index: number;
+  onSelect: (template: TemplateSummary) => void;
+}) {
+  return (
+    <motion.button
+      key={template.id}
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.08, duration: 0.4 }}
+      onClick={() => onSelect(template)}
+      className={`template-card group relative flex flex-col h-full text-left rounded-2xl p-6 border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg
+        bg-gradient-to-br ${TEMPLATE_GRADIENTS[template.id] || "from-slate-100/50 to-slate-200/50 dark:from-slate-800/50 dark:to-slate-900/50"}
+        ${TEMPLATE_BORDER_COLORS[template.id] || "border-slate-300 dark:border-slate-700"}
+        bg-white/80 dark:bg-[#141518]/80 backdrop-blur-sm
+      `}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <span className="text-3xl">{TEMPLATE_ICONS[template.id] || "ðŸ“"}</span>
+        {CATEGORY_BADGES[template.category] && (
+          <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full ${CATEGORY_BADGES[template.category].color}`}>
+            {CATEGORY_BADGES[template.category].label}
+          </span>
+        )}
+      </div>
+
+      <h3 className="text-xl font-bold text-[#0f172a] dark:text-white mb-2">
+        {template.name}
+      </h3>
+
+      <div className="template-desc-marquee text-[12px] font-medium leading-relaxed text-[#64748b] dark:text-[#94a3b8] mb-6 flex-grow">
+        <span className="template-desc-static">
+          {template.description}
+        </span>
+        <span className="template-desc-track" aria-hidden="true">
+          <span>{template.description}</span>
+          <span>{template.description}</span>
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4 text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8]">
+        <span>{template.estimatedTopics} topics</span>
+        <span aria-hidden="true">&middot;</span>
+        <span>{template.examBody}</span>
+        <span aria-hidden="true">&middot;</span>
+        <span>{template.recommendedDailyGoal}/day</span>
+      </div>
+    </motion.button>
+  );
+}
+
+function QuickStart({
+  onCancel,
+  onComplete,
+}: {
+  onCancel: () => void;
+  onComplete: (planId: string) => void;
+}) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
+  const [templates, setTemplates] = useState<TemplateSummary[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateSummary | null>(null);
+  const [showCustom, setShowCustom] = useState(false);
+
+  // Plan config (shown after template selection)
+  const [examDate, setExamDate] = useState("");
+  const [dailyGoal, setDailyGoal] = useState(3);
+  const [offDays, setOffDays] = useState<number[]>([0]); // Sunday off by default
+  const [title, setTitle] = useState("");
+
+  // Custom plan fields
+  const [customTitle, setCustomTitle] = useState("");
+  const [customExamName, setCustomExamName] = useState("");
+  const [customPasteText, setCustomPasteText] = useState("");
+  
+  // Advanced options toggle
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch templates
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await apiFetch(`${API_BASE}/plans/templates`, { method: "GET" });
+        if (res.ok) {
+          const data = await res.json();
+          setTemplates(data);
+        }
+      } catch {
+        // Templates will just be empty
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    void load();
+  }, []);
+
+  const daysLeft = useMemo(() => {
+    if (!examDate) return null;
+    const target = new Date(examDate);
+    if (Number.isNaN(target.getTime())) return null;
+    return Math.ceil((target.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  }, [examDate]);
+
+  function toggleOffDay(day: number) {
+    setOffDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  }
+
+  async function handleGenerateFromTemplate() {
+    if (!selectedTemplate) return;
+    if (!examDate) {
+      setError("Set your exam date to generate a schedule");
+      return;
+    }
+
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const res = await apiFetch(`${API_BASE}/plans/from-template`, {
+        method: "POST",
+        body: JSON.stringify({
+          templateId: selectedTemplate.id,
+          title: title.trim() || selectedTemplate.name,
+          examDate,
+          dailyGoal,
+          offDays,
+          autoDistribute: true,
+        }),
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.message || "Failed to create plan");
+      }
+
+      const created = await res.json();
+      onComplete(created.id);
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCustomCreate() {
+    if (!customTitle.trim()) {
+      setError("Add a plan title");
+      return;
+    }
+    if (!examDate) {
+      setError("Set an exam date");
+      return;
+    }
+
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      // Create plan
+      const createRes = await apiFetch(`${API_BASE}/plans`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: customTitle.trim(),
+          examType: customExamName.trim(),
+          examDate,
+          dailyGoal,
+          offDays,
+        }),
+      });
+
+      if (!createRes.ok) {
+        const payload = await createRes.json().catch(() => ({}));
+        throw new Error(payload?.message || "Failed to create plan");
+      }
+
+      const plan = await createRes.json();
+
+      // If user pasted syllabus, parse and add it
+      if (customPasteText.trim()) {
+        const parsed = parseBulkPaste(customPasteText);
+        for (const entry of parsed.entries) {
+          const subjectName = entry.subjectName.trim();
+          const topics = entry.topicsText.split("\n").map((t: string) => t.trim()).filter(Boolean);
+          if (!subjectName || topics.length === 0) continue;
+
+          const subjectRes = await apiFetch(`${API_BASE}/plans/${plan.id}/subjects`, {
+            method: "POST",
+            body: JSON.stringify({ name: subjectName }),
+          });
+          if (!subjectRes.ok) continue;
+          const planWithSubject = await subjectRes.json();
+          const subject = planWithSubject.subjects[planWithSubject.subjects.length - 1];
+          if (!subject) continue;
+
+          const chapterRes = await apiFetch(`${API_BASE}/plans/${plan.id}/subjects/${subject.id}/chapters`, {
+            method: "POST",
+            body: JSON.stringify({ name: "General" }),
+          });
+          if (!chapterRes.ok) continue;
+          const planWithChapter = await chapterRes.json();
+          const updatedSubject = planWithChapter.subjects.find((s: any) => s.id === subject.id);
+          if (!updatedSubject || !Array.isArray(updatedSubject.chapters) || updatedSubject.chapters.length === 0) {
+            continue;
+          }
+          const chapter = updatedSubject.chapters[updatedSubject.chapters.length - 1];
+          if (!chapter) continue;
+
+          for (const topicName of topics) {
+            await apiFetch(
+              `${API_BASE}/plans/${plan.id}/subjects/${subject.id}/chapters/${chapter.id}/topics`,
+              { method: "POST", body: JSON.stringify({ name: topicName }) }
+            );
+          }
+        }
+
+        // Auto-distribute after adding topics
+        await apiFetch(`${API_BASE}/plans/${plan.id}/auto-distribute`, {
+          method: "POST",
+          body: JSON.stringify({ lockExistingDates: false }),
+        }).catch(() => {});
+      }
+
+      onComplete(plan.id);
+    } catch (err: any) {
+      setError(err?.message || "Something went wrong");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // ── Template Selection Screen ──
+  if (!selectedTemplate && !showCustom) {
+    return (
+      <div className="min-h-[85dvh] flex flex-col items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-4xl"
+        >
+          {/* Header */}
+          <div className="text-center mb-10">
+            <h1
+              className="text-4xl md:text-5xl font-bold tracking-tight text-[#0f172a] dark:text-white mb-3"
+              style={{ fontFamily: "'Satoshi', sans-serif" }}
+            >
+              Pick your exam.
+            </h1>
+            <p className="text-[15px] text-slate-600 dark:text-[#94a3b8] max-w-lg mx-auto">
+              Choose a pre-loaded syllabus template and we'll build your entire study schedule in seconds.
+            </p>
+          </div>
+
+          {/* Template Grid */}
+          {loadingTemplates ? (
+            <div className="flex justify-center py-16">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                className="w-10 h-10 rounded-full border-[4px] border-slate-200 dark:border-slate-700 border-t-blue-500"
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+              {templates.map((template, idx) => (
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  index={idx}
+                  onSelect={(selected) => {
+                    setSelectedTemplate(selected);
+                    setDailyGoal(selected.recommendedDailyGoal);
+                    setTitle(selected.name);
+                  }}
+                />
+              ))}
+
+
+              {/* Custom Plan Card */}
+              <motion.button
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: templates.length * 0.08, duration: 0.4 }}
+                onClick={() => setShowCustom(true)}
+                className="group flex flex-col h-full text-left rounded-2xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 transition-all duration-300 hover:scale-[1.02] bg-white/50 dark:bg-[#141518]/50"
+              >
+                <div className="text-3xl mb-4">✏️</div>
+                <h3 className="text-xl font-bold text-[#0f172a] dark:text-white mb-2">
+                  Custom Plan
+                </h3>
+                <p className="text-[12px] font-medium leading-relaxed text-[#64748b] dark:text-[#94a3b8] mb-6 flex-grow line-clamp-2">
+                  Build your own plan from scratch. Paste your syllabus or add topics manually.
+                </p>
+                <div className="text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8]">
+                  Any exam · Your syllabus
+                </div>
+              </motion.button>
+            </div>
+          )}
+
+          <div className="text-center">
+            <button
+              onClick={onCancel}
+              className="text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#64748b] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Custom Plan Form ──
+  if (showCustom) {
+    return (
+      <div className="min-h-[85dvh] flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#141518] border border-slate-200 dark:border-slate-800 shadow-[0_20px_60px_rgba(15,23,42,0.15)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)] p-8"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <button
+              onClick={() => setShowCustom(false)}
+              className="text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+            >
+              ← Back
+            </button>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b]">
+              Custom Plan
+            </span>
+          </div>
+
+          {error && (
+            <div className="mb-5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400 font-bold">
+              {error}
+            </div>
+          )}
+
+          <div className="grid gap-5">
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                Plan Title
+              </label>
+              <input
+                value={customTitle}
+                onChange={(e) => setCustomTitle(e.target.value)}
+                placeholder="SSC CGL 2026 Prep"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white placeholder-[#64748b] dark:placeholder-[#4b5563] focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                  Exam Date
+                </label>
+                <input
+                  type="date"
+                  value={examDate}
+                  onChange={(e) => setExamDate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  style={{ colorScheme: isDark ? "dark" : "light" }}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                  Topics / Day
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={dailyGoal}
+                  onChange={(e) => setDailyGoal(Math.max(1, Number(e.target.value)))}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="mt-2 text-left text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+            >
+              {showAdvanced ? "- Hide Advanced Options" : "+ Show Advanced Options"}
+            </button>
+
+            <AnimatePresence>
+              {showAdvanced && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden grid gap-5"
+                >
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                      Exam Name (optional)
+                    </label>
+                    <input
+                      value={customExamName}
+                      onChange={(e) => setCustomExamName(e.target.value)}
+                      placeholder="CGL Tier-1"
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white placeholder-[#64748b] dark:placeholder-[#4b5563] focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                      Off Days
+                    </label>
+                    <div className="flex gap-2">
+                      {(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const).map((label, idx) => (
+                        <button
+                          key={label}
+                          onClick={() => toggleOffDay(idx)}
+                          className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${
+                            offDays.includes(idx)
+                              ? "bg-blue-500 text-white border-blue-600"
+                              : "bg-white dark:bg-[#1a1c1e] text-[#64748b] border-slate-200 dark:border-slate-700"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                      Paste Your Syllabus (optional)
+                    </label>
+                    <textarea
+                      value={customPasteText}
+                      onChange={(e) => setCustomPasteText(e.target.value)}
+                      placeholder={"Math:\n- Algebra\n- Trigonometry\n- Calculus\nPhysics:\n- Kinematics\n- Current Electricity"}
+                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-4 text-[14px] font-semibold text-[#0f172a] dark:text-white placeholder-[#64748b] dark:placeholder-[#4b5563] focus:outline-none focus:ring-2 focus:ring-blue-500/30 min-h-[140px] leading-relaxed"
+                    />
+                    <p className="text-[10px] font-semibold text-[#64748b] mt-2">
+                      Format: Subject name followed by topics as bullet points or dashes. One topic per line.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="flex items-center justify-between mt-8">
+            <button
+              onClick={() => setShowCustom(false)}
+              className="text-[11px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700"
+              disabled={isSubmitting}
+            >
+              Back
+            </button>
+            <button
+              onClick={handleCustomCreate}
+              disabled={isSubmitting}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[12px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all disabled:opacity-50"
+            >
+              {isSubmitting ? "Creating..." : "Create Plan"}
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Configure & Generate Screen (after template selection) ──
+  return (
+    <div className="min-h-[85dvh] flex items-center justify-center p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-2xl rounded-3xl bg-white dark:bg-[#141518] border border-slate-200 dark:border-slate-800 shadow-[0_20px_60px_rgba(15,23,42,0.15)] dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)] p-8"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => setSelectedTemplate(null)}
+            className="text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+          >
+            ← Change Exam
+          </button>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b]">
+            Almost Done
+          </span>
+        </div>
+
+        {/* Selected template badge */}
+        <div className="flex items-center gap-3 mb-6 mt-4">
+          <span className="text-2xl">{TEMPLATE_ICONS[selectedTemplate!.id] || "📝"}</span>
+          <div>
+            <h2 className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+              {selectedTemplate!.name}
+            </h2>
+            <p className="text-[11px] font-semibold text-[#64748b]">
+              {selectedTemplate!.estimatedTopics} topics · {selectedTemplate!.examBody}
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-600 dark:text-red-400 font-bold">
+            {error}
+          </div>
+        )}
+
+        <div className="grid gap-5">
+          {/* Title override */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+              Plan Title
+            </label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={selectedTemplate!.name}
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white placeholder-[#64748b] dark:placeholder-[#4b5563] focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            />
+          </div>
+
+          {/* Date & Goal Row */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                Exam Date
+              </label>
+              <input
+                type="date"
+                value={examDate}
+                onChange={(e) => setExamDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                style={{ colorScheme: isDark ? "dark" : "light" }}
+              />
+              {daysLeft !== null && daysLeft > 0 && (
+                <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-1">{daysLeft} days away</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                Topics / Day
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={dailyGoal}
+                onChange={(e) => setDailyGoal(Math.max(1, Number(e.target.value)))}
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              />
+              {daysLeft !== null && daysLeft > 0 && (
+                <p className="text-[10px] font-bold text-[#64748b] mt-1">
+                  {Math.ceil(selectedTemplate!.estimatedTopics / dailyGoal)} days needed
+                </p>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="mt-2 text-left text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+          >
+            {showAdvanced ? "- Hide Advanced Options" : "+ Show Advanced Options"}
+          </button>
+
+          <AnimatePresence>
+            {showAdvanced && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                    Off Days
+                  </label>
+                  <div className="flex gap-2">
+                    {(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const).map((label, idx) => (
+                      <button
+                        key={label}
+                        onClick={() => toggleOffDay(idx)}
+                        className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${
+                          offDays.includes(idx)
+                            ? "bg-blue-500 text-white border-blue-600"
+                            : "bg-white dark:bg-[#1a1c1e] text-[#64748b] border-slate-200 dark:border-slate-700"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Summary */}
+          {examDate && daysLeft !== null && daysLeft > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200/50 dark:border-blue-800/30 p-4"
+            >
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                    {selectedTemplate!.estimatedTopics}
+                  </div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#64748b]">Topics</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                    {daysLeft}
+                  </div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#64748b]">Days Left</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                    {dailyGoal}
+                  </div>
+                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#64748b]">Per Day</div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </div>
+
+        {/* Action */}
+        <div className="flex items-center justify-between mt-8">
+          <button
+            onClick={() => setSelectedTemplate(null)}
+            className="text-[11px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700"
+            disabled={isSubmitting}
+          >
+            Change Exam
+          </button>
+          <button
+            onClick={handleGenerateFromTemplate}
+            disabled={isSubmitting || !examDate}
+            className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all disabled:opacity-50"
+          >
+            {isSubmitting ? "Generating..." : "Generate My Plan →"}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Bulk Paste Parser (for Custom Plan) ──
 
 interface SyllabusEntry {
   subjectName: string;
@@ -31,31 +752,6 @@ interface BulkParseResult {
   invalidLines: string[];
   subjectCount: number;
   topicCount: number;
-}
-
-type PlannerSection = "today" | "plan" | "syllabus" | "calendar";
-
-function normalizeSection(section?: string): PlannerSection {
-  if (section === "plan" || section === "syllabus" || section === "calendar") {
-    return section;
-  }
-  return "today";
-}
-
-function isFutureDate(dateStr: string): boolean {
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime() > today.getTime();
-}
-
-function parseTopics(input: string): string[] {
-  return input
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
 }
 
 function parseBulkPaste(input: string): BulkParseResult {
@@ -110,27 +806,15 @@ function parseBulkPaste(input: string): BulkParseResult {
       continue;
     }
 
-    const colonParts = line.split(/\s*:\s*/).filter(Boolean);
-    if (colonParts.length >= 2) {
-      const subject = addSubject(colonParts[0]);
-      if (!subject) {
-        invalidLines.push(line);
-        continue;
-      }
-      currentSubject = subject;
-      const topics = colonParts.slice(1).join(":");
-      for (const topic of topics.split(/[,;|]/)) {
-        addTopic(subject, topic);
-      }
-      continue;
-    }
-
     if (currentSubject) {
       addTopic(currentSubject, line);
       continue;
     }
 
-    invalidLines.push(line);
+    // AUTO-FALLBACK: plain lines with no subject header go into "General"
+    addSubject("General");
+    currentSubject = "General";
+    addTopic("General", line);
   }
 
   const entries: SyllabusEntry[] = Array.from(entriesMap.values()).map((entry) => ({
@@ -139,583 +823,14 @@ function parseBulkPaste(input: string): BulkParseResult {
     topicsText: entry.topics.join("\n"),
   }));
 
+  const parseTopics = (text: string) => text.split("\n").map((t) => t.trim()).filter(Boolean);
   const subjectCount = entries.length;
   const topicCount = entries.reduce((total, entry) => total + parseTopics(entry.topicsText).length, 0);
 
   return { entries, invalidLines, subjectCount, topicCount };
 }
 
-function SetupWizard({
-  onCancel,
-  onComplete,
-}: {
-  onCancel: () => void;
-  onComplete: (planId: string) => void;
-}) {
-  const [step, setStep] = useState(1);
-  const [wizardError, setWizardError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [createdPlanId, setCreatedPlanId] = useState<string | null>(null);
-  const [scheduleError, setScheduleError] = useState("");
-
-  const [title, setTitle] = useState("");
-  const [examName, setExamName] = useState("");
-  const [examDate, setExamDate] = useState("");
-  const [description, setDescription] = useState("");
-
-  const [dailyGoal, setDailyGoal] = useState(3);
-  const [offDays, setOffDays] = useState<number[]>([]);
-  const [includeRevision, setIncludeRevision] = useState(false);
-  const [lockExistingDates, setLockExistingDates] = useState(true);
-
-  const [inputMode, setInputMode] = useState<"quick" | "bulk">("quick");
-  const [bulkPasteText, setBulkPasteText] = useState("");
-  const [entries, setEntries] = useState<SyllabusEntry[]>([
-    { subjectName: "", chapterName: "", topicsText: "" },
-  ]);
-  const [quickTopicInput, setQuickTopicInput] = useState<Record<number, string>>({});
-
-  const bulkParse = useMemo(() => parseBulkPaste(bulkPasteText), [bulkPasteText]);
-  const effectiveEntries = useMemo(
-    () => (inputMode === "bulk" ? bulkParse.entries : entries),
-    [inputMode, bulkParse.entries, entries]
-  );
-  const subjectCount = useMemo(
-    () => effectiveEntries.filter((entry) => entry.subjectName.trim()).length,
-    [effectiveEntries]
-  );
-  const topicCount = useMemo(
-    () => effectiveEntries.reduce((total, entry) => total + parseTopics(entry.topicsText).length, 0),
-    [effectiveEntries]
-  );
-  const daysLeft = useMemo(() => {
-    if (!examDate) return null;
-    const today = new Date();
-    const target = new Date(examDate);
-    if (Number.isNaN(target.getTime())) return null;
-    return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  }, [examDate]);
-
-  function updateEntry(index: number, patch: Partial<typeof entries[number]>) {
-    setEntries((prev) =>
-      prev.map((entry, idx) => (idx === index ? { ...entry, ...patch } : entry))
-    );
-  }
-
-  function updateEntryTopics(index: number, topics: string[]) {
-    updateEntry(index, { topicsText: topics.join("\n") });
-  }
-
-  function removeEntry(index: number) {
-    setEntries((prev) => prev.filter((_, idx) => idx !== index));
-    setQuickTopicInput((prev) => {
-      const next = { ...prev };
-      delete next[index];
-      return next;
-    });
-  }
-
-  function addEntry() {
-    setEntries((prev) => [...prev, { subjectName: "", chapterName: "", topicsText: "" }]);
-  }
-
-  function addQuickTopics(index: number) {
-    const input = quickTopicInput[index] || "";
-    const topics = parseTopics(input);
-    if (topics.length === 0) return;
-    const currentTopics = parseTopics(entries[index]?.topicsText || "");
-    updateEntryTopics(index, [...currentTopics, ...topics]);
-    setQuickTopicInput((prev) => ({ ...prev, [index]: "" }));
-  }
-
-  function removeQuickTopic(index: number, topic: string) {
-    const currentTopics = parseTopics(entries[index]?.topicsText || "");
-    const targetIndex = currentTopics.indexOf(topic);
-    if (targetIndex === -1) return;
-    currentTopics.splice(targetIndex, 1);
-    updateEntryTopics(index, currentTopics);
-  }
-
-  function toggleOffDay(day: number) {
-    setOffDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
-  }
-
-  function validateStep(nextStep: number): boolean {
-    setWizardError("");
-
-    if (nextStep === 2) {
-      if (!title.trim()) {
-        setWizardError("Add a plan title");
-        return false;
-      }
-      if (!examDate) {
-        setWizardError("Select an exam date");
-        return false;
-      }
-      return true;
-    }
-
-    if (nextStep === 3) {
-      if (!Number.isFinite(dailyGoal) || dailyGoal <= 0) {
-        setWizardError("Daily goal must be greater than 0");
-        return false;
-      }
-      if (!isFutureDate(examDate)) {
-        setWizardError("Exam date must be in the future");
-        return false;
-      }
-      return true;
-    }
-
-    if (nextStep === 4) {
-      if (subjectCount === 0 || topicCount === 0) {
-        setWizardError("Add at least 1 subject and 1 topic");
-        return false;
-      }
-      return true;
-    }
-
-    return true;
-  }
-
-  async function createPlanAndSyllabus(): Promise<string> {
-    const createRes = await apiFetch(`${API_BASE}/plans`, {
-      method: "POST",
-      body: JSON.stringify({
-        title: title.trim(),
-        examType: examName.trim(),
-        examDate,
-        description: description.trim(),
-        dailyGoal,
-        offDays,
-      }),
-    });
-
-    if (!createRes.ok) {
-      const payload = await createRes.json().catch(() => ({}));
-      throw new Error(payload?.message || "Failed to create plan");
-    }
-
-    const created = (await createRes.json()) as PlannerPlanResponse;
-    const planId = created.id;
-
-    for (const entry of effectiveEntries) {
-      const subjectName = entry.subjectName.trim();
-      const topics = parseTopics(entry.topicsText);
-      if (!subjectName || topics.length === 0) continue;
-
-      const subjectRes = await apiFetch(`${API_BASE}/plans/${planId}/subjects`, {
-        method: "POST",
-        body: JSON.stringify({ name: subjectName }),
-      });
-
-      if (!subjectRes.ok) {
-        const payload = await subjectRes.json().catch(() => ({}));
-        throw new Error(payload?.message || "Failed to add subject");
-      }
-
-      const planWithSubject = (await subjectRes.json()) as PlannerPlanResponse;
-      const subject = planWithSubject.subjects[planWithSubject.subjects.length - 1];
-      if (!subject) {
-        throw new Error("Failed to create subject");
-      }
-
-      const chapterName = entry.chapterName.trim() || "General";
-      const chapterRes = await apiFetch(`${API_BASE}/plans/${planId}/subjects/${subject.id}/chapters`, {
-        method: "POST",
-        body: JSON.stringify({ name: chapterName }),
-      });
-
-      if (!chapterRes.ok) {
-        const payload = await chapterRes.json().catch(() => ({}));
-        throw new Error(payload?.message || "Failed to add chapter");
-      }
-
-      const planWithChapter = (await chapterRes.json()) as PlannerPlanResponse;
-      const updatedSubject = planWithChapter.subjects.find((item) => item.id === subject.id);
-      const chapter = updatedSubject?.chapters[updatedSubject.chapters.length - 1];
-      if (!chapter) {
-        throw new Error("Failed to create chapter");
-      }
-
-      for (const topicName of topics) {
-        const topicRes = await apiFetch(
-          `${API_BASE}/plans/${planId}/subjects/${subject.id}/chapters/${chapter.id}/topics`,
-          {
-            method: "POST",
-            body: JSON.stringify({ name: topicName }),
-          }
-        );
-
-        if (!topicRes.ok) {
-          const payload = await topicRes.json().catch(() => ({}));
-          throw new Error(payload?.message || "Failed to add topic");
-        }
-      }
-    }
-
-    return planId;
-  }
-
-  async function handleGenerate() {
-    setWizardError("");
-    setScheduleError("");
-    setIsSubmitting(true);
-
-    try {
-      const planId = await createPlanAndSyllabus();
-      setCreatedPlanId(planId);
-
-      const autoRes = await apiFetch(`${API_BASE}/plans/${planId}/auto-distribute`, {
-        method: "POST",
-        body: JSON.stringify({
-          includeRevisionNeeded: includeRevision,
-          lockExistingDates,
-        }),
-      });
-
-      if (!autoRes.ok) {
-        const payload = await autoRes.json().catch(() => ({}));
-        setScheduleError(payload?.message || "Could not build the schedule yet.");
-        return;
-      }
-
-      onComplete(planId);
-    } catch (err: any) {
-      setWizardError(err?.message || "Unable to create plan");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="min-h-[80dvh] flex items-center justify-center p-6">
-      <div className="w-full max-w-3xl rounded-3xl bg-white dark:bg-[#111214] border border-slate-200 dark:border-slate-800 shadow-[0_20px_40px_rgba(15,23,42,0.2)] p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="text-[12px] font-black uppercase tracking-widest text-[#8b919e]">Step {step} of 4</div>
-          <button
-            onClick={onCancel}
-            className="text-[11px] font-black uppercase tracking-widest text-[#64748b]"
-          >
-            Cancel
-          </button>
-        </div>
-
-        {wizardError && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 font-bold">
-            {wizardError}
-          </div>
-        )}
-
-        {scheduleError && createdPlanId && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 font-bold">
-            {scheduleError}
-          </div>
-        )}
-
-        {step === 1 && (
-          <div>
-            <h2 className="text-2xl font-bold text-[#1f2937] mb-2">Set your target first</h2>
-            <p className="text-sm text-[#6b7280] mb-6">
-              Your schedule will be built backward from this date.
-            </p>
-            <div className="grid gap-4">
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Semester Finals Plan"
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold"
-              />
-              <input
-                value={examName}
-                onChange={(e) => setExamName(e.target.value)}
-                placeholder="UPSC Prelims 2026"
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold"
-              />
-              <input
-                type="date"
-                value={examDate}
-                onChange={(e) => setExamDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold"
-              />
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold min-h-[100px]"
-              />
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div>
-            <h2 className="text-2xl font-bold text-[#1f2937] mb-2">Study capacity</h2>
-            <p className="text-sm text-[#6b7280] mb-6">
-              A realistic plan is better than an ambitious one you will not follow.
-            </p>
-            <div className="grid gap-6">
-              <div>
-                <label className="text-sm font-semibold text-[#374151]">
-                  How many topics can you realistically study per day?
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={dailyGoal}
-                  onChange={(e) => setDailyGoal(Number(e.target.value))}
-                  className="mt-2 w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold"
-                />
-              </div>
-
-              <div>
-                <div className="text-sm font-semibold text-[#374151] mb-2">Off days</div>
-                <div className="flex flex-wrap gap-2">
-                  {(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const).map((label, idx) => (
-                    <button
-                      key={label}
-                      onClick={() => toggleOffDay(idx)}
-                      className={`px-3 py-2 rounded-full text-xs font-bold uppercase tracking-widest border ${offDays.includes(idx)
-                          ? "bg-blue-600 text-white border-blue-700"
-                          : "bg-white text-slate-600 border-slate-200"
-                        }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => setIncludeRevision((prev) => !prev)}
-                  className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border ${includeRevision
-                      ? "bg-purple-50 text-purple-700 border-purple-200"
-                      : "bg-white text-slate-600 border-slate-200"
-                    }`}
-                >
-                  Include revision topics
-                </button>
-                <button
-                  onClick={() => setLockExistingDates((prev) => !prev)}
-                  className={`px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border ${lockExistingDates
-                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                      : "bg-white text-slate-600 border-slate-200"
-                    }`}
-                >
-                  Keep already planned dates
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div>
-            <h2 className="text-2xl font-bold text-[#1f2937] mb-2">Add subjects and topics</h2>
-            <p className="text-sm text-[#6b7280] mb-4">
-              Add your subjects and topics. Start simple and refine later.
-            </p>
-
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex p-1 rounded-full border border-slate-200 bg-slate-50">
-                {([
-                  ["quick", "Quick Add"],
-                  ["bulk", "Bulk Paste"],
-                ] as Array<["quick" | "bulk", string]>).map(([value, label]) => (
-                  <button
-                    key={value}
-                    onClick={() => setInputMode(value)}
-                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest ${inputMode === value
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-600"
-                      }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="text-xs font-semibold text-slate-500">
-                {inputMode === "quick" ? "Best for small lists" : "Best for long syllabuses"}
-              </div>
-            </div>
-
-            {inputMode === "quick" && (
-              <div className="grid gap-6">
-                {entries.map((entry, index) => {
-                  const topics = parseTopics(entry.topicsText);
-                  return (
-                    <div key={`entry-${index}`} className="rounded-2xl border border-slate-200 p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                          Subject {index + 1}
-                        </div>
-                        {entries.length > 1 && (
-                          <button
-                            onClick={() => removeEntry(index)}
-                            className="text-xs font-bold uppercase tracking-widest text-red-500"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                      <div className="grid gap-3">
-                        <input
-                          value={entry.subjectName}
-                          onChange={(e) => updateEntry(index, { subjectName: e.target.value })}
-                          placeholder="Subject name"
-                          className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold"
-                        />
-                        <input
-                          value={entry.chapterName}
-                          onChange={(e) => updateEntry(index, { chapterName: e.target.value })}
-                          placeholder="Chapter name (optional)"
-                          className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold"
-                        />
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          <input
-                            value={quickTopicInput[index] || ""}
-                            onChange={(e) => setQuickTopicInput((prev) => ({ ...prev, [index]: e.target.value }))}
-                            placeholder="Type a topic and press Add"
-                            className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold"
-                          />
-                          <button
-                            onClick={() => addQuickTopics(index)}
-                            className="px-4 py-3 rounded-xl bg-blue-600 text-white text-xs font-bold uppercase tracking-widest"
-                          >
-                            Add topic
-                          </button>
-                        </div>
-                        <textarea
-                          value={entry.topicsText}
-                          onChange={(e) => updateEntry(index, { topicsText: e.target.value })}
-                          placeholder="Or paste topics here, one per line"
-                          className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold min-h-[120px]"
-                        />
-                        {topics.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {topics.map((topic) => (
-                              <button
-                                key={`${topic}-${index}`}
-                                onClick={() => removeQuickTopic(index, topic)}
-                                className="text-xs font-semibold px-3 py-1 rounded-full border border-slate-200 text-slate-600"
-                              >
-                                {topic} x
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                <button
-                  onClick={addEntry}
-                  className="px-4 py-3 rounded-xl border border-slate-200 text-xs font-bold uppercase tracking-widest text-slate-600"
-                >
-                  Add another subject
-                </button>
-              </div>
-            )}
-
-            {inputMode === "bulk" && (
-              <div className="grid gap-4">
-                <textarea
-                  value={bulkPasteText}
-                  onChange={(e) => setBulkPasteText(e.target.value)}
-                  placeholder="Math - Algebra - Trigonometry - Calculus\nPhysics - Kinematics - Current Electricity"
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-4 font-semibold min-h-[180px]"
-                />
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <div className="rounded-xl border border-slate-200 px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Subjects: {bulkParse.subjectCount}
-                  </div>
-                  <div className="rounded-xl border border-slate-200 px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Topics: {bulkParse.topicCount}
-                  </div>
-                  <div className="rounded-xl border border-slate-200 px-4 py-3 text-xs font-bold uppercase tracking-widest text-slate-500">
-                    Invalid: {bulkParse.invalidLines.length}
-                  </div>
-                </div>
-                {bulkParse.invalidLines.length > 0 && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700 font-semibold">
-                    Invalid lines: {bulkParse.invalidLines.slice(0, 3).join(" | ")}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === 4 && (
-          <div>
-            <h2 className="text-2xl font-bold text-[#1f2937] mb-2">Review and generate</h2>
-            <p className="text-sm text-[#6b7280] mb-6">
-              We will schedule unfinished topics from today until your exam date, skipping off days.
-            </p>
-            <div className="rounded-2xl border border-slate-200 p-4 grid gap-2 text-sm">
-              <div className="flex justify-between"><span>Plan title</span><strong>{title || "-"}</strong></div>
-              <div className="flex justify-between"><span>Exam name</span><strong>{examName || "-"}</strong></div>
-              <div className="flex justify-between"><span>Exam date</span><strong>{examDate || "-"}</strong></div>
-              <div className="flex justify-between"><span>Days left</span><strong>{daysLeft ?? "-"}</strong></div>
-              <div className="flex justify-between"><span>Daily goal</span><strong>{dailyGoal}</strong></div>
-              <div className="flex justify-between"><span>Off days</span><strong>{offDays.length ? offDays.length : "None"}</strong></div>
-              <div className="flex justify-between"><span>Subjects</span><strong>{subjectCount}</strong></div>
-              <div className="flex justify-between"><span>Topics</span><strong>{topicCount}</strong></div>
-              <div className="flex justify-between"><span>Include revision</span><strong>{includeRevision ? "Yes" : "No"}</strong></div>
-              <div className="flex justify-between"><span>Keep planned dates</span><strong>{lockExistingDates ? "Yes" : "No"}</strong></div>
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between mt-8">
-          {step > 1 ? (
-            <button
-              onClick={() => setStep((prev) => Math.max(1, prev - 1))}
-              className="px-4 py-3 rounded-xl border border-slate-200 text-xs font-bold uppercase tracking-widest text-slate-600"
-              disabled={isSubmitting}
-            >
-              Back
-            </button>
-          ) : (
-            <div />
-          )}
-
-          {step < 4 && (
-            <button
-              onClick={() => {
-                if (validateStep(step + 1)) setStep((prev) => prev + 1);
-              }}
-              className="px-6 py-3 rounded-xl bg-blue-600 text-white text-xs font-bold uppercase tracking-widest"
-            >
-              Continue
-            </button>
-          )}
-
-          {step === 4 && !scheduleError && (
-            <button
-              onClick={handleGenerate}
-              className="px-6 py-3 rounded-xl bg-blue-600 text-white text-xs font-bold uppercase tracking-widest"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Generating..." : "Generate Plan"}
-            </button>
-          )}
-
-          {step === 4 && scheduleError && createdPlanId && (
-            <button
-              onClick={() => onComplete(createdPlanId)}
-              className="px-6 py-3 rounded-xl bg-blue-600 text-white text-xs font-bold uppercase tracking-widest"
-            >
-              Continue to Planner
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+// ── Main Page Component ──
 
 export default function StudyPlannerPage() {
   const navigate = useNavigate();
@@ -724,8 +839,10 @@ export default function StudyPlannerPage() {
 
   const [loading, setLoading] = useState(!planId);
   const [error, setError] = useState("");
-  const [showWizard, setShowWizard] = useState(false);
+  const [showQuickStart, setShowQuickStart] = useState(false);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
+  const [planToDelete, setPlanToDelete] = useState<PlanSummary | null>(null);
+  const [isDeletingPlan, setIsDeletingPlan] = useState(false);
 
   useEffect(() => {
     if (!planId) return;
@@ -748,10 +865,6 @@ export default function StudyPlannerPage() {
 
         const plans = (await listRes.json()) as PlanSummary[];
         setPlans(plans);
-        if (plans.length > 0) {
-          navigate(`/study/planner/${plans[0].id}/today`, { replace: true });
-          return;
-        }
       } catch (err: any) {
         setError(err?.message || "Unable to open planner");
       } finally {
@@ -764,55 +877,252 @@ export default function StudyPlannerPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[70dvh] text-muted-foreground">
-        Preparing your study planner...
+      <div className="flex items-center justify-center h-[70dvh]">
+        <div className="flex flex-col items-center gap-4">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+            className="w-12 h-12 rounded-full border-[4px] border-slate-200 dark:border-slate-700 border-t-blue-500"
+          />
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-[#94a3b8]">
+            Preparing your planner...
+          </p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto mt-12 rounded-xl border border-red-300 bg-red-50 p-4 text-red-700">
+      <div className="max-w-2xl mx-auto mt-12 rounded-2xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-6 text-red-600 dark:text-red-400 font-bold">
         {error}
       </div>
     );
   }
 
   if (!planId) {
-    if (showWizard) {
+    // ── Plans Dashboard (replaces single-plan auto-redirect) ──
+    if (showQuickStart) {
       return (
-        <SetupWizard
-          onCancel={() => setShowWizard(false)}
+        <QuickStart
+          onCancel={() => setShowQuickStart(false)}
           onComplete={(id) => navigate(`/study/planner/${id}/today`, { replace: true })}
         />
       );
     }
 
     return (
-      <div className="min-h-[70dvh] flex items-center justify-center px-6">
-        <div className="max-w-xl w-full rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-[0_20px_40px_rgba(15,23,42,0.12)]">
-          <h1 className="text-2xl font-bold text-[#0f172a]">Create your first study plan</h1>
-          <p className="text-sm text-[#64748b] mt-2">
-            Build a realistic study schedule for your exam and track what to study each day.
-          </p>
-          <button
-            onClick={() => setShowWizard(true)}
-            className="mt-6 px-6 py-3 rounded-xl bg-blue-600 text-white text-xs font-bold uppercase tracking-widest"
-          >
-            Create Plan
-          </button>
-          <p className="text-xs text-[#64748b] mt-3">
-            You will set your exam date, subjects, and daily study target.
-          </p>
-          {plans.length > 0 && (
+      <div className="min-h-[80dvh] px-6 py-8 max-w-5xl mx-auto">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          {/* Header */}
+          <div className="flex items-end justify-between mb-8">
+            <div>
+              <h1
+                className="text-3xl md:text-4xl font-bold text-[#0f172a] dark:text-white tracking-tight"
+                style={{ fontFamily: "'Satoshi', sans-serif" }}
+              >
+                Study Plans
+              </h1>
+              <p className="text-[13px] text-[#64748b] dark:text-[#94a3b8] mt-1">
+                {plans.length === 0
+                  ? "Create your first plan to get started."
+                  : `${plans.length} active plan${plans.length !== 1 ? "s" : ""}`}
+              </p>
+            </div>
             <button
-              onClick={() => navigate(`/study/planner/${plans[0].id}/today`, { replace: true })}
-              className="mt-4 text-xs font-bold uppercase tracking-widest text-[#64748b]"
+              onClick={() => setShowQuickStart(true)}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[12px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all"
             >
-              Open existing plan
+              + New Plan
             </button>
+          </div>
+
+          {/* Plan Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {plans.map((plan, idx) => {
+              const daysLeft = plan.examDate
+                ? Math.ceil((new Date(plan.examDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                : null;
+              const percent = plan.completionPercent ?? 0;
+
+              return (
+                <motion.div
+                  key={plan.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.06 }}
+                  onClick={() => navigate(`/study/planner/${plan.id}/today`)}
+                  className="group cursor-pointer rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141518] hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300 hover:shadow-lg hover:scale-[1.01] relative"
+                >
+                  {/* Delete button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPlanToDelete(plan);
+                    }}
+                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30"
+                  >
+                    Delete
+                  </button>
+
+                  {/* Exam type badge */}
+                  {plan.examType && (
+                    <span className="text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[#64748b] dark:text-[#94a3b8] mb-3 inline-block">
+                      {plan.examType}
+                    </span>
+                  )}
+
+                  <h3 className="text-[18px] font-bold text-[#0f172a] dark:text-white mb-1 pr-12">
+                    {plan.title}
+                  </h3>
+
+                  {plan.description && (
+                    <p className="text-[12px] text-[#64748b] dark:text-[#94a3b8] mb-3 line-clamp-2">
+                      {plan.description}
+                    </p>
+                  )}
+
+                  {/* Stats Row */}
+                  <div className="flex items-center gap-4 text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8] mb-4">
+                    {plan.subjectCount !== undefined && (
+                      <span>{plan.subjectCount} subject{plan.subjectCount !== 1 ? "s" : ""}</span>
+                    )}
+                    {plan.totalTopics !== undefined && plan.totalTopics > 0 && (
+                      <><span>·</span><span>{plan.totalTopics} topics</span></>
+                    )}
+                    {daysLeft !== null && daysLeft > 0 && (
+                      <><span>·</span><span className="text-blue-600 dark:text-blue-400">{daysLeft}d left</span></>
+                    )}
+                    {daysLeft !== null && daysLeft <= 0 && daysLeft !== null && (
+                      <><span>·</span><span className="text-red-500">{daysLeft === 0 ? "Today!" : "Passed"}</span></>
+                    )}
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, percent)}%` }}
+                      transition={{ duration: 0.8, delay: idx * 0.06 + 0.3 }}
+                      className={`h-full rounded-full ${
+                        percent >= 100
+                          ? "bg-emerald-500"
+                          : percent >= 50
+                          ? "bg-blue-500"
+                          : "bg-amber-500"
+                      }`}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-[10px] font-bold text-[#64748b] dark:text-[#94a3b8]">
+                      {Math.round(percent)}% complete
+                    </span>
+                    <span className="text-[10px] font-bold text-[#64748b] dark:text-[#94a3b8] opacity-0 group-hover:opacity-100 transition-opacity">
+                      Open →
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })}
+
+            {/* New Plan Card */}
+            <motion.button
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: plans.length * 0.06 }}
+              onClick={() => setShowQuickStart(true)}
+              className="rounded-2xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300 hover:scale-[1.01] bg-white/50 dark:bg-[#141518]/50 text-left min-h-[180px] flex flex-col items-center justify-center"
+            >
+              <div className="text-4xl mb-3 opacity-60">+</div>
+              <div className="text-[14px] font-bold text-[#0f172a] dark:text-white mb-1">Create New Plan</div>
+              <div className="text-[11px] text-[#64748b] dark:text-[#94a3b8] text-center">
+                JEE, NEET, SSC, Custom & more
+              </div>
+            </motion.button>
+          </div>
+
+          {/* Empty state (first time) */}
+          {plans.length === 0 && (
+            <div className="text-center mt-16">
+              <div className="text-6xl mb-6 opacity-80">📚</div>
+              <h2
+                className="text-2xl font-bold text-[#0f172a] dark:text-white mb-3"
+                style={{ fontFamily: "'Satoshi', sans-serif" }}
+              >
+                No plans yet
+              </h2>
+              <p className="text-[14px] text-[#64748b] dark:text-[#94a3b8] mb-6 max-w-sm mx-auto">
+                Pick an exam template and get a personalized study schedule in under a minute.
+              </p>
+              <button
+                onClick={() => setShowQuickStart(true)}
+                className="px-8 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all"
+              >
+                Get Started →
+              </button>
+              <p className="text-[11px] text-[#64748b] mt-4">
+                Pre-loaded syllabuses for JEE, NEET, SSC, Railway & more.
+              </p>
+            </div>
           )}
-        </div>
+        </motion.div>
+
+        {/* Delete Plan Confirmation Modal */}
+        <AnimatePresence>
+          {planToDelete && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+              onClick={() => setPlanToDelete(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#141518] shadow-2xl p-7"
+              >
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-3">Delete Plan</div>
+                <p className="text-[15px] font-bold mb-2 text-[#0f172a] dark:text-white">
+                  Are you sure you want to delete "{planToDelete.title}"?
+                </p>
+                <p className="text-[13px] text-[#64748b] dark:text-[#94a3b8] mb-7">
+                  This will permanently remove all subjects, chapters, topics, and schedule data. This action cannot be undone.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setPlanToDelete(null)}
+                    disabled={isDeletingPlan}
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={isDeletingPlan}
+                    onClick={async () => {
+                      setIsDeletingPlan(true);
+                      try {
+                        const res = await apiFetch(`${API_BASE}/plans/${planToDelete.id}`, { method: "DELETE" });
+                        if (!res.ok) throw new Error("Failed to delete plan");
+                        setPlans((prev) => prev.filter((p) => p.id !== planToDelete.id));
+                        setPlanToDelete(null);
+                      } catch {
+                        // Stay on modal
+                      } finally {
+                        setIsDeletingPlan(false);
+                      }
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-red-600 text-white text-[11px] font-bold uppercase tracking-widest shadow-md disabled:opacity-50"
+                  >
+                    {isDeletingPlan ? "Deleting..." : "Delete Plan"}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -821,3 +1131,5 @@ export default function StudyPlannerPage() {
     <StudyPlanner planId={planId} initialView={resolvedSection} />
   );
 }
+
+

@@ -14,8 +14,12 @@ import {
   buildStudyHeatmap,
   clampOffDays,
   rollupProgress,
+  toIsoDateOnly,
   updateTopicInPlan,
+  createPlanFromTemplate,
 } from "./plan.model";
+import { getAvailableTemplates, getTemplateById } from "./exam-templates/index";
+import { logPlannerEvent } from "./plan.events";
 
 const router = Router();
 router.use(requireAuth);
@@ -44,23 +48,92 @@ function isTopicStatus(input: unknown): input is TopicStatus {
   return ["todo", "in_progress", "done", "revision_needed"].includes(String(input));
 }
 
-async function canUsePremiumPlanner(userId: string): Promise<boolean> {
-  const userObjectId = toObjectId(userId);
-  if (!userObjectId) return false;
+function getDailyGoalLimit(plan: StudyPlan): number {
+  return Math.max(1, Number(plan.dailyGoal || 3));
+}
 
-  const user = await usersCollection().findOne(
-    { _id: userObjectId },
+function countPlannedActiveTopicsOnDate(plan: StudyPlan, dateKey: string, excludeTopicId?: string): number {
+  let count = 0;
+  for (const subject of plan.subjects) {
+    for (const chapter of subject.chapters) {
+      for (const topic of chapter.topics) {
+        if (excludeTopicId && topic.id === excludeTopicId) continue;
+        if (topic.status === "done") continue;
+        if (!topic.plannedDate) continue;
+        if (toIsoDateOnly(topic.plannedDate) === dateKey) {
+          count += 1;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+function findTopicById(plan: StudyPlan, topicId: string): StudyTopic | null {
+  for (const subject of plan.subjects) {
+    for (const chapter of subject.chapters) {
+      const found = chapter.topics.find((topic) => topic.id === topicId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+const FREE_TIER_TOPIC_LIMIT = 30;
+
+function countAllTopics(plan: StudyPlan): number {
+  let total = 0;
+  for (const subject of plan.subjects) {
+    for (const chapter of subject.chapters) {
+      total += chapter.topics.length;
+    }
+  }
+  return total;
+}
+
+async function canUsePremiumPlanner(userId: string): Promise<boolean> {
+  const projection = {
+    id: 1,
+    email: 1,
+    is_premium: 1,
+    subscription_tier: 1,
+    paid_features: 1,
+    premium_until: 1,
+  };
+
+  // App auth uses a UUID string stored in `users.id` as the JWT subject.
+  // Keep backward compatibility with ObjectId-based subjects by trying both.
+  let user = await usersCollection().findOne(
+    { id: userId },
     {
-      projection: {
-        is_premium: 1,
-        subscription_tier: 1,
-        paid_features: 1,
-        premium_until: 1,
-      },
+      projection,
     }
   );
 
+  if (!user) {
+    const userObjectId = toObjectId(userId);
+    if (userObjectId) {
+      user = await usersCollection().findOne(
+        { _id: userObjectId },
+        {
+          projection,
+        }
+      );
+    }
+  }
+
   if (!user) return false;
+
+  // Dev convenience: treat configured emails as premium to unblock QA/testing.
+  const email = String((user as any).email || "").trim().toLowerCase();
+  const devPremiumEmails = String(process.env.DEV_PREMIUM_EMAILS || "steve123@example.com")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  const allowDevPremium = process.env.NODE_ENV !== "production";
+  if (allowDevPremium && email && devPremiumEmails.includes(email)) {
+    return true;
+  }
 
   const hasTier = ["premium", "pro", "plus"].includes(String((user as any).subscription_tier || "").toLowerCase());
   const hasFlag = Boolean((user as any).is_premium);
@@ -104,6 +177,7 @@ router.get("/", async (req: Request, res: Response) => {
       .project({
         id: 1,
         title: 1,
+        examType: 1,
         examDate: 1,
         description: 1,
         dailyGoal: 1,
@@ -129,6 +203,111 @@ router.get("/", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("[PLANNER] List plans failed:", error);
     res.status(500).json({ message: "Failed to fetch plans" });
+  }
+});
+
+// ── Delete Plan ──
+
+router.delete("/:planId", async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    const { planId } = req.params;
+
+    const plan = await plansCollection().findOne({ id: planId, userId });
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    await plansCollection().deleteOne({ id: planId, userId });
+    logPlannerEvent(userId, planId, "plan_deleted", { title: plan.title });
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("[PLANNER] Delete plan failed:", error);
+    return res.status(500).json({ message: "Failed to delete plan" });
+  }
+});
+
+// ── Exam Templates ──
+
+router.get("/templates", async (_req: Request, res: Response) => {
+  try {
+    const templates = getAvailableTemplates();
+    return res.json(templates);
+  } catch (error) {
+    console.error("[PLANNER] List templates failed:", error);
+    return res.status(500).json({ message: "Failed to fetch templates" });
+  }
+});
+
+router.get("/templates/:templateId", async (req: Request, res: Response) => {
+  try {
+    const template = getTemplateById(req.params.templateId);
+    if (!template) {
+      return res.status(404).json({ message: "Template not found" });
+    }
+    return res.json(template);
+  } catch (error) {
+    console.error("[PLANNER] Get template failed:", error);
+    return res.status(500).json({ message: "Failed to fetch template" });
+  }
+});
+
+router.post("/from-template", async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    const isPremium = await canUsePremiumPlanner(userId);
+
+    const activePlanCount = await plansCollection().countDocuments({ userId });
+    if (!isPremium && activePlanCount >= 1) {
+      return res.status(403).json({
+        message: "Free tier supports only 1 active plan. Upgrade to premium for unlimited plans.",
+      });
+    }
+
+    const { templateId, title, examDate, dailyGoal, offDays, autoDistribute } = req.body || {};
+
+    if (!templateId) {
+      return res.status(400).json({ message: "templateId is required" });
+    }
+
+    const template = getTemplateById(templateId);
+    if (!template) {
+      return res.status(404).json({ message: "Template not found" });
+    }
+
+    // Free tier: only allow CGL template
+    if (!isPremium && templateId !== "ssc-cgl-tier1") {
+      return res.status(403).json({
+        message: "This template is available for Pro users. Upgrade to unlock all exam templates.",
+      });
+    }
+
+    const plan = createPlanFromTemplate({
+      userId,
+      template,
+      title,
+      examDate,
+      dailyGoal: dailyGoal ? Math.max(1, Number(dailyGoal)) : undefined,
+      offDays,
+      isPremium,
+      autoDistribute: Boolean(autoDistribute),
+    });
+
+    await plansCollection().insertOne(plan);
+
+    const progress = rollupProgress(plan);
+
+    logPlannerEvent(userId, plan.id, "plan_created", {
+      templateId,
+      totalTopics: progress.totalTopics,
+      autoDistribute: Boolean(autoDistribute),
+    });
+
+    return res.status(201).json({ ...plan, progress });
+  } catch (error) {
+    console.error("[PLANNER] Create from template failed:", error);
+    return res.status(500).json({ message: "Failed to create plan from template" });
   }
 });
 
@@ -260,6 +439,44 @@ router.post("/:planId/subjects", async (req: Request, res: Response) => {
   }
 });
 
+router.patch("/:planId/subjects/:subjectId", async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    const nextName = req.body?.name !== undefined ? String(req.body.name).trim() : undefined;
+
+    if (nextName === undefined) {
+      return res.status(400).json({ message: "No subject updates were provided" });
+    }
+
+    if (nextName.length < 2) {
+      return res.status(400).json({ message: "Subject name must be at least 2 characters" });
+    }
+
+    const plan = await plansCollection().findOne({ id: req.params.planId, userId });
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    const subject = plan.subjects.find((s) => s.id === req.params.subjectId);
+    if (!subject) {
+      return res.status(404).json({ message: "Subject not found" });
+    }
+
+    subject.name = nextName;
+    plan.updatedAt = new Date().toISOString();
+
+    await plansCollection().updateOne(
+      { id: req.params.planId, userId },
+      { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } }
+    );
+
+    return res.json(plan);
+  } catch (error) {
+    console.error("[PLANNER] Update subject failed:", error);
+    return res.status(500).json({ message: "Failed to update subject" });
+  }
+});
+
 router.delete("/:planId/subjects/:subjectId", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
@@ -322,6 +539,49 @@ router.post("/:planId/subjects/:subjectId/chapters", async (req: Request, res: R
   }
 });
 
+router.patch("/:planId/subjects/:subjectId/chapters/:chapterId", async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    const nextName = req.body?.name !== undefined ? String(req.body.name).trim() : undefined;
+
+    if (nextName === undefined) {
+      return res.status(400).json({ message: "No chapter updates were provided" });
+    }
+
+    if (nextName.length < 2) {
+      return res.status(400).json({ message: "Chapter name must be at least 2 characters" });
+    }
+
+    const plan = await plansCollection().findOne({ id: req.params.planId, userId });
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    const subject = plan.subjects.find((s) => s.id === req.params.subjectId);
+    if (!subject) {
+      return res.status(404).json({ message: "Subject not found" });
+    }
+
+    const chapter = subject.chapters.find((c) => c.id === req.params.chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: "Chapter not found" });
+    }
+
+    chapter.name = nextName;
+    plan.updatedAt = new Date().toISOString();
+
+    await plansCollection().updateOne(
+      { id: req.params.planId, userId },
+      { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } }
+    );
+
+    return res.json(plan);
+  } catch (error) {
+    console.error("[PLANNER] Update chapter failed:", error);
+    return res.status(500).json({ message: "Failed to update chapter" });
+  }
+});
+
 router.delete("/:planId/subjects/:subjectId/chapters/:chapterId", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
@@ -363,6 +623,19 @@ router.post("/:planId/subjects/:subjectId/chapters/:chapterId/topics", async (re
       return res.status(404).json({ message: "Plan not found" });
     }
 
+    // ── Free tier: 30-topic limit ──
+    if (!plan.features?.isPremium) {
+      const currentTopicCount = countAllTopics(plan);
+      if (currentTopicCount >= FREE_TIER_TOPIC_LIMIT) {
+        return res.status(403).json({
+          code: "TOPIC_LIMIT",
+          message: `Free plans support up to ${FREE_TIER_TOPIC_LIMIT} topics. Upgrade to Premium for unlimited topics.`,
+          currentCount: currentTopicCount,
+          limit: FREE_TIER_TOPIC_LIMIT,
+        });
+      }
+    }
+
     const subject = plan.subjects.find((s) => s.id === req.params.subjectId);
     if (!subject) {
       return res.status(404).json({ message: "Subject not found" });
@@ -373,12 +646,29 @@ router.post("/:planId/subjects/:subjectId/chapters/:chapterId/topics", async (re
       return res.status(404).json({ message: "Chapter not found" });
     }
 
+    let plannedDateIso: string | undefined;
+    if (req.body?.plannedDate) {
+      const parsedPlannedDate = new Date(req.body.plannedDate);
+      if (Number.isNaN(parsedPlannedDate.getTime())) {
+        return res.status(400).json({ message: "Invalid planned date" });
+      }
+      plannedDateIso = parsedPlannedDate.toISOString();
+      const plannedDateKey = toIsoDateOnly(plannedDateIso);
+      const dailyGoalLimit = getDailyGoalLimit(plan);
+      const alreadyPlannedCount = countPlannedActiveTopicsOnDate(plan, plannedDateKey);
+      if (alreadyPlannedCount >= dailyGoalLimit) {
+        return res.status(400).json({
+          message: `Daily goal limit reached for ${plannedDateKey}. Limit: ${dailyGoalLimit}`,
+        });
+      }
+    }
+
     const topic: StudyTopic = {
       id: uuidv4(),
       name,
       status: "todo",
       notes: req.body?.notes ? String(req.body.notes) : undefined,
-      plannedDate: req.body?.plannedDate ? new Date(req.body.plannedDate).toISOString() : undefined,
+      plannedDate: plannedDateIso,
     };
 
     chapter.topics.push(topic);
@@ -409,14 +699,50 @@ router.patch("/:planId/topics/:topicId", async (req: Request, res: Response) => 
       return res.status(400).json({ message: "Invalid topic status" });
     }
 
+    let nextName: string | undefined = undefined;
+    if (req.body.name !== undefined) {
+      nextName = String(req.body.name).trim();
+      if (nextName.length < 2) {
+        return res.status(400).json({ message: "Topic name must be at least 2 characters" });
+      }
+    }
+
+    let nextPlannedDate: string | "" | undefined = undefined;
+    if (req.body.plannedDate !== undefined) {
+      if (!req.body.plannedDate) {
+        nextPlannedDate = "";
+      } else {
+        const parsedPlannedDate = new Date(req.body.plannedDate);
+        if (Number.isNaN(parsedPlannedDate.getTime())) {
+          return res.status(400).json({ message: "Invalid planned date" });
+        }
+        nextPlannedDate = parsedPlannedDate.toISOString();
+      }
+    }
+
+    if (nextPlannedDate) {
+      const topicToUpdate = findTopicById(plan, req.params.topicId);
+      if (!topicToUpdate) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+
+      const nextStatus = (req.body.status ?? topicToUpdate.status) as TopicStatus;
+      if (nextStatus !== "done") {
+        const plannedDateKey = toIsoDateOnly(nextPlannedDate);
+        const dailyGoalLimit = getDailyGoalLimit(plan);
+        const alreadyPlannedCount = countPlannedActiveTopicsOnDate(plan, plannedDateKey, req.params.topicId);
+        if (alreadyPlannedCount >= dailyGoalLimit) {
+          return res.status(400).json({
+            message: `Daily goal limit reached for ${plannedDateKey}. Limit: ${dailyGoalLimit}`,
+          });
+        }
+      }
+    }
+
     const updated = updateTopicInPlan(plan, req.params.topicId, {
+      name: nextName,
       status: req.body.status,
-      plannedDate:
-        req.body.plannedDate !== undefined
-          ? req.body.plannedDate
-            ? new Date(req.body.plannedDate).toISOString()
-            : ""
-          : undefined,
+      plannedDate: nextPlannedDate,
       notes: req.body.notes,
     });
 
@@ -430,6 +756,15 @@ router.patch("/:planId/topics/:topicId", async (req: Request, res: Response) => 
       { id: req.params.planId, userId },
       { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } }
     );
+
+    // Event logging for status changes
+    if (req.body.status !== undefined) {
+      const eventType = req.body.status === "done" ? "topic_completed" as const : "topic_status_changed" as const;
+      logPlannerEvent(userId, plan.id, eventType, {
+        topicId: req.params.topicId,
+        newStatus: req.body.status,
+      });
+    }
 
     return res.json(plan);
   } catch (error) {
@@ -500,10 +835,6 @@ router.get("/:planId/analytics", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Plan not found" });
     }
 
-    if (!plan.features?.isPremium) {
-      return res.status(403).json({ message: "Analytics is available in paid tier only." });
-    }
-
     const progress = rollupProgress(plan);
     const heatmap = buildStudyHeatmap(plan);
 
@@ -522,9 +853,11 @@ router.post("/:planId/auto-distribute", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Plan not found" });
     }
 
+    // ── Free tier: Auto-Schedule is premium only ──
     if (!plan.features?.isPremium) {
       return res.status(403).json({
-        message: "Auto distribution is a paid feature. Upgrade to unlock this 100k celebration feature.",
+        code: "PREMIUM_REQUIRED",
+        message: "Auto-Schedule is a Premium feature. Upgrade to build your study calendar in one click.",
       });
     }
 
@@ -540,6 +873,11 @@ router.post("/:planId/auto-distribute", async (req: Request, res: Response) => {
       { id: req.params.planId, userId },
       { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } }
     );
+
+    logPlannerEvent(userId, plan.id, "reschedule_triggered", {
+      assigned: result.assigned,
+      skipped: result.skipped,
+    });
 
     return res.json({
       message: "Auto distribution completed",
@@ -580,6 +918,27 @@ router.post("/:planId/upgrade", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("[PLANNER] Upgrade failed:", error);
     return res.status(500).json({ message: "Failed to upgrade planner" });
+  }
+});
+
+// ── Daily Check-in ──
+
+router.post("/:planId/checkin", async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    const plan = await plansCollection().findOne({ id: req.params.planId, userId });
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    logPlannerEvent(userId, plan.id, "daily_checkin", {
+      date: new Date().toISOString().split("T")[0],
+    });
+
+    return res.json({ ok: true, message: "Check-in recorded" });
+  } catch (error) {
+    console.error("[PLANNER] Daily checkin failed:", error);
+    return res.status(500).json({ message: "Failed to record check-in" });
   }
 });
 

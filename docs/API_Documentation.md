@@ -298,6 +298,18 @@ Both endpoints return `410 Gone` with a message pointing to:
   "category": "academic",
   "priority": "high",
   "source": "manual",
+  "goalKind": "today",
+  "unitType": "binary",
+  "executionMode": "manual",
+  "linkedFocusEnabled": false,
+  "plannedFocusMinutes": null,
+  "targetValue": null,
+  "achievedValue": 0,
+  "status": "not_started",
+  "carryForwardMode": "none",
+  "importedFromGoal": false,
+  "completedViaFocus": false,
+  "studiedMinutes": 0,
   "subtasks": [
     { "id": "uuid", "text": "Read pages 50-70", "done": false }
   ],
@@ -305,14 +317,20 @@ Both endpoints return `410 Gone` with a message pointing to:
   "completedAt": null,
   "startedAt": null,
   "expiresAt": "2026-04-01T18:29:59.000Z",
-  "scheduledDate": "2026-04-01T00:00:00.000Z",
+  "scheduledDate": "2026-04-01",
   "lifecycleStatus": "active"
 }
 ```
 **`lifecycleStatus` values:** `active` | `missed` | `rolled_over` | `abandoned`  
 **`category` values:** `academic` | `health` | `personal` | `other`  
 **`priority` values:** `high` | `medium` | `low`  
-**`source` values:** `manual` | `ekagra` (auto-created from focus sessions)
+**`source` values:** `manual` | `ekagra` (auto-created from focus sessions)  
+**`goalKind` values:** `one_time` | `today` | `repeat` | `scheduled`  
+**`unitType` values:** `binary` | `count` | `duration_minutes` | `checklist`  
+**`executionMode` values:** `manual` | `timed` | `hybrid`  
+**`status` values:** `not_started` | `in_progress` | `completed` | `partial` | `missed` | `cancelled` | `expired` | `rolled_over`  
+**`carryForwardMode` values:** `none` | `remaining` | `full` | `ask`  
+**`scheduledDate` format:** `YYYY-MM-DD` (IST date key)
 
 ---
 
@@ -339,13 +357,22 @@ POST /api/goals
   "category": "academic",
   "priority": "high",
   "source": "manual",
+  "goalKind": "today",
+  "unitType": "binary",
+  "executionMode": "manual",
+  "linkedFocusEnabled": false,
+  "plannedFocusMinutes": null,
+  "targetValue": null,
+  "achievedValue": 0,
+  "status": "not_started",
+  "carryForwardMode": "none",
   "subtasks": [
     { "text": "Read pages 50-70" }
   ],
   "startedAt": "2026-04-01T07:00:00.000Z"
 }
 ```
-> `scheduledDate` — ISO date string (`YYYY-MM-DD`), must be today–7 days from now (IST)  
+> `scheduledDate` — accepts `YYYY-MM-DD` or any parseable ISO date string; must be today–7 days from now (IST)  
 > `title` — required  
 > `subtasks` — array of `{ text: string }` objects
 
@@ -370,6 +397,16 @@ Send only the fields you want to change.
   "scheduledDate": "2026-04-02",
   "category": "health",
   "priority": "medium",
+  "goalKind": "repeat",
+  "unitType": "count",
+  "executionMode": "manual",
+  "linkedFocusEnabled": false,
+  "plannedFocusMinutes": null,
+  "targetValue": 20,
+  "achievedValue": 5,
+  "status": "in_progress",
+  "carryForwardMode": "ask",
+  "studiedMinutes": 45,
   "subtasks": [
     { "id": "uuid", "text": "Step 1", "done": true }
   ],
@@ -513,6 +550,47 @@ Create a copy of a goal for a specific date (defaults to today if omitted).
 ```
 
 **Response `201`:** `GoalObject`
+
+---
+
+### 3.11 Transfer Goal to Ekagra
+```
+POST /api/goals/:id/transfer-to-ekagra
+```
+Validates that a goal can be focused in Ekagra (no mutation).
+
+**Response `200`:**
+```json
+{
+  "message": "Goal ready for Ekagra focus",
+  "goal": { ... }
+}
+```
+**Errors:** `404` not found / unauthorized, `409` completed or archived goals cannot be transferred
+
+---
+
+### 3.12 Revert Imported Goal
+```
+POST /api/goals/:id/revert-from-ekagra-import
+```
+Reverts a goal that was imported into Ekagra back to manual.
+
+**Response `200`:**
+```json
+{
+  "message": "Imported goal reverted to manual",
+  "goal": { ... }
+}
+```
+If already manual:
+```json
+{
+  "message": "Goal is already manual",
+  "goal": { ... }
+}
+```
+**Errors:** `404` not found / unauthorized, `409` completed imported goals cannot be reverted
 
 ---
 
@@ -776,17 +854,21 @@ GET /api/streaks
 
 ### 8.1 Get Monthly Report
 ```
-GET /api/analytics/monthly-report?month=2026-04
+GET /api/analytics/monthly-report
 ```
 | Query Param | Format | Default |
 |---|---|---|
-| `month` | `YYYY-MM` | Current IST month |
+| `month` | `YYYY-MM` | (optional) |
+| `range` | `last30` \| `all` | `last30` (when `month` is omitted) |
+| `start` | `YYYY-MM-DD` | (optional) |
+| `end` | `YYYY-MM-DD` | (optional) |
 
 Results cached for 5 minutes.
 
 **Response `200`:**
 ```json
 {
+  "version": 2,
   "month": "2026-04",
   "generatedAt": "2026-04-01T15:00:00.000Z",
   "executiveSummary": {
@@ -795,12 +877,19 @@ Results cached for 5 minutes.
     "focusDepth": 45,
     "daysLoggedIn": 24,
     "daysInMonth": 30,
+    "evaluationDays": 30,
+    "consistentDays": 20,
     "goalsCreated": 40,
     "goalsCompleted": 30,
     "totalFocusMinutes": 1800,
-    "consistencyMessage": "You showed up 24/30 days.",
-    "completionMessage": "You complete 75% of what you plan.",
-    "focusMessage": "Average 45 mins/day active."
+    "totalManualStudyMinutes": 900,
+    "focusDays": 15,
+    "reflectionDays": 18,
+    "checkInDays": 12,
+    "journalDays": 8,
+    "consistencyMessage": "20 of 30 days had meaningful activity.",
+    "completionMessage": "30 of 40 planned manual goals were completed.",
+    "focusMessage": "You averaged 45 focused minutes on the days you used Ekagra."
   },
   "insights": {
     "powerHour": {
@@ -819,22 +908,11 @@ Results cached for 5 minutes.
       "message": "You often miss goals on Sundays..."
     }
   },
-  "badgeSummary": {
-    "theFinisher": false,
-    "earlyBird": true,
-    "nightOwl": false,
-    "metrics": {
-      "weeklyCreated": 5,
-      "weeklyCompleted": 5,
-      "completedBefore9": 7,
-      "completedAfter22": 3
-    }
-  },
   "radar": [
     { "subject": "Consistency", "score": 80, "fullMark": 100 },
     { "subject": "Focus", "score": 75, "fullMark": 100 },
     { "subject": "Completion", "score": 75, "fullMark": 100 },
-    { "subject": "Mood", "score": 60, "fullMark": 100 }
+    { "subject": "Reflection", "score": 60, "fullMark": 100 }
   ],
   "heatmap": [
     {
@@ -847,6 +925,7 @@ Results cached for 5 minutes.
 }
 ```
 > `heatmap.intensity` — 0–4 (0=none, 1=light, 2=medium, 3=high, 4=max)
+> `month` can be a month key (`YYYY-MM`) or a range key (e.g. `last-30-days`, `all-time`, `range:YYYY-MM-DD..YYYY-MM-DD`).
 
 ---
 
@@ -858,7 +937,7 @@ POST /api/analytics/monthly-report/generate
 ```json
 { "month": "2026-03" }
 ```
-**Response `200`:** Same as GET monthly-report.
+**Response `200`:** Same as GET monthly-report. Range params are not accepted here.
 
 ---
 

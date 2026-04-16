@@ -92,7 +92,32 @@ export const DHYAN_COURSES: Course[] = [
   },
 ];
 
+// Study Planner Pro subscription products
+export const STUDY_PLANNER_PRODUCTS: Course[] = [
+  {
+    id: "study-planner-pro-monthly",
+    name: "Study Planner Pro — Monthly",
+    description: "Unlock Auto-Schedule, unlimited topics, exam templates, full insights dashboard, and reschedule tools.",
+    price: 199,
+    currency: "INR",
+  },
+  {
+    id: "study-planner-pro-exam",
+    name: "Study Planner Pro — Exam Season",
+    description: "3 months of full premium access. Perfect for competitive exam preparation.",
+    price: 499,
+    currency: "INR",
+  },
+  {
+    id: "study-planner-pro-annual",
+    name: "Study Planner Pro — Annual",
+    description: "12 months of premium access. Best value for long-haul JEE/NEET preparation.",
+    price: 999,
+    currency: "INR",
+  },
+];
+
 // Lookup map used by server payment routes.
 export const DHYAN_COURSES_BY_ID: Record<string, Course> = Object.fromEntries(
-  DHYAN_COURSES.map((course) => [course.id, course]),
+  [...DHYAN_COURSES, ...STUDY_PLANNER_PRODUCTS].map((course) => [course.id, course]),
 );

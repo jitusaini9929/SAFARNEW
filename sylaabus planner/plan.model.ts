@@ -1,3 +1,6 @@
+import { v4 as uuidv4 } from "uuid";
+import type { ExamTemplate } from "./exam-templates/index";
+
 export type TopicStatus = "todo" | "in_progress" | "done" | "revision_needed";
 
 export interface StudyTopic {
@@ -40,6 +43,7 @@ export interface StudyPlan {
   offDays: number[]; // 0-6 where 0 is Sunday
   subjects: StudySubject[];
   features: StudyPlannerFeatureFlags;
+  templateId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -100,7 +104,11 @@ export interface HeatmapPoint {
 export function toIsoDateOnly(input: Date | string): string {
   const d = new Date(input);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().split("T")[0];
+  // Use local date parts to avoid UTC timezone drift
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export function clampOffDays(offDays: number[] | undefined): number[] {
@@ -224,12 +232,19 @@ export function findTopicLocation(plan: StudyPlan, topicId: string): TopicLocati
 export function updateTopicInPlan(
   plan: StudyPlan,
   topicId: string,
-  patch: Partial<Pick<StudyTopic, "status" | "plannedDate" | "notes">>
+  patch: Partial<Pick<StudyTopic, "name" | "status" | "plannedDate" | "notes">>
 ): boolean {
   for (const subject of plan.subjects) {
     for (const chapter of subject.chapters) {
       const topic = chapter.topics.find((item) => item.id === topicId);
       if (!topic) continue;
+
+      if (patch.name !== undefined) {
+        const nextName = patch.name.trim();
+        if (nextName.length > 0) {
+          topic.name = nextName;
+        }
+      }
 
       if (patch.status !== undefined) {
         topic.status = patch.status;
@@ -271,6 +286,7 @@ export function autoDistributeTopics(plan: StudyPlan, opts?: AutoDistributeOptio
   const offDays = new Set(clampOffDays(plan.offDays));
 
   const queue: StudyTopic[] = [];
+  const fixedLoadByDate = new Map<string, number>();
   for (const subject of plan.subjects) {
     for (const chapter of subject.chapters) {
       for (const topic of chapter.topics) {
@@ -278,8 +294,20 @@ export function autoDistributeTopics(plan: StudyPlan, opts?: AutoDistributeOptio
         const alreadyPlanned = Boolean(topic.plannedDate);
         const isRevision = topic.status === "revision_needed";
         if (alreadyDone) continue;
-        if (lockExisting && alreadyPlanned) continue;
         if (isRevision && !includeRevision) continue;
+        if (lockExisting && alreadyPlanned) {
+          const key = toIsoDateOnly(topic.plannedDate as string);
+          if (key) {
+            fixedLoadByDate.set(key, (fixedLoadByDate.get(key) || 0) + 1);
+          }
+          continue;
+        }
+
+        if (!lockExisting && alreadyPlanned) {
+          // Reset planned date before redistribution so daily limit is recomputed from scratch.
+          topic.plannedDate = undefined;
+        }
+
         queue.push(topic);
       }
     }
@@ -287,24 +315,99 @@ export function autoDistributeTopics(plan: StudyPlan, opts?: AutoDistributeOptio
 
   queue.sort((a, b) => a.name.localeCompare(b.name));
 
+  // Normalize both dates to midnight to avoid day-truncation from time offsets
   const cursor = new Date(from);
+  cursor.setHours(0, 0, 0, 0);
+  const examEnd = new Date(examDate);
+  examEnd.setHours(23, 59, 59, 999);
+
   let i = 0;
   let assigned = 0;
 
-  while (i < queue.length && cursor.getTime() <= examDate.getTime()) {
+  while (i < queue.length && cursor.getTime() <= examEnd.getTime()) {
     if (offDays.has(cursor.getDay())) {
       cursor.setDate(cursor.getDate() + 1);
       continue;
     }
 
-    for (let slots = 0; slots < dailyGoal && i < queue.length; slots += 1) {
-      queue[i].plannedDate = toIsoDateOnly(cursor);
+    const dateKey = toIsoDateOnly(cursor);
+    const usedSlots = fixedLoadByDate.get(dateKey) || 0;
+    const availableSlots = Math.max(0, dailyGoal - usedSlots);
+
+    for (let slots = 0; slots < availableSlots && i < queue.length; slots += 1) {
+      queue[i].plannedDate = dateKey;
       i += 1;
       assigned += 1;
+      fixedLoadByDate.set(dateKey, (fixedLoadByDate.get(dateKey) || 0) + 1);
     }
 
     cursor.setDate(cursor.getDate() + 1);
   }
 
   return { assigned, skipped: Math.max(0, queue.length - assigned) };
+}
+
+export interface CreateFromTemplateOptions {
+  userId: string;
+  template: ExamTemplate;
+  title?: string;
+  examDate?: string;
+  dailyGoal?: number;
+  offDays?: number[];
+  isPremium: boolean;
+  autoDistribute?: boolean;
+}
+
+export function createPlanFromTemplate(opts: CreateFromTemplateOptions): StudyPlan {
+  const now = new Date().toISOString();
+
+  const subjects: StudySubject[] = opts.template.subjects.map((templateSubject) => {
+    const chapters: StudyChapter[] = templateSubject.chapters.map((templateChapter) => {
+      const topics: StudyTopic[] = templateChapter.topics.map((topicName) => ({
+        id: uuidv4(),
+        name: topicName,
+        status: "todo" as TopicStatus,
+      }));
+
+      return {
+        id: uuidv4(),
+        name: templateChapter.name,
+        topics,
+      };
+    });
+
+    return {
+      id: uuidv4(),
+      name: templateSubject.name,
+      color: templateSubject.color,
+      chapters,
+    };
+  });
+
+  const plan: StudyPlan = {
+    id: uuidv4(),
+    userId: opts.userId,
+    title: (opts.title || opts.template.name).trim(),
+    examType: opts.template.name,
+    examDate: opts.examDate ? new Date(opts.examDate).toISOString() : undefined,
+    dailyGoal: opts.dailyGoal || opts.template.recommendedDailyGoal || 3,
+    offDays: clampOffDays(opts.offDays),
+    subjects,
+    features: {
+      isPremium: opts.isPremium,
+      unlockedAt: opts.isPremium ? now : undefined,
+    },
+    templateId: opts.template.id,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if (opts.autoDistribute) {
+    autoDistributeTopics(plan, {
+      lockExistingDates: false,
+      includeRevisionNeeded: false,
+    });
+  }
+
+  return plan;
 }

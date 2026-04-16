@@ -1,0 +1,333 @@
+{
+  "id": "neet-ug",
+  "name": "NEET UG",
+  "examBody": "NTA",
+  "category": "medical",
+  "description": "National Eligibility cum Entrance Test (UG) — 200 questions across Physics, Chemistry, and Biology. 720 marks, 3 hours 20 minutes.",
+  "estimatedTopics": 230,
+  "recommendedDailyGoal": 4,
+  "tags": ["neet", "medical", "nta", "biology", "mbbs"],
+  "subjects": [
+    {
+      "name": "Physics",
+      "color": "#3b82f6",
+      "chapters": [
+        {
+          "name": "Mechanics",
+          "topics": [
+            "Units & Measurements",
+            "Kinematics — Motion in 1D & 2D",
+            "Newton's Laws of Motion & Friction",
+            "Work, Energy & Power",
+            "Rotational Motion & Moment of Inertia",
+            "Gravitation & Satellites"
+          ]
+        },
+        {
+          "name": "Properties of Matter",
+          "topics": [
+            "Elasticity & Stress-Strain",
+            "Fluid Mechanics — Pressure & Bernoulli",
+            "Viscosity & Surface Tension",
+            "Thermal Expansion"
+          ]
+        },
+        {
+          "name": "Thermodynamics",
+          "topics": [
+            "Laws of Thermodynamics",
+            "Kinetic Theory of Gases",
+            "Heat Transfer — Conduction, Convection, Radiation",
+            "Calorimetry & Specific Heat"
+          ]
+        },
+        {
+          "name": "Oscillations & Waves",
+          "topics": [
+            "Simple Harmonic Motion",
+            "Wave Motion — Speed & Superposition",
+            "Standing Waves & Resonance",
+            "Doppler Effect & Sound"
+          ]
+        },
+        {
+          "name": "Electrostatics",
+          "topics": [
+            "Coulomb's Law & Electric Field",
+            "Gauss's Law",
+            "Electric Potential & Capacitance",
+            "Dielectrics"
+          ]
+        },
+        {
+          "name": "Current Electricity",
+          "topics": [
+            "Ohm's Law & Circuits",
+            "Kirchhoff's Laws",
+            "Heating Effect of Current",
+            "Wheatstone Bridge & Potentiometer"
+          ]
+        },
+        {
+          "name": "Magnetic Effects & EMI",
+          "topics": [
+            "Biot-Savart & Ampere's Law",
+            "Force on Current-Carrying Conductor",
+            "Electromagnetic Induction — Faraday's Law",
+            "AC Circuits & Transformers"
+          ]
+        },
+        {
+          "name": "Optics",
+          "topics": [
+            "Ray Optics — Reflection & Refraction",
+            "Lenses & Mirrors — Image Formation",
+            "Wave Optics — Interference & Diffraction",
+            "Optical Instruments"
+          ]
+        },
+        {
+          "name": "Modern Physics",
+          "topics": [
+            "Photoelectric Effect & Dual Nature",
+            "Atomic Models — Bohr's Theory",
+            "Nuclear Physics — Fission & Fusion",
+            "Radioactivity & Decay",
+            "Semiconductor Devices"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chemistry",
+      "color": "#10b981",
+      "chapters": [
+        {
+          "name": "Atomic Structure & Chemical Bonding",
+          "topics": [
+            "Quantum Numbers & Electronic Configuration",
+            "Ionic & Covalent Bonding",
+            "VSEPR Theory & Hybridization",
+            "Molecular Orbital Theory"
+          ]
+        },
+        {
+          "name": "States of Matter & Solutions",
+          "topics": [
+            "Gas Laws — Ideal & Real Gases",
+            "Solid State — Crystal Lattice & Defects",
+            "Solutions — Colligative Properties & Raoult's Law",
+            "Osmotic Pressure"
+          ]
+        },
+        {
+          "name": "Thermodynamics & Equilibrium",
+          "topics": [
+            "Enthalpy, Entropy & Gibbs Energy",
+            "Hess's Law & Born-Haber Cycle",
+            "Chemical Equilibrium — Le Chatelier",
+            "Ionic Equilibrium — pH, Buffers, Solubility Product"
+          ]
+        },
+        {
+          "name": "Redox & Electrochemistry",
+          "topics": [
+            "Redox Reactions & Balancing",
+            "Electrochemical Cells & Nernst Equation",
+            "Electrolysis & Faraday's Laws",
+            "Conductance"
+          ]
+        },
+        {
+          "name": "Chemical Kinetics & Surface Chemistry",
+          "topics": [
+            "Rate of Reaction & Rate Law",
+            "Arrhenius Equation",
+            "Catalysis — Homogeneous & Heterogeneous",
+            "Colloids & Adsorption"
+          ]
+        },
+        {
+          "name": "Periodic Table & Inorganic Chemistry",
+          "topics": [
+            "Periodic Trends — IE, EA, Electronegativity",
+            "s-Block Elements — Alkali & Alkaline Earth",
+            "p-Block Elements — Groups 13 to 18",
+            "d-Block & f-Block Elements",
+            "Coordination Compounds & CFSE"
+          ]
+        },
+        {
+          "name": "Metallurgy & Environmental Chemistry",
+          "topics": [
+            "General Principles of Metallurgy",
+            "Environmental Chemistry — Pollution & Ozone"
+          ]
+        },
+        {
+          "name": "Organic Chemistry — Basics & Hydrocarbons",
+          "topics": [
+            "IUPAC Nomenclature & Isomerism",
+            "Electronic Effects — Inductive, Resonance",
+            "Alkanes, Alkenes & Alkynes",
+            "Aromatic Hydrocarbons — Benzene"
+          ]
+        },
+        {
+          "name": "Organic Functional Groups",
+          "topics": [
+            "Haloalkanes & Haloarenes",
+            "Alcohols, Phenols & Ethers",
+            "Aldehydes & Ketones",
+            "Carboxylic Acids",
+            "Amines & Diazonium Salts"
+          ]
+        },
+        {
+          "name": "Biomolecules & Polymers",
+          "topics": [
+            "Carbohydrates & Amino Acids",
+            "Proteins & Nucleic Acids",
+            "Polymers — Natural & Synthetic",
+            "Chemistry in Everyday Life — Drugs & Detergents"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Biology (Botany)",
+      "color": "#8b5cf6",
+      "chapters": [
+        {
+          "name": "Cell Biology",
+          "topics": [
+            "Cell Structure — Prokaryotic & Eukaryotic",
+            "Cell Organelles & Functions",
+            "Cell Division — Mitosis & Meiosis",
+            "Biomolecules — Carbohydrates, Proteins, Lipids, Nucleic Acids"
+          ]
+        },
+        {
+          "name": "Plant Anatomy & Morphology",
+          "topics": [
+            "Root, Stem & Leaf Anatomy",
+            "Flower, Fruit & Seed Morphology",
+            "Tissue Systems — Meristematic & Permanent",
+            "Secondary Growth"
+          ]
+        },
+        {
+          "name": "Plant Physiology",
+          "topics": [
+            "Photosynthesis — Light & Dark Reactions",
+            "Respiration — Glycolysis, Krebs, ETC",
+            "Plant Growth & Development — Hormones",
+            "Mineral Nutrition & Transport in Plants",
+            "Water Relations — Osmosis, Transpiration"
+          ]
+        },
+        {
+          "name": "Plant Reproduction",
+          "topics": [
+            "Sexual Reproduction in Flowering Plants",
+            "Pollination & Fertilization",
+            "Seed & Fruit Development",
+            "Asexual Reproduction — Vegetative Propagation"
+          ]
+        },
+        {
+          "name": "Genetics & Molecular Biology",
+          "topics": [
+            "Mendelian Genetics — Laws of Inheritance",
+            "Chromosomal Theory & Linkage",
+            "DNA Replication & Transcription",
+            "Translation & Gene Expression",
+            "Genetic Code & Mutations"
+          ]
+        },
+        {
+          "name": "Biotechnology",
+          "topics": [
+            "Recombinant DNA Technology",
+            "PCR, Gel Electrophoresis & Cloning",
+            "Applications — GMOs, Gene Therapy",
+            "Bioethics & Biosafety"
+          ]
+        },
+        {
+          "name": "Ecology & Environment",
+          "topics": [
+            "Ecosystem — Structure & Function",
+            "Energy Flow & Nutrient Cycling",
+            "Ecological Succession",
+            "Biodiversity & Conservation",
+            "Environmental Issues — Pollution & Climate Change"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Biology (Zoology)",
+      "color": "#ef4444",
+      "chapters": [
+        {
+          "name": "Animal Diversity & Classification",
+          "topics": [
+            "Basis of Classification — Phyla Overview",
+            "Non-Chordates — Porifera to Echinodermata",
+            "Chordates — Pisces to Mammalia",
+            "Structural Organization in Animals"
+          ]
+        },
+        {
+          "name": "Human Physiology",
+          "topics": [
+            "Digestion & Absorption",
+            "Breathing & Gas Exchange",
+            "Circulation — Heart, Blood, Blood Groups",
+            "Excretion — Kidney & Urine Formation",
+            "Nervous System & Neural Control",
+            "Endocrine System & Hormones",
+            "Locomotion & Movement — Muscles & Skeleton"
+          ]
+        },
+        {
+          "name": "Human Reproduction & Development",
+          "topics": [
+            "Male & Female Reproductive Systems",
+            "Gametogenesis & Fertilization",
+            "Embryonic Development & Pregnancy",
+            "Reproductive Health & Contraception"
+          ]
+        },
+        {
+          "name": "Evolution",
+          "topics": [
+            "Origin of Life — Chemical Evolution",
+            "Darwinism & Natural Selection",
+            "Hardy-Weinberg Principle",
+            "Human Evolution"
+          ]
+        },
+        {
+          "name": "Human Health & Disease",
+          "topics": [
+            "Common Diseases — Bacterial, Viral, Parasitic",
+            "Immunity — Innate & Adaptive",
+            "AIDS, Cancer & Drug Abuse",
+            "Vaccines & Immunization"
+          ]
+        },
+        {
+          "name": "Microbes & Applications",
+          "topics": [
+            "Microbes in Household & Industry",
+            "Microbes in Sewage Treatment",
+            "Microbes as Biocontrol Agents",
+            "Microbes in Biogas & Biofertilizers"
+          ]
+        }
+      ]
+    }
+  ]
+}

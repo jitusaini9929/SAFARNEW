@@ -75,7 +75,10 @@ export default function PlannerSidebar() {
 
               <div className="flex flex-col gap-4">
                 {links.map((link) => {
-                  const isActive = location.pathname.startsWith(link.path) && link.path !== "/" || (location.pathname === "/" && link.path === "/");
+                  const isActive =
+                    location.pathname === link.path ||
+                    (link.path !== "/" && location.pathname.startsWith(`${link.path}/`)) ||
+                    (location.pathname === "/" && link.path === "/");
                   return (
                     <Link
                       key={link.path}
