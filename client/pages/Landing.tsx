@@ -12,7 +12,6 @@ import CommunitySpotlight from '../components/landing/CommunitySpotlight';
 import ExternalResources from '../components/landing/ExternalResources';
 import Footer from '../components/landing/Footer';
 import YoutubePromotionModal from '../components/landing/YoutubePromotionModal';
-import BetaAnnouncementCard from '../components/landing/BetaAnnouncementCard';
 
 const YOUTUBE_MODAL_SESSION_KEY_PREFIX = 'youtube-modal:auto-open-dismissed';
 
@@ -79,8 +78,6 @@ const Landing = () => {
 
       <main className="w-full min-h-[100dvh] relative">
         <HeroSection user={user} setIsAuthModalOpen={handleOpenAuthModal} />
-        
-        <BetaAnnouncementCard />
 
         <div className="max-w-6xl mx-auto px-4 md:px-10 py-6 md:py-10 flex justify-center relative z-20">
           <button 
