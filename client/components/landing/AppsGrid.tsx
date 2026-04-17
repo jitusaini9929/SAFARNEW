@@ -54,18 +54,6 @@ const AppsGrid = () => {
             borderColor: "border-indigo-600/60",
             darkBorderColor: "dark:border-indigo-500/40"
         },
-        {
-            key: 'study_planner',
-            name: 'Study Planner',
-            path: "/study/planner",
-            description: 'Plan your syllabus, subjects, and revision flow',
-            bg: "bg-indigo-500/5 dark:bg-indigo-500/10",
-            hoverBg: "group-hover:bg-indigo-500/20",
-            textColor: "group-hover:text-indigo-700 dark:group-hover:text-indigo-300",
-            borderColor: "border-indigo-500/60",
-            darkBorderColor: "dark:border-indigo-400/40",
-            monogram: 'SP'
-        }
     ];
 
     return (
