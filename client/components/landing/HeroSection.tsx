@@ -220,6 +220,14 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                         </Link>
 
                         <Link
+                            to="/study/planner"
+                            className="group relative flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-8 py-4 md:px-10 md:py-4 rounded-full font-semibold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 shadow-lg shadow-teal-500/30 ring-1 ring-white/20 hover:shadow-xl hover:shadow-teal-500/40"
+                        >
+                            <span className="relative z-10">Try Study Planner</span>
+                            <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
+                        </Link>
+
+                        <Link
                             to="/challenge-100k"
                             className="group relative flex items-center justify-center gap-3 bg-white/85 dark:bg-white/10 text-slate-900 dark:text-white px-8 py-4 md:px-10 md:py-5 rounded-full font-semibold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden shadow-lg border-2 border-white/30"
                         >
