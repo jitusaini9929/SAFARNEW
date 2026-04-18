@@ -100,7 +100,7 @@ function TemplateCard({
       <div className="flex items-start justify-between mb-4">
         <span className="text-3xl">{TEMPLATE_ICONS[template.id] || "ðŸ“"}</span>
         {CATEGORY_BADGES[template.category] && (
-          <span className={`text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full ${CATEGORY_BADGES[template.category].color}`}>
+          <span className={`text-[11px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full ${CATEGORY_BADGES[template.category].color}`}>
             {CATEGORY_BADGES[template.category].label}
           </span>
         )}
@@ -110,7 +110,7 @@ function TemplateCard({
         {template.name}
       </h3>
 
-      <div className="template-desc-marquee text-[12px] font-medium leading-relaxed text-[#64748b] dark:text-[#94a3b8] mb-6 flex-grow">
+      <div className="template-desc-marquee text-[14px] font-medium leading-relaxed text-[#64748b] dark:text-[#94a3b8] mb-6 flex-grow">
         <span className="template-desc-static">
           {template.description}
         </span>
@@ -120,7 +120,7 @@ function TemplateCard({
         </span>
       </div>
 
-      <div className="flex items-center gap-4 text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8]">
+      <div className="flex items-center gap-4 text-[13px] font-bold text-[#64748b] dark:text-[#94a3b8]">
         <span>{template.estimatedTopics} topics</span>
         <span aria-hidden="true">&middot;</span>
         <span>{template.examBody}</span>
@@ -331,7 +331,7 @@ function QuickStart({
           <div className="text-center mb-10">
             <h1
               className="text-4xl md:text-5xl font-bold tracking-tight text-[#0f172a] dark:text-white mb-3"
-              style={{ fontFamily: "'Satoshi', sans-serif" }}
+              style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
             >
               Pick your exam.
             </h1>
@@ -377,10 +377,10 @@ function QuickStart({
                 <h3 className="text-xl font-bold text-[#0f172a] dark:text-white mb-2">
                   Custom Plan
                 </h3>
-                <p className="text-[12px] font-medium leading-relaxed text-[#64748b] dark:text-[#94a3b8] mb-6 flex-grow line-clamp-2">
+                <p className="text-[14px] font-medium leading-relaxed text-[#64748b] dark:text-[#94a3b8] mb-6 flex-grow line-clamp-2">
                   Build your own plan from scratch. Paste your syllabus or add topics manually.
                 </p>
-                <div className="text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8]">
+                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#94a3b8]">
                   Any exam · Your syllabus
                 </div>
               </motion.button>
@@ -390,7 +390,7 @@ function QuickStart({
           <div className="text-center">
             <button
               onClick={onCancel}
-              className="text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#64748b] transition-colors"
+              className="text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#64748b] transition-colors"
             >
               Cancel
             </button>
@@ -412,11 +412,11 @@ function QuickStart({
           <div className="flex items-center justify-between mb-8">
             <button
               onClick={() => setShowCustom(false)}
-              className="text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+              className="text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
             >
               ← Back
             </button>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b]">
+            <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b]">
               Custom Plan
             </span>
           </div>
@@ -429,7 +429,7 @@ function QuickStart({
 
           <div className="grid gap-5">
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+              <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                 Plan Title
               </label>
               <input
@@ -442,7 +442,7 @@ function QuickStart({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                   Exam Date
                 </label>
                 <input
@@ -454,7 +454,7 @@ function QuickStart({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                   Topics / Day
                 </label>
                 <input
@@ -470,7 +470,7 @@ function QuickStart({
 
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="mt-2 text-left text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+              className="mt-2 text-left text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
             >
               {showAdvanced ? "- Hide Advanced Options" : "+ Show Advanced Options"}
             </button>
@@ -484,7 +484,7 @@ function QuickStart({
                   className="overflow-hidden grid gap-5"
                 >
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                    <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                       Exam Name (optional)
                     </label>
                     <input
@@ -496,7 +496,7 @@ function QuickStart({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                    <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                       Off Days
                     </label>
                     <div className="flex gap-2">
@@ -504,7 +504,7 @@ function QuickStart({
                         <button
                           key={label}
                           onClick={() => toggleOffDay(idx)}
-                          className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${
+                          className={`px-3 py-2 rounded-lg text-[12px] font-bold uppercase tracking-widest border transition-all ${
                             offDays.includes(idx)
                               ? "bg-blue-500 text-white border-blue-600"
                               : "bg-white dark:bg-[#1a1c1e] text-[#64748b] border-slate-200 dark:border-slate-700"
@@ -517,7 +517,7 @@ function QuickStart({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                    <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                       Paste Your Syllabus (optional)
                     </label>
                     <textarea
@@ -526,7 +526,7 @@ function QuickStart({
                       placeholder={"Math:\n- Algebra\n- Trigonometry\n- Calculus\nPhysics:\n- Kinematics\n- Current Electricity"}
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-4 text-[14px] font-semibold text-[#0f172a] dark:text-white placeholder-[#64748b] dark:placeholder-[#4b5563] focus:outline-none focus:ring-2 focus:ring-blue-500/30 min-h-[140px] leading-relaxed"
                     />
-                    <p className="text-[10px] font-semibold text-[#64748b] mt-2">
+                    <p className="text-[12px] font-semibold text-[#64748b] mt-2">
                       Format: Subject name followed by topics as bullet points or dashes. One topic per line.
                     </p>
                   </div>
@@ -538,7 +538,7 @@ function QuickStart({
           <div className="flex items-center justify-between mt-8">
             <button
               onClick={() => setShowCustom(false)}
-              className="text-[11px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700"
+              className="text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700"
               disabled={isSubmitting}
             >
               Back
@@ -546,7 +546,7 @@ function QuickStart({
             <button
               onClick={handleCustomCreate}
               disabled={isSubmitting}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[12px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all disabled:opacity-50"
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[14px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all disabled:opacity-50"
             >
               {isSubmitting ? "Creating..." : "Create Plan"}
             </button>
@@ -568,11 +568,11 @@ function QuickStart({
         <div className="flex items-center justify-between mb-2">
           <button
             onClick={() => setSelectedTemplate(null)}
-            className="text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+            className="text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
           >
             ← Change Exam
           </button>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b]">
+          <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b]">
             Almost Done
           </span>
         </div>
@@ -581,10 +581,10 @@ function QuickStart({
         <div className="flex items-center gap-3 mb-6 mt-4">
           <span className="text-2xl">{TEMPLATE_ICONS[selectedTemplate!.id] || "📝"}</span>
           <div>
-            <h2 className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+            <h2 className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}>
               {selectedTemplate!.name}
             </h2>
-            <p className="text-[11px] font-semibold text-[#64748b]">
+            <p className="text-[13px] font-semibold text-[#64748b]">
               {selectedTemplate!.estimatedTopics} topics · {selectedTemplate!.examBody}
             </p>
           </div>
@@ -599,7 +599,7 @@ function QuickStart({
         <div className="grid gap-5">
           {/* Title override */}
           <div>
-            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+            <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
               Plan Title
             </label>
             <input
@@ -613,7 +613,7 @@ function QuickStart({
           {/* Date & Goal Row */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+              <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                 Exam Date
               </label>
               <input
@@ -624,11 +624,11 @@ function QuickStart({
                 style={{ colorScheme: isDark ? "dark" : "light" }}
               />
               {daysLeft !== null && daysLeft > 0 && (
-                <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mt-1">{daysLeft} days away</p>
+                <p className="text-[12px] font-bold text-blue-600 dark:text-blue-400 mt-1">{daysLeft} days away</p>
               )}
             </div>
             <div>
-              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+              <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                 Topics / Day
               </label>
               <input
@@ -640,7 +640,7 @@ function QuickStart({
                 className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
               />
               {daysLeft !== null && daysLeft > 0 && (
-                <p className="text-[10px] font-bold text-[#64748b] mt-1">
+                <p className="text-[12px] font-bold text-[#64748b] mt-1">
                   {Math.ceil(selectedTemplate!.estimatedTopics / dailyGoal)} days needed
                 </p>
               )}
@@ -649,7 +649,7 @@ function QuickStart({
 
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="mt-2 text-left text-[11px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+            className="mt-2 text-left text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
           >
             {showAdvanced ? "- Hide Advanced Options" : "+ Show Advanced Options"}
           </button>
@@ -663,7 +663,7 @@ function QuickStart({
                 className="overflow-hidden"
               >
                 <div>
-                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
+                  <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                     Off Days
                   </label>
                   <div className="flex gap-2">
@@ -671,7 +671,7 @@ function QuickStart({
                       <button
                         key={label}
                         onClick={() => toggleOffDay(idx)}
-                        className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${
+                        className={`px-3 py-2 rounded-lg text-[12px] font-bold uppercase tracking-widest border transition-all ${
                           offDays.includes(idx)
                             ? "bg-blue-500 text-white border-blue-600"
                             : "bg-white dark:bg-[#1a1c1e] text-[#64748b] border-slate-200 dark:border-slate-700"
@@ -695,22 +695,22 @@ function QuickStart({
             >
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <div className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                  <div className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}>
                     {selectedTemplate!.estimatedTopics}
                   </div>
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#64748b]">Topics</div>
+                  <div className="text-[11px] font-bold uppercase tracking-widest text-[#64748b]">Topics</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                  <div className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}>
                     {daysLeft}
                   </div>
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#64748b]">Days Left</div>
+                  <div className="text-[11px] font-bold uppercase tracking-widest text-[#64748b]">Days Left</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                  <div className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}>
                     {dailyGoal}
                   </div>
-                  <div className="text-[9px] font-bold uppercase tracking-widest text-[#64748b]">Per Day</div>
+                  <div className="text-[11px] font-bold uppercase tracking-widest text-[#64748b]">Per Day</div>
                 </div>
               </div>
             </motion.div>
@@ -721,7 +721,7 @@ function QuickStart({
         <div className="flex items-center justify-between mt-8">
           <button
             onClick={() => setSelectedTemplate(null)}
-            className="text-[11px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700"
+            className="text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700"
             disabled={isSubmitting}
           >
             Change Exam
@@ -884,7 +884,7 @@ export default function StudyPlannerPage() {
             transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
             className="w-12 h-12 rounded-full border-[4px] border-slate-200 dark:border-slate-700 border-t-blue-500"
           />
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-[#94a3b8]">
+          <p className="text-[13px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-[#94a3b8]">
             Preparing your planner...
           </p>
         </div>
@@ -919,7 +919,7 @@ export default function StudyPlannerPage() {
             <div>
               <h1
                 className="text-3xl md:text-4xl font-bold text-[#0f172a] dark:text-white tracking-tight"
-                style={{ fontFamily: "'Satoshi', sans-serif" }}
+                style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
               >
                 Study Plans
               </h1>
@@ -931,7 +931,7 @@ export default function StudyPlannerPage() {
             </div>
             <button
               onClick={() => setShowQuickStart(true)}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[12px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all"
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[14px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all"
             >
               + New Plan
             </button>
@@ -960,14 +960,14 @@ export default function StudyPlannerPage() {
                       e.stopPropagation();
                       setPlanToDelete(plan);
                     }}
-                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30"
+                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-[12px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30"
                   >
                     Delete
                   </button>
 
                   {/* Exam type badge */}
                   {plan.examType && (
-                    <span className="text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[#64748b] dark:text-[#94a3b8] mb-3 inline-block">
+                    <span className="text-[11px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[#64748b] dark:text-[#94a3b8] mb-3 inline-block">
                       {plan.examType}
                     </span>
                   )}
@@ -977,13 +977,13 @@ export default function StudyPlannerPage() {
                   </h3>
 
                   {plan.description && (
-                    <p className="text-[12px] text-[#64748b] dark:text-[#94a3b8] mb-3 line-clamp-2">
+                    <p className="text-[14px] text-[#64748b] dark:text-[#94a3b8] mb-3 line-clamp-2">
                       {plan.description}
                     </p>
                   )}
 
                   {/* Stats Row */}
-                  <div className="flex items-center gap-4 text-[11px] font-bold text-[#64748b] dark:text-[#94a3b8] mb-4">
+                  <div className="flex items-center gap-4 text-[13px] font-bold text-[#64748b] dark:text-[#94a3b8] mb-4">
                     {plan.subjectCount !== undefined && (
                       <span>{plan.subjectCount} subject{plan.subjectCount !== 1 ? "s" : ""}</span>
                     )}
@@ -1014,10 +1014,10 @@ export default function StudyPlannerPage() {
                     />
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] font-bold text-[#64748b] dark:text-[#94a3b8]">
+                    <span className="text-[12px] font-bold text-[#64748b] dark:text-[#94a3b8]">
                       {Math.round(percent)}% complete
                     </span>
-                    <span className="text-[10px] font-bold text-[#64748b] dark:text-[#94a3b8] opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[12px] font-bold text-[#64748b] dark:text-[#94a3b8] opacity-0 group-hover:opacity-100 transition-opacity">
                       Open →
                     </span>
                   </div>
@@ -1035,7 +1035,7 @@ export default function StudyPlannerPage() {
             >
               <div className="text-4xl mb-3 opacity-60">+</div>
               <div className="text-[14px] font-bold text-[#0f172a] dark:text-white mb-1">Create New Plan</div>
-              <div className="text-[11px] text-[#64748b] dark:text-[#94a3b8] text-center">
+              <div className="text-[13px] text-[#64748b] dark:text-[#94a3b8] text-center">
                 JEE, NEET, SSC, Custom & more
               </div>
             </motion.button>
@@ -1047,7 +1047,7 @@ export default function StudyPlannerPage() {
               <div className="text-6xl mb-6 opacity-80">📚</div>
               <h2
                 className="text-2xl font-bold text-[#0f172a] dark:text-white mb-3"
-                style={{ fontFamily: "'Satoshi', sans-serif" }}
+                style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
               >
                 No plans yet
               </h2>
@@ -1060,7 +1060,7 @@ export default function StudyPlannerPage() {
               >
                 Get Started →
               </button>
-              <p className="text-[11px] text-[#64748b] mt-4">
+              <p className="text-[13px] text-[#64748b] mt-4">
                 Pre-loaded syllabuses for JEE, NEET, SSC, Railway & more.
               </p>
             </div>
@@ -1084,7 +1084,7 @@ export default function StudyPlannerPage() {
                 onClick={(e) => e.stopPropagation()}
                 className="w-full max-w-sm rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#141518] shadow-2xl p-7"
               >
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-3">Delete Plan</div>
+                <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-3">Delete Plan</div>
                 <p className="text-[15px] font-bold mb-2 text-[#0f172a] dark:text-white">
                   Are you sure you want to delete "{planToDelete.title}"?
                 </p>
@@ -1095,7 +1095,7 @@ export default function StudyPlannerPage() {
                   <button
                     onClick={() => setPlanToDelete(null)}
                     disabled={isDeletingPlan}
-                    className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400"
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400"
                   >
                     Cancel
                   </button>
@@ -1114,7 +1114,7 @@ export default function StudyPlannerPage() {
                         setIsDeletingPlan(false);
                       }
                     }}
-                    className="px-5 py-2.5 rounded-xl bg-red-600 text-white text-[11px] font-bold uppercase tracking-widest shadow-md disabled:opacity-50"
+                    className="px-5 py-2.5 rounded-xl bg-red-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-md disabled:opacity-50"
                   >
                     {isDeletingPlan ? "Deleting..." : "Delete Plan"}
                   </button>
@@ -1131,5 +1131,6 @@ export default function StudyPlannerPage() {
     <StudyPlanner planId={planId} initialView={resolvedSection} />
   );
 }
+
 
 

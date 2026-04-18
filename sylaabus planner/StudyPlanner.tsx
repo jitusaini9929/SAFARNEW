@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { apiFetch } from "../client/utils/apiFetch";
+import { apiFetch, type ApiFetchOptions } from "../client/utils/apiFetch";
 import PlannerSidebar from "../client/components/PlannerSidebar";
 import LanguageToggle from "../client/components/LanguageToggle";
 import ThemeToggle from "../client/components/ui/theme-toggle";
@@ -171,6 +171,7 @@ const BULK_IMPORT_SUBJECT_PALETTE = [
   "#f59e0b",
   "#0f766e",
 ];
+const BULK_IMPORT_REQUEST_TIMEOUT_MS = 20000;
 const BULK_TXT_FORMAT_EXAMPLE = `# Subject Name
 ## Chapter Name
 (
@@ -246,7 +247,10 @@ function writePlannerOnboardingState(state: PlannerOnboardingState) {
   }
 }
 
-async function plannerRequest<T>(url: string, init?: RequestInit): Promise<T> {
+async function plannerRequest<T>(
+  url: string,
+  init?: ApiFetchOptions,
+): Promise<T> {
   const response = await apiFetch(url, init);
   if (!response.ok) {
     let message = "Planner request failed";
@@ -1061,7 +1065,7 @@ function CustomDatePicker({
               {DOW.map((d) => (
                 <div
                   key={d}
-                  className={`text-center text-[10px] font-bold uppercase ${muted}`}
+                  className={`text-center text-[12px] font-bold uppercase ${muted}`}
                 >
                   {d}
                 </div>
@@ -1091,7 +1095,7 @@ function CustomDatePicker({
                       if (!isOffDay) pickDay(day);
                     }}
                     disabled={isOffDay}
-                    className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg text-xs relative transition-all
+                    className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg text-sm relative transition-all
                       ${isOffDay ? "opacity-30 cursor-not-allowed font-medium bg-[#f9fafb] dark:bg-[#151718]" : "font-bold hover:bg-[#f0f5ff] dark:hover:bg-[#2a2d31]"}
                       ${!isOffDay && isSelected ? selectedBg : ""}
                       ${!isOffDay && !isSelected && isTodayCell ? `ring-1 ring-blue-400 ${text}` : ""}
@@ -1117,17 +1121,17 @@ function CustomDatePicker({
               <button
                 type="button"
                 onClick={() => setViewYear((y) => y - 1)}
-                className={`text-[10px] font-bold px-2 py-1 rounded ${hoverBg} ${muted}`}
+                className={`text-[12px] font-bold px-2 py-1 rounded ${hoverBg} ${muted}`}
               >
                 &larr; Year
               </button>
-              <span className={`flex-1 text-center text-xs font-bold ${muted}`}>
+              <span className={`flex-1 text-center text-sm font-bold ${muted}`}>
                 {viewYear}
               </span>
               <button
                 type="button"
                 onClick={() => setViewYear((y) => y + 1)}
-                className={`text-[10px] font-bold px-2 py-1 rounded ${hoverBg} ${muted}`}
+                className={`text-[12px] font-bold px-2 py-1 rounded ${hoverBg} ${muted}`}
               >
                 Year &rarr;
               </button>
@@ -1170,7 +1174,7 @@ function CalendarView({
         {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
           <div
             key={day}
-            className="text-center font-['Satoshi',sans-serif] text-[10px] font-bold text-[#8b919e] dark:text-[#acabaa] tracking-[0.3em]"
+            className="text-center font-study-planner text-[12px] font-bold text-[#8b919e] dark:text-[#acabaa] tracking-[0.3em]"
           >
             {day}
           </div>
@@ -1183,7 +1187,7 @@ function CalendarView({
             return (
               <div
                 key={`empty-${idx}`}
-                className="aspect-square rounded-2xl opacity-40 dark:opacity-20 border border-transparent flex items-start p-4 text-[#8b919e] dark:text-[#acabaa] font-['Satoshi',sans-serif] text-lg italic"
+                className="aspect-square rounded-2xl opacity-40 dark:opacity-20 border border-transparent flex items-start p-4 text-[#8b919e] dark:text-[#acabaa] font-study-planner text-lg italic"
               />
             );
           }
@@ -1217,7 +1221,7 @@ function CalendarView({
               <div className="absolute inset-0 p-1.5 md:p-2.5 flex flex-col overflow-hidden rounded-2xl">
                 <div className="flex justify-between items-start">
                   <span
-                    className={`text-sm md:text-xl font-bold font-['Satoshi',sans-serif] ${isToday ? "text-[#2d333b] dark:text-[#e7e5e5]" : "text-[#4b5563] dark:text-[#acabaa]"}`}
+                    className={`text-sm md:text-xl font-bold font-study-planner ${isToday ? "text-[#2d333b] dark:text-[#e7e5e5]" : "text-[#4b5563] dark:text-[#acabaa]"}`}
                   >
                     {value}
                   </span>
@@ -1256,7 +1260,7 @@ function CalendarView({
               {/* Hover Popover */}
               {items.length > 0 && (
                 <div className="absolute left-[50%] -translate-x-[50%] bottom-[105%] w-[180%] min-w-[140px] max-w-[220px] z-[60] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 bg-[#ffffff] dark:bg-[#1f2020] rounded-xl shadow-2xl border border-gray-200 dark:border-[#3b494c] p-2 md:p-3 flex-col gap-2 flex pointer-events-none">
-                  <span className="text-[9px] md:text-[10px] font-bold text-[#4b5563] dark:text-[#acabaa] border-b border-gray-100 dark:border-[#3b494c] pb-1 mb-1 font-['Satoshi',sans-serif] uppercase tracking-wider">
+                  <span className="text-[11px] md:text-[12px] font-bold text-[#4b5563] dark:text-[#acabaa] border-b border-gray-100 dark:border-[#3b494c] pb-1 mb-1 font-study-planner uppercase tracking-wider">
                     {value}{" "}
                     {monthDate.toLocaleString("default", { month: "short" })}
                   </span>
@@ -1266,7 +1270,7 @@ function CalendarView({
                         key={`popover-${item.topicId}`}
                         className="bg-blue-100/50 dark:bg-[#dae2fd]/10 border border-blue-200/50 dark:border-[#dae2fd]/20 p-1.5 md:p-2 rounded-md break-words whitespace-normal"
                       >
-                        <span className="text-[8px] md:text-[9px] font-bold text-blue-700 dark:text-[#ccd4ee] uppercase block leading-tight">
+                        <span className="text-[8px] md:text-[11px] font-bold text-blue-700 dark:text-[#ccd4ee] uppercase block leading-tight">
                           {item.topicName}
                         </span>
                       </div>
@@ -1348,6 +1352,7 @@ export default function StudyPlanner({
   const [bulkTopicsText, setBulkTopicsText] = useState("");
   const [bulkAddError, setBulkAddError] = useState("");
   const [bulkImportedFileName, setBulkImportedFileName] = useState("");
+  const [bulkTxtGuideOpen, setBulkTxtGuideOpen] = useState(false);
   const isTxtBulkMode = bulkAddMode === "txt-file";
 
   // ── Premium Upgrade Modal ──
@@ -1509,6 +1514,9 @@ export default function StudyPlanner({
     if (/daily\s*goal|limit\s*reached|max\s*tasks?|capacity/i.test(message)) {
       return "Daily goal limit reached for that day. Choose another date or raise your daily goal.";
     }
+    if (/abort|aborted|signal is aborted without reason/i.test(message)) {
+      return "Request timed out while processing the planner action. Please try again.";
+    }
     return message;
   }
 
@@ -1532,13 +1540,16 @@ export default function StudyPlanner({
     }
   }
 
-  async function fetchPlan() {
+  async function fetchPlan(options?: { timeoutMs?: number }) {
     try {
       setLoading(true);
       const [planData, calendarData] = await Promise.all([
-        plannerRequest<Plan>(`${BASE}/${planId}`),
+        plannerRequest<Plan>(`${BASE}/${planId}`, {
+          timeoutMs: options?.timeoutMs,
+        }),
         plannerRequest<Record<string, CalendarItem[]>>(
           `${BASE}/${planId}/calendar`,
+          { timeoutMs: options?.timeoutMs },
         ),
       ]);
 
@@ -2467,11 +2478,13 @@ export default function StudyPlanner({
     setBulkTopicsText("");
     setBulkAddError("");
     setBulkImportedFileName("");
+    setBulkTxtGuideOpen(false);
   }
 
   function switchBulkAddMode(nextMode: BulkAddMode) {
     setBulkAddMode(nextMode);
     setBulkAddError("");
+    setBulkTxtGuideOpen(false);
     if (nextMode === "txt-file") {
       setBulkSubjectId("");
       setBulkSubjectName("");
@@ -2505,6 +2518,7 @@ export default function StudyPlanner({
       ];
     const nextPlan = await plannerRequest<Plan>(`${BASE}/${planId}/subjects`, {
       method: "POST",
+      timeoutMs: BULK_IMPORT_REQUEST_TIMEOUT_MS,
       body: JSON.stringify({ name: normalizedName, color }),
     });
     setPlan(nextPlan);
@@ -2537,6 +2551,7 @@ export default function StudyPlanner({
       `${BASE}/${planId}/subjects/${subjectId}/chapters`,
       {
         method: "POST",
+        timeoutMs: BULK_IMPORT_REQUEST_TIMEOUT_MS,
         body: JSON.stringify({ name: chapterName }),
       },
     );
@@ -2562,6 +2577,7 @@ export default function StudyPlanner({
       `${BASE}/${planId}/subjects/${subjectId}/chapters/${chapterId}/topics`,
       {
         method: "POST",
+        timeoutMs: BULK_IMPORT_REQUEST_TIMEOUT_MS,
         body: JSON.stringify({ name: topicName }),
       },
     );
@@ -2731,7 +2747,7 @@ export default function StudyPlanner({
       setPlan(currentPlan);
 
       // Force a full refresh of plan and calendar data to ensure UI consistency
-      await fetchPlan();
+      await fetchPlan({ timeoutMs: BULK_IMPORT_REQUEST_TIMEOUT_MS });
 
       const summaryMessage =
         bulkAddMode === "txt-file"
@@ -2874,12 +2890,12 @@ export default function StudyPlanner({
 
               <div className="text-center">
                 <div className="text-5xl mb-4">{meta.icon}</div>
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400 mb-3">
+                <div className="text-[12px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400 mb-3">
                   Premium Feature
                 </div>
                 <h3
                   className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5] mb-3"
-                  style={{ fontFamily: "'Satoshi', sans-serif" }}
+                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
                 >
                   {meta.title}
                 </h3>
@@ -2892,13 +2908,13 @@ export default function StudyPlanner({
                     onClick={() => {
                       void upgradePlannerPremium();
                     }}
-                    className="text-[10px] font-black uppercase tracking-widest px-8 py-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-[0_6px_20px_rgba(59,130,246,0.4)] hover:shadow-[0_8px_28px_rgba(59,130,246,0.5)] transition-all"
+                    className="text-[12px] font-black uppercase tracking-widest px-8 py-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-[0_6px_20px_rgba(59,130,246,0.4)] hover:shadow-[0_8px_28px_rgba(59,130,246,0.5)] transition-all"
                   >
                     Upgrade to Premium
                   </button>
                   <button
                     onClick={() => setPremiumModalReason(null)}
-                    className="text-[10px] font-black uppercase tracking-widest px-6 py-4 rounded-full bg-[#e6e7ee] dark:bg-[#131416] text-[#64748b] dark:text-[#9aa2ae] border border-[#d9dbe2] dark:border-[#2b2c2c] hover:bg-[#d9dbe2] dark:hover:bg-[#202225] transition-colors"
+                    className="text-[12px] font-black uppercase tracking-widest px-6 py-4 rounded-full bg-[#e6e7ee] dark:bg-[#131416] text-[#64748b] dark:text-[#9aa2ae] border border-[#d9dbe2] dark:border-[#2b2c2c] hover:bg-[#d9dbe2] dark:hover:bg-[#202225] transition-colors"
                   >
                     Not Now
                   </button>
@@ -2919,7 +2935,7 @@ export default function StudyPlanner({
             transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
             className="w-16 h-16 rounded-full border-[6px] border-[#d9dbe2] dark:border-[#1a1c1e] border-t-blue-500 shadow-[inset_2px_2px_4px_rgba(166,171,189,0.3),4px_4px_8px_rgba(166,171,189,0.2)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.5),4px_4px_10px_rgba(0,0,0,0.6)]"
           />
-          <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-[#6b7280] dark:text-[#767575]">
+          <p className="text-[12px] font-bold tracking-[0.2em] uppercase text-[#6b7280] dark:text-[#767575]">
             Waking System...
           </p>
         </div>
@@ -3595,7 +3611,7 @@ export default function StudyPlanner({
           <ThemeToggle />
         </div>
       </div>
-      <div className="min-h-[100dvh] bg-gradient-to-br from-[#E0F2FE] via-[#F5F3FF] to-[#FFF1F2] dark:from-[#131416] dark:via-[#131416] dark:to-[#131416] text-[#3c4146] dark:text-[#e7e5e5] font-['Satoshi',sans-serif] overflow-x-hidden selection:bg-blue-500/30 transition-colors duration-500">
+      <div className="min-h-[100dvh] bg-gradient-to-br from-[#E0F2FE] via-[#F5F3FF] to-[#FFF1F2] dark:from-[#131416] dark:via-[#131416] dark:to-[#131416] text-[#3c4146] dark:text-[#e7e5e5] font-study-planner overflow-x-hidden selection:bg-blue-500/30 transition-colors duration-500">
         {/* Noise Texture */}
         <div
           className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.02] z-0"
@@ -3614,18 +3630,18 @@ export default function StudyPlanner({
             <div>
               <button
                 onClick={() => navigate("/study/planner")}
-                className="text-[10px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] transition-colors mb-3 inline-block"
+                className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] transition-colors mb-3 inline-block"
               >
                 ← All Plans
               </button>
               <h1
                 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-                style={{ fontFamily: "'Satoshi', sans-serif" }}
+                style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
               >
                 {plan.title}.
               </h1>
               {plan.examType && (
-                <div className="text-[12px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575] mb-4">
+                <div className="text-[14px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575] mb-4">
                   {plan.examType}
                 </div>
               )}
@@ -3647,14 +3663,14 @@ export default function StudyPlanner({
                     <>
                       <motion.span
                         layout
-                        className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#acabaa] text-[10px] font-extrabold uppercase tracking-[0.1em] px-4 py-1.5 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]"
+                        className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#acabaa] text-[12px] font-extrabold uppercase tracking-[0.1em] px-4 py-1.5 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]"
                       >
                         {countdownLabel}
                       </motion.span>
                       <motion.button
                         layout
                         onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
-                        className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[10px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-full border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]"
+                        className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[12px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-full border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]"
                         title="Edit exam date"
                       >
                         Update Date
@@ -3676,7 +3692,7 @@ export default function StudyPlanner({
                       }}
                       className="inline-flex flex-col gap-3 rounded-2xl bg-[#f0f0f5] dark:bg-[#1a1c1e] px-5 py-4 border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]"
                     >
-                      <div className="text-[11px] font-bold text-[#334155] dark:text-[#e2e8f0] uppercase tracking-[0.2em] px-1">
+                      <div className="text-[13px] font-bold text-[#334155] dark:text-[#e2e8f0] uppercase tracking-[0.2em] px-1">
                         Select Exam
                       </div>
                       <div className="flex flex-wrap items-center gap-4">
@@ -3689,7 +3705,7 @@ export default function StudyPlanner({
                           onClick={() => {
                             void saveExamDate();
                           }}
-                          className="bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white text-[10px] font-extrabold uppercase tracking-[0.15em] px-5 py-2.5 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.35)]"
+                          className="bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white text-[12px] font-extrabold uppercase tracking-[0.15em] px-5 py-2.5 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.35)]"
                         >
                           Save Date
                         </button>
@@ -3702,7 +3718,7 @@ export default function StudyPlanner({
                             );
                             setIsExamDateEditorOpen(false);
                           }}
-                          className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[10px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-xl border border-[#c0c4d1] dark:border-[#2b2c2c]"
+                          className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[12px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-xl border border-[#c0c4d1] dark:border-[#2b2c2c]"
                         >
                           Cancel
                         </button>
@@ -3728,7 +3744,7 @@ export default function StudyPlanner({
                       }
                       void runGuidedAction(activeGuideAction);
                     }}
-                    className="text-[11px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white shadow-md"
+                    className="text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white shadow-md"
                   >
                     {onboardingResumeVisible
                       ? "Resume Guide"
@@ -3737,7 +3753,7 @@ export default function StudyPlanner({
                   {/* BUG-1 FIX: Show "More Actions" only when NOT in resume state — prevents duplicate Resume Guide */}
                   <button
                     onClick={() => setShowHeaderActions(true)}
-                    className={`text-[11px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
+                    className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
                   >
                     More Actions
                   </button>
@@ -3746,13 +3762,13 @@ export default function StudyPlanner({
                 <>
                   <button
                     onClick={() => handleViewChange("plan")}
-                    className={`text-[11px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
+                    className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
                   >
                     Edit Plan
                   </button>
                   <button
                     onClick={() => handleViewChange("syllabus")}
-                    className={`text-[11px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
+                    className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
                   >
                     Add Topics
                   </button>
@@ -3765,14 +3781,14 @@ export default function StudyPlanner({
                       void autoDistribute();
                     }}
                     disabled={isAutoDistributing}
-                    className="text-[11px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white shadow-md"
+                    className="text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white shadow-md"
                   >
                     {isAutoDistributing ? "Building..." : "Build Schedule"}
                   </button>
                   {beginnerMode && (
                     <button
                       onClick={() => setShowHeaderActions(false)}
-                      className={`text-[11px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
+                      className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
                     >
                       Show Less
                     </button>
@@ -3782,7 +3798,7 @@ export default function StudyPlanner({
               <button
                 data-tour="planner-beginner-toggle"
                 onClick={() => setBeginnerMode((prev) => !prev)}
-                className={`text-[11px] font-black uppercase tracking-widest px-4 py-3 rounded-full border transition-all duration-300 flex items-center gap-2 ${
+                className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border transition-all duration-300 flex items-center gap-2 ${
                   beginnerMode
                     ? isDarkMode
                       ? "bg-[#1a3a52] border-[#0ea5e9] text-[#0ea5e9] shadow-md"
@@ -3807,13 +3823,13 @@ export default function StudyPlanner({
             >
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
+                  <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
                     {currentGuide.step}
                   </div>
                   <h3 className="text-[22px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mt-1">
                     {currentGuide.title}
                   </h3>
-                  <p className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2 max-w-2xl">
+                  <p className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2 max-w-2xl">
                     {currentGuide.description}
                   </p>
                 </div>
@@ -3830,7 +3846,7 @@ export default function StudyPlanner({
                       isAutoDistributing &&
                       activeGuideAction === "build_schedule"
                     }
-                    className="text-[11px] font-black uppercase tracking-widest px-6 py-3 rounded-full bg-[#3b82f6] text-white shadow-md disabled:opacity-60"
+                    className="text-[13px] font-black uppercase tracking-widest px-6 py-3 rounded-full bg-[#3b82f6] text-white shadow-md disabled:opacity-60"
                   >
                     {isAutoDistributing &&
                     activeGuideAction === "build_schedule"
@@ -3843,7 +3859,7 @@ export default function StudyPlanner({
                     onboardingGuideActive ? (
                       <button
                         onClick={skipPlannerOnboarding}
-                        className={`text-[11px] font-black uppercase tracking-widest px-6 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
+                        className={`text-[13px] font-black uppercase tracking-widest px-6 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
                       >
                         Skip For Now
                       </button>
@@ -3866,14 +3882,14 @@ export default function StudyPlanner({
                             : "border-[#c0c4d1] dark:border-[#2b2c2c] bg-white/60 dark:bg-[#131416]"
                       }`}
                     >
-                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
+                      <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
                         Step {index + 1}
                       </div>
-                      <div className="text-[12px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mt-1">
+                      <div className="text-[14px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mt-1">
                         {guidedActionMeta[stepId].title}
                       </div>
                       <div
-                        className={`text-[9px] font-black uppercase tracking-[0.18em] mt-2 ${completed ? "text-emerald-600 dark:text-emerald-400" : active ? "text-blue-600 dark:text-blue-400" : "text-[#8b919e] dark:text-[#767575]"}`}
+                        className={`text-[11px] font-black uppercase tracking-[0.18em] mt-2 ${completed ? "text-emerald-600 dark:text-emerald-400" : active ? "text-blue-600 dark:text-blue-400" : "text-[#8b919e] dark:text-[#767575]"}`}
                       >
                         {completed
                           ? "Completed"
@@ -3900,26 +3916,26 @@ export default function StudyPlanner({
               <div className="flex flex-col gap-3">
                 <button
                   onClick={() => handleViewChange("plan")}
-                  className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#1e40af] text-white shadow-md hover:shadow-lg transition-all"
+                  className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#1e40af] text-white shadow-md hover:shadow-lg transition-all"
                 >
                   Build Schedule
                 </button>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button
                     onClick={() => handleViewChange("syllabus")}
-                    className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md transition-all"
+                    className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md transition-all"
                   >
                     Add Topics
                   </button>
                   <button
                     onClick={() => handleViewChange("plan")}
-                    className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md transition-all"
+                    className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md transition-all"
                   >
                     Edit Plan
                   </button>
                   <button
                     onClick={() => handleViewChange("calendar")}
-                    className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md transition-all"
+                    className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md transition-all"
                   >
                     Open Calendar
                   </button>
@@ -3936,12 +3952,12 @@ export default function StudyPlanner({
             >
               {/* Days Left */}
               <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[11px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
+                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
                   Days left
                 </div>
                 <div
                   className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2 drop-shadow-sm"
-                  style={{ fontFamily: "'Satoshi', sans-serif" }}
+                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
                 >
                   {countdown === null
                     ? "--"
@@ -3949,7 +3965,7 @@ export default function StudyPlanner({
                       ? "???"
                       : Math.abs(countdown)}
                 </div>
-                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
+                <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
                   {countdown === null
                     ? "Set exam date"
                     : Math.abs(countdown) > 9999
@@ -3962,15 +3978,15 @@ export default function StudyPlanner({
 
               {/* Completed */}
               <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[10px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
+                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
                   Completed
                 </div>
                 <div
                   className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm"
-                  style={{ fontFamily: "'Satoshi', sans-serif" }}
+                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
                 >
                   {summary.done}{" "}
-                  <span className="text-xl text-[#64748b] dark:text-[#9aa2ae] font-['Satoshi',sans-serif] font-bold">
+                  <span className="text-xl text-[#64748b] dark:text-[#9aa2ae] font-study-planner font-bold">
                     / {summary.total}
                   </span>
                 </div>
@@ -3978,29 +3994,29 @@ export default function StudyPlanner({
 
               {/* Today */}
               <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[10px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
+                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
                   Today
                 </div>
                 <div
                   className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2 drop-shadow-sm"
-                  style={{ fontFamily: "'Satoshi', sans-serif" }}
+                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
                 >
                   {todayTasks.length}
                 </div>
-                <div className="text-[11px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
+                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
                   tasks planned
                 </div>
               </div>
 
               {/* Status */}
               <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[10px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
+                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
                   Status
                 </div>
                 <div className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2 drop-shadow-sm">
                   {summaryStatusLabel}
                 </div>
-                <div className="text-[11px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
+                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
                   {overdueCount > 0
                     ? "Recover overdue tasks"
                     : "Keep the streak"}
@@ -4009,16 +4025,16 @@ export default function StudyPlanner({
 
               {/* Next Off Day */}
               <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[10px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
+                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
                   Next off day
                 </div>
                 <div
                   className="text-3xl font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2 drop-shadow-sm"
-                  style={{ fontFamily: "'Satoshi', sans-serif" }}
+                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
                 >
                   {nextOffDayLabel}
                 </div>
-                <div className="text-[11px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
+                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
                   {plan.offDays.length > 0
                     ? "Off days are skipped"
                     : "No off days set"}
@@ -4045,7 +4061,7 @@ export default function StudyPlanner({
                 <button
                   key={value}
                   onClick={() => handleViewChange(value)}
-                  className={`relative px-6 py-2.5 rounded-full ${value === "plan" || value === "syllabus" ? "text-[13px] md:text-[15px]" : "text-[12px] md:text-[14px]"} font-extrabold uppercase tracking-[0.15em] transition-all duration-300 z-10 flex-1 md:flex-none ${
+                  className={`relative px-6 py-2.5 rounded-full ${value === "plan" || value === "syllabus" ? "text-[13px] md:text-[15px]" : "text-[14px] md:text-[14px]"} font-extrabold uppercase tracking-[0.15em] transition-all duration-300 z-10 flex-1 md:flex-none ${
                     view === value
                       ? "text-[#2d333b] dark:text-[#e7e5e5]"
                       : "text-[#8b919e] dark:text-[#767575] hover:text-[#4b5563] dark:hover:text-[#acabaa]"
@@ -4097,7 +4113,7 @@ export default function StudyPlanner({
                     <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                       Today&apos;s Study Tasks
                     </h3>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
+                    <span className="text-[13px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
                       {todayTasks.length} planned
                     </span>
                   </div>
@@ -4116,7 +4132,7 @@ export default function StudyPlanner({
                               {topic.name}
                             </div>
                             <div
-                              className={`text-[12px] font-bold uppercase tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
+                              className={`text-[14px] font-bold uppercase tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
                             >
                               {topic.subject.name}
                               {topic.chapter?.name
@@ -4124,13 +4140,13 @@ export default function StudyPlanner({
                                 : ""}
                             </div>
                             {topic.notes && (
-                              <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#64748b] mt-2">
+                              <div className="text-[12px] font-extrabold uppercase tracking-widest text-[#64748b] mt-2">
                                 Notes attached
                               </div>
                             )}
                           </div>
                           <span
-                            className="text-[11px] whitespace-nowrap px-3 py-1.5 rounded-full font-black tracking-widest"
+                            className="text-[13px] whitespace-nowrap px-3 py-1.5 rounded-full font-black tracking-widest"
                             style={{
                               color: STATUS_UI[topic.status].color,
                               background: isDarkMode
@@ -4150,7 +4166,7 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { status: "in_progress" })
                             }
-                            className={`text-[12px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
+                            className={`text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
                           >
                             Start
                           </button>
@@ -4158,7 +4174,7 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { status: "done" })
                             }
-                            className="text-[12px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-emerald-600 text-white shadow-md"
+                            className="text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-emerald-600 text-white shadow-md"
                           >
                             Mark Done
                           </button>
@@ -4168,7 +4184,7 @@ export default function StudyPlanner({
                                 status: "revision_needed",
                               })
                             }
-                            className={`text-[12px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#3b0764] text-[#e9d5ff] border-[#7c3aed]" : "bg-[#f3e8ff] text-[#6b21a8] border-[#e9d5ff]"}`}
+                            className={`text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#3b0764] text-[#e9d5ff] border-[#7c3aed]" : "bg-[#f3e8ff] text-[#6b21a8] border-[#e9d5ff]"}`}
                           >
                             Needs Revision
                           </button>
@@ -4179,7 +4195,7 @@ export default function StudyPlanner({
                                   prev === topic.id ? null : topic.id,
                                 )
                               }
-                              className={`text-[12px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
+                              className={`text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
                             >
                               Move Date ▾
                             </button>
@@ -4187,7 +4203,7 @@ export default function StudyPlanner({
                               <div
                                 className={`absolute top-full left-0 mt-2 z-50 rounded-2xl p-3 shadow-xl border min-w-[180px] ${isDarkMode ? "bg-[#1a1c1e] border-[#2b2c2c]" : "bg-white border-[#c0c4d1]"}`}
                               >
-                                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mb-2">
+                                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mb-2">
                                   Pick a date
                                 </div>
                                 {(() => {
@@ -4237,7 +4253,7 @@ export default function StudyPlanner({
                                         });
                                         setMoveDatePickerTopicId(null);
                                       }}
-                                      className={`block w-full text-left text-[11px] font-bold px-3 py-2 rounded-lg transition-colors ${isDarkMode ? "text-[#e2e8f0] hover:bg-[#343840]" : "text-[#2d333b] hover:bg-[#e6e7ee]"}`}
+                                      className={`block w-full text-left text-[13px] font-bold px-3 py-2 rounded-lg transition-colors ${isDarkMode ? "text-[#e2e8f0] hover:bg-[#343840]" : "text-[#2d333b] hover:bg-[#e6e7ee]"}`}
                                     >
                                       {opt.label}
                                     </button>
@@ -4252,7 +4268,7 @@ export default function StudyPlanner({
                                 prev === topic.id ? null : topic.id,
                               )
                             }
-                            className={`text-[12px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
+                            className={`text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
                           >
                             More
                           </button>
@@ -4264,7 +4280,7 @@ export default function StudyPlanner({
                               onClick={() =>
                                 patchTopic(topic.id, { plannedDate: "" })
                               }
-                              className="text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
+                              className="text-[12px] font-black uppercase tracking-widest px-3 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
                             >
                               Remove Date
                             </button>
@@ -4272,7 +4288,7 @@ export default function StudyPlanner({
                               onClick={() => {
                                 void editTopicNotes(topic);
                               }}
-                              className={`text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
+                              className={`text-[12px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
                             >
                               Edit Notes
                             </button>
@@ -4284,7 +4300,7 @@ export default function StudyPlanner({
                                   topic.chapter,
                                 )
                               }
-                              className={`text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
+                              className={`text-[12px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
                             >
                               Open in Syllabus
                             </button>
@@ -4294,24 +4310,24 @@ export default function StudyPlanner({
                     ))}
 
                     {todayTasks.length === 0 && (
-                      <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-10 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
+                      <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-10 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
                         No tasks planned for today.
                         <div className="flex flex-wrap gap-2 justify-center mt-4">
                           <button
                             onClick={() => handleViewChange("calendar")}
-                            className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
+                            className={`text-[12px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
                           >
                             View Upcoming
                           </button>
                           <button
                             onClick={() => handleViewChange("plan")}
-                            className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-[#3b82f6] text-white"
+                            className="text-[12px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-[#3b82f6] text-white"
                           >
                             Rebuild Plan
                           </button>
                           <button
                             onClick={() => handleViewChange("syllabus")}
-                            className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
+                            className={`text-[12px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
                           >
                             Add Topics
                           </button>
@@ -4331,7 +4347,7 @@ export default function StudyPlanner({
                     </h3>
                     <button
                       onClick={() => handleViewChange("calendar")}
-                      className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400"
+                      className="text-[12px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400"
                     >
                       Open Calendar
                     </button>
@@ -4349,7 +4365,7 @@ export default function StudyPlanner({
                             {topic.name}
                           </div>
                           <div
-                            className={`text-[12px] font-bold uppercase tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
+                            className={`text-[14px] font-bold uppercase tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
                           >
                             {topic.subject.name}
                             {topic.chapter?.name
@@ -4358,7 +4374,7 @@ export default function StudyPlanner({
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <div className="text-[12px] font-black uppercase tracking-widest text-[#1e40af] dark:text-[#93c5fd]">
+                          <div className="text-[14px] font-black uppercase tracking-widest text-[#1e40af] dark:text-[#93c5fd]">
                             {topic.plannedDate
                               ? formatDate(topic.plannedDate)
                               : "Unplanned"}
@@ -4367,7 +4383,7 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { status: "done" })
                             }
-                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
+                            className="text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
                           >
                             Mark Done
                           </button>
@@ -4378,7 +4394,7 @@ export default function StudyPlanner({
                                   prev === topic.id ? null : topic.id,
                                 )
                               }
-                              className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
+                              className={`text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
                             >
                               Move Date ▾
                             </button>
@@ -4386,7 +4402,7 @@ export default function StudyPlanner({
                               <div
                                 className={`absolute top-full left-0 mt-2 z-50 rounded-2xl p-3 shadow-xl border min-w-[180px] ${isDarkMode ? "bg-[#1a1c1e] border-[#2b2c2c]" : "bg-white border-[#c0c4d1]"}`}
                               >
-                                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mb-2">
+                                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mb-2">
                                   Pick a date
                                 </div>
                                 {(() => {
@@ -4430,7 +4446,7 @@ export default function StudyPlanner({
                                         });
                                         setMoveDatePickerTopicId(null);
                                       }}
-                                      className={`block w-full text-left text-[11px] font-bold px-3 py-2 rounded-lg transition-colors ${isDarkMode ? "text-[#e2e8f0] hover:bg-[#343840]" : "text-[#2d333b] hover:bg-[#e6e7ee]"}`}
+                                      className={`block w-full text-left text-[13px] font-bold px-3 py-2 rounded-lg transition-colors ${isDarkMode ? "text-[#e2e8f0] hover:bg-[#343840]" : "text-[#2d333b] hover:bg-[#e6e7ee]"}`}
                                     >
                                       {opt.label}
                                     </button>
@@ -4441,7 +4457,7 @@ export default function StudyPlanner({
                           </div>
                           <button
                             onClick={() => handleViewChange("calendar")}
-                            className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-slate-700 border-slate-300"}`}
+                            className={`text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-slate-700 border-slate-300"}`}
                           >
                             Calendar
                           </button>
@@ -4450,7 +4466,7 @@ export default function StudyPlanner({
                     ))}
 
                     {upcomingTasks.length === 0 && (
-                      <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-8 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
+                      <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-8 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
                         No upcoming tasks yet.
                       </div>
                     )}
@@ -4467,7 +4483,7 @@ export default function StudyPlanner({
                     <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                       Overdue
                     </h3>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
+                    <span className="text-[13px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
                       {overdueCount} items
                     </span>
                   </div>
@@ -4480,14 +4496,14 @@ export default function StudyPlanner({
                         <div className="text-[14px] font-bold text-[#7f1d1d] dark:text-[#fecaca]">
                           {topic.name}
                         </div>
-                        <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#b91c1c] dark:text-[#fca5a5] mt-1">
+                        <div className="text-[12px] font-extrabold uppercase tracking-widest text-[#b91c1c] dark:text-[#fca5a5] mt-1">
                           {topic.subject.name}
                           {topic.chapter?.name
                             ? ` - ${topic.chapter.name}`
                             : ""}
                         </div>
                         {topic.plannedDate && (
-                          <div className="text-[10px] font-black uppercase tracking-widest text-[#b91c1c] dark:text-[#fca5a5] mt-2">
+                          <div className="text-[12px] font-black uppercase tracking-widest text-[#b91c1c] dark:text-[#fca5a5] mt-2">
                             {daysBetweenDateKeys(
                               toIsoDateOnly(topic.plannedDate),
                               todayKey,
@@ -4500,7 +4516,7 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { status: "done" })
                             }
-                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
+                            className="text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
                           >
                             Mark Done
                           </button>
@@ -4511,7 +4527,7 @@ export default function StudyPlanner({
                                   prev === topic.id ? null : topic.id,
                                 )
                               }
-                              className={`text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
+                              className={`text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
                             >
                               Move Date ▾
                             </button>
@@ -4519,7 +4535,7 @@ export default function StudyPlanner({
                               <div
                                 className={`absolute top-full left-0 mt-2 z-50 rounded-2xl p-3 shadow-xl border min-w-[180px] ${isDarkMode ? "bg-[#1a1c1e] border-[#2b2c2c]" : "bg-white border-[#c0c4d1]"}`}
                               >
-                                <div className="text-[9px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mb-2">
+                                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mb-2">
                                   Pick a date
                                 </div>
                                 {(() => {
@@ -4563,7 +4579,7 @@ export default function StudyPlanner({
                                         });
                                         setMoveDatePickerTopicId(null);
                                       }}
-                                      className={`block w-full text-left text-[11px] font-bold px-3 py-2 rounded-lg transition-colors ${isDarkMode ? "text-[#e2e8f0] hover:bg-[#343840]" : "text-[#2d333b] hover:bg-[#e6e7ee]"}`}
+                                      className={`block w-full text-left text-[13px] font-bold px-3 py-2 rounded-lg transition-colors ${isDarkMode ? "text-[#e2e8f0] hover:bg-[#343840]" : "text-[#2d333b] hover:bg-[#e6e7ee]"}`}
                                     >
                                       {opt.label}
                                     </button>
@@ -4576,7 +4592,7 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { plannedDate: "" })
                             }
-                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
+                            className="text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
                           >
                             Skip for Now
                           </button>
@@ -4585,7 +4601,7 @@ export default function StudyPlanner({
                     ))}
 
                     {overdueTasks.length === 0 && (
-                      <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-8 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
+                      <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-8 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
                         No overdue topics.
                       </div>
                     )}
@@ -4593,7 +4609,7 @@ export default function StudyPlanner({
 
                   <button
                     onClick={() => handleViewChange("calendar")}
-                    className="mt-5 w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#0ea5e9] text-white"
+                    className="mt-5 w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#0ea5e9] text-white"
                   >
                     Reschedule Overdue
                   </button>
@@ -4612,13 +4628,15 @@ export default function StudyPlanner({
               <div className="rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
                 <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                   <div className="space-y-3">
-                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
+                    <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
                       Premium Study Intelligence
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <h2
                         className="text-3xl md:text-4xl font-black text-[#2d333b] dark:text-[#e7e5e5]"
-                        style={{ fontFamily: "'Satoshi', sans-serif" }}
+                        style={{
+                          fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em",
+                        }}
                       >
                         {
                           insightStatusMeta[insights.summary.onTrackStatus]
@@ -4626,7 +4644,7 @@ export default function StudyPlanner({
                         }
                       </h2>
                       <span
-                        className={`text-[11px] font-black uppercase tracking-[0.18em] px-3 py-1.5 rounded-full ${insightStatusMeta[insights.summary.onTrackStatus].tone} ${insightStatusMeta[insights.summary.onTrackStatus].chip}`}
+                        className={`text-[13px] font-black uppercase tracking-[0.18em] px-3 py-1.5 rounded-full ${insightStatusMeta[insights.summary.onTrackStatus].tone} ${insightStatusMeta[insights.summary.onTrackStatus].chip}`}
                       >
                         {insights.summary.remainingTopics} topics left
                       </span>
@@ -4640,7 +4658,7 @@ export default function StudyPlanner({
 
                   {!isPremium ? (
                     <div className="rounded-2xl border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/20 px-5 py-4 min-w-[280px]">
-                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300 mb-2">
+                      <div className="text-[12px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300 mb-2">
                         Premium Locked
                       </div>
                       <p className="text-sm font-bold text-amber-900 dark:text-amber-100 leading-relaxed mb-4">
@@ -4652,14 +4670,14 @@ export default function StudyPlanner({
                         onClick={() => {
                           void upgradePlannerPremium();
                         }}
-                        className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white shadow-[0_4px_12px_rgba(59,130,246,0.35)]"
+                        className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white shadow-[0_4px_12px_rgba(59,130,246,0.35)]"
                       >
                         Upgrade to Premium
                       </button>
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-emerald-300 dark:border-emerald-700/40 bg-emerald-50 dark:bg-emerald-950/20 px-5 py-4 min-w-[260px]">
-                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300 mb-2">
+                      <div className="text-[12px] font-black uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300 mb-2">
                         Premium Active
                       </div>
                       <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100 leading-relaxed">
@@ -4717,16 +4735,16 @@ export default function StudyPlanner({
                     key={card.label}
                     className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]"
                   >
-                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-3">
+                    <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-3">
                       {card.label}
                     </div>
                     <div
                       className={`text-3xl md:text-4xl font-black mb-2 ${card.tone}`}
-                      style={{ fontFamily: "'Satoshi', sans-serif" }}
+                      style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
                     >
                       {card.value}
                     </div>
-                    <div className="text-[11px] font-bold text-[#64748b] dark:text-[#9aa2ae] leading-relaxed">
+                    <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] leading-relaxed">
                       {card.subtext}
                     </div>
                   </div>
@@ -4743,13 +4761,13 @@ export default function StudyPlanner({
                         <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                           Consistency Pulse
                         </h3>
-                        <p className="text-[11px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2">
+                        <p className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2">
                           Shows how regularly you are completing topics, so
                           pacing guidance reflects actual execution and not just
                           planned dates.
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
+                      <div className="flex flex-wrap items-center gap-3 text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
                         <span className="px-3 py-1.5 rounded-full bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
                           Best day: {insights.consistency.bestStudyWeekday}
                         </span>
@@ -4761,7 +4779,7 @@ export default function StudyPlanner({
                     <div className="grid xl:grid-cols-[260px_minmax(0,1fr)] gap-6">
                       <div className="grid sm:grid-cols-3 xl:grid-cols-1 gap-4">
                         <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Study streak
                           </div>
                           <div className="text-3xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
@@ -4769,7 +4787,7 @@ export default function StudyPlanner({
                           </div>
                         </div>
                         <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Last 14 days
                           </div>
                           <div className="text-3xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
@@ -4777,7 +4795,7 @@ export default function StudyPlanner({
                           </div>
                         </div>
                         <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Best weekday
                           </div>
                           <div className="text-lg font-black text-[#2d333b] dark:text-[#e7e5e5] leading-snug">
@@ -4787,10 +4805,10 @@ export default function StudyPlanner({
                       </div>
                       <div className="rounded-2xl p-5 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
                         <div className="flex items-center justify-between mb-4">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
                             30-day completion heatmap
                           </div>
-                          <div className="text-[10px] font-bold text-[#64748b] dark:text-[#9aa2ae]">
+                          <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae]">
                             Darker cells mean more completed topics
                           </div>
                         </div>
@@ -4813,7 +4831,7 @@ export default function StudyPlanner({
                                   title={`${formatDate(point.date)}: ${point.count} topic${point.count === 1 ? "" : "s"} completed`}
                                   className={`w-full aspect-square rounded-lg border border-white/70 dark:border-[#2b2c2c] ${intensity}`}
                                 />
-                                <span className="text-[9px] font-bold text-[#64748b] dark:text-[#767575]">
+                                <span className="text-[11px] font-bold text-[#64748b] dark:text-[#767575]">
                                   {new Date(point.date).getDate()}
                                 </span>
                               </div>
@@ -4830,7 +4848,7 @@ export default function StudyPlanner({
                         <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                           Deadline and Pace
                         </h3>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
+                        <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
                           Exam-bound forecast
                         </span>
                       </div>
@@ -4870,12 +4888,14 @@ export default function StudyPlanner({
                             key={item.label}
                             className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]"
                           >
-                            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                            <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                               {item.label}
                             </div>
                             <div
                               className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5]"
-                              style={{ fontFamily: "'Satoshi', sans-serif" }}
+                              style={{
+                                fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em",
+                              }}
                             >
                               {item.value}
                             </div>
@@ -4883,7 +4903,7 @@ export default function StudyPlanner({
                         ))}
                       </div>
                       <div className="mt-5 rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                        <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                        <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                           Pacing read
                         </div>
                         <p className="text-sm font-bold text-[#475569] dark:text-[#c6c6c6] leading-relaxed">
@@ -4901,7 +4921,7 @@ export default function StudyPlanner({
                         <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                           Workload Balance
                         </h3>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
+                        <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
                           Next 14 study days
                         </span>
                       </div>
@@ -4924,19 +4944,19 @@ export default function StudyPlanner({
                                 style={{ height: `${barHeight}px` }}
                               >
                                 <span
-                                  className={`text-[11px] font-black mb-3 ${day.isOffDay ? "text-amber-700 dark:text-amber-300" : isOverloaded ? "text-rose-700 dark:text-rose-300" : "text-[#2d333b] dark:text-[#e7e5e5]"}`}
+                                  className={`text-[13px] font-black mb-3 ${day.isOffDay ? "text-amber-700 dark:text-amber-300" : isOverloaded ? "text-rose-700 dark:text-rose-300" : "text-[#2d333b] dark:text-[#e7e5e5]"}`}
                                 >
                                   {day.isOffDay ? "OFF" : day.plannedCount}
                                 </span>
                               </div>
                               <div className="text-center">
-                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#475569] dark:text-[#9aa2ae]">
+                                <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#475569] dark:text-[#9aa2ae]">
                                   {new Date(day.date).toLocaleDateString(
                                     "en-US",
                                     { weekday: "short" },
                                   )}
                                 </div>
-                                <div className="text-[10px] font-bold text-[#64748b] dark:text-[#767575]">
+                                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#767575]">
                                   {formatDate(day.date)}
                                 </div>
                               </div>
@@ -4946,7 +4966,7 @@ export default function StudyPlanner({
                       </div>
                       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
                         <div className="rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Overloaded days
                           </div>
                           <div className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
@@ -4954,7 +4974,7 @@ export default function StudyPlanner({
                           </div>
                         </div>
                         <div className="rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Empty study days
                           </div>
                           <div className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
@@ -4962,7 +4982,7 @@ export default function StudyPlanner({
                           </div>
                         </div>
                         <div className="rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Busiest day
                           </div>
                           <div className="text-lg font-black text-[#2d333b] dark:text-[#e7e5e5] leading-snug">
@@ -4970,14 +4990,14 @@ export default function StudyPlanner({
                               ? formatDate(insights.workload.busiestDay.date)
                               : "No scheduled load"}
                           </div>
-                          <div className="text-[10px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2">
+                          <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2">
                             {insights.workload.busiestDay
                               ? `${insights.workload.busiestDay.plannedCount} planned topics`
                               : "Add dates to surface workload peaks"}
                           </div>
                         </div>
                         <div className="rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Busiest subject
                           </div>
                           <div className="text-lg font-black text-[#2d333b] dark:text-[#e7e5e5] leading-snug">
@@ -4995,7 +5015,7 @@ export default function StudyPlanner({
                         <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                           Coverage and Retention
                         </h3>
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
+                        <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
                           Worst-to-best subjects
                         </span>
                       </div>
@@ -5010,7 +5030,7 @@ export default function StudyPlanner({
                                 <div className="text-[16px] font-black text-[#2d333b] dark:text-[#e7e5e5]">
                                   {subject.subjectName}
                                 </div>
-                                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mt-1">
+                                <div className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mt-1">
                                   {subject.remainingTopics} remaining ·{" "}
                                   {subject.scheduledTopics} scheduled ·{" "}
                                   {subject.overdueTopics} overdue
@@ -5040,7 +5060,7 @@ export default function StudyPlanner({
                           <h3 className="text-[18px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                             Lagging Chapters
                           </h3>
-                          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
+                          <span className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
                             Focus now
                           </span>
                         </div>
@@ -5053,7 +5073,7 @@ export default function StudyPlanner({
                               <div className="text-[14px] font-black text-[#2d333b] dark:text-[#e7e5e5]">
                                 {chapter.chapterName}
                               </div>
-                              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mt-1">
+                              <div className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mt-1">
                                 {chapter.subjectName} ·{" "}
                                 {chapter.remainingTopics} remaining ·{" "}
                                 {chapter.overdueTopics} overdue
@@ -5061,7 +5081,7 @@ export default function StudyPlanner({
                             </div>
                           ))}
                           {insights.coverage.laggingChapters.length === 0 && (
-                            <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-6 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
+                            <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-6 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
                               No lagging chapters right now.
                             </div>
                           )}
@@ -5073,7 +5093,7 @@ export default function StudyPlanner({
                           <h3 className="text-[18px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                             Revision Queue
                           </h3>
-                          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
+                          <span className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
                             Retention pressure
                           </span>
                         </div>
@@ -5104,7 +5124,7 @@ export default function StudyPlanner({
                               >
                                 {item.value}
                               </div>
-                              <div className="text-[9px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mt-2">
+                              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mt-2">
                                 {item.label}
                               </div>
                             </div>
@@ -5120,13 +5140,13 @@ export default function StudyPlanner({
                         <h3 className="text-[18px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                           Backlog Health
                         </h3>
-                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
+                        <span className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
                           Current state
                         </span>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4 mb-5">
                         <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Unplanned unfinished
                           </div>
                           <div className="text-3xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
@@ -5134,7 +5154,7 @@ export default function StudyPlanner({
                           </div>
                         </div>
                         <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Overdue total
                           </div>
                           <div className="text-3xl font-black text-rose-700 dark:text-rose-300">
@@ -5161,7 +5181,7 @@ export default function StudyPlanner({
                             key={label}
                             className="flex items-center justify-between rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]"
                           >
-                            <span className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
+                            <span className="text-[14px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
                               {label}
                             </span>
                             <span className="text-[20px] font-black text-[#2d333b] dark:text-[#e7e5e5]">
@@ -5177,7 +5197,7 @@ export default function StudyPlanner({
                         <h3 className="text-[18px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
                           Next Actions
                         </h3>
-                        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
+                        <span className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
                           Rule-based guidance
                         </span>
                       </div>
@@ -5192,7 +5212,7 @@ export default function StudyPlanner({
                                 <div className="text-[16px] font-black text-[#2d333b] dark:text-[#e7e5e5]">
                                   {item.title}
                                 </div>
-                                <div className="text-[11px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2 leading-relaxed">
+                                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2 leading-relaxed">
                                   {item.reason}
                                 </div>
                               </div>
@@ -5200,7 +5220,7 @@ export default function StudyPlanner({
                                 onClick={() =>
                                   handleViewChange(item.targetView)
                                 }
-                                className="shrink-0 text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] hover:bg-blue-700 transition-colors"
+                                className="shrink-0 text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] hover:bg-blue-700 transition-colors"
                               >
                                 {item.ctaLabel}
                               </button>
@@ -5208,7 +5228,7 @@ export default function StudyPlanner({
                           </div>
                         ))}
                         {insights.recommendations.length === 0 && (
-                          <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-8 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
+                          <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-8 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
                             No urgent changes recommended right now. Keep
                             executing the current plan.
                           </div>
@@ -5221,7 +5241,7 @@ export default function StudyPlanner({
                 {!isPremium && (
                   <div className="absolute inset-0 flex items-center justify-center px-6">
                     <div className="pointer-events-auto max-w-xl rounded-3xl border border-amber-300 dark:border-amber-700/50 bg-white/90 dark:bg-[#111214]/90 backdrop-blur-md p-8 text-center shadow-[0_20px_60px_rgba(15,23,42,0.25)]">
-                      <div className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300 mb-3">
+                      <div className="text-[12px] font-black uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300 mb-3">
                         Premium Preview
                       </div>
                       <h3 className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5] mb-3">
@@ -5238,7 +5258,7 @@ export default function StudyPlanner({
                         onClick={() => {
                           void upgradePlannerPremium();
                         }}
-                        className="text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-full bg-[#3b82f6] text-white shadow-[0_4px_12px_rgba(59,130,246,0.35)]"
+                        className="text-[12px] font-black uppercase tracking-widest px-6 py-3 rounded-full bg-[#3b82f6] text-white shadow-[0_4px_12px_rgba(59,130,246,0.35)]"
                       >
                         Upgrade to Premium
                       </button>
@@ -5288,7 +5308,7 @@ export default function StudyPlanner({
                     onClick={() =>
                       handleViewChange("syllabus", { bypassOnboarding: true })
                     }
-                    className="text-[12px] font-black uppercase tracking-widest px-10 py-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_14px_rgba(37,99,235,0.39)] transition-transform hover:scale-105 active:scale-95"
+                    className="text-[14px] font-black uppercase tracking-widest px-10 py-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_14px_rgba(37,99,235,0.39)] transition-transform hover:scale-105 active:scale-95"
                   >
                     Go to Syllabus Builder
                   </button>
@@ -5300,7 +5320,7 @@ export default function StudyPlanner({
                     className="flex flex-col gap-6"
                   >
                     <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
+                      <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
                         Exam Settings
                       </div>
                       <div className="grid gap-4">
@@ -5326,7 +5346,7 @@ export default function StudyPlanner({
                           onClick={() => {
                             void saveExamSettings();
                           }}
-                          className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#3b82f6] text-white"
+                          className="text-[13px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#3b82f6] text-white"
                         >
                           Save Changes
                         </button>
@@ -5334,12 +5354,12 @@ export default function StudyPlanner({
                     </div>
 
                     <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
+                      <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
                         Study Capacity
                       </div>
                       <div className="grid gap-4">
                         <div>
-                          <label className="text-[10px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#9aa2ae]">
+                          <label className="text-[12px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#9aa2ae]">
                             Daily goal
                           </label>
                           <input
@@ -5354,7 +5374,7 @@ export default function StudyPlanner({
                         </div>
 
                         <div>
-                          <div className="text-[10px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                          <div className="text-[12px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#9aa2ae] mb-2">
                             Off days
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -5372,7 +5392,7 @@ export default function StudyPlanner({
                               <button
                                 key={label}
                                 onClick={() => toggleOffDay(idx)}
-                                className={`text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${
+                                className={`text-[12px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${
                                   offDaysDraft.includes(idx)
                                     ? "bg-[#3b82f6] text-white border-[#2563eb]"
                                     : "bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5] border-[#c0c4d1] dark:border-[#2b2c2c]"
@@ -5389,7 +5409,7 @@ export default function StudyPlanner({
                             onClick={() =>
                               setShowAdvancedCapacity((prev) => !prev)
                             }
-                            className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-none border border-[#c0c4d1] dark:border-[#2b2c2c] bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5]"
+                            className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none border border-[#c0c4d1] dark:border-[#2b2c2c] bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5]"
                           >
                             {showAdvancedCapacity
                               ? "Hide Advanced Settings"
@@ -5403,7 +5423,7 @@ export default function StudyPlanner({
                               onClick={() =>
                                 setIncludeRevisionNeeded((prev) => !prev)
                               }
-                              className={`text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-none border ${
+                              className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none border ${
                                 includeRevisionNeeded
                                   ? "bg-[#f3e8ff] text-[#6b21a8] border-[#e9d5ff]"
                                   : "bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5] border-[#c0c4d1] dark:border-[#2b2c2c]"
@@ -5415,7 +5435,7 @@ export default function StudyPlanner({
                               onClick={() =>
                                 setLockExistingDates((prev) => !prev)
                               }
-                              className={`text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-none border ${
+                              className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none border ${
                                 lockExistingDates
                                   ? "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"
                                   : "bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5] border-[#c0c4d1] dark:border-[#2b2c2c]"
@@ -5430,11 +5450,11 @@ export default function StudyPlanner({
                           onClick={() => {
                             void saveCapacitySettings();
                           }}
-                          className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#3b82f6] text-white"
+                          className="text-[13px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#3b82f6] text-white"
                         >
                           Save Changes
                         </button>
-                        <div className="text-[11px] font-bold text-[#64748b] dark:text-[#9aa2ae]">
+                        <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae]">
                           These settings affect how your schedule is generated.
                         </div>
                       </div>
@@ -5446,21 +5466,21 @@ export default function StudyPlanner({
                     className="flex flex-col gap-6"
                   >
                     <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
+                      <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
                         Step 2: Auto Schedule
                       </div>
                       <div className="mb-4 rounded-2xl bg-[#e6e7ee] dark:bg-[#131416] border border-[#c0c4d1] dark:border-[#2b2c2c] p-4">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
+                        <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
                           How Scheduling Works
                         </div>
                         {beginnerMode ? (
-                          <p className="text-[11px] font-bold text-[#475569] dark:text-[#9aa2ae]">
+                          <p className="text-[13px] font-bold text-[#475569] dark:text-[#9aa2ae]">
                             Auto-schedule uses your exam date, daily goal, and
                             off days to place unfinished topics on upcoming
                             days.
                           </p>
                         ) : (
-                          <ul className="text-[11px] font-bold text-[#475569] dark:text-[#9aa2ae] space-y-1.5">
+                          <ul className="text-[13px] font-bold text-[#475569] dark:text-[#9aa2ae] space-y-1.5">
                             <li>Only unfinished topics are scheduled.</li>
                             <li>Done topics are never scheduled again.</li>
                             <li>Off days are skipped.</li>
@@ -5480,7 +5500,7 @@ export default function StudyPlanner({
                         onClick={() => {
                           void runGuidedAction(activeGuideAction);
                         }}
-                        className="w-full text-[12px] font-black uppercase tracking-widest px-6 py-4 rounded-full bg-[#3b82f6] text-white mb-4"
+                        className="w-full text-[14px] font-black uppercase tracking-widest px-6 py-4 rounded-full bg-[#3b82f6] text-white mb-4"
                       >
                         {currentGuide.actionLabel}
                       </button>
@@ -5491,7 +5511,7 @@ export default function StudyPlanner({
                             onClick={() =>
                               setShowAdvancedPlanActions((prev) => !prev)
                             }
-                            className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
+                            className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
                           >
                             {showAdvancedPlanActions
                               ? "Hide Secondary Actions"
@@ -5514,7 +5534,7 @@ export default function StudyPlanner({
                                       "This will remove planned dates for future topics. Continue?",
                                   });
                                 }}
-                                className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
+                                className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
                               >
                                 Clear Future Dates{!isPremium ? " 🔒" : ""}
                               </button>
@@ -5526,7 +5546,7 @@ export default function StudyPlanner({
                                   }
                                   handleViewChange("calendar");
                                 }}
-                                className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
+                                className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
                               >
                                 Reschedule in Calendar{!isPremium ? " 🔒" : ""}
                               </button>
@@ -5540,7 +5560,7 @@ export default function StudyPlanner({
                                       "This will reset ALL topics to Not Started. This cannot be undone!",
                                   })
                                 }
-                                className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
+                                className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
                               >
                                 Reset Plan
                               </button>
@@ -5563,7 +5583,7 @@ export default function StudyPlanner({
                                   "This will remove planned dates for future topics. Continue?",
                               });
                             }}
-                            className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300 mb-3"
+                            className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300 mb-3"
                           >
                             Clear Future Dates{!isPremium ? " 🔒" : ""}
                           </button>
@@ -5575,7 +5595,7 @@ export default function StudyPlanner({
                               }
                               handleViewChange("calendar");
                             }}
-                            className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
+                            className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
                           >
                             Reschedule in Calendar{!isPremium ? " 🔒" : ""}
                           </button>
@@ -5589,7 +5609,7 @@ export default function StudyPlanner({
                                   "This will reset ALL topics to Not Started. This cannot be undone!",
                               })
                             }
-                            className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300 mt-3"
+                            className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300 mt-3"
                           >
                             Reset Plan
                           </button>
@@ -5598,10 +5618,10 @@ export default function StudyPlanner({
                     </div>
 
                     <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
+                      <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
                         Progress Snapshot
                       </div>
-                      <div className="grid gap-3 text-[12px] font-bold text-[#475569] dark:text-[#9aa2ae]">
+                      <div className="grid gap-3 text-[14px] font-bold text-[#475569] dark:text-[#9aa2ae]">
                         <div className="flex justify-between">
                           <span>Not Started</span>
                           <span>{statusCounts.todo}</span>
@@ -5646,17 +5666,17 @@ export default function StudyPlanner({
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-lg">📚</span>
-                    <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                    <span className="text-[13px] font-bold text-amber-700 dark:text-amber-300">
                       {totalTopicCount}/{FREE_TOPIC_LIMIT} topics used on Free
                       Plan
                     </span>
                     {remainingFreeTopics <= 5 && remainingFreeTopics > 0 && (
-                      <span className="text-[9px] font-black text-red-500 dark:text-red-400 animate-pulse">
+                      <span className="text-[11px] font-black text-red-500 dark:text-red-400 animate-pulse">
                         {remainingFreeTopics} remaining!
                       </span>
                     )}
                     {remainingFreeTopics === 0 && (
-                      <span className="text-[9px] font-black text-red-500 dark:text-red-400 animate-pulse">
+                      <span className="text-[11px] font-black text-red-500 dark:text-red-400 animate-pulse">
                         LIMIT REACHED
                       </span>
                     )}
@@ -5664,7 +5684,7 @@ export default function StudyPlanner({
                   {remainingFreeTopics <= 10 && (
                     <button
                       onClick={() => setPremiumModalReason("topic_limit")}
-                      className="text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm hover:shadow-md transition-all whitespace-nowrap"
+                      className="text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm hover:shadow-md transition-all whitespace-nowrap"
                     >
                       Upgrade for Unlimited
                     </button>
@@ -5695,7 +5715,7 @@ export default function StudyPlanner({
                       <h4 className="text-sm font-bold text-[#1e293b] dark:text-[#c6c6c6]">
                         Ready to Schedule!
                       </h4>
-                      <p className="text-xs font-bold text-[#64748b] dark:text-[#767575] mt-0.5">
+                      <p className="text-sm font-bold text-[#64748b] dark:text-[#767575] mt-0.5">
                         You have{" "}
                         <span className="text-blue-600 dark:text-[#93c5fd] font-black">
                           {unplannedTopicsCount} unscheduled topics
@@ -5706,7 +5726,7 @@ export default function StudyPlanner({
                   </div>
                   <button
                     onClick={() => handleViewChange("plan")}
-                    className="shrink-0 text-[11px] font-black uppercase tracking-widest px-6 py-3 rounded-full bg-blue-600 text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] hover:bg-blue-700 transition-colors"
+                    className="shrink-0 text-[13px] font-black uppercase tracking-widest px-6 py-3 rounded-full bg-blue-600 text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] hover:bg-blue-700 transition-colors"
                   >
                     Auto-Schedule Now
                   </button>
@@ -5717,7 +5737,7 @@ export default function StudyPlanner({
                 data-tour="planner-syllabus-setup"
                 className={`rounded-3xl p-6 transition-colors duration-500 ${isDarkMode ? "bg-[#0e0e0e] shadow-[8px_8px_20px_rgba(0,0,0,0.6),-4px_-4px_10px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]" : "bg-[#f0f0f5] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)]"}`}
               >
-                <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
+                <div className="text-[12px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
                   Syllabus Setup
                 </div>
 
@@ -5767,14 +5787,14 @@ export default function StudyPlanner({
                   <button
                     data-tour="planner-add-subject"
                     onClick={addSubject}
-                    className={`text-[11px] font-black uppercase tracking-widest rounded-xl px-6 py-3 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] transition-transform hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
+                    className={`text-[13px] font-black uppercase tracking-widest rounded-xl px-6 py-3 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] transition-transform hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
                   >
                     Add Subject
                   </button>
                   <button
                     data-tour="planner-bulk-add-button"
                     onClick={() => setBulkAddOpen(true)}
-                    className="text-[11px] font-black uppercase tracking-widest rounded-xl px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)] transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                    className="text-[13px] font-black uppercase tracking-widest rounded-xl px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)] transition-transform hover:scale-[1.02] active:scale-[0.98]"
                   >
                     Bulk Add
                   </button>
@@ -5801,24 +5821,24 @@ export default function StudyPlanner({
                         }
                       }
                     }}
-                    className={`text-[11px] font-black uppercase tracking-widest rounded-xl px-6 py-3 border transition-transform hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? "bg-[#1a3a52] border-[#0ea5e9] text-[#0ea5e9]" : "bg-[#dbeafe] border-[#0ea5e9] text-[#0c4a6e]"}`}
+                    className={`text-[13px] font-black uppercase tracking-widest rounded-xl px-6 py-3 border transition-transform hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? "bg-[#1a3a52] border-[#0ea5e9] text-[#0ea5e9]" : "bg-[#dbeafe] border-[#0ea5e9] text-[#0c4a6e]"}`}
                   >
                     📋 Use Template
                   </button>
                 </div>
 
-                <div className="text-[11px] font-bold text-[#8b919e] dark:text-[#767575] mt-3">
+                <div className="text-[13px] font-bold text-[#8b919e] dark:text-[#767575] mt-3">
                   Use bulk add for fast entry, or load a full exam template
                   (JEE, NEET, SSC, etc.).
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mr-2">
+                  <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mr-2">
                     Layout
                   </span>
                   <button
                     onClick={() => setSyllabusLayoutMode("classic")}
-                    className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all duration-300 ${
+                    className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all duration-300 ${
                       syllabusLayoutMode === "classic"
                         ? "bg-[#0f766e] text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]"
                         : isDarkMode
@@ -5830,7 +5850,7 @@ export default function StudyPlanner({
                   </button>
                   <button
                     onClick={() => setSyllabusLayoutMode("org-chart")}
-                    className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all duration-300 ${
+                    className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all duration-300 ${
                       syllabusLayoutMode === "org-chart"
                         ? "bg-[#9333ea] text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]"
                         : isDarkMode
@@ -5866,13 +5886,13 @@ export default function StudyPlanner({
                       <>
                         <button
                           onClick={() => setBulkAddOpen(true)}
-                          className="text-[11px] font-black uppercase tracking-widest rounded-full px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)]"
+                          className="text-[13px] font-black uppercase tracking-widest rounded-full px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)]"
                         >
                           Bulk Add Topics
                         </button>
                         <button
                           onClick={() => handleViewChange("plan")}
-                          className={`text-[11px] font-black uppercase tracking-widest rounded-full px-6 py-3 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02)] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
+                          className={`text-[13px] font-black uppercase tracking-widest rounded-full px-6 py-3 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02)] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
                         >
                           Edit Plan
                         </button>
@@ -5884,7 +5904,7 @@ export default function StudyPlanner({
                           setSyllabusStatus("all");
                           setSyllabusSubject("all");
                         }}
-                        className="text-[11px] font-black uppercase tracking-widest rounded-full px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)]"
+                        className="text-[13px] font-black uppercase tracking-widest rounded-full px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)]"
                       >
                         Clear Filters
                       </button>
@@ -5901,7 +5921,7 @@ export default function StudyPlanner({
                   >
                     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-5">
                       <div>
-                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
+                        <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
                           Hierarchy Map
                         </div>
                         <h3
@@ -5910,7 +5930,7 @@ export default function StudyPlanner({
                           Subject -&gt; Chapter -&gt; Topic
                         </h3>
                       </div>
-                      <div className="text-[11px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                      <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                         {hierarchySubjects.length} subjects · {topics.length}{" "}
                         topics
                       </div>
@@ -5941,7 +5961,7 @@ export default function StudyPlanner({
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => toggleSubjectBranch(subject.id)}
-                                className={`w-7 h-7 rounded-full text-[10px] font-black flex items-center justify-center transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[2px_2px_4px_rgba(0,0,0,0.5),-1px_-1px_2px_rgba(255,255,255,0.05)]" : "bg-white text-slate-700 shadow-[2px_2px_4px_rgba(166,171,189,0.3),-2px_-2px_4px_rgba(255,255,255,0.8)]"}`}
+                                className={`w-7 h-7 rounded-full text-[12px] font-black flex items-center justify-center transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[2px_2px_4px_rgba(0,0,0,0.5),-1px_-1px_2px_rgba(255,255,255,0.05)]" : "bg-white text-slate-700 shadow-[2px_2px_4px_rgba(166,171,189,0.3),-2px_-2px_4px_rgba(255,255,255,0.8)]"}`}
                                 aria-label={
                                   subjectOpen
                                     ? "Collapse subject"
@@ -5973,13 +5993,13 @@ export default function StudyPlanner({
                                     {subject.name}
                                   </span>
                                   <span
-                                    className={`ml-auto text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${isDarkMode ? "bg-zinc-800 text-zinc-200" : "bg-white text-slate-700"}`}
+                                    className={`ml-auto text-[12px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${isDarkMode ? "bg-zinc-800 text-zinc-200" : "bg-white text-slate-700"}`}
                                   >
                                     {subjectNode.doneTopics}/
                                     {subjectNode.totalTopics} done
                                   </span>
                                 </div>
-                                <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                                <div className="mt-1 text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                                   {subjectNode.chapters.length} chapters ·{" "}
                                   {subjectNode.scheduledTopics} scheduled ·{" "}
                                   {subjectNode.overdueTopics} overdue
@@ -5992,7 +6012,7 @@ export default function StudyPlanner({
                                 className={`ml-8 mt-4 border-l pl-4 space-y-3 ${isDarkMode ? "border-zinc-700" : "border-slate-300"}`}
                               >
                                 {subjectNode.chapters.length === 0 ? (
-                                  <div className="text-[11px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                                  <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                                     Add a chapter to begin this subject.
                                   </div>
                                 ) : (
@@ -6028,7 +6048,7 @@ export default function StudyPlanner({
                                             onClick={() =>
                                               toggleChapterBranch(chapter.id)
                                             }
-                                            className={`w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[2px_2px_4px_rgba(0,0,0,0.5),-1px_-1px_2px_rgba(255,255,255,0.05)]" : "bg-white text-slate-700 shadow-[2px_2px_4px_rgba(166,171,189,0.3),-2px_-2px_4px_rgba(255,255,255,0.8)]"}`}
+                                            className={`w-6 h-6 rounded-full text-[12px] font-black flex items-center justify-center transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[2px_2px_4px_rgba(0,0,0,0.5),-1px_-1px_2px_rgba(255,255,255,0.05)]" : "bg-white text-slate-700 shadow-[2px_2px_4px_rgba(166,171,189,0.3),-2px_-2px_4px_rgba(255,255,255,0.8)]"}`}
                                             aria-label={
                                               chapterOpen
                                                 ? "Collapse chapter"
@@ -6058,7 +6078,7 @@ export default function StudyPlanner({
                                             >
                                               {chapter.name}
                                             </div>
-                                            <div className="text-[10px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                                            <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                                               {chapterNode.doneTopics}/
                                               {chapterNode.totalTopics} done ·{" "}
                                               {chapterNode.overdueTopics}{" "}
@@ -6073,7 +6093,7 @@ export default function StudyPlanner({
                                           >
                                             {chapterNode.visibleTopics
                                               .length === 0 ? (
-                                              <div className="text-[10px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                                              <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                                                 No topics in this chapter.
                                               </div>
                                             ) : (
@@ -6125,7 +6145,7 @@ export default function StudyPlanner({
                                                           {topic.name}
                                                         </span>
                                                         <span
-                                                          className="ml-auto text-[9px] whitespace-nowrap px-2 py-1 rounded-full font-black tracking-widest"
+                                                          className="ml-auto text-[11px] whitespace-nowrap px-2 py-1 rounded-full font-black tracking-widest"
                                                           style={{
                                                             color:
                                                               STATUS_UI[
@@ -6152,7 +6172,7 @@ export default function StudyPlanner({
                                                           }
                                                         </span>
                                                       </div>
-                                                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575] mt-1">
+                                                      <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575] mt-1">
                                                         {topic.plannedDate
                                                           ? formatDate(
                                                               topic.plannedDate,
@@ -6181,14 +6201,14 @@ export default function StudyPlanner({
                   <div
                     className={`rounded-3xl p-6 transition-colors duration-500 ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_10px_rgba(0,0,0,0.8),inset_-1px_-1px_4px_rgba(255,255,255,0.03)]" : "bg-[#e8ebf3] shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"}`}
                   >
-                    <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
+                    <div className="text-[12px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
                       Focused Editor
                     </div>
 
                     {selectedTopicContext ? (
                       <div className="space-y-4">
                         <div>
-                          <div className="text-[10px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                          <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                             {selectedTopicContext.subjectNode.subject.name} ·{" "}
                             {selectedTopicContext.chapterNode.chapter.name}
                           </div>
@@ -6226,13 +6246,13 @@ export default function StudyPlanner({
                                     selectedTopicContext.topic,
                                   );
                                 }}
-                                className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] transition-transform hover:scale-[1.05]"
+                                className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] transition-transform hover:scale-[1.05]"
                               >
                                 Save
                               </button>
                               <button
                                 onClick={() => setEditingTopicId(null)}
-                                className={`text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                                className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                               >
                                 Cancel
                               </button>
@@ -6248,7 +6268,7 @@ export default function StudyPlanner({
                                 onClick={() =>
                                   startTopicRename(selectedTopicContext.topic)
                                 }
-                                className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                                className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                               >
                                 Edit Tag
                               </button>
@@ -6263,7 +6283,7 @@ export default function StudyPlanner({
                                 status: "todo",
                               })
                             }
-                            className={`text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full transition-transform hover:scale-[1.05] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#64748b] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                            className={`text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full transition-transform hover:scale-[1.05] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#64748b] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                           >
                             Not Started
                           </button>
@@ -6273,7 +6293,7 @@ export default function StudyPlanner({
                                 status: "in_progress",
                               })
                             }
-                            className="text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(2,132,199,0.4)] transition-transform hover:scale-[1.05]"
+                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(2,132,199,0.4)] transition-transform hover:scale-[1.05]"
                           >
                             Start
                           </button>
@@ -6283,7 +6303,7 @@ export default function StudyPlanner({
                                 status: "done",
                               })
                             }
-                            className="text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#16a34a] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(22,163,74,0.4)] transition-transform hover:scale-[1.05]"
+                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#16a34a] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(22,163,74,0.4)] transition-transform hover:scale-[1.05]"
                           >
                             Mark Done
                           </button>
@@ -6293,7 +6313,7 @@ export default function StudyPlanner({
                                 status: "revision_needed",
                               })
                             }
-                            className="text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#9333ea] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(147,51,234,0.4)] transition-transform hover:scale-[1.05]"
+                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#9333ea] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(147,51,234,0.4)] transition-transform hover:scale-[1.05]"
                           >
                             Needs Revision
                           </button>
@@ -6322,7 +6342,7 @@ export default function StudyPlanner({
                               onClick={() => {
                                 void editTopicNotes(selectedTopicContext.topic);
                               }}
-                              className={`text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                              className={`text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                             >
                               Edit Notes
                             </button>
@@ -6332,7 +6352,7 @@ export default function StudyPlanner({
                                   plannedDate: "",
                                 })
                               }
-                              className="text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#ef4444] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(239,68,68,0.4)] transition-transform hover:scale-[1.05]"
+                              className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#ef4444] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(239,68,68,0.4)] transition-transform hover:scale-[1.05]"
                             >
                               Un-Schedule
                             </button>
@@ -6340,7 +6360,7 @@ export default function StudyPlanner({
                               onClick={() => {
                                 void deleteTopic(selectedTopicContext.topic.id);
                               }}
-                              className="text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
+                              className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
                             >
                               Delete Topic
                             </button>
@@ -6349,7 +6369,7 @@ export default function StudyPlanner({
                       </div>
                     ) : selectedChapterContext ? (
                       <div className="space-y-4">
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                        <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                           {selectedChapterContext.subjectNode.subject.name}
                         </div>
 
@@ -6391,13 +6411,13 @@ export default function StudyPlanner({
                                   selectedChapterContext.chapterNode.chapter,
                                 );
                               }}
-                              className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] transition-transform hover:scale-[1.05]"
+                              className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] transition-transform hover:scale-[1.05]"
                             >
                               Save
                             </button>
                             <button
                               onClick={() => setEditingChapterId(null)}
-                              className={`text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                             >
                               Cancel
                             </button>
@@ -6415,14 +6435,14 @@ export default function StudyPlanner({
                                   selectedChapterContext.chapterNode.chapter,
                                 )
                               }
-                              className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                             >
                               Edit Name
                             </button>
                           </div>
                         )}
 
-                        <div className="text-[11px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                        <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                           {selectedChapterContext.chapterNode.totalTopics}{" "}
                           topics ·{" "}
                           {selectedChapterContext.chapterNode.doneTopics} done ·{" "}
@@ -6472,7 +6492,7 @@ export default function StudyPlanner({
                                   selectedChapterContext.chapterNode.chapter.id,
                                 )
                               }
-                              className="text-[10px] font-black uppercase tracking-widest rounded-xl px-5 py-3 bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
+                              className="text-[12px] font-black uppercase tracking-widest rounded-xl px-5 py-3 bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
                             >
                               Add Topics
                             </button>
@@ -6486,7 +6506,7 @@ export default function StudyPlanner({
                               selectedChapterContext.chapterNode.chapter.id,
                             );
                           }}
-                          className="text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
+                          className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
                         >
                           Delete Chapter
                         </button>
@@ -6528,13 +6548,13 @@ export default function StudyPlanner({
                                   activeHierarchySubject.subject,
                                 );
                               }}
-                              className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] transition-transform hover:scale-[1.05]"
+                              className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] transition-transform hover:scale-[1.05]"
                             >
                               Save
                             </button>
                             <button
                               onClick={() => setEditingSubjectId(null)}
-                              className={`text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                             >
                               Cancel
                             </button>
@@ -6552,14 +6572,14 @@ export default function StudyPlanner({
                                   activeHierarchySubject.subject,
                                 )
                               }
-                              className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                             >
                               Edit Name
                             </button>
                           </div>
                         )}
 
-                        <div className="text-[11px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                        <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                           {activeHierarchySubject.totalTopics} topics ·{" "}
                           {activeHierarchySubject.doneTopics} done ·{" "}
                           {activeHierarchySubject.chapters.length} chapters
@@ -6585,7 +6605,7 @@ export default function StudyPlanner({
                             onClick={() =>
                               addChapter(activeHierarchySubject.subject.id)
                             }
-                            className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
+                            className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
                           >
                             Add Chapter
                           </button>
@@ -6600,7 +6620,7 @@ export default function StudyPlanner({
                               setBulkSubjectName("");
                               setBulkAddOpen(true);
                             }}
-                            className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)] transition-transform hover:scale-[1.05]"
+                            className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)] transition-transform hover:scale-[1.05]"
                           >
                             Bulk Add
                           </button>
@@ -6610,14 +6630,14 @@ export default function StudyPlanner({
                                 activeHierarchySubject.subject.id,
                               );
                             }}
-                            className="text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
+                            className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
                           >
                             Delete Subject
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-[12px] font-bold text-[#8b919e] dark:text-[#767575]">
+                      <div className="text-[14px] font-bold text-[#8b919e] dark:text-[#767575]">
                         Select a subject, chapter, or topic to edit.
                       </div>
                     )}
@@ -6658,7 +6678,7 @@ export default function StudyPlanner({
                                 }`}
                               >
                                 <div className="flex flex-col items-center gap-2">
-                                  <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-50 mb-1">
+                                  <div className="text-[12px] font-black uppercase tracking-[0.3em] opacity-50 mb-1">
                                     Subject
                                   </div>
                                   <div className="text-xl font-black tracking-tight uppercase">
@@ -6724,7 +6744,7 @@ export default function StudyPlanner({
                                                 : "bg-[#f8fafc] text-slate-700 border-slate-200"
                                           }`}
                                         >
-                                          <div className="text-[9px] font-black uppercase tracking-[0.2em] opacity-50 mb-1">
+                                          <div className="text-[11px] font-black uppercase tracking-[0.2em] opacity-50 mb-1">
                                             Chapter
                                           </div>
                                           <div className="text-sm font-bold uppercase truncate">
@@ -6766,7 +6786,7 @@ export default function StudyPlanner({
                                                           : "bg-white hover:bg-slate-50 text-slate-500 border-slate-100"
                                                     }`}
                                                   >
-                                                    <div className="text-[11px] font-black uppercase tracking-tight truncate text-left flex-1">
+                                                    <div className="text-[13px] font-black uppercase tracking-tight truncate text-left flex-1">
                                                       {topic.name}
                                                     </div>
                                                     <div
@@ -6816,7 +6836,7 @@ export default function StudyPlanner({
                                                     );
                                                 }}
                                                 placeholder="Topic name..."
-                                                className={`w-full px-4 py-3 rounded-xl text-[11px] font-bold border focus:outline-none focus:border-blue-500 ${isDarkMode ? "bg-[#111214] border-zinc-800 text-zinc-300" : "bg-white border-slate-200 text-slate-700"}`}
+                                                className={`w-full px-4 py-3 rounded-xl text-[13px] font-bold border focus:outline-none focus:border-blue-500 ${isDarkMode ? "bg-[#111214] border-zinc-800 text-zinc-300" : "bg-white border-slate-200 text-slate-700"}`}
                                               />
                                             </div>
                                           ) : (
@@ -6850,7 +6870,7 @@ export default function StudyPlanner({
                                               >
                                                 <path d="M5 12h14m-7-7v14" />
                                               </svg>
-                                              <span className="text-[9px] font-black uppercase tracking-widest">
+                                              <span className="text-[11px] font-black uppercase tracking-widest">
                                                 Add Topic
                                               </span>
                                             </button>
@@ -6918,7 +6938,7 @@ export default function StudyPlanner({
                                       >
                                         <path d="M5 12h14m-7-7v14" />
                                       </svg>
-                                      <span className="text-[10px] font-black uppercase tracking-widest">
+                                      <span className="text-[12px] font-black uppercase tracking-widest">
                                         New Chapter
                                       </span>
                                     </button>
@@ -6947,7 +6967,7 @@ export default function StudyPlanner({
                             placeholder="New Subject name..."
                             className={`px-12 py-8 rounded-2xl border-4 text-center focus:outline-none focus:border-blue-500 text-xl font-black uppercase tracking-tight ${isDarkMode ? "bg-[#0b0c0e] border-zinc-800 text-zinc-300" : "bg-white border-slate-200 text-slate-700"}`}
                           />
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          <div className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">
                             Press Enter to Create
                           </div>
                         </div>
@@ -6990,13 +7010,13 @@ export default function StudyPlanner({
                   <div
                     className={`rounded-3xl p-6 transition-colors duration-500 ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_10px_rgba(0,0,0,0.8),inset_-1px_-1px_4px_rgba(255,255,255,0.03)]" : "bg-[#e8ebf3] shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"}`}
                   >
-                    <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
+                    <div className="text-[12px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
                       Selection Details
                     </div>
                     {selectedTopicContext ? (
                       <div className="space-y-4">
                         <div>
-                          <div className="text-[10px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                          <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                             {selectedTopicContext.subjectNode.subject.name} ·{" "}
                             {selectedTopicContext.chapterNode.chapter.name}
                           </div>
@@ -7034,7 +7054,7 @@ export default function StudyPlanner({
                                     selectedTopicContext.topic,
                                   );
                                 }}
-                                className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
+                                className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
                               >
                                 Save
                               </button>
@@ -7050,7 +7070,7 @@ export default function StudyPlanner({
                                 onClick={() =>
                                   startTopicRename(selectedTopicContext.topic)
                                 }
-                                className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                                className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
                               >
                                 Edit
                               </button>
@@ -7064,7 +7084,7 @@ export default function StudyPlanner({
                                 status: "todo",
                               })
                             }
-                            className={`text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225]" : "bg-[#f0f0f5]"}`}
+                            className={`text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225]" : "bg-[#f0f0f5]"}`}
                           >
                             Todo
                           </button>
@@ -7074,7 +7094,7 @@ export default function StudyPlanner({
                                 status: "in_progress",
                               })
                             }
-                            className="text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white"
+                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white"
                           >
                             Start
                           </button>
@@ -7084,7 +7104,7 @@ export default function StudyPlanner({
                                 status: "done",
                               })
                             }
-                            className="text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#16a34a] text-white"
+                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#16a34a] text-white"
                           >
                             Done
                           </button>
@@ -7109,7 +7129,7 @@ export default function StudyPlanner({
                       </div>
                     ) : selectedChapterContext ? (
                       <div className="space-y-4">
-                        <div className="text-[10px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                        <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                           {selectedChapterContext.subjectNode.subject.name}
                         </div>
                         <h4
@@ -7117,13 +7137,13 @@ export default function StudyPlanner({
                         >
                           {selectedChapterContext.chapterNode.chapter.name}
                         </h4>
-                        <div className="text-[11px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                        <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                           {selectedChapterContext.chapterNode.doneTopics}/
                           {selectedChapterContext.chapterNode.totalTopics} Done
                         </div>
                       </div>
                     ) : (
-                      <div className="text-[12px] font-bold text-[#8b919e] dark:text-[#767575]">
+                      <div className="text-[14px] font-bold text-[#8b919e] dark:text-[#767575]">
                         Select a node in the chart to view details.
                       </div>
                     )}
@@ -7175,13 +7195,13 @@ export default function StudyPlanner({
                                     onClick={() => {
                                       void submitSubjectRename(subject);
                                     }}
-                                    className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-none bg-[#2563eb] text-white"
+                                    className="text-[12px] font-black uppercase tracking-widest px-4 py-2 rounded-none bg-[#2563eb] text-white"
                                   >
                                     Save
                                   </button>
                                   <button
                                     onClick={() => setEditingSubjectId(null)}
-                                    className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-none border ${isDarkMode ? "border-zinc-700 text-zinc-200" : "border-slate-300 text-slate-700"}`}
+                                    className={`text-[12px] font-black uppercase tracking-widest px-4 py-2 rounded-none border ${isDarkMode ? "border-zinc-700 text-zinc-200" : "border-slate-300 text-slate-700"}`}
                                   >
                                     Cancel
                                   </button>
@@ -7193,7 +7213,7 @@ export default function StudyPlanner({
                                   >
                                     {subject.name}
                                   </h3>
-                                  <div className="text-[11px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                                  <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                                     {subjectTopicCount} topics ·{" "}
                                     {subjectPercent(subject)}% complete
                                   </div>
@@ -7204,7 +7224,7 @@ export default function StudyPlanner({
                               {editingSubjectId !== subject.id && (
                                 <button
                                   onClick={() => startSubjectRename(subject)}
-                                  className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                                  className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                                 >
                                   Edit Name
                                 </button>
@@ -7215,7 +7235,7 @@ export default function StudyPlanner({
                                   setBulkSubjectName("");
                                   setBulkAddOpen(true);
                                 }}
-                                className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)] transition-transform hover:scale-[1.05]"
+                                className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)] transition-transform hover:scale-[1.05]"
                               >
                                 Bulk Add
                               </button>
@@ -7223,7 +7243,7 @@ export default function StudyPlanner({
                                 onClick={() => {
                                   void deleteSubject(subject.id);
                                 }}
-                                className="text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
+                                className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
                               >
                                 Delete
                               </button>
@@ -7244,7 +7264,7 @@ export default function StudyPlanner({
                             />
                             <button
                               onClick={() => addChapter(subject.id)}
-                              className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
+                              className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
                             >
                               Add Chapter
                             </button>
@@ -7255,7 +7275,7 @@ export default function StudyPlanner({
                           className={`p-6 flex flex-col gap-6 ${isDarkMode ? "bg-[#09090b]" : "bg-white"}`}
                         >
                           {subject.chapters.length === 0 && (
-                            <div className="text-[12px] font-bold text-[#8b919e] dark:text-[#767575] text-center py-6 border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c] rounded-2xl">
+                            <div className="text-[14px] font-bold text-[#8b919e] dark:text-[#767575] text-center py-6 border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c] rounded-2xl">
                               No chapters yet. Add one to start.
                             </div>
                           )}
@@ -7316,7 +7336,7 @@ export default function StudyPlanner({
                                               chapter,
                                             );
                                           }}
-                                          className="text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] transition-transform hover:scale-[1.05]"
+                                          className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] transition-transform hover:scale-[1.05]"
                                         >
                                           Save
                                         </button>
@@ -7324,7 +7344,7 @@ export default function StudyPlanner({
                                           onClick={() =>
                                             setEditingChapterId(null)
                                           }
-                                          className={`text-[10px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                                          className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                                         >
                                           Cancel
                                         </button>
@@ -7336,7 +7356,7 @@ export default function StudyPlanner({
                                         >
                                           {chapter.name}
                                         </div>
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                                        <div className="text-[12px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                                           {visibleTopics.length} topics
                                         </div>
                                       </>
@@ -7348,7 +7368,7 @@ export default function StudyPlanner({
                                         onClick={() =>
                                           startChapterRename(chapter)
                                         }
-                                        className={`text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                                        className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                                       >
                                         Edit Name
                                       </button>
@@ -7360,7 +7380,7 @@ export default function StudyPlanner({
                                           chapter.id,
                                         );
                                       }}
-                                      className="text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
+                                      className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
                                     >
                                       Delete Chapter
                                     </button>
@@ -7409,7 +7429,7 @@ export default function StudyPlanner({
                                                 onClick={() => {
                                                   void submitTopicRename(topic);
                                                 }}
-                                                className="text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-none bg-[#2563eb] text-white"
+                                                className="text-[11px] font-black uppercase tracking-widest px-3 py-2 rounded-none bg-[#2563eb] text-white"
                                               >
                                                 Save
                                               </button>
@@ -7417,7 +7437,7 @@ export default function StudyPlanner({
                                                 onClick={() =>
                                                   setEditingTopicId(null)
                                                 }
-                                                className={`text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-none border ${isDarkMode ? "border-zinc-700 text-zinc-200" : "border-slate-300 text-slate-700"}`}
+                                                className={`text-[11px] font-black uppercase tracking-widest px-3 py-2 rounded-none border ${isDarkMode ? "border-zinc-700 text-zinc-200" : "border-slate-300 text-slate-700"}`}
                                               >
                                                 Cancel
                                               </button>
@@ -7429,7 +7449,7 @@ export default function StudyPlanner({
                                               {topic.name}
                                             </div>
                                           )}
-                                          <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#8b919e] dark:text-[#767575] mt-1">
+                                          <div className="text-[12px] font-extrabold uppercase tracking-widest text-[#8b919e] dark:text-[#767575] mt-1">
                                             {topic.plannedDate
                                               ? formatDate(topic.plannedDate)
                                               : "Unplanned"}
@@ -7437,7 +7457,7 @@ export default function StudyPlanner({
                                         </div>
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <span
-                                            className="text-[10px] whitespace-nowrap px-3 py-1 rounded-full font-black tracking-widest"
+                                            className="text-[12px] whitespace-nowrap px-3 py-1 rounded-full font-black tracking-widest"
                                             style={{
                                               color:
                                                 STATUS_UI[topic.status].color,
@@ -7452,7 +7472,7 @@ export default function StudyPlanner({
                                             {STATUS_UI[topic.status].label}
                                           </span>
                                           {topic.notes && (
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">
+                                            <span className="text-[12px] font-black uppercase tracking-widest text-[#64748b]">
                                               Notes
                                             </span>
                                           )}
@@ -7461,7 +7481,7 @@ export default function StudyPlanner({
                                               onClick={() =>
                                                 startTopicRename(topic)
                                               }
-                                              className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-none border ${isDarkMode ? "border-zinc-700 text-zinc-200" : "border-slate-300 text-slate-600"}`}
+                                              className={`text-[12px] font-black uppercase tracking-widest px-3 py-1 rounded-none border ${isDarkMode ? "border-zinc-700 text-zinc-200" : "border-slate-300 text-slate-600"}`}
                                             >
                                               Edit
                                             </button>
@@ -7474,7 +7494,7 @@ export default function StudyPlanner({
                                                   : topic.id,
                                               )
                                             }
-                                            className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-none border ${isDarkMode ? "border-zinc-700 text-zinc-200" : "border-slate-300 text-slate-600"}`}
+                                            className={`text-[12px] font-black uppercase tracking-widest px-3 py-1 rounded-none border ${isDarkMode ? "border-zinc-700 text-zinc-200" : "border-slate-300 text-slate-600"}`}
                                           >
                                             {expandedTopicId === topic.id
                                               ? "Hide"
@@ -7490,7 +7510,7 @@ export default function StudyPlanner({
                                               status: "in_progress",
                                             })
                                           }
-                                          className="text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(2,132,199,0.4)] transition-transform hover:scale-[1.05]"
+                                          className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(2,132,199,0.4)] transition-transform hover:scale-[1.05]"
                                         >
                                           Start
                                         </button>
@@ -7500,7 +7520,7 @@ export default function StudyPlanner({
                                               status: "done",
                                             })
                                           }
-                                          className="text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#16a34a] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(22,163,74,0.4)] transition-transform hover:scale-[1.05]"
+                                          className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#16a34a] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(22,163,74,0.4)] transition-transform hover:scale-[1.05]"
                                         >
                                           Mark Done
                                         </button>
@@ -7510,7 +7530,7 @@ export default function StudyPlanner({
                                               status: "revision_needed",
                                             })
                                           }
-                                          className="text-[9px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#9333ea] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(147,51,234,0.4)] transition-transform hover:scale-[1.05]"
+                                          className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#9333ea] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(147,51,234,0.4)] transition-transform hover:scale-[1.05]"
                                         >
                                           Needs Revision
                                         </button>
@@ -7539,7 +7559,7 @@ export default function StudyPlanner({
                                             onClick={() => {
                                               void editTopicNotes(topic);
                                             }}
-                                            className={`text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                                            className={`text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                                           >
                                             Edit Notes
                                           </button>
@@ -7549,7 +7569,7 @@ export default function StudyPlanner({
                                                 plannedDate: "",
                                               })
                                             }
-                                            className="text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#ef4444] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(239,68,68,0.4)] transition-transform hover:scale-[1.05]"
+                                            className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#ef4444] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(239,68,68,0.4)] transition-transform hover:scale-[1.05]"
                                           >
                                             Unsched
                                           </button>
@@ -7557,7 +7577,7 @@ export default function StudyPlanner({
                                             onClick={() => {
                                               void deleteTopic(topic.id);
                                             }}
-                                            className="text-[9px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
+                                            className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
                                           >
                                             Delete
                                           </button>
@@ -7567,7 +7587,7 @@ export default function StudyPlanner({
                                   ))}
 
                                   {visibleTopics.length === 0 && (
-                                    <div className="text-[12px] font-bold text-[#8b919e] dark:text-[#767575] text-center py-6 border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c] rounded-2xl">
+                                    <div className="text-[14px] font-bold text-[#8b919e] dark:text-[#767575] text-center py-6 border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c] rounded-2xl">
                                       No topics yet. Add some below.
                                     </div>
                                   )}
@@ -7603,7 +7623,7 @@ export default function StudyPlanner({
                                       onClick={() =>
                                         addTopic(subject.id, chapter.id)
                                       }
-                                      className="text-[10px] font-black uppercase tracking-widest rounded-xl px-5 py-3 bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
+                                      className="text-[12px] font-black uppercase tracking-widest rounded-xl px-5 py-3 bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
                                     >
                                       Add Topics
                                     </button>
@@ -7668,7 +7688,7 @@ export default function StudyPlanner({
               "
                   >
                     <div className="flex justify-between items-center mb-4 px-2 pt-2">
-                      <h3 className="font-['Satoshi',sans-serif] text-[18.2px] font-bold uppercase tracking-widest text-[#2d333b] dark:text-[#fcf9f8]">
+                      <h3 className="font-study-planner text-[18.2px] font-bold uppercase tracking-widest text-[#2d333b] dark:text-[#fcf9f8]">
                         {title}
                       </h3>
                       <span className="text-[13px] font-bold bg-[#ffffff] dark:bg-[#252626] px-3 py-1 rounded-full text-[#4b5563] dark:text-[#c3c7cd] shadow-sm dark:shadow-none">
@@ -7694,7 +7714,7 @@ export default function StudyPlanner({
                             className={`rounded-lg p-4 cursor-grab active:cursor-grabbing transform transition-all hover:-translate-y-1 bg-[#fcf9f8] dark:bg-[#1a1c1e] shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_4px_10px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.8),0_4px_10px_-2px_rgba(0,0,0,0.6)] ${status === "done" ? (isDarkMode ? "grayscale-[0.2] hover:grayscale-0 opacity-80 hover:opacity-100" : "opacity-80 hover:opacity-100") : ""} border-l-[4px] ${neonClass}`}
                           >
                             <div className="flex justify-between items-start mb-2">
-                              <span className="text-[10px] font-bold text-neutral-500 dark:text-slate-500 uppercase tracking-widest truncate max-w-[80%]">
+                              <span className="text-[12px] font-bold text-neutral-500 dark:text-slate-500 uppercase tracking-widest truncate max-w-[80%]">
                                 {topic.subject.name}
                               </span>
                               <div
@@ -7721,7 +7741,7 @@ export default function StudyPlanner({
                             </p>
 
                             <div className="flex items-center justify-between mt-auto">
-                              <div className="flex items-center gap-4 text-[10px] text-neutral-500 font-bold">
+                              <div className="flex items-center gap-4 text-[12px] text-neutral-500 font-bold">
                                 {topic.plannedDate ? (
                                   <span className="flex items-center gap-1 bg-neutral-200/60 px-2 py-1 rounded-md text-[13px]">
                                     📅 {formatDate(topic.plannedDate)}
@@ -7731,7 +7751,7 @@ export default function StudyPlanner({
                                 )}
                               </div>
                               <span
-                                className={`text-[12px] font-black uppercase tracking-widest ${textClass} px-2 py-1 bg-neutral-200/50 rounded-md`}
+                                className={`text-[14px] font-black uppercase tracking-widest ${textClass} px-2 py-1 bg-neutral-200/50 rounded-md`}
                               >
                                 {STATUS_UI[topic.status].label}
                               </span>
@@ -7779,7 +7799,7 @@ export default function StudyPlanner({
 
                   <strong
                     className="text-[31px] font-bold text-[#2d333b] dark:text-[#fcf9f8] tracking-widest uppercase drop-shadow-sm"
-                    style={{ fontFamily: "'Satoshi', sans-serif" }}
+                    style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
                   >
                     {monthDate.toLocaleDateString("en-IN", {
                       month: "long",
@@ -7812,7 +7832,7 @@ export default function StudyPlanner({
                   />
                 </div>
 
-                <div className="flex flex-wrap gap-3 text-[10px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                <div className="flex flex-wrap gap-3 text-[12px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                   <span className="px-3 py-1 rounded-full border border-slate-200">
                     Planned
                   </span>
@@ -7847,7 +7867,7 @@ export default function StudyPlanner({
                       : "AWAITING SELECTION"}
                   </div>
                   {pickedDay && (
-                    <div className="mt-4 flex items-center justify-center gap-4 text-[10px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                    <div className="mt-4 flex items-center justify-center gap-4 text-[12px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                       <span>Planned {selectedDayItems.length}</span>
                       <span>Done {selectedDayDone.length}</span>
                       <span>Missed {selectedDayMissed.length}</span>
@@ -7866,7 +7886,7 @@ export default function StudyPlanner({
                           {item.topicName}
                         </strong>
                         <span
-                          className="text-[12px] whitespace-nowrap px-2.5 py-1 rounded-md font-black tracking-widest shadow-[0_2px_3px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.3)]"
+                          className="text-[14px] whitespace-nowrap px-2.5 py-1 rounded-md font-black tracking-widest shadow-[0_2px_3px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.3)]"
                           style={{
                             color: STATUS_UI[item.status].color,
                             background: isDarkMode
@@ -7878,7 +7898,7 @@ export default function StudyPlanner({
                           {STATUS_UI[item.status].label}
                         </span>
                       </div>
-                      <div className="text-[10px] font-extrabold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                      <div className="text-[12px] font-extrabold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                         {item.subjectName}{" "}
                         <span className="text-[#d9dbe2] dark:text-[#252626] mx-1">
                           ·
@@ -7890,7 +7910,7 @@ export default function StudyPlanner({
                           onClick={() =>
                             patchTopic(item.topicId, { status: "done" })
                           }
-                          className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-emerald-500/80 text-white"
+                          className="text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-emerald-500/80 text-white"
                         >
                           Mark Done
                         </button>
@@ -7900,7 +7920,7 @@ export default function StudyPlanner({
                               status: "revision_needed",
                             })
                           }
-                          className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#f3e8ff] text-[#6b21a8] border border-[#e9d5ff]"
+                          className="text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full bg-[#f3e8ff] text-[#6b21a8] border border-[#e9d5ff]"
                         >
                           Needs Revision
                         </button>
@@ -7920,7 +7940,7 @@ export default function StudyPlanner({
                               plannedDate: targetDate,
                             });
                           }}
-                          className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-slate-200 text-slate-600"
+                          className="text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-slate-200 text-slate-600"
                         >
                           Move Date
                         </button>
@@ -7928,7 +7948,7 @@ export default function StudyPlanner({
                           onClick={() =>
                             patchTopic(item.topicId, { plannedDate: "" })
                           }
-                          className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
+                          className="text-[11px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
                         >
                           Remove Date
                         </button>
@@ -7937,7 +7957,7 @@ export default function StudyPlanner({
                   ))}
 
                   {pickedDay && selectedDayItems.length === 0 && (
-                    <div className="text-[10px] uppercase font-black tracking-widest text-[#8b919e] dark:text-[#565555] text-center py-10 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c] shadow-[inset_1px_1px_2px_rgba(166,171,189,0.3)] dark:shadow-[inset_1px_1px_3px_rgba(0,0,0,0.5)]">
+                    <div className="text-[12px] uppercase font-black tracking-widest text-[#8b919e] dark:text-[#565555] text-center py-10 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c] shadow-[inset_1px_1px_2px_rgba(166,171,189,0.3)] dark:shadow-[inset_1px_1px_3px_rgba(0,0,0,0.5)]">
                       NO MODULES SCHEDULED
                     </div>
                   )}
@@ -7962,7 +7982,7 @@ export default function StudyPlanner({
                           targetDate,
                         );
                       }}
-                      className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white"
+                      className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white"
                     >
                       Move All to Next Available Day
                     </button>
@@ -7972,7 +7992,7 @@ export default function StudyPlanner({
                           selectedDayItems.map((item) => item.topicId),
                         )
                       }
-                      className="text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
+                      className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
                     >
                       Clear This Day
                     </button>
@@ -7997,7 +8017,7 @@ export default function StudyPlanner({
               </h3>
               <button
                 onClick={resetBulkAdd}
-                className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"
               >
                 Close
               </button>
@@ -8014,7 +8034,7 @@ export default function StudyPlanner({
                 <button
                   type="button"
                   onClick={() => switchBulkAddMode("manual")}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
+                  className={`px-4 py-2 rounded-xl text-[12px] font-black uppercase tracking-widest transition-colors ${
                     !isTxtBulkMode
                       ? "bg-blue-600 text-white"
                       : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-slate-700 dark:text-slate-200"
@@ -8025,7 +8045,7 @@ export default function StudyPlanner({
                 <button
                   type="button"
                   onClick={() => switchBulkAddMode("txt-file")}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
+                  className={`px-4 py-2 rounded-xl text-[12px] font-black uppercase tracking-widest transition-colors ${
                     isTxtBulkMode
                       ? "bg-blue-600 text-white"
                       : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-slate-700 dark:text-slate-200"
@@ -8035,113 +8055,148 @@ export default function StudyPlanner({
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1114] px-4 py-3">
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                  {isTxtBulkMode
-                    ? "Import only plain .txt files. In TXT mode, the file decides the subject and chapter structure."
-                    : "Manual mode keeps the existing bulk-add flow. Choose or create a subject, optionally set a chapter, then add one topic per line."}
-                </p>
-                {isTxtBulkMode && (
-                  <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-300">
-                    Subject, new subject, and chapter fields are disabled in TXT
-                    mode. Switch back to Manual Entry to use them.
-                  </p>
-                )}
-              </div>
+              {isTxtBulkMode && (
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1114] px-4 py-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setBulkTxtGuideOpen((prev) => !prev)}
+                    className="shrink-0 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200"
+                  >
+                    {bulkTxtGuideOpen ? "Hide Guide" : "View Guide"}
+                  </button>
+                </div>
+              )}
 
-              <div className="grid sm:grid-cols-2 gap-3">
-                <select
-                  value={bulkSubjectId}
-                  onChange={(e) => {
-                    setBulkSubjectId(e.target.value);
-                    if (e.target.value) {
-                      setBulkSubjectName("");
-                    }
-                  }}
-                  disabled={isTxtBulkMode}
-                  className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] px-4 py-3 text-sm font-bold ${
-                    isTxtBulkMode ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                >
-                  <option value="">Select subject</option>
-                  {plan?.subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={bulkSubjectName}
-                  onChange={(e) => {
-                    setBulkSubjectName(e.target.value);
-                    if (e.target.value) setBulkSubjectId("");
-                  }}
-                  placeholder="Or add a new subject"
-                  disabled={isTxtBulkMode}
-                  className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold ${
-                    isTxtBulkMode ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                />
-              </div>
+              {!isTxtBulkMode && (
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-[#0f1114] px-4 py-4">
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                      <div className="text-[13px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                        Manual Fields
+                      </div>
+                      <div
+                        className="text-[13px] font-bold text-slate-500 dark:text-slate-400"
+                        style={{
+                          fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em",
+                        }}
+                      >
+                        Use these only in Manual Entry mode.
+                      </div>
+                    </div>
+                  </div>
 
-              <input
-                value={bulkChapterName}
-                onChange={(e) => setBulkChapterName(e.target.value)}
-                placeholder="Chapter name (optional)"
-                disabled={isTxtBulkMode}
-                className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold ${
-                  isTxtBulkMode ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              />
+                  <div className="grid gap-3">
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <select
+                        value={bulkSubjectId}
+                        onChange={(e) => {
+                          setBulkSubjectId(e.target.value);
+                          if (e.target.value) {
+                            setBulkSubjectName("");
+                          }
+                        }}
+                        className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] px-4 py-3 text-sm font-bold"
+                      >
+                        <option value="">Select subject</option>
+                        {plan?.subjects.map((subject) => (
+                          <option key={subject.id} value={subject.id}>
+                            {subject.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        value={bulkSubjectName}
+                        onChange={(e) => {
+                          setBulkSubjectName(e.target.value);
+                          if (e.target.value) setBulkSubjectId("");
+                        }}
+                        placeholder="Or add a new subject"
+                        className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold"
+                      />
+                    </div>
+
+                    <input
+                      value={bulkChapterName}
+                      onChange={(e) => setBulkChapterName(e.target.value)}
+                      placeholder="Chapter name (optional)"
+                      className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold"
+                    />
+                  </div>
+                </div>
+              )}
 
               {isTxtBulkMode ? (
                 <div className="grid gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1114] px-4 py-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => bulkImportInputRef.current?.click()}
-                      className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200"
-                    >
-                      Import .TXT File
-                    </button>
-                    <input
-                      ref={bulkImportInputRef}
-                      type="file"
-                      accept=".txt"
-                      className="hidden"
-                      onChange={(event) => {
-                        void handleBulkFileImport(event);
-                      }}
-                    />
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => bulkImportInputRef.current?.click()}
+                        className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-[12px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200"
+                      >
+                        Import .TXT File
+                      </button>
+                      <input
+                        ref={bulkImportInputRef}
+                        type="file"
+                        accept=".txt"
+                        className="hidden"
+                        onChange={(event) => {
+                          void handleBulkFileImport(event);
+                        }}
+                      />
+
+                      {bulkImportedFileName ? (
+                        <div className="px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 text-[12px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40">
+                          {bulkImportedFileName}
+                        </div>
+                      ) : (
+                        <div className="text-[12px] font-bold text-slate-500 dark:text-slate-400">
+                          No file selected yet
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-[12px] font-bold text-slate-500 dark:text-slate-400">
                       Only plain .txt files are allowed right now.
-                    </span>
+                    </div>
                   </div>
 
-                  {bulkImportedFileName && (
-                    <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-300">
-                      Loaded file: {bulkImportedFileName}
-                    </div>
-                  )}
+                  <AnimatePresence initial={false}>
+                    {bulkTxtGuideOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)] pt-1">
+                          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#090b0e] px-4 py-3">
+                            <div className="text-[13px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                              TXT Rules
+                            </div>
+                            <div className="mt-3 space-y-2 text-sm font-bold text-slate-700 dark:text-slate-200 leading-5">
+                              <div>`#` starts a subject.</div>
+                              <div>`##` starts a chapter.</div>
+                              <div>`(` starts the topic block.</div>
+                              <div>Write one topic per line.</div>
+                              <div>End the topic block with `)`.</div>
+                            </div>
+                          </div>
 
-                  <div className="grid gap-2">
-                    <div className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                      TXT Rules
-                    </div>
-                    <div className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-6">
-                      <div>`#` starts a subject.</div>
-                      <div>`##` starts a chapter.</div>
-                      <div>`(` starts the topic block.</div>
-                      <div>Write one topic per line.</div>
-                      <div>End the topic block with `)`.</div>
-                    </div>
-                    <pre className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#090b0e] px-4 py-3 text-[11px] font-bold leading-6 text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
-                      {BULK_TXT_FORMAT_EXAMPLE}
-                    </pre>
-                  </div>
+                          <pre className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#090b0e] px-4 py-3 text-[13px] font-bold leading-6 text-slate-700 dark:text-slate-200 whitespace-pre-wrap overflow-x-auto">
+                            {BULK_TXT_FORMAT_EXAMPLE}
+                          </pre>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               ) : (
-                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                <div
+                  className="text-[12px] font-bold text-slate-500 dark:text-slate-400"
+                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
+                >
                   Format: one topic per line. If you leave chapter empty, topics
                   go to a default chapter.
                 </div>
@@ -8152,7 +8207,7 @@ export default function StudyPlanner({
                 onChange={(e) => setBulkTopicsText(e.target.value)}
                 placeholder={
                   isTxtBulkMode
-                    ? "Import a .txt file or paste the same .txt content here using #, ##, ( and )"
+                    ? "Import a .txt file or paste .txt content here"
                     : "One topic per line"
                 }
                 className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold min-h-[140px]"
@@ -8162,7 +8217,7 @@ export default function StudyPlanner({
             <div className="flex flex-col sm:flex-row gap-3 justify-end mt-6">
               <button
                 onClick={resetBulkAdd}
-                className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-200"
+                className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-sm font-bold uppercase tracking-widest text-slate-600 dark:text-slate-200"
               >
                 Cancel
               </button>
@@ -8170,7 +8225,7 @@ export default function StudyPlanner({
                 onClick={() => {
                   void handleBulkAdd();
                 }}
-                className="px-6 py-3 rounded-xl bg-blue-600 text-white text-xs font-bold uppercase tracking-widest"
+                className="px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold uppercase tracking-widest"
               >
                 {isTxtBulkMode ? "Import Topics" : "Add Topics"}
               </button>
@@ -8217,7 +8272,7 @@ export default function StudyPlanner({
               onClick={(e) => e.stopPropagation()}
               className={`w-full max-w-sm rounded-3xl border shadow-2xl p-7 ${isDarkMode ? "bg-[#1a1c1e] border-slate-700" : "bg-white border-slate-200"}`}
             >
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-3">
+              <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-3">
                 Confirm Action
               </div>
               <p
@@ -8228,7 +8283,7 @@ export default function StudyPlanner({
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setPendingDelete(null)}
-                  className={`px-5 py-2.5 rounded-xl border text-[11px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
+                  className={`px-5 py-2.5 rounded-xl border text-[13px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
                 >
                   Cancel
                 </button>
@@ -8236,7 +8291,7 @@ export default function StudyPlanner({
                   onClick={() => {
                     void executePendingDelete();
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-red-600 text-white text-[11px] font-bold uppercase tracking-widest shadow-md"
+                  className="px-5 py-2.5 rounded-xl bg-red-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-md"
                 >
                   Confirm
                 </button>
@@ -8264,7 +8319,7 @@ export default function StudyPlanner({
                   Exam Templates
                 </h3>
                 <p
-                  className={`text-[12px] font-bold mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
+                  className={`text-[14px] font-bold mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
                 >
                   Select a template to auto-populate your syllabus with all
                   chapters and topics.
@@ -8272,7 +8327,7 @@ export default function StudyPlanner({
               </div>
               <button
                 onClick={() => setTemplatePickerOpen(false)}
-                className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"
               >
                 Close
               </button>
@@ -8299,23 +8354,23 @@ export default function StudyPlanner({
                           {t.name}
                         </div>
                         <div
-                          className={`text-[11px] font-bold uppercase tracking-widest mt-1 ${isDarkMode ? "text-[#767575]" : "text-[#8b919e]"}`}
+                          className={`text-[13px] font-bold uppercase tracking-widest mt-1 ${isDarkMode ? "text-[#767575]" : "text-[#8b919e]"}`}
                         >
                           {t.examBody} · {t.category}
                         </div>
                         <div
-                          className={`text-[12px] font-bold mt-2 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
+                          className={`text-[14px] font-bold mt-2 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
                         >
                           {t.description}
                         </div>
                         <div className="flex flex-wrap gap-2 mt-3">
                           <span
-                            className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${isDarkMode ? "bg-[#343840] text-[#e2e8f0]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
+                            className={`text-[12px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${isDarkMode ? "bg-[#343840] text-[#e2e8f0]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
                           >
                             {t.estimatedTopics} topics
                           </span>
                           <span
-                            className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${isDarkMode ? "bg-[#343840] text-[#e2e8f0]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
+                            className={`text-[12px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${isDarkMode ? "bg-[#343840] text-[#e2e8f0]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
                           >
                             {t.recommendedDailyGoal}/day recommended
                           </span>
@@ -8411,7 +8466,7 @@ export default function StudyPlanner({
                             setIsLoadingTemplate(false);
                           }
                         }}
-                        className="text-[11px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full bg-[#3b82f6] text-white shadow-md disabled:opacity-60 whitespace-nowrap shrink-0"
+                        className="text-[13px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full bg-[#3b82f6] text-white shadow-md disabled:opacity-60 whitespace-nowrap shrink-0"
                       >
                         {isLoadingTemplate ? "Importing..." : "Use This"}
                       </button>
@@ -8441,7 +8496,7 @@ export default function StudyPlanner({
               onClick={(e) => e.stopPropagation()}
               className={`w-full max-w-sm rounded-3xl border shadow-2xl p-7 ${isDarkMode ? "bg-[#1a1c1e] border-slate-700" : "bg-white border-slate-200"}`}
             >
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-3">
+              <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-3">
                 Off Days Changed
               </div>
               <p
@@ -8453,7 +8508,7 @@ export default function StudyPlanner({
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setShowRebuildPrompt(false)}
-                  className={`px-5 py-2.5 rounded-xl border text-[11px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
+                  className={`px-5 py-2.5 rounded-xl border text-[13px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
                 >
                   Not Now
                 </button>
@@ -8462,7 +8517,7 @@ export default function StudyPlanner({
                     setShowRebuildPrompt(false);
                     void autoDistribute();
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-[#3b82f6] text-white text-[11px] font-bold uppercase tracking-widest shadow-md"
+                  className="px-5 py-2.5 rounded-xl bg-[#3b82f6] text-white text-[13px] font-bold uppercase tracking-widest shadow-md"
                 >
                   Rebuild Now
                 </button>
@@ -8492,7 +8547,7 @@ export default function StudyPlanner({
               onClick={(e) => e.stopPropagation()}
               className={`w-full max-w-md rounded-3xl border shadow-2xl p-7 ${isDarkMode ? "bg-[#1a1c1e] border-slate-700" : "bg-white border-slate-200"}`}
             >
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-3">
+              <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-3">
                 Exam Type Changed
               </div>
               <p
@@ -8513,7 +8568,7 @@ export default function StudyPlanner({
                     setShowExamTypeChangePrompt(false);
                     setPendingExamType("");
                   }}
-                  className={`px-5 py-2.5 rounded-xl border text-[11px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
+                  className={`px-5 py-2.5 rounded-xl border text-[13px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
                 >
                   Cancel
                 </button>
@@ -8527,7 +8582,7 @@ export default function StudyPlanner({
                       "success",
                     );
                   }}
-                  className={`px-5 py-2.5 rounded-xl border text-[11px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-[#e2e8f0]" : "border-slate-200 text-slate-700"}`}
+                  className={`px-5 py-2.5 rounded-xl border text-[13px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-[#e2e8f0]" : "border-slate-200 text-slate-700"}`}
                 >
                   Keep Syllabus
                 </button>
@@ -8535,7 +8590,7 @@ export default function StudyPlanner({
                   onClick={() => {
                     void clearSyllabusAndSaveExamType();
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-red-600 text-white text-[11px] font-bold uppercase tracking-widest shadow-md"
+                  className="px-5 py-2.5 rounded-xl bg-red-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-md"
                 >
                   Clear & Switch
                 </button>
@@ -8548,3 +8603,4 @@ export default function StudyPlanner({
     </>
   );
 }
+

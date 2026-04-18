@@ -10,12 +10,19 @@ let _accessToken: string | null = null;
 let _refreshPromise: Promise<RefreshResult> | null = null;
 const AUTH_REQUEST_TIMEOUT_MS = 5000;
 
-export const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/+$/, "");
+export const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(
+  /\/+$/,
+  "",
+);
 
 export type RefreshResult =
   | { status: "ok"; accessToken: string }
   | { status: "auth_failed" }
   | { status: "transient_failed" };
+
+export type ApiFetchOptions = RequestInit & {
+  timeoutMs?: number;
+};
 
 export function setAccessToken(token: string | null): void {
   _accessToken = token;
@@ -117,18 +124,23 @@ export async function refreshAccessToken(): Promise<RefreshResult> {
 // apiFetch is a drop-in replacement for your current wrapper.
 export async function apiFetch(
   url: string,
-  options: RequestInit = {},
+  options: ApiFetchOptions = {},
 ): Promise<Response> {
+  const { timeoutMs, ...requestOptions } = options;
   const makeRequest = (token: string | null) =>
-    fetchWithTimeout(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers ?? {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    fetchWithTimeout(
+      url,
+      {
+        ...requestOptions,
+        headers: {
+          "Content-Type": "application/json",
+          ...(requestOptions.headers ?? {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
       },
-      credentials: "include",
-    });
+      timeoutMs,
+    );
 
   let res = await makeRequest(_accessToken);
 
