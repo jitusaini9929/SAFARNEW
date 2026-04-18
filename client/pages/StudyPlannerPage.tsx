@@ -98,7 +98,7 @@ function TemplateCard({
       `}
     >
       <div className="flex items-start justify-between mb-4">
-        <span className="text-3xl">{TEMPLATE_ICONS[template.id] || "ðŸ“"}</span>
+        <span className="text-3xl">{TEMPLATE_ICONS[template.id] || "📋"}</span>
         {CATEGORY_BADGES[template.category] && (
           <span className={`text-[11px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full ${CATEGORY_BADGES[template.category].color}`}>
             {CATEGORY_BADGES[template.category].label}
@@ -267,33 +267,50 @@ function QuickStart({
       // If user pasted syllabus, parse and add it
       if (customPasteText.trim()) {
         const parsed = parseBulkPaste(customPasteText);
+        
+        // Caches to avoid duplicate creation
+        const subjectCache = new Map<string, any>(); 
+        const chapterCache = new Map<string, any>(); 
+
         for (const entry of parsed.entries) {
           const subjectName = entry.subjectName.trim();
+          const chapterName = (entry.chapterName || "General").trim();
           const topics = entry.topicsText.split("\n").map((t: string) => t.trim()).filter(Boolean);
+          
           if (!subjectName || topics.length === 0) continue;
 
-          const subjectRes = await apiFetch(`${API_BASE}/plans/${plan.id}/subjects`, {
-            method: "POST",
-            body: JSON.stringify({ name: subjectName }),
-          });
-          if (!subjectRes.ok) continue;
-          const planWithSubject = await subjectRes.json();
-          const subject = planWithSubject.subjects[planWithSubject.subjects.length - 1];
-          if (!subject) continue;
-
-          const chapterRes = await apiFetch(`${API_BASE}/plans/${plan.id}/subjects/${subject.id}/chapters`, {
-            method: "POST",
-            body: JSON.stringify({ name: "General" }),
-          });
-          if (!chapterRes.ok) continue;
-          const planWithChapter = await chapterRes.json();
-          const updatedSubject = planWithChapter.subjects.find((s: any) => s.id === subject.id);
-          if (!updatedSubject || !Array.isArray(updatedSubject.chapters) || updatedSubject.chapters.length === 0) {
-            continue;
+          // 1. Ensure Subject
+          let subject = subjectCache.get(subjectName.toLowerCase());
+          if (!subject) {
+            const subjectRes = await apiFetch(`${API_BASE}/plans/${plan.id}/subjects`, {
+              method: "POST",
+              body: JSON.stringify({ name: subjectName }),
+            });
+            if (!subjectRes.ok) continue;
+            const planWithSubject = await subjectRes.json();
+            subject = planWithSubject.subjects[planWithSubject.subjects.length - 1];
+            if (!subject) continue;
+            subjectCache.set(subjectName.toLowerCase(), subject);
           }
-          const chapter = updatedSubject.chapters[updatedSubject.chapters.length - 1];
-          if (!chapter) continue;
 
+          // 2. Ensure Chapter
+          const chapterKey = `${subject.id}:${chapterName.toLowerCase()}`;
+          let chapter = chapterCache.get(chapterKey);
+          if (!chapter) {
+            const chapterRes = await apiFetch(`${API_BASE}/plans/${plan.id}/subjects/${subject.id}/chapters`, {
+              method: "POST",
+              body: JSON.stringify({ name: chapterName }),
+            });
+            if (!chapterRes.ok) continue;
+            const planWithChapter = await chapterRes.json();
+            const updatedSubject = planWithChapter.subjects.find((s: any) => s.id === subject.id);
+            if (!updatedSubject || !Array.isArray(updatedSubject.chapters)) continue;
+            chapter = updatedSubject.chapters[updatedSubject.chapters.length - 1];
+            if (!chapter) continue;
+            chapterCache.set(chapterKey, chapter);
+          }
+
+          // 3. Add Topics
           for (const topicName of topics) {
             await apiFetch(
               `${API_BASE}/plans/${plan.id}/subjects/${subject.id}/chapters/${chapter.id}/topics`,
@@ -451,6 +468,7 @@ function QuickStart({
                   onChange={(e) => setExamDate(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                   style={{ colorScheme: isDark ? "dark" : "light" }}
+                  min={new Date().toISOString().split("T")[0]}
                 />
               </div>
               <div>
@@ -523,11 +541,11 @@ function QuickStart({
                     <textarea
                       value={customPasteText}
                       onChange={(e) => setCustomPasteText(e.target.value)}
-                      placeholder={"Math:\n- Algebra\n- Trigonometry\n- Calculus\nPhysics:\n- Kinematics\n- Current Electricity"}
+                      placeholder={"Math:\n_ Algebra\n- Equations\nPhysics:\n_ Mechanics\n- Force"}
                       className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-4 text-[14px] font-semibold text-[#0f172a] dark:text-white placeholder-[#64748b] dark:placeholder-[#4b5563] focus:outline-none focus:ring-2 focus:ring-blue-500/30 min-h-[140px] leading-relaxed"
                     />
                     <p className="text-[12px] font-semibold text-[#64748b] mt-2">
-                      Format: Subject name followed by topics as bullet points or dashes. One topic per line.
+                      Use Subject: for subjects, _ Chapter for chapters, and - Topic for topics.
                     </p>
                   </div>
                 </motion.div>
@@ -579,7 +597,7 @@ function QuickStart({
 
         {/* Selected template badge */}
         <div className="flex items-center gap-3 mb-6 mt-4">
-          <span className="text-2xl">{TEMPLATE_ICONS[selectedTemplate!.id] || "📝"}</span>
+          <span className="text-2xl">{TEMPLATE_ICONS[selectedTemplate!.id] || "📋"}</span>
           <div>
             <h2 className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}>
               {selectedTemplate!.name}
@@ -622,6 +640,7 @@ function QuickStart({
                 onChange={(e) => setExamDate(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
                 style={{ colorScheme: isDark ? "dark" : "light" }}
+                min={new Date().toISOString().split("T")[0]}
               />
               {daysLeft !== null && daysLeft > 0 && (
                 <p className="text-[12px] font-bold text-blue-600 dark:text-blue-400 mt-1">{daysLeft} days away</p>
@@ -755,79 +774,71 @@ interface BulkParseResult {
 }
 
 function parseBulkPaste(input: string): BulkParseResult {
-  const entriesMap = new Map<string, { subjectName: string; topics: string[] }>();
-  const invalidLines: string[] = [];
-  let currentSubject: string | null = null;
-
-  const addSubject = (name: string) => {
-    const normalized = name.trim();
-    if (!normalized) return null;
-    if (!entriesMap.has(normalized)) {
-      entriesMap.set(normalized, { subjectName: normalized, topics: [] });
-    }
-    return normalized;
-  };
-
-  const addTopic = (subject: string, topic: string) => {
-    const normalizedTopic = topic.trim();
-    if (!normalizedTopic) return;
-    const entry = entriesMap.get(subject);
-    if (!entry) return;
-    entry.topics.push(normalizedTopic);
-  };
+  const entries: SyllabusEntry[] = [];
+  let currentSubject = "General";
+  let currentChapter = "General";
+  
+  const subjectsMap = new Map<string, Map<string, string[]>>();
 
   const lines = input.split(/\r?\n/);
   for (const rawLine of lines) {
     const line = rawLine.trim();
     if (!line) continue;
 
+    // 1. Subject Header (e.g. "Math:")
     if (line.endsWith(":")) {
-      const subject = addSubject(line.slice(0, -1));
-      if (subject) currentSubject = subject;
+      currentSubject = line.slice(0, -1).trim() || "General";
+      currentChapter = "General"; // Reset chapter on new subject
       continue;
     }
 
-    if (currentSubject && /^[-*]\s+/.test(line)) {
-      addTopic(currentSubject, line.replace(/^[-*]\s+/, ""));
+    // 2. Chapter Header (e.g. "_ Algebra")
+    if (line.startsWith("_")) {
+      currentChapter = line.slice(1).trim() || "General";
       continue;
     }
 
-    const dashParts = line.split(/\s*-\s*/).filter(Boolean);
-    if (dashParts.length >= 2) {
-      const subject = addSubject(dashParts[0]);
-      if (!subject) {
-        invalidLines.push(line);
-        continue;
+    // 3. Topic Line (Bullet points or plain text)
+    let topicName = line;
+    if (/^[-*]\s+/.test(line)) {
+      topicName = line.replace(/^[-*]\s+/, "").trim();
+    } else {
+      // Handle Dash split syntax: "Subject - Topic" or "Chapter - Topic"
+      const dashParts = line.split(/\s+-\s+/);
+      if (dashParts.length >= 2) {
+        currentSubject = dashParts[0].trim();
+        topicName = dashParts.slice(1).join(" - ").trim();
       }
-      currentSubject = subject;
-      for (const topic of dashParts.slice(1)) {
-        addTopic(subject, topic);
-      }
-      continue;
     }
 
-    if (currentSubject) {
-      addTopic(currentSubject, line);
-      continue;
-    }
+    if (!topicName) continue;
 
-    // AUTO-FALLBACK: plain lines with no subject header go into "General"
-    addSubject("General");
-    currentSubject = "General";
-    addTopic("General", line);
+    if (!subjectsMap.has(currentSubject)) {
+      subjectsMap.set(currentSubject, new Map());
+    }
+    const chaptersMap = subjectsMap.get(currentSubject)!;
+    if (!chaptersMap.has(currentChapter)) {
+      chaptersMap.set(currentChapter, []);
+    }
+    chaptersMap.get(currentChapter)!.push(topicName);
   }
 
-  const entries: SyllabusEntry[] = Array.from(entriesMap.values()).map((entry) => ({
-    subjectName: entry.subjectName,
-    chapterName: "",
-    topicsText: entry.topics.join("\n"),
-  }));
+  // Convert map to flat SyllabusEntry list
+  subjectsMap.forEach((chapters, subjectName) => {
+    chapters.forEach((topics, chapterName) => {
+      entries.push({
+        subjectName,
+        chapterName,
+        topicsText: topics.join("\n"),
+      });
+    });
+  });
 
-  const parseTopics = (text: string) => text.split("\n").map((t) => t.trim()).filter(Boolean);
-  const subjectCount = entries.length;
+  const parseTopics = (text: string) => text.split("\n").filter(Boolean);
+  const subjectCount = subjectsMap.size;
   const topicCount = entries.reduce((total, entry) => total + parseTopics(entry.topicsText).length, 0);
 
-  return { entries, invalidLines, subjectCount, topicCount };
+  return { entries, invalidLines: [], subjectCount, topicCount };
 }
 
 // ── Main Page Component ──
@@ -988,13 +999,13 @@ export default function StudyPlannerPage() {
                       <span>{plan.subjectCount} subject{plan.subjectCount !== 1 ? "s" : ""}</span>
                     )}
                     {plan.totalTopics !== undefined && plan.totalTopics > 0 && (
-                      <><span>·</span><span>{plan.totalTopics} topics</span></>
+                      <><span>&middot;</span><span>{plan.totalTopics} topics</span></>
                     )}
                     {daysLeft !== null && daysLeft > 0 && (
-                      <><span>·</span><span className="text-blue-600 dark:text-blue-400">{daysLeft}d left</span></>
+                      <><span>&middot;</span><span className="text-blue-600 dark:text-blue-400">{daysLeft}d left</span></>
                     )}
                     {daysLeft !== null && daysLeft <= 0 && daysLeft !== null && (
-                      <><span>·</span><span className="text-red-500">{daysLeft === 0 ? "Today!" : "Passed"}</span></>
+                      <><span>&middot;</span><span className="text-red-500">{daysLeft === 0 ? "Today!" : "Passed"}</span></>
                     )}
                   </div>
 
@@ -1131,6 +1142,3 @@ export default function StudyPlannerPage() {
     <StudyPlanner planId={planId} initialView={resolvedSection} />
   );
 }
-
-
-

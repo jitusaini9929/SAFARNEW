@@ -418,6 +418,12 @@ function parseBulkTopicsByChapter(
       continue;
     }
 
+    const underscoreChapter = rawLine.match(/^_+\s*(.+)$/);
+    if (underscoreChapter) {
+      activeChapterIndex = ensureChapter(underscoreChapter[1]);
+      continue;
+    }
+
     const bracketHeading = rawLine.match(/^\[(.+)\]$/);
     if (bracketHeading) {
       activeChapterIndex = ensureChapter(bracketHeading[1]);
@@ -878,12 +884,14 @@ function CustomDatePicker({
   isDarkMode,
   align,
   offDays = [],
+  minDate,
 }: {
   value: string;
   onChange: (val: string) => void;
   isDarkMode: boolean;
   align?: "top" | "bottom";
   offDays?: number[];
+  minDate?: string;
 }) {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
@@ -959,6 +967,14 @@ function CustomDatePicker({
   }
 
   function prevMonth() {
+    if (minDate) {
+      const minD = new Date(minDate);
+      if (!Number.isNaN(minD.getTime())) {
+        if (viewYear === minD.getFullYear() && viewMonth <= minD.getMonth()) {
+          return;
+        }
+      }
+    }
     if (viewMonth === 0) {
       setViewMonth(11);
       setViewYear((y) => y - 1);
@@ -1085,25 +1101,27 @@ function CustomDatePicker({
                 const isSelected = iso === selectedKey;
                 const isTodayCell = iso === toIsoDateOnly(new Date());
                 const dow = new Date(viewYear, viewMonth, day).getDay();
-                const isOffDay = offDays?.includes(dow);
+                const isRestDay = offDays?.includes(dow);
+                const isBeforeMin = minDate ? iso < minDate : false;
+                const isDisabled = isRestDay || isBeforeMin;
 
                 return (
                   <button
                     key={day}
                     type="button"
                     onClick={() => {
-                      if (!isOffDay) pickDay(day);
+                      if (!isDisabled) pickDay(day);
                     }}
-                    disabled={isOffDay}
+                    disabled={isDisabled}
                     className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg text-sm relative transition-all
-                      ${isOffDay ? "opacity-30 cursor-not-allowed font-medium bg-[#f9fafb] dark:bg-[#151718]" : "font-bold hover:bg-[#f0f5ff] dark:hover:bg-[#2a2d31]"}
-                      ${!isOffDay && isSelected ? selectedBg : ""}
-                      ${!isOffDay && !isSelected && isTodayCell ? `ring-1 ring-blue-400 ${text}` : ""}
-                      ${!isOffDay && !isSelected && !isTodayCell ? `${text}` : ""}
+                      ${isDisabled ? "opacity-30 cursor-not-allowed font-medium bg-[#f9fafb] dark:bg-[#151718]" : "font-bold hover:bg-[#f0f5ff] dark:hover:bg-[#2a2d31]"}
+                      ${!isDisabled && isSelected ? selectedBg : ""}
+                      ${!isDisabled && !isSelected && isTodayCell ? `ring-1 ring-blue-400 ${text}` : ""}
+                      ${!isDisabled && !isSelected && !isTodayCell ? `${text}` : ""}
                     `}
                   >
                     <span>{day}</span>
-                    {isOffDay && (
+                    {isRestDay && !isBeforeMin && (
                       <span className="text-[6px] uppercase font-black text-amber-500 absolute bottom-[2px]">
                         Off
                       </span>
@@ -6336,6 +6354,7 @@ export default function StudyPlanner({
                             isDarkMode={isDarkMode}
                             align="bottom"
                             offDays={plan?.offDays || []}
+                            minDate={toIsoDateOnly(new Date())}
                           />
                           <div className="flex flex-wrap gap-3">
                             <button
@@ -6484,6 +6503,7 @@ export default function StudyPlanner({
                               isDarkMode={isDarkMode}
                               align="bottom"
                               offDays={plan?.offDays || []}
+                              minDate={toIsoDateOnly(new Date())}
                             />
                             <button
                               onClick={() =>
@@ -8197,8 +8217,7 @@ export default function StudyPlanner({
                   className="text-[12px] font-bold text-slate-500 dark:text-slate-400"
                   style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
                 >
-                  Format: one topic per line. If you leave chapter empty, topics
-                  go to a default chapter.
+                  Format: one topic per line. Use "_ Chapter" to group topics into chapters.
                 </div>
               )}
 
