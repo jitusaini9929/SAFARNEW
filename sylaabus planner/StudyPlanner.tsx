@@ -163,6 +163,24 @@ const BASE = "/api/plans";
 const BEGINNER_MODE_STORAGE_KEY = "study-planner-beginner-mode";
 const SYLLABUS_LAYOUT_MODE_STORAGE_KEY = "study-planner-syllabus-layout-mode";
 const PLANNER_ONBOARDING_STORAGE_KEY = "study-planner-onboarding-v2";
+const BULK_IMPORT_SUBJECT_PALETTE = [
+  "#0ea5e9",
+  "#9333ea",
+  "#16a34a",
+  "#ef4444",
+  "#f59e0b",
+  "#0f766e",
+];
+const BULK_TXT_FORMAT_EXAMPLE = `# Subject Name
+## Chapter Name
+(
+Topic one
+Topic two
+)
+## Next Chapter
+( First topic
+Second topic
+)`;
 const PLANNER_ONBOARDING_DEFAULT_STATE: PlannerOnboardingState = {
   skipped: false,
   buildScheduleStepDone: false,
@@ -331,6 +349,13 @@ interface BulkChapterGroup {
   topics: string[];
 }
 
+interface BulkSubjectGroup {
+  subjectName: string;
+  chapters: BulkChapterGroup[];
+}
+
+type BulkAddMode = "manual" | "txt-file";
+
 function normalizeBulkTopicToken(input: string): string {
   return input
     .replace(/^[>\s-]*[-*•]\s*/, "")
@@ -430,6 +455,230 @@ function parseBulkTopicsByChapter(
   }
 
   return groups.filter((group) => group.topics.length > 0);
+}
+
+function parseBulkSubjectsFromTxt(input: string): BulkSubjectGroup[] {
+  const rawLines = input.split(/\r?\n/);
+  const subjectIndexByKey = new Map<string, number>();
+  const chapterIndexBySubjectKey = new Map<string, Map<string, number>>();
+  const topicSeenByChapter = new Map<string, Set<string>>();
+  const subjects: BulkSubjectGroup[] = [];
+
+  const ensureSubject = (name: string, lineNumber: number) => {
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      throw new Error(`Line ${lineNumber}: subject name is missing after "#".`);
+    }
+
+    const subjectKey = normalizedName.toLowerCase();
+    const existing = subjectIndexByKey.get(subjectKey);
+    if (existing !== undefined) return existing;
+
+    subjects.push({ subjectName: normalizedName, chapters: [] });
+    const nextIndex = subjects.length - 1;
+    subjectIndexByKey.set(subjectKey, nextIndex);
+    chapterIndexBySubjectKey.set(subjectKey, new Map<string, number>());
+    return nextIndex;
+  };
+
+  const ensureChapter = (
+    subjectIndex: number | null,
+    name: string,
+    lineNumber: number,
+  ) => {
+    if (subjectIndex === null) {
+      throw new Error(
+        `Line ${lineNumber}: add a subject with "#" before defining a chapter.`,
+      );
+    }
+
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      throw new Error(
+        `Line ${lineNumber}: chapter name is missing after "##".`,
+      );
+    }
+
+    const subject = subjects[subjectIndex];
+    const subjectKey = subject.subjectName.toLowerCase();
+    const chapterMap = chapterIndexBySubjectKey.get(subjectKey);
+    if (!chapterMap) {
+      throw new Error(`Line ${lineNumber}: could not track chapter structure.`);
+    }
+
+    const chapterKey = normalizedName.toLowerCase();
+    const existing = chapterMap.get(chapterKey);
+    if (existing !== undefined) return existing;
+
+    subject.chapters.push({ chapterName: normalizedName, topics: [] });
+    const nextIndex = subject.chapters.length - 1;
+    chapterMap.set(chapterKey, nextIndex);
+    topicSeenByChapter.set(`${subjectKey}::${chapterKey}`, new Set<string>());
+    return nextIndex;
+  };
+
+  const addTopicToChapter = (
+    subjectIndex: number | null,
+    chapterIndex: number | null,
+    topicName: string,
+    lineNumber: number,
+  ) => {
+    if (subjectIndex === null || chapterIndex === null) {
+      throw new Error(
+        `Line ${lineNumber}: add a chapter with "##" before listing topics.`,
+      );
+    }
+
+    const topic = normalizeBulkTopicToken(topicName);
+    if (!topic) {
+      throw new Error(`Line ${lineNumber}: topic name cannot be empty.`);
+    }
+
+    const subject = subjects[subjectIndex];
+    const chapter = subject.chapters[chapterIndex];
+    const chapterKey = `${subject.subjectName.toLowerCase()}::${chapter.chapterName.toLowerCase()}`;
+    const seen = topicSeenByChapter.get(chapterKey);
+    if (!seen) {
+      throw new Error(`Line ${lineNumber}: could not track topic structure.`);
+    }
+
+    const topicKey = topic.toLowerCase();
+    if (seen.has(topicKey)) return;
+
+    seen.add(topicKey);
+    chapter.topics.push(topic);
+  };
+
+  let activeSubjectIndex: number | null = null;
+  let activeChapterIndex: number | null = null;
+  let inTopicBlock = false;
+
+  for (let index = 0; index < rawLines.length; index += 1) {
+    const lineNumber = index + 1;
+    const line = rawLines[index].trim();
+
+    if (!line) continue;
+
+    if (inTopicBlock) {
+      if (line === ")") {
+        inTopicBlock = false;
+        continue;
+      }
+
+      if (line.startsWith("#")) {
+        throw new Error(
+          `Line ${lineNumber}: close the topic block with ")" before starting a new subject or chapter.`,
+        );
+      }
+
+      if (line.startsWith("(")) {
+        throw new Error(
+          `Line ${lineNumber}: close the current topic block before starting another one.`,
+        );
+      }
+
+      addTopicToChapter(
+        activeSubjectIndex,
+        activeChapterIndex,
+        line,
+        lineNumber,
+      );
+      continue;
+    }
+
+    const chapterHeading = line.match(/^##(?!#)\s*(.*)$/);
+    if (chapterHeading) {
+      activeChapterIndex = ensureChapter(
+        activeSubjectIndex,
+        chapterHeading[1],
+        lineNumber,
+      );
+      continue;
+    }
+
+    const subjectHeading = line.match(/^#(?!#)\s*(.*)$/);
+    if (subjectHeading) {
+      activeSubjectIndex = ensureSubject(subjectHeading[1], lineNumber);
+      activeChapterIndex = null;
+      continue;
+    }
+
+    if (line === ")") {
+      throw new Error(
+        `Line ${lineNumber}: found ")" without a matching "(" topic block start.`,
+      );
+    }
+
+    if (line.startsWith("(")) {
+      if (activeSubjectIndex === null) {
+        throw new Error(
+          `Line ${lineNumber}: add a subject with "#" before starting a topic block.`,
+        );
+      }
+      if (activeChapterIndex === null) {
+        throw new Error(
+          `Line ${lineNumber}: add a chapter with "##" before starting a topic block.`,
+        );
+      }
+
+      const inlineContent = line.slice(1).trim();
+      if (!inlineContent) {
+        inTopicBlock = true;
+        continue;
+      }
+
+      if (inlineContent.endsWith(")")) {
+        addTopicToChapter(
+          activeSubjectIndex,
+          activeChapterIndex,
+          inlineContent.slice(0, -1).trim(),
+          lineNumber,
+        );
+        continue;
+      }
+
+      addTopicToChapter(
+        activeSubjectIndex,
+        activeChapterIndex,
+        inlineContent,
+        lineNumber,
+      );
+      inTopicBlock = true;
+      continue;
+    }
+
+    throw new Error(
+      `Line ${lineNumber}: topics in imported .txt files must be inside a "(" ... ")" block.`,
+    );
+  }
+
+  if (inTopicBlock) {
+    throw new Error('Missing closing ")" for the final topic block.');
+  }
+
+  if (subjects.length === 0) {
+    throw new Error(
+      'No subjects found. Start each subject with "#" in the imported .txt file.',
+    );
+  }
+
+  for (const subject of subjects) {
+    if (subject.chapters.length === 0) {
+      throw new Error(
+        `Subject "${subject.subjectName}" does not contain any chapters.`,
+      );
+    }
+
+    for (const chapter of subject.chapters) {
+      if (chapter.topics.length === 0) {
+        throw new Error(
+          `Chapter "${chapter.chapterName}" in subject "${subject.subjectName}" does not contain any topics.`,
+        );
+      }
+    }
+  }
+
+  return subjects;
 }
 
 function daysBetweenDateKeys(startKey: string, endKey: string): number {
@@ -1092,15 +1341,25 @@ export default function StudyPlanner({
       return "classic";
     });
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
+  const [bulkAddMode, setBulkAddMode] = useState<BulkAddMode>("manual");
   const [bulkSubjectId, setBulkSubjectId] = useState("");
   const [bulkSubjectName, setBulkSubjectName] = useState("");
   const [bulkChapterName, setBulkChapterName] = useState("");
   const [bulkTopicsText, setBulkTopicsText] = useState("");
   const [bulkAddError, setBulkAddError] = useState("");
+  const [bulkImportedFileName, setBulkImportedFileName] = useState("");
+  const isTxtBulkMode = bulkAddMode === "txt-file";
 
   // ── Premium Upgrade Modal ──
-  type PremiumModalReason = "topic_limit" | "auto_schedule" | "bulk_add" | "reschedule" | "template" | null;
-  const [premiumModalReason, setPremiumModalReason] = useState<PremiumModalReason>(null);
+  type PremiumModalReason =
+    | "topic_limit"
+    | "auto_schedule"
+    | "bulk_add"
+    | "reschedule"
+    | "template"
+    | null;
+  const [premiumModalReason, setPremiumModalReason] =
+    useState<PremiumModalReason>(null);
   const FREE_TOPIC_LIMIT = 30;
 
   function getTotalTopicCount(): number {
@@ -2201,32 +2460,118 @@ export default function StudyPlanner({
 
   function resetBulkAdd() {
     setBulkAddOpen(false);
+    setBulkAddMode("manual");
     setBulkSubjectId("");
     setBulkSubjectName("");
     setBulkChapterName("");
     setBulkTopicsText("");
     setBulkAddError("");
+    setBulkImportedFileName("");
   }
 
-  async function pasteBulkFromClipboard() {
-    if (typeof navigator === "undefined" || !navigator.clipboard?.readText) {
-      setBulkAddError(
-        "Clipboard access is not available here. Paste manually.",
-      );
+  function switchBulkAddMode(nextMode: BulkAddMode) {
+    setBulkAddMode(nextMode);
+    setBulkAddError("");
+    if (nextMode === "txt-file") {
+      setBulkSubjectId("");
+      setBulkSubjectName("");
+      setBulkChapterName("");
       return;
     }
 
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) {
-        setBulkAddError("Clipboard is empty.");
-        return;
+    setBulkImportedFileName("");
+  }
+
+  async function ensureBulkSubjectByName(
+    currentPlan: Plan,
+    name: string,
+    options?: { reuseExisting?: boolean },
+  ) {
+    const normalizedName = name.trim();
+    const reuseExisting = options?.reuseExisting ?? true;
+    if (reuseExisting) {
+      const existingSubject = currentPlan.subjects.find(
+        (subject) =>
+          subject.name.toLowerCase() === normalizedName.toLowerCase(),
+      );
+      if (existingSubject) {
+        return { nextPlan: currentPlan, subject: existingSubject };
       }
-      setBulkTopicsText(text);
-      setBulkAddError("");
-    } catch {
-      setBulkAddError("Clipboard access was blocked. Please paste manually.");
     }
+
+    const color =
+      BULK_IMPORT_SUBJECT_PALETTE[
+        currentPlan.subjects.length % BULK_IMPORT_SUBJECT_PALETTE.length
+      ];
+    const nextPlan = await plannerRequest<Plan>(`${BASE}/${planId}/subjects`, {
+      method: "POST",
+      body: JSON.stringify({ name: normalizedName, color }),
+    });
+    setPlan(nextPlan);
+    const subject =
+      nextPlan.subjects.find(
+        (item) => item.name.toLowerCase() === normalizedName.toLowerCase(),
+      ) || nextPlan.subjects[nextPlan.subjects.length - 1];
+
+    if (!subject) {
+      throw new Error(`Could not create subject: ${normalizedName}`);
+    }
+
+    return { nextPlan, subject };
+  }
+
+  async function ensureBulkChapterByName(
+    currentPlan: Plan,
+    subjectId: string,
+    chapterName: string,
+  ) {
+    const subject = currentPlan.subjects.find((item) => item.id === subjectId);
+    const existingChapter = subject?.chapters.find(
+      (chapter) => chapter.name.toLowerCase() === chapterName.toLowerCase(),
+    );
+    if (existingChapter) {
+      return { nextPlan: currentPlan, chapterId: existingChapter.id };
+    }
+
+    const nextPlan = await plannerRequest<Plan>(
+      `${BASE}/${planId}/subjects/${subjectId}/chapters`,
+      {
+        method: "POST",
+        body: JSON.stringify({ name: chapterName }),
+      },
+    );
+    setPlan(nextPlan);
+    const nextSubject = nextPlan.subjects.find((item) => item.id === subjectId);
+    const chapterId = nextSubject?.chapters.find(
+      (chapter) => chapter.name.toLowerCase() === chapterName.toLowerCase(),
+    )?.id;
+
+    if (!chapterId) {
+      throw new Error(`Could not create chapter: ${chapterName}`);
+    }
+
+    return { nextPlan, chapterId };
+  }
+
+  async function createBulkTopicEntry(
+    subjectId: string,
+    chapterId: string,
+    topicName: string,
+  ) {
+    const nextPlan = await plannerRequest<Plan>(
+      `${BASE}/${planId}/subjects/${subjectId}/chapters/${chapterId}/topics`,
+      {
+        method: "POST",
+        body: JSON.stringify({ name: topicName }),
+      },
+    );
+
+    if (!nextPlan) {
+      throw new Error(`Failed to create topic: ${topicName}`);
+    }
+
+    setPlan(nextPlan);
+    return nextPlan;
   }
 
   async function handleBulkFileImport(event: any) {
@@ -2234,17 +2579,23 @@ export default function StudyPlanner({
     if (!file) return;
 
     try {
+      if (!file.name.toLowerCase().endsWith(".txt")) {
+        setBulkAddError("Only plain .txt files are supported right now.");
+        return;
+      }
+
       const text = await file.text();
       if (!text.trim()) {
         setBulkAddError("Imported file is empty.");
         return;
       }
+
+      switchBulkAddMode("txt-file");
       setBulkTopicsText(text);
       setBulkAddError("");
+      setBulkImportedFileName(file.name);
     } catch {
-      setBulkAddError(
-        "Could not read file. Use a plain .txt, .md, or .csv file.",
-      );
+      setBulkAddError("Could not read file. Use a plain .txt file.");
     } finally {
       if (event?.target) {
         event.target.value = "";
@@ -2266,133 +2617,127 @@ export default function StudyPlanner({
       return;
     }
     try {
-      const chapterGroups = parseBulkTopicsByChapter(
-        bulkTopicsText,
-        bulkChapterName.trim() || "General",
-      );
-      const totalTopicCount = chapterGroups.reduce(
-        (count, chapter) => count + chapter.topics.length,
-        0,
-      );
+      let currentPlan = plan;
+      let totalTopicCount = 0;
+      let totalChapterCount = 0;
+      let totalSubjectCount = 0;
+
+      if (bulkAddMode === "txt-file") {
+        const subjectGroups = parseBulkSubjectsFromTxt(bulkTopicsText);
+        totalTopicCount = subjectGroups.reduce(
+          (count, subject) =>
+            count +
+            subject.chapters.reduce(
+              (chapterCount, chapter) => chapterCount + chapter.topics.length,
+              0,
+            ),
+          0,
+        );
+        totalChapterCount = subjectGroups.reduce(
+          (count, subject) => count + subject.chapters.length,
+          0,
+        );
+        totalSubjectCount = subjectGroups.length;
+
+        for (const subjectGroup of subjectGroups) {
+          const ensuredSubject = await ensureBulkSubjectByName(
+            currentPlan,
+            subjectGroup.subjectName,
+          );
+          currentPlan = ensuredSubject.nextPlan;
+
+          for (const chapterGroup of subjectGroup.chapters) {
+            const ensuredChapter = await ensureBulkChapterByName(
+              currentPlan,
+              ensuredSubject.subject.id,
+              chapterGroup.chapterName,
+            );
+            currentPlan = ensuredChapter.nextPlan;
+
+            for (const topicName of chapterGroup.topics) {
+              currentPlan = await createBulkTopicEntry(
+                ensuredSubject.subject.id,
+                ensuredChapter.chapterId,
+                topicName,
+              );
+            }
+          }
+        }
+      } else {
+        const chapterGroups = parseBulkTopicsByChapter(
+          bulkTopicsText,
+          bulkChapterName.trim() || "General",
+        );
+        totalTopicCount = chapterGroups.reduce(
+          (count, chapter) => count + chapter.topics.length,
+          0,
+        );
+        totalChapterCount = chapterGroups.length;
+        totalSubjectCount = 1;
+
+        if (totalTopicCount === 0) {
+          setBulkAddError("Add at least one topic");
+          return;
+        }
+
+        let subjectId = bulkSubjectId;
+        if (!subjectId) {
+          const name = bulkSubjectName.trim();
+          if (!name) {
+            setBulkAddError("Choose or add a subject");
+            return;
+          }
+
+          const ensuredSubject = await ensureBulkSubjectByName(
+            currentPlan,
+            name,
+            { reuseExisting: false },
+          );
+          currentPlan = ensuredSubject.nextPlan;
+          subjectId = ensuredSubject.subject.id;
+        }
+
+        const selectedSubject = currentPlan.subjects.find(
+          (subject) => subject.id === subjectId,
+        );
+        if (!selectedSubject) {
+          setBulkAddError("Subject not found");
+          return;
+        }
+
+        for (const chapterGroup of chapterGroups) {
+          const ensuredChapter = await ensureBulkChapterByName(
+            currentPlan,
+            selectedSubject.id,
+            chapterGroup.chapterName,
+          );
+          currentPlan = ensuredChapter.nextPlan;
+
+          for (const topicName of chapterGroup.topics) {
+            currentPlan = await createBulkTopicEntry(
+              selectedSubject.id,
+              ensuredChapter.chapterId,
+              topicName,
+            );
+          }
+        }
+      }
 
       if (totalTopicCount === 0) {
         setBulkAddError("Add at least one topic");
         return;
       }
 
-      let subjectId = bulkSubjectId;
-      let subjectData = plan.subjects.find(
-        (subject) => subject.id === subjectId,
-      );
-
-      if (!subjectId) {
-        const name = bulkSubjectName.trim();
-        if (!name) {
-          setBulkAddError("Choose or add a subject");
-          return;
-        }
-
-        const palette = [
-          "#0ea5e9",
-          "#9333ea",
-          "#16a34a",
-          "#ef4444",
-          "#f59e0b",
-          "#0f766e",
-        ];
-        const color = palette[(plan?.subjects.length || 0) % palette.length];
-        const created = await plannerRequest<Plan>(
-          `${BASE}/${planId}/subjects`,
-          {
-            method: "POST",
-            body: JSON.stringify({ name, color }),
-          },
-        );
-        setPlan(created);
-        subjectData = created.subjects[created.subjects.length - 1];
-        subjectId = subjectData?.id;
-      }
-
-      if (!subjectId) {
-        setBulkAddError("Subject not found");
-        return;
-      }
-
-      let updatedPlan: Plan | null = null;
-      for (const chapterGroup of chapterGroups) {
-        let chapterId = subjectData?.chapters.find(
-          (chapter) =>
-            chapter.name.toLowerCase() ===
-            chapterGroup.chapterName.toLowerCase(),
-        )?.id;
-
-        if (!chapterId) {
-          const chapterCreatedPlan = await plannerRequest<Plan>(
-            `${BASE}/${planId}/subjects/${subjectId}/chapters`,
-            {
-              method: "POST",
-              body: JSON.stringify({ name: chapterGroup.chapterName }),
-            },
-          );
-          updatedPlan = chapterCreatedPlan;
-          setPlan(chapterCreatedPlan);
-          subjectData = chapterCreatedPlan.subjects.find(
-            (subject) => subject.id === subjectId,
-          );
-          chapterId = subjectData?.chapters.find(
-            (chapter) =>
-              chapter.name.toLowerCase() ===
-              chapterGroup.chapterName.toLowerCase(),
-          )?.id;
-        }
-
-        if (!chapterId) {
-          setBulkAddError(
-            `Could not create chapter: ${chapterGroup.chapterName}`,
-          );
-          return;
-        }
-
-        for (const topicName of chapterGroup.topics) {
-          try {
-            const topicResponse = await plannerRequest<Plan>(
-              `${BASE}/${planId}/subjects/${subjectId}/chapters/${chapterId}/topics`,
-              {
-                method: "POST",
-                body: JSON.stringify({ name: topicName }),
-              },
-            );
-            if (topicResponse) {
-              updatedPlan = topicResponse;
-              subjectData = topicResponse.subjects.find(
-                (subject) => subject.id === subjectId,
-              );
-            } else {
-              console.error(
-                `Failed to create topic: ${topicName}. Server returned no response.`,
-              );
-              setBulkAddError(`Failed to create topic: ${topicName}`);
-              return;
-            }
-          } catch (error) {
-            console.error(`Error creating topic "${topicName}":`, error);
-            setBulkAddError(`Error creating topic: ${topicName}`);
-            return;
-          }
-        }
-      }
-
-      if (updatedPlan) {
-        setPlan(updatedPlan);
-      }
+      setPlan(currentPlan);
 
       // Force a full refresh of plan and calendar data to ensure UI consistency
       await fetchPlan();
 
-      showToast(
-        `Imported ${totalTopicCount} topics across ${chapterGroups.length} chapter${chapterGroups.length > 1 ? "s" : ""}.`,
-        "success",
-      );
+      const summaryMessage =
+        bulkAddMode === "txt-file"
+          ? `Imported ${totalTopicCount} topics across ${totalChapterCount} chapter${totalChapterCount > 1 ? "s" : ""} in ${totalSubjectCount} subject${totalSubjectCount > 1 ? "s" : ""}.`
+          : `Imported ${totalTopicCount} topics across ${totalChapterCount} chapter${totalChapterCount > 1 ? "s" : ""}.`;
+      showToast(summaryMessage, "success");
       resetBulkAdd();
     } catch (err: any) {
       const message = normalizePlannerActionMessage(
@@ -2471,88 +2816,99 @@ export default function StudyPlanner({
     }
   }
 
-  const premiumModalMeta: Record<string, { title: string; description: string; icon: string }> = {
-      topic_limit: {
-        title: "Topic Limit Reached",
-        description: `Free plans support up to ${FREE_TOPIC_LIMIT} topics. Competitive exams like JEE and NEET have 200+ topics \u2014 upgrade to add unlimited topics.`,
-        icon: "\u{1F4DA}",
-      },
-      auto_schedule: {
-        title: "Unlock Auto-Schedule",
-        description: "Auto-Schedule builds your perfect study calendar in one click based on your exam date, daily goal, and off days. Stop spending hours on manual planning.",
-        icon: "\u26A1",
-      },
-      bulk_add: {
-        title: "Unlock Bulk Add",
-        description: "Bulk Add lets you import hundreds of topics at once from text or file. Save hours of manual entry \u2014 paste your entire syllabus in seconds.",
-        icon: "\u{1F4CB}",
-      },
-      reschedule: {
-        title: "Unlock Reschedule",
-        description: "Fallen behind on your study plan? Reschedule rebuilds your entire calendar to still hit your exam date. Get back on track in one click.",
-        icon: "\u{1F504}",
-      },
-      template: {
-        title: "Unlock Exam Templates",
-        description: "Access pre-built syllabi for JEE, NEET, SSC, Railway, and more. Load a complete exam syllabus with 200+ topics instantly.",
-        icon: "\u{1F4C4}",
-      },
-    };
+  const premiumModalMeta: Record<
+    string,
+    { title: string; description: string; icon: string }
+  > = {
+    topic_limit: {
+      title: "Topic Limit Reached",
+      description: `Free plans support up to ${FREE_TOPIC_LIMIT} topics. Competitive exams like JEE and NEET have 200+ topics \u2014 upgrade to add unlimited topics.`,
+      icon: "\u{1F4DA}",
+    },
+    auto_schedule: {
+      title: "Unlock Auto-Schedule",
+      description:
+        "Auto-Schedule builds your perfect study calendar in one click based on your exam date, daily goal, and off days. Stop spending hours on manual planning.",
+      icon: "\u26A1",
+    },
+    bulk_add: {
+      title: "Unlock Bulk Add",
+      description:
+        "Bulk Add lets you import hundreds of topics at once from text or file. Save hours of manual entry \u2014 paste your entire syllabus in seconds.",
+      icon: "\u{1F4CB}",
+    },
+    reschedule: {
+      title: "Unlock Reschedule",
+      description:
+        "Fallen behind on your study plan? Reschedule rebuilds your entire calendar to still hit your exam date. Get back on track in one click.",
+      icon: "\u{1F504}",
+    },
+    template: {
+      title: "Unlock Exam Templates",
+      description:
+        "Access pre-built syllabi for JEE, NEET, SSC, Railway, and more. Load a complete exam syllabus with 200+ topics instantly.",
+      icon: "\u{1F4C4}",
+    },
+  };
 
   // ── Premium Upgrade Modal ──
-  const premiumModal = premiumModalReason ? (() => {
-    const meta = premiumModalMeta[premiumModalReason];
-    if (!meta) return null;
-    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.92 }}
-          transition={{ duration: 0.25 }}
-          className="relative w-full max-w-lg rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[0_20px_60px_rgba(15,23,42,0.4)] border border-[#c0c4d1] dark:border-[#2b2c2c]"
-        >
-          <button
-            onClick={() => setPremiumModalReason(null)}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c] flex items-center justify-center text-[#64748b] dark:text-[#9aa2ae] hover:bg-[#d9dbe2] dark:hover:bg-[#202225] transition-colors"
-          >
-            ✕
-          </button>
-
-          <div className="text-center">
-            <div className="text-5xl mb-4">{meta.icon}</div>
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400 mb-3">
-              Premium Feature
-            </div>
-            <h3
-              className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5] mb-3"
-              style={{ fontFamily: "'Satoshi', sans-serif" }}
+  const premiumModal = premiumModalReason
+    ? (() => {
+        const meta = premiumModalMeta[premiumModalReason];
+        if (!meta) return null;
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ duration: 0.25 }}
+              className="relative w-full max-w-lg rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[0_20px_60px_rgba(15,23,42,0.4)] border border-[#c0c4d1] dark:border-[#2b2c2c]"
             >
-              {meta.title}
-            </h3>
-            <p className="text-sm font-bold text-[#64748b] dark:text-[#9aa2ae] leading-relaxed mb-8 max-w-md mx-auto">
-              {meta.description}
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                onClick={() => { void upgradePlannerPremium(); }}
-                className="text-[10px] font-black uppercase tracking-widest px-8 py-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-[0_6px_20px_rgba(59,130,246,0.4)] hover:shadow-[0_8px_28px_rgba(59,130,246,0.5)] transition-all"
-              >
-                Upgrade to Premium
-              </button>
               <button
                 onClick={() => setPremiumModalReason(null)}
-                className="text-[10px] font-black uppercase tracking-widest px-6 py-4 rounded-full bg-[#e6e7ee] dark:bg-[#131416] text-[#64748b] dark:text-[#9aa2ae] border border-[#d9dbe2] dark:border-[#2b2c2c] hover:bg-[#d9dbe2] dark:hover:bg-[#202225] transition-colors"
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c] flex items-center justify-center text-[#64748b] dark:text-[#9aa2ae] hover:bg-[#d9dbe2] dark:hover:bg-[#202225] transition-colors"
               >
-                Not Now
+                ✕
               </button>
-            </div>
+
+              <div className="text-center">
+                <div className="text-5xl mb-4">{meta.icon}</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400 mb-3">
+                  Premium Feature
+                </div>
+                <h3
+                  className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5] mb-3"
+                  style={{ fontFamily: "'Satoshi', sans-serif" }}
+                >
+                  {meta.title}
+                </h3>
+                <p className="text-sm font-bold text-[#64748b] dark:text-[#9aa2ae] leading-relaxed mb-8 max-w-md mx-auto">
+                  {meta.description}
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={() => {
+                      void upgradePlannerPremium();
+                    }}
+                    className="text-[10px] font-black uppercase tracking-widest px-8 py-4 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-[0_6px_20px_rgba(59,130,246,0.4)] hover:shadow-[0_8px_28px_rgba(59,130,246,0.5)] transition-all"
+                  >
+                    Upgrade to Premium
+                  </button>
+                  <button
+                    onClick={() => setPremiumModalReason(null)}
+                    className="text-[10px] font-black uppercase tracking-widest px-6 py-4 rounded-full bg-[#e6e7ee] dark:bg-[#131416] text-[#64748b] dark:text-[#9aa2ae] border border-[#d9dbe2] dark:border-[#2b2c2c] hover:bg-[#d9dbe2] dark:hover:bg-[#202225] transition-colors"
+                  >
+                    Not Now
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </motion.div>
-      </div>
-    );
-  })() : null;
+        );
+      })()
+    : null;
 
   if (loading) {
     return (
@@ -5146,7 +5502,10 @@ export default function StudyPlanner({
                             <div className="mt-3 flex flex-col gap-3">
                               <button
                                 onClick={() => {
-                                  if (!isPremium) { setPremiumModalReason("reschedule"); return; }
+                                  if (!isPremium) {
+                                    setPremiumModalReason("reschedule");
+                                    return;
+                                  }
                                   setPendingDelete({
                                     type: "topic",
                                     id: "__clear_future__",
@@ -5161,7 +5520,10 @@ export default function StudyPlanner({
                               </button>
                               <button
                                 onClick={() => {
-                                  if (!isPremium) { setPremiumModalReason("reschedule"); return; }
+                                  if (!isPremium) {
+                                    setPremiumModalReason("reschedule");
+                                    return;
+                                  }
                                   handleViewChange("calendar");
                                 }}
                                 className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
@@ -5189,7 +5551,10 @@ export default function StudyPlanner({
                         <>
                           <button
                             onClick={() => {
-                              if (!isPremium) { setPremiumModalReason("reschedule"); return; }
+                              if (!isPremium) {
+                                setPremiumModalReason("reschedule");
+                                return;
+                              }
                               setPendingDelete({
                                 type: "topic",
                                 id: "__clear_future__",
@@ -5204,7 +5569,10 @@ export default function StudyPlanner({
                           </button>
                           <button
                             onClick={() => {
-                              if (!isPremium) { setPremiumModalReason("reschedule"); return; }
+                              if (!isPremium) {
+                                setPremiumModalReason("reschedule");
+                                return;
+                              }
                               handleViewChange("calendar");
                             }}
                             className="w-full text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
@@ -5279,7 +5647,8 @@ export default function StudyPlanner({
                   <div className="flex items-center gap-3">
                     <span className="text-lg">📚</span>
                     <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">
-                      {totalTopicCount}/{FREE_TOPIC_LIMIT} topics used on Free Plan
+                      {totalTopicCount}/{FREE_TOPIC_LIMIT} topics used on Free
+                      Plan
                     </span>
                     {remainingFreeTopics <= 5 && remainingFreeTopics > 0 && (
                       <span className="text-[9px] font-black text-red-500 dark:text-red-400 animate-pulse">
@@ -7641,6 +8010,45 @@ export default function StudyPlanner({
             )}
 
             <div className="grid gap-4">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => switchBulkAddMode("manual")}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    !isTxtBulkMode
+                      ? "bg-blue-600 text-white"
+                      : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-slate-700 dark:text-slate-200"
+                  }`}
+                >
+                  Manual Entry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchBulkAddMode("txt-file")}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    isTxtBulkMode
+                      ? "bg-blue-600 text-white"
+                      : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-slate-700 dark:text-slate-200"
+                  }`}
+                >
+                  .TXT Import
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1114] px-4 py-3">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                  {isTxtBulkMode
+                    ? "Import only plain .txt files. In TXT mode, the file decides the subject and chapter structure."
+                    : "Manual mode keeps the existing bulk-add flow. Choose or create a subject, optionally set a chapter, then add one topic per line."}
+                </p>
+                {isTxtBulkMode && (
+                  <p className="mt-2 text-[11px] font-bold text-amber-600 dark:text-amber-300">
+                    Subject, new subject, and chapter fields are disabled in TXT
+                    mode. Switch back to Manual Entry to use them.
+                  </p>
+                )}
+              </div>
+
               <div className="grid sm:grid-cols-2 gap-3">
                 <select
                   value={bulkSubjectId}
@@ -7650,7 +8058,10 @@ export default function StudyPlanner({
                       setBulkSubjectName("");
                     }
                   }}
-                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] px-4 py-3 text-sm font-bold"
+                  disabled={isTxtBulkMode}
+                  className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] px-4 py-3 text-sm font-bold ${
+                    isTxtBulkMode ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                 >
                   <option value="">Select subject</option>
                   {plan?.subjects.map((subject) => (
@@ -7666,7 +8077,10 @@ export default function StudyPlanner({
                     if (e.target.value) setBulkSubjectId("");
                   }}
                   placeholder="Or add a new subject"
-                  className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold"
+                  disabled={isTxtBulkMode}
+                  className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold ${
+                    isTxtBulkMode ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                 />
               </div>
 
@@ -7674,43 +8088,73 @@ export default function StudyPlanner({
                 value={bulkChapterName}
                 onChange={(e) => setBulkChapterName(e.target.value)}
                 placeholder="Chapter name (optional)"
-                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold"
+                disabled={isTxtBulkMode}
+                className={`rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold ${
+                  isTxtBulkMode ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               />
 
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => {
-                    void pasteBulkFromClipboard();
-                  }}
-                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200"
-                >
-                  Paste Clipboard
-                </button>
-                <button
-                  onClick={() => bulkImportInputRef.current?.click()}
-                  className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200"
-                >
-                  Import File
-                </button>
-                <input
-                  ref={bulkImportInputRef}
-                  type="file"
-                  accept=".txt,.md,.csv"
-                  className="hidden"
-                  onChange={(event) => {
-                    void handleBulkFileImport(event);
-                  }}
-                />
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                  Format: chapter heading + bullet topics, or one topic per
-                  line.
-                </span>
-              </div>
+              {isTxtBulkMode ? (
+                <div className="grid gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-[#0f1114] px-4 py-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => bulkImportInputRef.current?.click()}
+                      className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200"
+                    >
+                      Import .TXT File
+                    </button>
+                    <input
+                      ref={bulkImportInputRef}
+                      type="file"
+                      accept=".txt"
+                      className="hidden"
+                      onChange={(event) => {
+                        void handleBulkFileImport(event);
+                      }}
+                    />
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                      Only plain .txt files are allowed right now.
+                    </span>
+                  </div>
+
+                  {bulkImportedFileName && (
+                    <div className="text-[11px] font-bold text-emerald-600 dark:text-emerald-300">
+                      Loaded file: {bulkImportedFileName}
+                    </div>
+                  )}
+
+                  <div className="grid gap-2">
+                    <div className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      TXT Rules
+                    </div>
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-6">
+                      <div>`#` starts a subject.</div>
+                      <div>`##` starts a chapter.</div>
+                      <div>`(` starts the topic block.</div>
+                      <div>Write one topic per line.</div>
+                      <div>End the topic block with `)`.</div>
+                    </div>
+                    <pre className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#090b0e] px-4 py-3 text-[11px] font-bold leading-6 text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
+                      {BULK_TXT_FORMAT_EXAMPLE}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                  Format: one topic per line. If you leave chapter empty, topics
+                  go to a default chapter.
+                </div>
+              )}
 
               <textarea
                 value={bulkTopicsText}
                 onChange={(e) => setBulkTopicsText(e.target.value)}
-                placeholder="One topic per line"
+                placeholder={
+                  isTxtBulkMode
+                    ? "Import a .txt file or paste the same .txt content here using #, ##, ( and )"
+                    : "One topic per line"
+                }
                 className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1114] text-[#0f172a] dark:text-[#e7e5e5] placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-sm font-bold min-h-[140px]"
               />
             </div>
@@ -7728,7 +8172,7 @@ export default function StudyPlanner({
                 }}
                 className="px-6 py-3 rounded-xl bg-blue-600 text-white text-xs font-bold uppercase tracking-widest"
               >
-                Add Topics
+                {isTxtBulkMode ? "Import Topics" : "Add Topics"}
               </button>
             </div>
           </div>
