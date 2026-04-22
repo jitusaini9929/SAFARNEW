@@ -11,7 +11,7 @@ const sanitizeSnippet = (input: unknown, maxLength = 180) => {
 };
 
 const MEDITATION_VIDEO_SETTING_KEY = "meditation_latest_video";
-const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/Ts6H9bbVt1Y";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/i65MjKQCWUE?si=XbBv4pq0N5vXHNkw";
 const LEGACY_MEDITATION_VIDEO_IDS = new Set(["vWWrcQA6JdU", "rXGlSKg_IOE"]);
 const FALLBACK_ADMIN_EMAILS = ["steve123@gmail.com"];
 const MEHFIL_PAUSED = process.env.MEHFIL_PAUSED === "true";

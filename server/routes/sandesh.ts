@@ -2,11 +2,13 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { collections } from '../db';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireAdmin } from '../middleware/auth';
 import { getRedisClient } from '../lib/redis.client';
 import { redisRateLimit } from '../middleware/redis-rate-limit';
 import { v4 as uuidv4 } from 'uuid';
 import { validateBlockedWords } from '../utils/contentFilter';
+import { verifyAccessToken } from '../lib/jwt.service';
+import { isAccessTokenBlocked } from '../lib/token.store';
 
 const router = Router();
 const SANDESH_CACHE_TTL_MS = Number(process.env.SANDESH_CACHE_TTL_MS || 30000);
@@ -17,6 +19,45 @@ type SandeshCacheEntry = {
 };
 
 const sandeshCache = new Map<string, SandeshCacheEntry>();
+
+const adminEmails = new Set(
+    (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
+        .split(',')
+        .map((email) => email.trim().toLowerCase())
+        .filter((email) => email.length > 0),
+);
+
+async function isAdminUser(userId: string | null | undefined): Promise<boolean> {
+    if (!userId) return false;
+    const user = await collections.users().findOne(
+        { id: userId },
+        { projection: { email: 1 } },
+    );
+    const email = String(user?.email || '').trim().toLowerCase();
+    return !!email && adminEmails.has(email);
+}
+
+async function getOptionalAuthContext(req: Request): Promise<{ userId: string | null; isAdmin: boolean }> {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+        return { userId: null, isAdmin: false };
+    }
+
+    try {
+        const token = authHeader.slice(7);
+        const payload = verifyAccessToken(token);
+
+        if (await isAccessTokenBlocked(payload.jti)) {
+            return { userId: null, isAdmin: false };
+        }
+
+        const userId = payload.sub;
+        const isAdmin = await isAdminUser(userId);
+        return { userId, isAdmin };
+    } catch {
+        return { userId: null, isAdmin: false };
+    }
+}
 
 function getSandeshCache(cacheKey: string) {
     const entry = sandeshCache.get(cacheKey);
@@ -92,23 +133,7 @@ const sandeshListLimiter = redisRateLimit({
 // Get Sandesh list (admin: all, users: latest 5)
 router.get('/', sandeshListLimiter, async (req: Request, res: Response) => {
     try {
-        let isAdmin = false;
-        const userId = (req as any).session?.userId as string | undefined;
-        let user: any = null;
-
-        // Check if user is logged in and is admin (even for public GET route if we want to show admin controls)
-        // Note: requireAuth isn't middleware here, so we check session manually if present
-        if (userId) {
-            user = await collections.users().findOne({ id: userId });
-            const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
-                .split(',')
-                .map(e => e.trim().toLowerCase())
-                .filter(e => e.length > 0);
-
-            if (user && user.email && adminEmails.includes(user.email.toLowerCase())) {
-                isAdmin = true;
-            }
-        }
+        const { userId, isAdmin } = await getOptionalAuthContext(req);
 
         const cacheKey = `sandesh:list:${userId ?? 'public'}`;
         const redisCached = await getRedisCache(cacheKey);
@@ -237,24 +262,10 @@ router.post('/preview', requireAuth, previewLimiter, async (req: Request, res: R
 });
 
 // Post new Sandesh (Admin only)
-router.post('/', requireAuth, async (req: Request, res: Response) => {
+router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) => {
     try {
         const { content, importance = 'normal', link_meta, image_url, audio_url } = req.body;
-        const userId = (req as any).session.userId;
-
-        // Check if user is admin
-        const user = await collections.users().findOne({ id: userId });
-
-        // Split and trim admin emails from env var
-        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
-            .split(',')
-            .map(e => e.trim().toLowerCase())
-            .filter(e => e.length > 0);
-
-        if (!user || !user.email || !adminEmails.includes(user.email.toLowerCase())) {
-            console.log(`[SANDESH] Unauthorized post attempt by ${user?.email}`);
-            return res.status(403).json({ message: 'Unauthorized: Admin access required' });
-        }
+        const userId = req.user!.userId;
 
         if (!content && !image_url && !audio_url) {
             return res.status(400).json({ message: 'Content, Image, or Audio is required' });
@@ -289,22 +300,10 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 });
 
 // Update Sandesh (Admin only)
-router.put('/:id', requireAuth, async (req: Request, res: Response) => {
+router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { content, importance, link_meta, image_url, audio_url } = req.body;
-        const userId = (req as any).session.userId;
-
-        // Check user
-        const user = await collections.users().findOne({ id: userId });
-        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
-            .split(',')
-            .map(e => e.trim().toLowerCase())
-            .filter(e => e.length > 0);
-
-        if (!user || !user.email || !adminEmails.includes(user.email.toLowerCase())) {
-            return res.status(403).json({ message: 'Unauthorized' });
-        }
 
         const updateData: any = {
             updated_at: new Date()
@@ -337,21 +336,9 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
 });
 
 // Delete Sandesh (Admin only)
-router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
+router.delete('/:id', requireAuth, requireAdmin, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const userId = (req as any).session.userId;
-
-        // Check user
-        const user = await collections.users().findOne({ id: userId });
-        const adminEmails = (process.env.ADMIN_EMAILS || 'steve123@example.com,safarparmar0@gmail.com,thatkindchic@gmail.com')
-            .split(',')
-            .map(e => e.trim().toLowerCase())
-            .filter(e => e.length > 0);
-
-        if (!user || !user.email || !adminEmails.includes(user.email.toLowerCase())) {
-            return res.status(403).json({ message: 'Unauthorized' });
-        }
 
         const result = await collections.sandeshMessages().deleteOne({ id: id });
 

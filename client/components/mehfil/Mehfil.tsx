@@ -37,6 +37,12 @@ interface MehfilProps {
 
 type MehfilFeedRoom = MehfilRoom | 'ALL';
 const FEED_PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 450;
+const MIN_SEARCH_QUERY_LENGTH = 3;
+const MAX_SEARCH_QUERY_LENGTH = 80;
+
+const normalizeSearchQuery = (value: string) =>
+  value.trim().replace(/\s+/g, ' ').slice(0, MAX_SEARCH_QUERY_LENGTH);
 
 interface PostingBanPayload {
   isActive: boolean;
@@ -100,7 +106,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
@@ -108,6 +114,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const currentFeedPageRef = useRef(0);
   const hasMoreThoughtsRef = useRef(true);
   const isLoadingThoughtsRef = useRef(false);
+  const searchQueryRef = useRef('');
 
   const {
     thoughts,
@@ -215,7 +222,12 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       console.log('Connected to Mehfil server');
     });
 
-    newSocket.on('thoughts', (payload: { thoughts: any[]; page?: number; hasMore?: boolean }) => {
+    newSocket.on('thoughts', (payload: { thoughts: any[]; page?: number; hasMore?: boolean; query?: string }) => {
+      const responseQuery = typeof payload?.query === 'string' ? payload.query : '';
+      if (responseQuery !== searchQueryRef.current) {
+        return;
+      }
+
       const thoughtList = payload?.thoughts || [];
       const page = Number(payload?.page ?? 1);
       const hasMore = Boolean(payload?.hasMore);
@@ -266,6 +278,9 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     });
 
     newSocket.on('thoughtCreated', (thought) => {
+      if (searchQueryRef.current) {
+        return;
+      }
       addThought(thought);
       setAriaLiveMessage(t('mehfil.aria.new_thought') || 'New thought received');
       setTimeout(() => setAriaLiveMessage(''), 3000);
@@ -339,10 +354,15 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   useEffect(() => {
     if (!socket) return;
 
-    const requestThoughtPage = (page: number) => {
+    const requestThoughtPage = (page: number, query = searchQueryRef.current) => {
       isLoadingThoughtsRef.current = true;
       setIsLoadingThoughts(true);
-      socket.emit('loadThoughts', { page, limit: FEED_PAGE_SIZE, room: 'ALL' });
+      socket.emit('loadThoughts', {
+        page,
+        limit: FEED_PAGE_SIZE,
+        room: 'ALL',
+        query: query || undefined,
+      });
     };
 
     const syncSocketState = () => {
@@ -363,7 +383,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       currentFeedPageRef.current = 0;
       hasMoreThoughtsRef.current = true;
       setHasMoreThoughts(true);
-      requestThoughtPage(1);
+      requestThoughtPage(1, searchQueryRef.current);
     };
 
     if (socket.connected) {
@@ -375,6 +395,37 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       socket.off('connect', syncSocketState);
     };
   }, [socket, user?.id, user?.name, user?.avatar, initializeDM, loadSavedHandles]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const normalizedQuery = normalizeSearchQuery(debouncedSearchTerm);
+    const effectiveQuery =
+      normalizedQuery.length >= MIN_SEARCH_QUERY_LENGTH ? normalizedQuery : '';
+
+    if (effectiveQuery === searchQueryRef.current) {
+      return;
+    }
+
+    searchQueryRef.current = effectiveQuery;
+
+    if (!socket.connected) {
+      return;
+    }
+
+    currentFeedPageRef.current = 0;
+    hasMoreThoughtsRef.current = true;
+    setHasMoreThoughts(true);
+    isLoadingThoughtsRef.current = true;
+    setIsLoadingThoughts(true);
+
+    socket.emit('loadThoughts', {
+      page: 1,
+      limit: FEED_PAGE_SIZE,
+      room: 'ALL',
+      query: effectiveQuery || undefined,
+    });
+  }, [socket, debouncedSearchTerm]);
 
   useEffect(() => {
     if (!socket) return;
@@ -391,7 +442,12 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
       const nextPage = currentFeedPageRef.current + 1;
       isLoadingThoughtsRef.current = true;
       setIsLoadingThoughts(true);
-      socket.emit('loadThoughts', { page: nextPage, limit: FEED_PAGE_SIZE, room: 'ALL' });
+      socket.emit('loadThoughts', {
+        page: nextPage,
+        limit: FEED_PAGE_SIZE,
+        room: 'ALL',
+        query: searchQueryRef.current || undefined,
+      });
     };
 
     window.addEventListener('scroll', handleScrollLoad, { passive: true });
@@ -441,10 +497,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     return thoughtRoom === activeRoom;
   });
 
-  const filteredThoughts = roomFilteredThoughts.filter((t) =>
-    t.content.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-    t.authorName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-  );
+  const visibleThoughts = roomFilteredThoughts;
 
   const isGuestReadOnly = !user?.id;
 
@@ -704,7 +757,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
               </div>
 
               <div className="space-y-6">
-                {filteredThoughts.length === 0 ? (
+                {visibleThoughts.length === 0 ? (
                   <div className="text-center py-16">
                     <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                       <MessageCircle className="w-12 h-12 text-slate-400 dark:text-slate-500" />
@@ -714,7 +767,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                     </p>
                   </div>
                 ) : (
-                  filteredThoughts.map((thought) => (
+                  visibleThoughts.map((thought) => (
                     <ThoughtCard
                       key={thought.id}
                       thought={thought}

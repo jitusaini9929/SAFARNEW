@@ -52,6 +52,11 @@ const MOOD_OPTIONS: MoodOption[] = [
 
 const QUICK_TAGS = ["work", "family", "sleep", "health", "relationship", "finance", "study"];
 
+function formatMoodNotes(notes: string | null | undefined): string {
+  if (!notes) return "";
+  return notes.replace(/\bTags:\s*/gi, "Due to: ");
+}
+
 export default function CheckIn() {
   const { t } = useTranslation();
   const { startTour } = useGuidedTour();
@@ -86,7 +91,7 @@ export default function CheckIn() {
     if (!selectedMood) return toast.error(t('checkin.select_mood_error'));
     setIsSubmitting(true);
     try {
-      const finalNote = note + (selectedTags.length > 0 ? `\n\nTags: ${selectedTags.join(", ")}` : "");
+      const finalNote = note + (selectedTags.length > 0 ? `\n\nDue to: ${selectedTags.join(", ")}` : "");
       const newMood = await dataService.addMood(selectedMood, intensity, finalNote);
       toast.success(t('checkin.save_success'));
       setMoodHistory(prev => [newMood, ...prev]);
@@ -223,7 +228,7 @@ export default function CheckIn() {
 
               <div className="lg:col-span-4 flex flex-col justify-between space-y-8">
                 <div className="space-y-6">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Heart size={14} /> {t('checkin.context_tags')}</h4>
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2"><Heart size={14} /> Due to</h4>
                   <div data-tour="quick-tags" className="flex flex-wrap gap-2.5">
                     {QUICK_TAGS.map(tag => (
                       <button
@@ -280,7 +285,7 @@ export default function CheckIn() {
                           <span className="text-[10px] font-black text-primary px-2.5 py-1 bg-primary/10 rounded-lg">{m.intensity}/5</span>
                         </div>
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">{formatDateLabel(m.timestamp || m.createdAt)}</p>
-                        {m.notes && <p className="text-sm font-medium text-muted-foreground line-clamp-2 leading-relaxed italic border-l-2 pl-3">{m.notes}</p>}
+                        {m.notes && <p className="text-sm font-medium text-muted-foreground line-clamp-2 leading-relaxed italic border-l-2 pl-3">{formatMoodNotes(m.notes)}</p>}
                       </div>
                     </div>
                   ))}

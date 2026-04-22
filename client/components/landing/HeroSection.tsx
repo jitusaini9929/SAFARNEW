@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import LanguageToggle from '../LanguageToggle';
 import AnimatedBorderPill from './AnimatedBorderPill';
+import HeroAnimation from './HeroAnimation';
 
 interface HeroSectionProps {
     user: any;
@@ -91,7 +92,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
     return (
         <div className="relative w-full min-h-[100dvh]">
             {/* Simplified Header - Scrollable (Absolute) */}
-            <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-5 md:px-8 md:py-6">
+            <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-4 md:px-8 md:py-5 backdrop-blur-md bg-white/10 dark:bg-black/10 border-b border-white/20 dark:border-white/5">
                 <div className="w-full max-w-[1400px] flex items-center justify-between">
                     {/* Logo and SAFAR Title */}
                     <div className="flex items-center gap-3 md:gap-4">
@@ -106,12 +107,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                     </div>
 
                     <div className="hidden md:flex items-center md:gap-4 md:ml-auto md:mr-6 md:-translate-x-[30%]">
-                        <AnimatedBorderPill
+                        <Link
                             to="/updates"
-                            text="Updates"
-                            mode={theme === 'dark' ? 'dark' : 'light'}
-                            className="transition-transform duration-200 hover:scale-105"
-                        />
+                            className="inline-flex items-center px-[14px] py-[10px] rounded-lg text-black dark:text-white/80 font-semibold text-[17px] leading-none hover:text-black dark:hover:text-white transition-all duration-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
+                        >
+                            Updates
+                        </Link>
                         <a
                             href={supportGmailHref}
                             target="_blank"
@@ -158,10 +159,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                         ) : (
                             <button
                                 onClick={() => setIsAuthModalOpen(true)}
-                                className="px-5 py-2 md:px-7 md:py-2.5 rounded-full bg-gradient-to-r from-[#1e3a8a] to-[#1e40af] text-white font-semibold text-sm md:text-base shadow-lg shadow-blue-900/30 ring-1 ring-white/10 hover:shadow-xl hover:shadow-blue-900/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 relative overflow-hidden group"
+                                className="px-6 py-2 md:px-8 md:py-2.5 rounded-full bg-black dark:bg-white text-white dark:text-black font-semibold text-sm md:text-base transition-all duration-300 hover:scale-105 active:scale-95"
                             >
-                                <span className="relative z-10">{t('auth.signin')}</span>
-                                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                                <span>{t('auth.signin')}</span>
                             </button>
                         )}
                     </div>
@@ -171,18 +171,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
             {/* Header / Hero with Video */}
             <header className="relative w-full min-h-[100dvh] flex items-center justify-center">
                 <div className="absolute inset-0 z-0">
-                    {/* Static Background Image */}
-                    <img loading="lazy"
-                        src="/hero-background.webp"
-                        alt="Hero background"
-                        className="absolute inset-0 w-full h-full object-cover"
-                    />
+                    <HeroAnimation />
 
                     {/* Subtle Vignette Effect - keeps image clear, just slight edge darkening */}
                     <div className="absolute inset-0 z-[5] pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.15) 100%)' }}></div>
 
-                    {/* Dark film for light mode text contrast */}
-                    <div className="absolute inset-0 bg-black/35 dark:bg-transparent z-[6]"></div>
+                    {/* Removed dark film — text contrast handled by drop-shadow */}
 
                     <div
                         className="absolute inset-0 z-10"
@@ -198,22 +192,24 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                                 "linear-gradient(180deg, rgba(49,25,178,0.09) 0%, rgba(49,25,178,0.05) 35%, rgba(49,25,178,0.12) 100%)",
                         }}
                     ></div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-50/30 via-slate-50/10 to-transparent dark:from-midnight/70 dark:via-midnight/50 dark:to-transparent/20 z-10"></div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-50/40 via-slate-50/5 to-transparent dark:from-midnight/75 dark:via-transparent dark:to-transparent z-10"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-50/30 via-transparent to-transparent dark:from-transparent z-10"></div>
                 </div>
-                <div className="relative z-20 w-full max-w-[1400px] px-6 md:px-8 mt-24 md:mt-12">
-                    <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 drop-shadow-2xl font-playfair">
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-white">{titlePart1}</span>
-                        <span className="block whitespace-normal md:whitespace-nowrap text-black dark:text-white mt-2">{titlePart2}</span>
+                <div className="relative z-20 w-full max-w-[1400px] px-6 md:px-8 mt-[45vh] md:mt-[30vh] flex flex-col items-center text-center">
+                    {/* Glassmorphic Scrim / Soft Glow */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[150%] z-[-1] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.75)_0%,transparent_60%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.75)_0%,transparent_60%)] pointer-events-none blur-2xl"></div>
+                    
+                    <h1 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-normal leading-tight mb-6 drop-shadow-md">
+                        <span className="block whitespace-normal md:whitespace-nowrap font-extrabold text-black dark:text-white">{titlePart1}</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap font-medium text-black dark:text-white mt-2">{titlePart2}</span>
                     </h1>
-                    <p className="text-base md:text-lg lg:text-xl text-slate-800 dark:text-slate-100 font-satoshi mb-10 md:mb-12 max-w-xl md:max-w-2xl leading-relaxed whitespace-pre-line">
+                    <p className="text-base md:text-lg lg:text-xl font-sans text-slate-800 dark:text-slate-100 mb-10 md:mb-12 max-w-[600px] leading-8 whitespace-pre-line text-center">
                         {subtitleBody}
                     </p>
 
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 md:gap-5 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-4 md:gap-6 justify-center w-full sm:w-auto mt-2">
                         <Link
                             to="/dashboard"
-                            className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-[#1e3a8a] to-[#1e40af] text-white px-7 py-3.5 md:px-10 md:py-4 rounded-full text-base md:text-lg font-semibold shadow-lg shadow-blue-900/30 ring-1 ring-white/10 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-900/40 group"
+                            className="inline-flex items-center justify-center gap-3 bg-[#0099ff] text-white px-7 py-3.5 md:px-10 md:py-4 rounded-full text-base md:text-lg font-semibold shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group"
                         >
                             <span>{t('landing.start_btn')}</span>
                             <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
@@ -221,17 +217,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
 
                         <Link
                             to="/study/planner"
-                            className="group relative flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-8 py-4 md:px-10 md:py-4 rounded-full font-semibold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 shadow-lg shadow-teal-500/30 ring-1 ring-white/20 hover:shadow-xl hover:shadow-teal-500/40"
+                            className="group relative flex items-center justify-center gap-3 bg-transparent border-2 border-emerald-500 text-emerald-800 dark:text-emerald-400 px-8 py-3.5 md:px-10 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 hover:bg-emerald-500/10 cursor-pointer"
                         >
                             <span className="relative z-10">Try Study Planner</span>
-                            <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
-                        </Link>
-
-                        <Link
-                            to="/challenge-100k"
-                            className="group relative flex items-center justify-center gap-3 bg-white/85 dark:bg-white/10 text-slate-900 dark:text-white px-8 py-4 md:px-10 md:py-5 rounded-full font-semibold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden shadow-lg border-2 border-white/30"
-                        >
-                            <span className="relative z-10">Join 100K Challenge</span>
                             <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
                         </Link>
 

@@ -86,6 +86,9 @@ const DEFAULT_ROOM: MehfilRoom = 'ACADEMIC';
 const ROOM_ORDER: MehfilRoom[] = ['ACADEMIC', 'REFLECTIVE'];
 const DEFAULT_THOUGHTS_PAGE_SIZE = 50;
 const MAX_THOUGHTS_PAGE_SIZE = 100;
+const SEARCH_MIN_QUERY_LENGTH = 3;
+const SEARCH_MAX_QUERY_LENGTH = 80;
+const SEARCH_CACHE_TTL_SECONDS = 20;
 const MIN_THOUGHT_LENGTH = 1;
 const MAX_THOUGHT_LENGTH = 5000;
 const BULLSHIT_TTL_HOURS = Number(process.env.MEHFIL_BULLSHIT_TTL_HOURS || 24);
@@ -186,6 +189,24 @@ function normalizeTags(input: unknown): string[] {
     .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`));
 
   return [...new Set(tags)].slice(0, 5);
+}
+
+function escapeRegexForSearch(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeSearchQuery(query: unknown): string {
+  return String(query || '').trim().replace(/\s+/g, ' ').slice(0, SEARCH_MAX_QUERY_LENGTH);
+}
+
+function isMissingTextIndexError(error: unknown): boolean {
+  const code = Number((error as { code?: number } | null)?.code);
+  const message = String((error as { message?: string } | null)?.message || '').toLowerCase();
+  return (
+    code === 27 ||
+    message.includes('text index required') ||
+    message.includes('index for $text query')
+  );
 }
 
 function heuristicModeration(content: string, reason: string): ModerationResult {
@@ -310,7 +331,8 @@ async function classifyThought(content: string): Promise<ModerationResult> {
   }
 }
 
-function buildThoughtQuery(room: MehfilFeedRoom) {
+function buildThoughtQuery(room: MehfilFeedRoom, query?: string, useRegexFallback = false) {
+  const normalizedQuery = normalizeSearchQuery(query);
   const categoryFilter =
     room === 'ALL'
       ? {
@@ -323,13 +345,27 @@ function buildThoughtQuery(room: MehfilFeedRoom) {
         ? { $or: [{ category: { $in: ['ACADEMIC', 'ACADEMIC_HALL'] } }, { category: { $exists: false } }] }
         : { category: { $in: ['REFLECTIVE', 'THOUGHTS', 'THOUGHT'] } };
 
-  return {
-    $and: [
-      categoryFilter,
-      { $or: [{ status: 'approved' }, { status: { $exists: false } }] },
-      { $or: [{ expires_at: { $exists: false } }, { expires_at: null }, { expires_at: { $gt: new Date() } }] },
-    ],
-  };
+  const filters: any[] = [
+    categoryFilter,
+    { $or: [{ status: 'approved' }, { status: { $exists: false } }] },
+    { $or: [{ expires_at: { $exists: false } }, { expires_at: null }, { expires_at: { $gt: new Date() } }] },
+  ];
+
+  if (normalizedQuery.length >= SEARCH_MIN_QUERY_LENGTH) {
+    if (useRegexFallback) {
+      const escaped = escapeRegexForSearch(normalizedQuery);
+      filters.push({
+        $or: [
+          { content: { $regex: escaped, $options: 'i' } },
+          { author_name: { $regex: escaped, $options: 'i' } },
+        ],
+      });
+    } else {
+      filters.push({ $text: { $search: normalizedQuery } });
+    }
+  }
+
+  return { $and: filters };
 }
 
 async function applySpamStrike(userId: string): Promise<{ strikeCount: number; isShadowBanned: boolean }> {
@@ -931,7 +967,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
       socket.emit('roomJoined', { room });
     });
 
-    socket.on('loadThoughts', async (data: { page?: number; limit?: number; room?: string }) => {
+    socket.on('loadThoughts', async (data: { page?: number; limit?: number; room?: string; query?: string }) => {
       try {
         const requestedPage = Number(data?.page ?? 1);
         const page = Number.isFinite(requestedPage) ? Math.max(1, Math.floor(requestedPage)) : 1;
@@ -942,39 +978,61 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const limit = Math.min(normalizedLimit, MAX_THOUGHTS_PAGE_SIZE);
         const skip = (page - 1) * limit;
         const room = normalizeFeedRoom(data?.room);
+        const searchQuery = normalizeSearchQuery(data?.query);
+        const hasSearchQuery = searchQuery.length >= SEARCH_MIN_QUERY_LENGTH;
 
         // ── Redis feed cache (base data without per-user reactions) ──
-        const feedCacheKey = `mehfil:feed:${room}:p${page}:l${limit}`;
-        const cacheTtl = page === 1 ? 30 : 60; // page 1 = 30s, rest = 60s
+        const queryCacheKey = hasSearchQuery ? `:q${encodeURIComponent(searchQuery.toLowerCase())}` : '';
+        const feedCacheKey = `mehfil:feed:${room}${queryCacheKey}:p${page}:l${limit}`;
+        const cacheTtl = hasSearchQuery ? SEARCH_CACHE_TTL_SECONDS : page === 1 ? 30 : 60;
         let thoughts: any[];
 
         const cachedFeed = redisClient ? await redisGetJSON<any[]>(redisClient, feedCacheKey) : null;
         if (cachedFeed) {
           thoughts = cachedFeed;
         } else {
-          thoughts = await collections.mehfilThoughts()
-            .find(buildThoughtQuery(room), {
-              projection: {
-                _id: 0,
-                id: 1,
-                user_id: 1,
-                is_anonymous: 1,
-                author_name: 1,
-                author_avatar: 1,
-                content: 1,
-                image_url: 1,
-                relatable_count: 1,
-                comments_count: 1,
-                created_at: 1,
-                category: 1,
-                ai_tags: 1,
-                ai_score: 1,
-              },
-            })
-            .sort({ created_at: -1 })
-            .skip(skip)
-            .limit(limit)
-            .toArray();
+          const projection = {
+            _id: 0,
+            id: 1,
+            user_id: 1,
+            is_anonymous: 1,
+            author_name: 1,
+            author_avatar: 1,
+            content: 1,
+            image_url: 1,
+            relatable_count: 1,
+            comments_count: 1,
+            created_at: 1,
+            category: 1,
+            ai_tags: 1,
+            ai_score: 1,
+          };
+
+          const fetchThoughts = async (useRegexFallback = false) => {
+            const cursor = collections.mehfilThoughts().find(
+              buildThoughtQuery(room, searchQuery, useRegexFallback),
+              { projection },
+            );
+
+            if (hasSearchQuery && !useRegexFallback) {
+              cursor.sort({ score: { $meta: 'textScore' }, created_at: -1 } as any);
+            } else {
+              cursor.sort({ created_at: -1 });
+            }
+
+            return cursor.skip(skip).limit(limit).toArray();
+          };
+
+          try {
+            thoughts = await fetchThoughts(false);
+          } catch (queryError) {
+            if (hasSearchQuery && isMissingTextIndexError(queryError)) {
+              thoughts = await fetchThoughts(true);
+            } else {
+              throw queryError;
+            }
+          }
+
           if (redisClient) {
             await redisSetJSON(redisClient, feedCacheKey, thoughts, cacheTtl);
           }
@@ -982,7 +1040,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
 
         const userId = socketToUser.get(socket.id);
         const thoughtIds = thoughts.map((t) => t.id);
-        let userReactions: string[] = [];
+        let userReactionSet = new Set<string>();
         let savedThoughtIds = new Set<string>();
 
         if (userId && thoughtIds.length > 0) {
@@ -996,7 +1054,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
               .project({ _id: 0, thought_id: 1 })
               .toArray(),
           ]);
-          userReactions = reactions.map((r) => String(r.thought_id));
+          userReactionSet = new Set(reactions.map((r) => String(r.thought_id)));
           savedThoughtIds = new Set(saves.map((entry) => String(entry.thought_id)));
         }
 
@@ -1012,7 +1070,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           relatableCount: t.relatable_count || 0,
           commentsCount: t.comments_count || 0,
           createdAt: t.created_at,
-          hasReacted: userReactions.includes(t.id),
+          hasReacted: userReactionSet.has(String(t.id)),
           category: normalizeCategory(t.category || 'ACADEMIC'),
           aiTags: Array.isArray(t.ai_tags) ? t.ai_tags : [],
           aiScore: typeof t.ai_score === 'number' ? t.ai_score : null,
@@ -1022,6 +1080,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           thoughts: formattedThoughts,
           room,
           page,
+          query: hasSearchQuery ? searchQuery : '',
           hasMore: thoughts.length === limit,
         });
       } catch (err) {

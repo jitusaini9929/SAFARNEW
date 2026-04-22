@@ -213,6 +213,10 @@ export async function initDatabase(): Promise<void> {
             { category: 1, status: 1, created_at: -1 },
             { partialFilterExpression: { status: { $in: ['approved', 'pending'] } }, name: 'mehfil_thoughts_feed_partial' }
         );
+        await db.collection('mehfil_thoughts').createIndex(
+            { content: 'text', author_name: 'text' },
+            { name: 'mehfil_thoughts_text_search', default_language: 'none' }
+        );
         await db.collection('mehfil_thoughts').createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
         await db.collection('mehfil_reactions').createIndex({ thought_id: 1, user_id: 1 }, { unique: true });
         await db.collection('mehfil_comments').createIndex({ thought_id: 1, created_at: -1 });

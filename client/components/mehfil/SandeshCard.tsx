@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { formatDistanceToNow } from 'date-fns';
 import { hi, enUS } from 'date-fns/locale';
-import { apiFetch } from '@/utils/apiFetch';
+import { apiFetch, getAccessToken } from '@/utils/apiFetch';
 import { useAuth } from '@/contexts/AuthContext';
 import './SandeshCard.css';
 
@@ -82,7 +82,7 @@ const SandeshCard = () => {
 
     const fetchSandesh = async () => {
         try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh`, { credentials: 'include' });
+            const res = await apiFetch(`${API_URL}/mehfil/sandesh`, { method: 'GET' });
             if (res.ok) {
                 const data = await res.json();
                 const incomingSandeshes: Sandesh[] = Array.isArray(data.sandeshes)
@@ -133,7 +133,7 @@ const SandeshCard = () => {
         setUserLikedById(prev => ({ ...prev, [sandeshId]: !wasLiked }));
         setLikeCountById(prev => ({ ...prev, [sandeshId]: wasLiked ? (prev[sandeshId] || 0) - 1 : (prev[sandeshId] || 0) + 1 }));
         try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh/${sandeshId}/react`, { method: 'POST', credentials: 'include' });
+            const res = await apiFetch(`${API_URL}/mehfil/sandesh/${sandeshId}/react`, { method: 'POST' });
             if (res.ok) {
                 const data = await res.json();
                 setLikeCountById(prev => ({ ...prev, [sandeshId]: data.count }));
@@ -205,6 +205,12 @@ const SandeshCard = () => {
     }, []);
 
     useEffect(() => {
+        if (status !== 'loading') {
+            fetchSandesh();
+        }
+    }, [status, user?.id]);
+
+    useEffect(() => {
         if (status === 'authenticated') {
             setCurrentUserId(user?.id || null);
             return;
@@ -228,11 +234,10 @@ const SandeshCard = () => {
         if (match && !linkMeta && !previewLoading) {
             setPreviewLoading(true);
             try {
-                const res = await fetch(`${API_URL}/mehfil/sandesh/preview`, {
+                const res = await apiFetch(`${API_URL}/mehfil/sandesh/preview`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url: match[0] }),
-                    credentials: 'include'
                 });
                 if (res.ok) {
                     const data = await res.json();
@@ -263,11 +268,10 @@ const SandeshCard = () => {
         try {
             const method = isEditing ? 'PUT' : 'POST';
             const url = isEditing ? `${API_URL}/mehfil/sandesh/${editId}` : `${API_URL}/mehfil/sandesh`;
-            const res = await fetch(url, {
+            const res = await apiFetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content: newContent, link_meta: linkMeta, image_url: imageUrl, audio_url: audioUrl }),
-                credentials: 'include',
             });
             if (res.ok) {
                 toast.success(isEditing ? t('sandesh.toast.update_success') : t('sandesh.toast.post_success'));
@@ -290,11 +294,13 @@ const SandeshCard = () => {
         try {
             const formData = new FormData();
             formData.append('file', file);
+            const accessToken = getAccessToken();
 
             const res = await fetch(`${API_URL}/upload`, {
                 method: 'POST',
                 body: formData,
-                credentials: 'include'
+                credentials: 'include',
+                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
             });
             const data = await res.json();
             if (data.success) { setAudioUrl(data.url); toast.success(t('sandesh.toast.audio_success')); }
@@ -332,7 +338,7 @@ const SandeshCard = () => {
     const handleDelete = async (id: string) => {
         if (!confirm(t('sandesh.delete_confirm'))) return;
         try {
-            const res = await fetch(`${API_URL}/mehfil/sandesh/${id}`, { method: 'DELETE', credentials: 'include' });
+            const res = await apiFetch(`${API_URL}/mehfil/sandesh/${id}`, { method: 'DELETE' });
             if (res.ok) { toast.success(t('sandesh.toast.delete_success')); fetchSandesh(); }
             else { toast.error(t('sandesh.toast.delete_error')); }
         } catch { toast.error(t('sandesh.toast.delete_error')); }

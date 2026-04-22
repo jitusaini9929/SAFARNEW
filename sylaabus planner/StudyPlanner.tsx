@@ -5,6 +5,7 @@ import { apiFetch, type ApiFetchOptions } from "../client/utils/apiFetch";
 import PlannerSidebar from "../client/components/PlannerSidebar";
 import LanguageToggle from "../client/components/LanguageToggle";
 import ThemeToggle from "../client/components/ui/theme-toggle";
+import { Switch } from "../client/components/ui/switch";
 import { TourPrompt } from "../client/components/guided-tour";
 import { studyPlannerTour } from "../client/components/guided-tour/tourSteps";
 import { useGuidedTour } from "../client/contexts/GuidedTourContext";
@@ -1354,13 +1355,13 @@ export default function StudyPlanner({
   const [syllabusSubject, setSyllabusSubject] = useState<string>("all");
   const [syllabusLayoutMode, setSyllabusLayoutMode] =
     useState<SyllabusLayoutMode>(() => {
-      if (typeof window === "undefined") return "classic";
+      if (typeof window === "undefined") return "org-chart";
       const stored = window.localStorage.getItem(
         SYLLABUS_LAYOUT_MODE_STORAGE_KEY,
       );
       if (stored === "org-chart" || stored === "classic") return stored;
-      // Migrate old persisted "hierarchy" mode to classic.
-      return "classic";
+      // Migrate old or unknown persisted modes to org-chart for beginner-first flow.
+      return "org-chart";
     });
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
   const [bulkAddMode, setBulkAddMode] = useState<BulkAddMode>("manual");
@@ -1631,6 +1632,13 @@ export default function StudyPlanner({
     string | null
   >(null);
   const [visualAddDraft, setVisualAddDraft] = useState("");
+  const [orgChartZoom, setOrgChartZoom] = useState(1);
+  const [isOrgChartEditorOpen, setIsOrgChartEditorOpen] = useState(false);
+
+  useEffect(() => {
+    if (!beginnerMode || syllabusLayoutMode === "org-chart") return;
+    setSyllabusLayoutMode("org-chart");
+  }, [beginnerMode, syllabusLayoutMode]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -3617,6 +3625,13 @@ export default function StudyPlanner({
     plannerOnboardingState.skipped &&
     !plannerOnboardingState.completed;
 
+  const cleanPillBase =
+    "inline-flex items-center justify-center rounded-full px-4 py-2.5 text-[13px] font-semibold tracking-[0.01em] leading-none transition-[transform,background-color,color,border-color,box-shadow] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:opacity-60 disabled:cursor-not-allowed";
+  const cleanPrimaryPill = `${cleanPillBase} bg-[#3b82f6] text-white shadow-[0_8px_18px_rgba(37,99,235,0.32)] hover:bg-[#2563eb]`;
+  const cleanSecondaryPill = `${cleanPillBase} border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0] hover:bg-[#3b4048]" : "bg-white/95 border-[#cfd6e2] text-[#1f2937] hover:bg-white"} shadow-[0_4px_10px_rgba(15,23,42,0.14)]`;
+  const cleanHeaderLabelClass =
+    "text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575]";
+
   return (
     <>
       {premiumModal}
@@ -3648,18 +3663,18 @@ export default function StudyPlanner({
             <div>
               <button
                 onClick={() => navigate("/study/planner")}
-                className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] transition-colors mb-3 inline-block"
+                className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] transition-colors mb-3 inline-block"
               >
                 ← All Plans
               </button>
               <h1
                 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-                style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
+                style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}
               >
                 {plan.title}.
               </h1>
               {plan.examType && (
-                <div className="text-[14px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575] mb-4">
+                <div className="text-[14px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] mb-4">
                   {plan.examType}
                 </div>
               )}
@@ -3681,14 +3696,14 @@ export default function StudyPlanner({
                     <>
                       <motion.span
                         layout
-                        className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#acabaa] text-[12px] font-extrabold uppercase tracking-[0.1em] px-4 py-1.5 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]"
+                        className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#acabaa] text-[12px] font-semibold uppercase tracking-[0.08em] px-4 py-1.5 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]"
                       >
                         {countdownLabel}
                       </motion.span>
                       <motion.button
                         layout
                         onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
-                        className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[12px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-full border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]"
+                        className={`${cleanSecondaryPill} text-[12px] px-4 py-2`}
                         title="Edit exam date"
                       >
                         Update Date
@@ -3762,7 +3777,7 @@ export default function StudyPlanner({
                       }
                       void runGuidedAction(activeGuideAction);
                     }}
-                    className="text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white shadow-md"
+                    className={cleanPrimaryPill}
                   >
                     {onboardingResumeVisible
                       ? "Resume Guide"
@@ -3771,7 +3786,7 @@ export default function StudyPlanner({
                   {/* BUG-1 FIX: Show "More Actions" only when NOT in resume state — prevents duplicate Resume Guide */}
                   <button
                     onClick={() => setShowHeaderActions(true)}
-                    className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
+                    className={cleanSecondaryPill}
                   >
                     More Actions
                   </button>
@@ -3780,57 +3795,70 @@ export default function StudyPlanner({
                 <>
                   <button
                     onClick={() => handleViewChange("plan")}
-                    className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
+                    className={cleanSecondaryPill}
                   >
                     Edit Plan
                   </button>
                   <button
                     onClick={() => handleViewChange("syllabus")}
-                    className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
+                    className={cleanSecondaryPill}
                   >
                     Add Topics
                   </button>
-                  <button
-                    onClick={() => {
-                      if (onboardingGuideActive) {
-                        void runGuidedAction(activeGuideAction);
-                        return;
-                      }
-                      void autoDistribute();
-                    }}
-                    disabled={isAutoDistributing}
-                    className="text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white shadow-md"
-                  >
-                    {isAutoDistributing ? "Building..." : "Build Schedule"}
-                  </button>
+                  {!beginnerMode && (
+                    <button
+                      onClick={() => {
+                        void autoDistribute();
+                      }}
+                      disabled={isAutoDistributing}
+                      className={cleanPrimaryPill}
+                    >
+                      {isAutoDistributing ? "Building..." : "Build Schedule"}
+                    </button>
+                  )}
                   {beginnerMode && (
                     <button
                       onClick={() => setShowHeaderActions(false)}
-                      className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"}`}
+                      className={cleanSecondaryPill}
                     >
                       Show Less
                     </button>
                   )}
                 </>
               )}
-              <button
+              <div
                 data-tour="planner-beginner-toggle"
-                onClick={() => setBeginnerMode((prev) => !prev)}
-                className={`text-[13px] font-black uppercase tracking-widest px-4 py-3 rounded-full border transition-all duration-300 flex items-center gap-2 ${
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-full border transition-[transform,background-color,color,border-color,box-shadow] duration-150 ease-out active:scale-[0.98] ${
                   beginnerMode
                     ? isDarkMode
-                      ? "bg-[#1a3a52] border-[#0ea5e9] text-[#0ea5e9] shadow-md"
-                      : "bg-[#dbeafe] border-[#0ea5e9] text-[#0c4a6e]"
+                      ? "bg-[#193247] border-[#2588d8] text-[#59b7ff] shadow-[0_6px_14px_rgba(14,165,233,0.2)]"
+                      : "bg-[#e5f1ff] border-[#4da3e9] text-[#0b4b75]"
                     : isDarkMode
                       ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]"
-                      : "bg-white/90 border-[#c0c4d1] text-[#1a202c]"
+                      : "bg-white/95 border-[#cfd6e2] text-[#1f2937]"
                 }`}
               >
-                {beginnerMode && (
-                  <span className="w-2 h-2 rounded-full bg-current"></span>
-                )}
-                {beginnerMode ? "Beginner Mode On" : "Beginner Mode Off"}
-              </button>
+                <div className="min-w-[145px]">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.08em] opacity-75">
+                    Learning Assist
+                  </div>
+                  <div className="text-[12px] font-semibold tracking-[0.01em]">
+                    {beginnerMode ? "Beginner mode on" : "Beginner mode off"}
+                  </div>
+                </div>
+                <Switch
+                  checked={beginnerMode}
+                  onCheckedChange={(checked) => setBeginnerMode(Boolean(checked))}
+                  aria-label="Toggle beginner mode"
+                  className={`h-6 w-11 border-none shadow-inner ${
+                    beginnerMode
+                      ? "data-[state=checked]:bg-[#0ea5e9]"
+                      : isDarkMode
+                        ? "data-[state=unchecked]:bg-[#4a4e55]"
+                        : "data-[state=unchecked]:bg-[#c0c4d1]"
+                  }`}
+                />
+              </div>
             </div>
           </div>
 
@@ -3841,13 +3869,13 @@ export default function StudyPlanner({
             >
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                  <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
+                  <div className={cleanHeaderLabelClass}>
                     {currentGuide.step}
                   </div>
                   <h3 className="text-[22px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mt-1">
                     {currentGuide.title}
                   </h3>
-                  <p className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2 max-w-2xl">
+                  <p className="text-[14px] font-medium text-[#64748b] dark:text-[#9aa2ae] mt-2 max-w-2xl">
                     {currentGuide.description}
                   </p>
                 </div>
@@ -3864,7 +3892,7 @@ export default function StudyPlanner({
                       isAutoDistributing &&
                       activeGuideAction === "build_schedule"
                     }
-                    className="text-[13px] font-black uppercase tracking-widest px-6 py-3 rounded-full bg-[#3b82f6] text-white shadow-md disabled:opacity-60"
+                    className={`${cleanPrimaryPill} px-6`}
                   >
                     {isAutoDistributing &&
                     activeGuideAction === "build_schedule"
@@ -3877,7 +3905,7 @@ export default function StudyPlanner({
                     onboardingGuideActive ? (
                       <button
                         onClick={skipPlannerOnboarding}
-                        className={`text-[13px] font-black uppercase tracking-widest px-6 py-3 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
+                        className={`${cleanSecondaryPill} px-6`}
                       >
                         Skip For Now
                       </button>
@@ -3900,14 +3928,14 @@ export default function StudyPlanner({
                             : "border-[#c0c4d1] dark:border-[#2b2c2c] bg-white/60 dark:bg-[#131416]"
                       }`}
                     >
-                      <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575]">
                         Step {index + 1}
                       </div>
-                      <div className="text-[14px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mt-1">
+                      <div className="text-[14px] font-semibold text-[#2d333b] dark:text-[#e7e5e5] mt-1">
                         {guidedActionMeta[stepId].title}
                       </div>
                       <div
-                        className={`text-[11px] font-black uppercase tracking-[0.18em] mt-2 ${completed ? "text-emerald-600 dark:text-emerald-400" : active ? "text-blue-600 dark:text-blue-400" : "text-[#8b919e] dark:text-[#767575]"}`}
+                        className={`text-[11px] font-semibold tracking-[0.03em] mt-2 ${completed ? "text-emerald-600 dark:text-emerald-400" : active ? "text-blue-600 dark:text-blue-400" : "text-[#8b919e] dark:text-[#767575]"}`}
                       >
                         {completed
                           ? "Completed"
@@ -4073,13 +4101,13 @@ export default function StudyPlanner({
                   ["plan", "Plan"],
                   ["syllabus", "Syllabus"],
                   ["calendar", "Calendar"],
-                  ["insights", "Insights"],
+                  ...(beginnerMode ? [] : [["insights" as PlannerSection, "Insights"]]),
                 ] as Array<[PlannerSection, string]>
               ).map(([value, label]) => (
                 <button
                   key={value}
                   onClick={() => handleViewChange(value)}
-                  className={`relative px-6 py-2.5 rounded-full ${value === "plan" || value === "syllabus" ? "text-[13px] md:text-[15px]" : "text-[14px] md:text-[14px]"} font-extrabold uppercase tracking-[0.15em] transition-all duration-300 z-10 flex-1 md:flex-none ${
+                  className={`relative px-6 py-2.5 rounded-full ${value === "plan" || value === "syllabus" ? "text-[13px] md:text-[15px]" : "text-[14px] md:text-[14px]"} font-semibold tracking-[0.01em] transition-[color,transform] duration-150 ease-out active:scale-[0.98] z-10 flex-1 md:flex-none ${
                     view === value
                       ? "text-[#2d333b] dark:text-[#e7e5e5]"
                       : "text-[#8b919e] dark:text-[#767575] hover:text-[#4b5563] dark:hover:text-[#acabaa]"
@@ -5485,11 +5513,11 @@ export default function StudyPlanner({
                   >
                     <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
                       <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
-                        Step 2: Auto Schedule
+                        Step 3: Create Your Planner Calendar
                       </div>
                       <div className="mb-4 rounded-2xl bg-[#e6e7ee] dark:bg-[#131416] border border-[#c0c4d1] dark:border-[#2b2c2c] p-4">
                         <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                          How Scheduling Works
+                          One Required Action
                         </div>
                         {beginnerMode ? (
                           <p className="text-[13px] font-bold text-[#475569] dark:text-[#9aa2ae]">
@@ -5512,80 +5540,27 @@ export default function StudyPlanner({
                             </li>
                           </ul>
                         )}
+                        <p className="mt-3 text-[12px] font-semibold tracking-[0.02em] text-[#1d4ed8] dark:text-[#93c5fd]">
+                          Your planner is not created until you click the button below.
+                        </p>
                       </div>
                       <button
                         data-tour="planner-autoplan"
                         onClick={() => {
-                          void runGuidedAction(activeGuideAction);
+                          void runGuidedAction("build_schedule");
                         }}
-                        className="w-full text-[14px] font-black uppercase tracking-widest px-6 py-4 rounded-full bg-[#3b82f6] text-white mb-4"
+                        disabled={isAutoDistributing}
+                        className={`${cleanPrimaryPill} w-full mb-3 py-3.5 text-[14px]`}
                       >
-                        {currentGuide.actionLabel}
+                        {isAutoDistributing
+                          ? "Building Planner..."
+                          : "Create Planner Calendar"}
                       </button>
+                      <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae]">
+                        Click once to generate your schedule from syllabus topics.
+                      </div>
 
-                      {beginnerMode ? (
-                        <>
-                          <button
-                            onClick={() =>
-                              setShowAdvancedPlanActions((prev) => !prev)
-                            }
-                            className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
-                          >
-                            {showAdvancedPlanActions
-                              ? "Hide Secondary Actions"
-                              : "Show Secondary Actions"}
-                          </button>
-
-                          {showAdvancedPlanActions && (
-                            <div className="mt-3 flex flex-col gap-3">
-                              <button
-                                onClick={() => {
-                                  if (!isPremium) {
-                                    setPremiumModalReason("reschedule");
-                                    return;
-                                  }
-                                  setPendingDelete({
-                                    type: "topic",
-                                    id: "__clear_future__",
-                                    parentId: undefined,
-                                    label:
-                                      "This will remove planned dates for future topics. Continue?",
-                                  });
-                                }}
-                                className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
-                              >
-                                Clear Future Dates{!isPremium ? " 🔒" : ""}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (!isPremium) {
-                                    setPremiumModalReason("reschedule");
-                                    return;
-                                  }
-                                  handleViewChange("calendar");
-                                }}
-                                className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c]"
-                              >
-                                Reschedule in Calendar{!isPremium ? " 🔒" : ""}
-                              </button>
-                              <button
-                                onClick={() =>
-                                  setPendingDelete({
-                                    type: "topic",
-                                    id: "__reset_plan__",
-                                    parentId: undefined,
-                                    label:
-                                      "This will reset ALL topics to Not Started. This cannot be undone!",
-                                  })
-                                }
-                                className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
-                              >
-                                Reset Plan
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      ) : (
+                      {beginnerMode ? null : (
                         <>
                           <button
                             onClick={() => {
@@ -5633,6 +5608,7 @@ export default function StudyPlanner({
                           </button>
                         </>
                       )}
+
                     </div>
 
                     <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
@@ -5744,7 +5720,7 @@ export default function StudyPlanner({
                   </div>
                   <button
                     onClick={() => handleViewChange("plan")}
-                    className="shrink-0 text-[13px] font-black uppercase tracking-widest px-6 py-3 rounded-full bg-blue-600 text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] hover:bg-blue-700 transition-colors"
+                    className={`${cleanPrimaryPill} shrink-0 px-6`}
                   >
                     Auto-Schedule Now
                   </button>
@@ -5755,7 +5731,7 @@ export default function StudyPlanner({
                 data-tour="planner-syllabus-setup"
                 className={`rounded-3xl p-6 transition-colors duration-500 ${isDarkMode ? "bg-[#0e0e0e] shadow-[8px_8px_20px_rgba(0,0,0,0.6),-4px_-4px_10px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]" : "bg-[#f0f0f5] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)]"}`}
               >
-                <div className="text-[12px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
+                <div className={`${cleanHeaderLabelClass} mb-4`}>
                   Syllabus Setup
                 </div>
 
@@ -5805,17 +5781,19 @@ export default function StudyPlanner({
                   <button
                     data-tour="planner-add-subject"
                     onClick={addSubject}
-                    className={`text-[13px] font-black uppercase tracking-widest rounded-xl px-6 py-3 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] transition-transform hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
+                    className={`${cleanSecondaryPill} rounded-xl px-6`}
                   >
                     Add Subject
                   </button>
-                  <button
-                    data-tour="planner-bulk-add-button"
-                    onClick={() => setBulkAddOpen(true)}
-                    className="text-[13px] font-black uppercase tracking-widest rounded-xl px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)] transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    Bulk Add
-                  </button>
+                  {!beginnerMode && (
+                    <button
+                      data-tour="planner-bulk-add-button"
+                      onClick={() => setBulkAddOpen(true)}
+                      className={`${cleanPrimaryPill} rounded-xl px-6`}
+                    >
+                      Bulk Add
+                    </button>
+                  )}
                   <button
                     onClick={async () => {
                       setTemplatePickerOpen(true);
@@ -5839,46 +5817,49 @@ export default function StudyPlanner({
                         }
                       }
                     }}
-                    className={`text-[13px] font-black uppercase tracking-widest rounded-xl px-6 py-3 border transition-transform hover:scale-[1.02] active:scale-[0.98] ${isDarkMode ? "bg-[#1a3a52] border-[#0ea5e9] text-[#0ea5e9]" : "bg-[#dbeafe] border-[#0ea5e9] text-[#0c4a6e]"}`}
+                    className={`${cleanSecondaryPill} rounded-xl px-6 ${isDarkMode ? "bg-[#1a3a52] border-[#0ea5e9] text-[#0ea5e9] hover:bg-[#214864]" : "bg-[#dbeafe] border-[#0ea5e9] text-[#0c4a6e] hover:bg-[#d1e8ff]"}`}
                   >
                     📋 Use Template
                   </button>
                 </div>
 
                 <div className="text-[13px] font-bold text-[#8b919e] dark:text-[#767575] mt-3">
-                  Use bulk add for fast entry, or load a full exam template
-                  (JEE, NEET, SSC, etc.).
+                  {!beginnerMode 
+                    ? "Use bulk add for fast entry, or load a full exam template (JEE, NEET, SSC, etc.)."
+                    : "Load a full exam template like JEE, NEET, or SSC."}
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mr-2">
-                    Layout
-                  </span>
-                  <button
-                    onClick={() => setSyllabusLayoutMode("classic")}
-                    className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all duration-300 ${
-                      syllabusLayoutMode === "classic"
-                        ? "bg-[#0f766e] text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]"
-                        : isDarkMode
-                          ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_8px_rgba(0,0,0,0.5),-2px_-2px_4px_rgba(255,255,255,0.02)]"
-                          : "bg-[#e6e7ee] text-[#4b5563] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)]"
-                    }`}
-                  >
-                    Classic
-                  </button>
-                  <button
-                    onClick={() => setSyllabusLayoutMode("org-chart")}
-                    className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all duration-300 ${
-                      syllabusLayoutMode === "org-chart"
-                        ? "bg-[#9333ea] text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]"
-                        : isDarkMode
-                          ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_8px_rgba(0,0,0,0.5),-2px_-2px_4px_rgba(255,255,255,0.02)]"
-                          : "bg-[#e6e7ee] text-[#4b5563] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)]"
-                    }`}
-                  >
-                    Chart
-                  </button>
-                </div>
+                {!beginnerMode && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mr-2">
+                      Layout
+                    </span>
+                    <button
+                      onClick={() => setSyllabusLayoutMode("classic")}
+                      className={`text-[12px] font-semibold tracking-[0.02em] px-5 py-2.5 rounded-full transition-[transform,color,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ${
+                        syllabusLayoutMode === "classic"
+                          ? "bg-[#0f766e] text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]"
+                          : isDarkMode
+                            ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_8px_rgba(0,0,0,0.5),-2px_-2px_4px_rgba(255,255,255,0.02)]"
+                            : "bg-[#e6e7ee] text-[#4b5563] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)]"
+                      }`}
+                    >
+                      Classic
+                    </button>
+                    <button
+                      onClick={() => setSyllabusLayoutMode("org-chart")}
+                      className={`text-[12px] font-semibold tracking-[0.02em] px-5 py-2.5 rounded-full transition-[transform,color,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ${
+                        syllabusLayoutMode === "org-chart"
+                          ? "bg-[#9333ea] text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]"
+                          : isDarkMode
+                            ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_8px_rgba(0,0,0,0.5),-2px_-2px_4px_rgba(255,255,255,0.02)]"
+                            : "bg-[#e6e7ee] text-[#4b5563] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)]"
+                      }`}
+                    >
+                      Chart
+                    </button>
+                  </div>
+                )}
               </div>
 
               {visibleSubjects.length === 0 ? (
@@ -5902,12 +5883,14 @@ export default function StudyPlanner({
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     {plan.subjects.length === 0 ? (
                       <>
-                        <button
-                          onClick={() => setBulkAddOpen(true)}
-                          className="text-[13px] font-black uppercase tracking-widest rounded-full px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)]"
-                        >
-                          Bulk Add Topics
-                        </button>
+                        {!beginnerMode && (
+                          <button
+                            onClick={() => setBulkAddOpen(true)}
+                            className="text-[13px] font-black uppercase tracking-widest rounded-full px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)]"
+                          >
+                            Bulk Add Topics
+                          </button>
+                        )}
                         <button
                           onClick={() => handleViewChange("plan")}
                           className={`text-[13px] font-black uppercase tracking-widest rounded-full px-6 py-3 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02)] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
@@ -6666,12 +6649,74 @@ export default function StudyPlanner({
               ) : syllabusLayoutMode === "org-chart" ? (
                 <div
                   data-tour="planner-subjects-area"
-                  className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.9fr)]"
+                  className="relative flex flex-col gap-4"
                 >
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-2">
+                    <div
+                      className={`flex items-center gap-2 rounded-full px-3 py-2 border ${isDarkMode ? "bg-[#15171a] border-[#2f3440] text-[#c6c6c6]" : "bg-white border-[#c0c4d1] text-[#334155]"}`}
+                    >
+                      <button
+                        onClick={() =>
+                          setOrgChartZoom((prevZoom) =>
+                            Math.max(0.55, Number((prevZoom - 0.1).toFixed(2))),
+                          )
+                        }
+                        className={`w-8 h-8 rounded-full text-lg font-black ${isDarkMode ? "bg-[#202225]" : "bg-[#f0f0f5]"}`}
+                        aria-label="Zoom out chart"
+                        title="Zoom Out"
+                      >
+                        -
+                      </button>
+                      <div className="text-[11px] font-black uppercase tracking-widest min-w-[56px] text-center">
+                        {Math.round(orgChartZoom * 100)}%
+                      </div>
+                      <button
+                        onClick={() => setOrgChartZoom(1)}
+                        className={`px-3 h-8 rounded-full text-[10px] font-black uppercase tracking-[0.14em] ${isDarkMode ? "bg-[#202225]" : "bg-[#f0f0f5]"}`}
+                        aria-label="Reset chart zoom"
+                        title="Reset Zoom"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() =>
+                          setOrgChartZoom((prevZoom) =>
+                            Math.min(1.7, Number((prevZoom + 0.1).toFixed(2))),
+                          )
+                        }
+                        className={`w-8 h-8 rounded-full text-lg font-black ${isDarkMode ? "bg-[#202225]" : "bg-[#f0f0f5]"}`}
+                        aria-label="Zoom in chart"
+                        title="Zoom In"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        setIsOrgChartEditorOpen((prevOpen) => !prevOpen)
+                      }
+                      className={`text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#202225] border-[#2f3440] text-[#c6c6c6]" : "bg-white border-[#c0c4d1] text-[#334155]"}`}
+                    >
+                      {isOrgChartEditorOpen
+                        ? "Hide Details Panel"
+                        : "Show Details Panel"}
+                    </button>
+                  </div>
+
                   <div
-                    className={`rounded-[2rem] p-12 overflow-auto min-h-[800px] transition-colors duration-500 ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_15px_rgba(0,0,0,0.9)]" : "bg-[#f4f7fa] shadow-[inset_4px_4px_12px_rgba(166,171,189,0.4)]"}`}
+                    className={`grid gap-4 ${isOrgChartEditorOpen ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-1"}`}
                   >
-                    <div className="flex flex-col items-center min-w-[max-content] pb-32">
+                  <div
+                    className={`rounded-[2rem] p-8 sm:p-10 overflow-auto min-h-[800px] transition-colors duration-500 ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_15px_rgba(0,0,0,0.9)]" : "bg-[#f4f7fa] shadow-[inset_4px_4px_12px_rgba(166,171,189,0.4)]"}`}
+                  >
+                    <div
+                      className="flex flex-col items-center min-w-[max-content] pb-32 transition-transform duration-200"
+                      style={{
+                        transform: `scale(${orgChartZoom})`,
+                        transformOrigin: "top center",
+                      }}
+                    >
                       {hierarchySubjects.map((subjectNode) => {
                         const subject = subjectNode.subject;
                         return (
@@ -7027,11 +7072,50 @@ export default function StudyPlanner({
                   </div>
 
                   {/* Shared Focused Editor for Org Chart View */}
-                  <div
-                    className={`rounded-3xl p-6 transition-colors duration-500 ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_10px_rgba(0,0,0,0.8),inset_-1px_-1px_4px_rgba(255,255,255,0.03)]" : "bg-[#e8ebf3] shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.9)]"}`}
-                  >
+                  {isOrgChartEditorOpen && (
+                    <div
+                      className={`rounded-3xl p-5 sm:p-6 transition-colors duration-500 h-fit self-start xl:sticky xl:top-24 xl:max-h-[calc(100vh-140px)] xl:overflow-y-auto ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_10px_rgba(0,0,0,0.8),inset_-1px_-1px_4px_rgba(255,255,255,0.03)] border border-[#1f232b]" : "bg-[#e8ebf3] shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.9)] border border-[#d0d6e3]"}`}
+                    >
                     <div className="text-[12px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
                       Selection Details
+                    </div>
+                    <div
+                      className={`mb-5 rounded-2xl border px-4 py-3 ${isDarkMode ? "bg-[#121418] border-[#262b34]" : "bg-[#f6f8fc] border-[#d6dce8]"}`}
+                    >
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
+                        Currently Selected
+                      </div>
+                      <div
+                        className={`mt-1 text-[11px] font-black uppercase tracking-[0.18em] ${isDarkMode ? "text-[#94a3b8]" : "text-[#475569]"}`}
+                      >
+                        {selectedTopicContext
+                          ? "Topic"
+                          : selectedChapterContext
+                            ? "Chapter"
+                            : activeHierarchySubject
+                              ? "Subject"
+                              : "No Node"}
+                      </div>
+                      <div
+                        className={`mt-1 text-[15px] font-bold leading-snug ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                      >
+                        {selectedTopicContext
+                          ? selectedTopicContext.topic.name
+                          : selectedChapterContext
+                            ? selectedChapterContext.chapterNode.chapter.name
+                            : activeHierarchySubject
+                              ? activeHierarchySubject.subject.name
+                              : "Pick a node from the chart"}
+                      </div>
+                      {(selectedTopicContext || selectedChapterContext) && (
+                        <div className="mt-1 text-[11px] font-bold text-[#8b919e] dark:text-[#767575]">
+                          {selectedTopicContext
+                            ? `${selectedTopicContext.subjectNode.subject.name} / ${selectedTopicContext.chapterNode.chapter.name}`
+                            : selectedChapterContext
+                              ? selectedChapterContext.subjectNode.subject.name
+                              : ""}
+                        </div>
+                      )}
                     </div>
                     {selectedTopicContext ? (
                       <div className="space-y-4">
@@ -7152,14 +7236,153 @@ export default function StudyPlanner({
                         <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                           {selectedChapterContext.subjectNode.subject.name}
                         </div>
-                        <h4
-                          className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
-                        >
-                          {selectedChapterContext.chapterNode.chapter.name}
-                        </h4>
+
+                        {editingChapterId ===
+                        selectedChapterContext.chapterNode.chapter.id ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <input
+                              value={
+                                chapterRenameDraft[
+                                  selectedChapterContext.chapterNode.chapter.id
+                                ] || ""
+                              }
+                              onChange={(e) =>
+                                setChapterRenameDraft((prev) => ({
+                                  ...prev,
+                                  [selectedChapterContext.chapterNode.chapter
+                                    .id]: e.target.value,
+                                }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void submitChapterRename(
+                                    selectedChapterContext.subjectNode.subject
+                                      .id,
+                                    selectedChapterContext.chapterNode.chapter,
+                                  );
+                                }
+                                if (e.key === "Escape")
+                                  setEditingChapterId(null);
+                              }}
+                              autoFocus
+                              className={`min-w-[220px] flex-1 rounded-xl px-4 py-3 text-sm font-bold shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors ${isDarkMode ? "bg-[#131416] text-[#e7e5e5]" : "bg-[#e8ebf3] text-[#2d333b]"}`}
+                            />
+                            <button
+                              onClick={() => {
+                                void submitChapterRename(
+                                  selectedChapterContext.subjectNode.subject.id,
+                                  selectedChapterContext.chapterNode.chapter,
+                                );
+                              }}
+                              className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingChapterId(null)}
+                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between gap-2">
+                            <h4
+                              className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                            >
+                              {selectedChapterContext.chapterNode.chapter.name}
+                            </h4>
+                            <button
+                              onClick={() =>
+                                startChapterRename(
+                                  selectedChapterContext.chapterNode.chapter,
+                                )
+                              }
+                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                            >
+                              Edit Name
+                            </button>
+                          </div>
+                        )}
+
                         <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                           {selectedChapterContext.chapterNode.doneTopics}/
                           {selectedChapterContext.chapterNode.totalTopics} Done
+                        </div>
+                      </div>
+                    ) : activeHierarchySubject ? (
+                      <div className="space-y-4">
+                        <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                          Subject
+                        </div>
+
+                        {editingSubjectId === activeHierarchySubject.subject.id ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <input
+                              value={
+                                subjectRenameDraft[
+                                  activeHierarchySubject.subject.id
+                                ] || ""
+                              }
+                              onChange={(e) =>
+                                setSubjectRenameDraft((prev) => ({
+                                  ...prev,
+                                  [activeHierarchySubject.subject.id]:
+                                    e.target.value,
+                                }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  void submitSubjectRename(
+                                    activeHierarchySubject.subject,
+                                  );
+                                }
+                                if (e.key === "Escape") setEditingSubjectId(null);
+                              }}
+                              autoFocus
+                              className={`min-w-[220px] flex-1 rounded-xl px-4 py-3 text-sm font-bold shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors ${isDarkMode ? "bg-[#131416] text-[#e7e5e5]" : "bg-[#e8ebf3] text-[#2d333b]"}`}
+                            />
+                            <button
+                              onClick={() => {
+                                void submitSubjectRename(
+                                  activeHierarchySubject.subject,
+                                );
+                              }}
+                              className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingSubjectId(null)}
+                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between gap-2">
+                            <h4
+                              className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                            >
+                              {activeHierarchySubject.subject.name}
+                            </h4>
+                            <button
+                              onClick={() =>
+                                startSubjectRename(activeHierarchySubject.subject)
+                              }
+                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                            >
+                              Edit Name
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                          {activeHierarchySubject.doneTopics}/
+                          {activeHierarchySubject.totalTopics} Done ·{" "}
+                          {activeHierarchySubject.chapters.length} Chapters
                         </div>
                       </div>
                     ) : (
@@ -7167,7 +7390,9 @@ export default function StudyPlanner({
                         Select a node in the chart to view details.
                       </div>
                     )}
-                  </div>
+                    </div>
+                  )}
+                </div>
                 </div>
               ) : (
                 <div
@@ -8622,4 +8847,3 @@ export default function StudyPlanner({
     </>
   );
 }
-
