@@ -73,6 +73,11 @@ const CATEGORY_BADGES: Record<string, { label: string; color: string }> = {
   medical: { label: "MEDICAL", color: "text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40" },
 };
 
+const PRESSABLE_EASE = "motion-safe:ease-[cubic-bezier(0.23,1,0.32,1)]";
+const PRESSABLE_BUTTON = `motion-safe:transition-[transform,box-shadow,background-color,border-color,color,opacity] motion-safe:duration-150 ${PRESSABLE_EASE} motion-reduce:transition-colors active:scale-[0.97] active:translate-y-[1px] disabled:active:scale-100 disabled:active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
+const PRESSABLE_CARD = `motion-safe:transition-[transform,box-shadow,border-color,background-color,opacity] motion-safe:duration-200 ${PRESSABLE_EASE} motion-reduce:transition-colors active:scale-[0.985] active:translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
+const PRESSABLE_TEXT = `motion-safe:transition-[transform,color,opacity] motion-safe:duration-150 ${PRESSABLE_EASE} active:scale-[0.97] active:translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30`;
+
 // ── QuickStart Component ──
 
 function TemplateCard({
@@ -91,7 +96,8 @@ function TemplateCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08, duration: 0.4 }}
       onClick={() => onSelect(template)}
-      className={`template-card group relative flex flex-col h-full text-left rounded-2xl p-6 border-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg
+      className={`template-card group relative flex flex-col h-full text-left rounded-2xl p-6 border-2 hover:scale-[1.02] hover:shadow-lg
+        ${PRESSABLE_CARD}
         bg-gradient-to-br ${TEMPLATE_GRADIENTS[template.id] || "from-slate-100/50 to-slate-200/50 dark:from-slate-800/50 dark:to-slate-900/50"}
         ${TEMPLATE_BORDER_COLORS[template.id] || "border-slate-300 dark:border-slate-700"}
         bg-white/80 dark:bg-[#141518]/80 backdrop-blur-sm
@@ -388,7 +394,7 @@ function QuickStart({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: templates.length * 0.08, duration: 0.4 }}
                 onClick={() => setShowCustom(true)}
-                className="group flex flex-col h-full text-left rounded-2xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 transition-all duration-300 hover:scale-[1.02] bg-white/50 dark:bg-[#141518]/50"
+                className={`group flex flex-col h-full text-left rounded-2xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:scale-[1.02] bg-white/50 dark:bg-[#141518]/50 ${PRESSABLE_CARD}`}
               >
                 <div className="text-3xl mb-4">✏️</div>
                 <h3 className="text-xl font-bold text-[#0f172a] dark:text-white mb-2">
@@ -407,7 +413,7 @@ function QuickStart({
           <div className="text-center">
             <button
               onClick={onCancel}
-              className="text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#64748b] transition-colors"
+              className={`text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#64748b] ${PRESSABLE_TEXT}`}
             >
               Cancel
             </button>
@@ -429,7 +435,7 @@ function QuickStart({
           <div className="flex items-center justify-between mb-8">
             <button
               onClick={() => setShowCustom(false)}
-              className="text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+              className={`text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white ${PRESSABLE_TEXT}`}
             >
               ← Back
             </button>
@@ -488,7 +494,7 @@ function QuickStart({
 
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="mt-2 text-left text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+              className={`mt-2 text-left text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white ${PRESSABLE_TEXT}`}
             >
               {showAdvanced ? "- Hide Advanced Options" : "+ Show Advanced Options"}
             </button>
@@ -522,7 +528,7 @@ function QuickStart({
                         <button
                           key={label}
                           onClick={() => toggleOffDay(idx)}
-                          className={`px-3 py-2 rounded-lg text-[12px] font-bold uppercase tracking-widest border transition-all ${
+                          className={`px-3 py-2 rounded-lg text-[12px] font-bold uppercase tracking-widest border ${PRESSABLE_BUTTON} ${
                             offDays.includes(idx)
                               ? "bg-blue-500 text-white border-blue-600"
                               : "bg-white dark:bg-[#1a1c1e] text-[#64748b] border-slate-200 dark:border-slate-700"
@@ -556,7 +562,7 @@ function QuickStart({
           <div className="flex items-center justify-between mt-8">
             <button
               onClick={() => setShowCustom(false)}
-              className="text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700"
+              className={`text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 ${PRESSABLE_BUTTON}`}
               disabled={isSubmitting}
             >
               Back
@@ -564,7 +570,7 @@ function QuickStart({
             <button
               onClick={handleCustomCreate}
               disabled={isSubmitting}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[14px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all disabled:opacity-50"
+              className={`px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[14px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] disabled:opacity-50 ${PRESSABLE_BUTTON}`}
             >
               {isSubmitting ? "Creating..." : "Create Plan"}
             </button>
@@ -586,7 +592,7 @@ function QuickStart({
         <div className="flex items-center justify-between mb-2">
           <button
             onClick={() => setSelectedTemplate(null)}
-            className="text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+            className={`text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white ${PRESSABLE_TEXT}`}
           >
             ← Change Exam
           </button>
@@ -668,7 +674,7 @@ function QuickStart({
 
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="mt-2 text-left text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white transition-colors"
+            className={`mt-2 text-left text-[13px] font-bold uppercase tracking-widest text-[#64748b] hover:text-[#0f172a] dark:hover:text-white ${PRESSABLE_TEXT}`}
           >
             {showAdvanced ? "- Hide Advanced Options" : "+ Show Advanced Options"}
           </button>
@@ -690,7 +696,7 @@ function QuickStart({
                       <button
                         key={label}
                         onClick={() => toggleOffDay(idx)}
-                        className={`px-3 py-2 rounded-lg text-[12px] font-bold uppercase tracking-widest border transition-all ${
+                        className={`px-3 py-2 rounded-lg text-[12px] font-bold uppercase tracking-widest border ${PRESSABLE_BUTTON} ${
                           offDays.includes(idx)
                             ? "bg-blue-500 text-white border-blue-600"
                             : "bg-white dark:bg-[#1a1c1e] text-[#64748b] border-slate-200 dark:border-slate-700"
@@ -740,7 +746,7 @@ function QuickStart({
         <div className="flex items-center justify-between mt-8">
           <button
             onClick={() => setSelectedTemplate(null)}
-            className="text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700"
+            className={`text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-[#94a3b8] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 ${PRESSABLE_BUTTON}`}
             disabled={isSubmitting}
           >
             Change Exam
@@ -748,7 +754,7 @@ function QuickStart({
           <button
             onClick={handleGenerateFromTemplate}
             disabled={isSubmitting || !examDate}
-            className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all disabled:opacity-50"
+            className={`px-8 py-3.5 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] disabled:opacity-50 ${PRESSABLE_BUTTON}`}
           >
             {isSubmitting ? "Generating..." : "Generate My Plan →"}
           </button>
@@ -942,7 +948,7 @@ export default function StudyPlannerPage() {
             </div>
             <button
               onClick={() => setShowQuickStart(true)}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[14px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all"
+              className={`px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[14px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] ${PRESSABLE_BUTTON}`}
             >
               + New Plan
             </button>
@@ -963,7 +969,7 @@ export default function StudyPlannerPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.06 }}
                   onClick={() => navigate(`/study/planner/${plan.id}/today`)}
-                  className="group cursor-pointer rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141518] hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300 hover:shadow-lg hover:scale-[1.01] relative"
+                  className={`group cursor-pointer rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141518] hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-lg hover:scale-[1.01] relative ${PRESSABLE_CARD}`}
                 >
                   {/* Delete button */}
                   <button
@@ -971,7 +977,7 @@ export default function StudyPlannerPage() {
                       e.stopPropagation();
                       setPlanToDelete(plan);
                     }}
-                    className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity text-[12px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30"
+                    className={`absolute top-4 right-4 opacity-0 group-hover:opacity-100 text-[12px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 ${PRESSABLE_TEXT}`}
                   >
                     Delete
                   </button>
@@ -1042,7 +1048,7 @@ export default function StudyPlannerPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: plans.length * 0.06 }}
               onClick={() => setShowQuickStart(true)}
-              className="rounded-2xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 transition-all duration-300 hover:scale-[1.01] bg-white/50 dark:bg-[#141518]/50 text-left min-h-[180px] flex flex-col items-center justify-center"
+              className={`rounded-2xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-600 hover:scale-[1.01] bg-white/50 dark:bg-[#141518]/50 text-left min-h-[180px] flex flex-col items-center justify-center ${PRESSABLE_CARD}`}
             >
               <div className="text-4xl mb-3 opacity-60">+</div>
               <div className="text-[14px] font-bold text-[#0f172a] dark:text-white mb-1">Create New Plan</div>
@@ -1067,7 +1073,7 @@ export default function StudyPlannerPage() {
               </p>
               <button
                 onClick={() => setShowQuickStart(true)}
-                className="px-8 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] transition-all"
+                className={`px-8 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_20px_rgba(59,130,246,0.5)] ${PRESSABLE_BUTTON}`}
               >
                 Get Started →
               </button>
@@ -1106,7 +1112,7 @@ export default function StudyPlannerPage() {
                   <button
                     onClick={() => setPlanToDelete(null)}
                     disabled={isDeletingPlan}
-                    className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400"
+                    className={`px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[13px] font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400 ${PRESSABLE_BUTTON}`}
                   >
                     Cancel
                   </button>
@@ -1125,7 +1131,7 @@ export default function StudyPlannerPage() {
                         setIsDeletingPlan(false);
                       }
                     }}
-                    className="px-5 py-2.5 rounded-xl bg-red-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-md disabled:opacity-50"
+                    className={`px-5 py-2.5 rounded-xl bg-red-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-md disabled:opacity-50 ${PRESSABLE_BUTTON}`}
                   >
                     {isDeletingPlan ? "Deleting..." : "Delete Plan"}
                   </button>

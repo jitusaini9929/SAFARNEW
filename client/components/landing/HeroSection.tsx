@@ -169,7 +169,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
             </div>
 
             {/* Header / Hero with Video */}
-            <header className="relative w-full min-h-[100dvh] flex items-center justify-center">
+            <header className="relative w-full min-h-[100dvh] flex items-start justify-center">
                 <div className="absolute inset-0 z-0">
                     <HeroAnimation />
 
@@ -192,24 +192,22 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                                 "linear-gradient(180deg, rgba(49,25,178,0.09) 0%, rgba(49,25,178,0.05) 35%, rgba(49,25,178,0.12) 100%)",
                         }}
                     ></div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-50/30 via-transparent to-transparent dark:from-transparent z-10"></div>
                 </div>
-                <div className="relative z-20 w-full max-w-[1400px] px-6 md:px-8 mt-[45vh] md:mt-[30vh] flex flex-col items-center text-center">
-                    {/* Glassmorphic Scrim / Soft Glow */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[150%] z-[-1] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.75)_0%,transparent_60%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.75)_0%,transparent_60%)] pointer-events-none blur-2xl"></div>
-                    
+                <div className="relative z-20 w-full max-w-[1400px] px-6 md:px-8 mt-[32vh] md:mt-[24vh] flex flex-col items-start text-left">
+                    {/* Glassmorphic Scrim / Soft Glow - Left Aligned */}
+                    <div className="absolute top-1/2 left-0 -translate-x-[15%] -translate-y-1/2 w-[110%] h-[150%] z-[-1] bg-[radial-gradient(ellipse_at_left,rgba(255,255,255,0.8)_0%,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_left,rgba(0,0,0,0.8)_0%,transparent_70%)] pointer-events-none blur-3xl opacity-90"></div>
+
                     <h1 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-normal leading-tight mb-6 drop-shadow-md">
                         <span className="block whitespace-normal md:whitespace-nowrap font-extrabold text-black dark:text-white">{titlePart1}</span>
                         <span className="block whitespace-normal md:whitespace-nowrap font-medium text-black dark:text-white mt-2">{titlePart2}</span>
                     </h1>
-                    <p className="text-base md:text-lg lg:text-xl font-sans text-slate-800 dark:text-slate-100 mb-10 md:mb-12 max-w-[600px] leading-8 whitespace-pre-line text-center">
+                    <p className="text-base md:text-lg lg:text-xl font-sans text-slate-800 dark:text-slate-100 mb-10 md:mb-12 max-w-[600px] leading-8 whitespace-pre-line">
                         {subtitleBody}
                     </p>
-
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-4 md:gap-6 justify-center w-full sm:w-auto mt-2">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-4 md:gap-6 justify-start w-full sm:w-auto mt-2">
                         <Link
                             to="/dashboard"
-                            className="inline-flex items-center justify-center gap-3 bg-[#0099ff] text-white px-7 py-3.5 md:px-10 md:py-4 rounded-full text-base md:text-lg font-semibold shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group"
+                            className="inline-flex items-center justify-center gap-3 bg-indigo-600 dark:bg-[#0099ff] text-white px-7 py-3.5 md:px-10 md:py-4 rounded-full text-base md:text-lg font-semibold shadow-lg shadow-indigo-900/20 dark:shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group"
                         >
                             <span>{t('landing.start_btn')}</span>
                             <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
@@ -217,7 +215,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
 
                         <Link
                             to="/study/planner"
-                            className="group relative flex items-center justify-center gap-3 bg-transparent border-2 border-emerald-500 text-emerald-800 dark:text-emerald-400 px-8 py-3.5 md:px-10 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 hover:bg-emerald-500/10 cursor-pointer"
+                            className="group relative flex items-center justify-center gap-3 bg-transparent border-2 border-slate-800 text-slate-900 dark:border-emerald-500 dark:text-emerald-400 px-8 py-3.5 md:px-10 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 hover:bg-slate-900/5 dark:hover:bg-emerald-500/10 cursor-pointer"
                         >
                             <span className="relative z-10">Try Study Planner</span>
                             <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />

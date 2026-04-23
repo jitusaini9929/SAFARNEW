@@ -326,6 +326,12 @@ const COLUMN_DESCRIPTIONS: Record<string, string> = {
   done: "Study Archive. Successfully completed topics. Great progress! Your achievements are logged here.",
 };
 
+const PLANNER_PRESS_EASE = "motion-safe:ease-[cubic-bezier(0.23,1,0.32,1)]";
+const PLANNER_PRESSABLE =
+  `motion-safe:transition-[transform,box-shadow,background-color,border-color,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} motion-reduce:transition-colors active:scale-[0.97] active:translate-y-[1px] disabled:active:scale-100 disabled:active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
+const PLANNER_TEXT_PRESSABLE =
+  `motion-safe:transition-[transform,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} active:scale-[0.97] active:translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30`;
+
 function toIsoDateOnly(input: Date | string): string {
   const d = new Date(input);
   if (Number.isNaN(d.getTime())) return "";
@@ -1004,7 +1010,7 @@ function CustomDatePicker({
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border ${bg} ${border} ${text} transition-all`}
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border ${bg} ${border} ${text} ${PLANNER_PRESSABLE}`}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -1041,7 +1047,7 @@ function CustomDatePicker({
               <button
                 type="button"
                 onClick={prevMonth}
-                className={`p-1.5 rounded-lg ${hoverBg} ${text}`}
+                className={`p-1.5 rounded-lg ${hoverBg} ${text} ${PLANNER_PRESSABLE}`}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -1061,7 +1067,7 @@ function CustomDatePicker({
               <button
                 type="button"
                 onClick={nextMonth}
-                className={`p-1.5 rounded-lg ${hoverBg} ${text}`}
+                className={`p-1.5 rounded-lg ${hoverBg} ${text} ${PLANNER_PRESSABLE}`}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -1114,7 +1120,7 @@ function CustomDatePicker({
                       if (!isDisabled) pickDay(day);
                     }}
                     disabled={isDisabled}
-                    className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg text-sm relative transition-all
+                    className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg text-sm relative ${PLANNER_PRESSABLE}
                       ${isDisabled ? "opacity-30 cursor-not-allowed font-medium bg-[#f9fafb] dark:bg-[#151718]" : "font-bold hover:bg-[#f0f5ff] dark:hover:bg-[#2a2d31]"}
                       ${!isDisabled && isSelected ? selectedBg : ""}
                       ${!isDisabled && !isSelected && isTodayCell ? `ring-1 ring-blue-400 ${text}` : ""}
@@ -1140,7 +1146,7 @@ function CustomDatePicker({
               <button
                 type="button"
                 onClick={() => setViewYear((y) => y - 1)}
-                className={`text-[12px] font-bold px-2 py-1 rounded ${hoverBg} ${muted}`}
+                className={`text-[12px] font-bold px-2 py-1 rounded ${hoverBg} ${muted} ${PLANNER_PRESSABLE}`}
               >
                 &larr; Year
               </button>
@@ -1150,7 +1156,7 @@ function CustomDatePicker({
               <button
                 type="button"
                 onClick={() => setViewYear((y) => y + 1)}
-                className={`text-[12px] font-bold px-2 py-1 rounded ${hoverBg} ${muted}`}
+                className={`text-[12px] font-bold px-2 py-1 rounded ${hoverBg} ${muted} ${PLANNER_PRESSABLE}`}
               >
                 Year &rarr;
               </button>
@@ -3626,7 +3632,7 @@ export default function StudyPlanner({
     !plannerOnboardingState.completed;
 
   const cleanPillBase =
-    "inline-flex items-center justify-center rounded-full px-4 py-2.5 text-[13px] font-semibold tracking-[0.01em] leading-none transition-[transform,background-color,color,border-color,box-shadow] duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:opacity-60 disabled:cursor-not-allowed";
+    `inline-flex items-center justify-center rounded-full px-4 py-2.5 text-[13px] font-semibold tracking-[0.01em] leading-none ${PLANNER_PRESSABLE} disabled:opacity-60 disabled:cursor-not-allowed`;
   const cleanPrimaryPill = `${cleanPillBase} bg-[#3b82f6] text-white shadow-[0_8px_18px_rgba(37,99,235,0.32)] hover:bg-[#2563eb]`;
   const cleanSecondaryPill = `${cleanPillBase} border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0] hover:bg-[#3b4048]" : "bg-white/95 border-[#cfd6e2] text-[#1f2937] hover:bg-white"} shadow-[0_4px_10px_rgba(15,23,42,0.14)]`;
   const cleanHeaderLabelClass =
@@ -3636,6 +3642,32 @@ export default function StudyPlanner({
     <>
       {premiumModal}
       <PlannerSidebar />
+      <style>{`
+        .study-planner-motion button:not(:disabled),
+        .study-planner-motion [role="button"]:not([aria-disabled="true"]) {
+          transform-origin: center;
+          transition-property: transform, box-shadow, background-color, border-color, color, opacity;
+          transition-duration: 150ms;
+          transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .study-planner-motion button:not(:disabled):active,
+        .study-planner-motion [role="button"]:not([aria-disabled="true"]):active {
+          transform: scale(0.97) translateY(1px);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .study-planner-motion button:not(:disabled),
+          .study-planner-motion [role="button"]:not([aria-disabled="true"]) {
+            transition-property: background-color, border-color, color, opacity;
+          }
+
+          .study-planner-motion button:not(:disabled):active,
+          .study-planner-motion [role="button"]:not([aria-disabled="true"]):active {
+            transform: none;
+          }
+        }
+      `}</style>
       <div className="fixed top-6 right-6 z-[40] flex items-center gap-4">
         <div className="rounded-2xl bg-white/70 dark:bg-black/20 backdrop-blur-md px-4 py-2 shadow-[6px_6px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-slate-300 dark:border-white/20 scale-110 origin-right transition-all hover:scale-115">
           <LanguageToggle />
@@ -3644,7 +3676,7 @@ export default function StudyPlanner({
           <ThemeToggle />
         </div>
       </div>
-      <div className="min-h-[100dvh] bg-gradient-to-br from-[#E0F2FE] via-[#F5F3FF] to-[#FFF1F2] dark:from-[#131416] dark:via-[#131416] dark:to-[#131416] text-[#3c4146] dark:text-[#e7e5e5] font-study-planner overflow-x-hidden selection:bg-blue-500/30 transition-colors duration-500">
+      <div className="study-planner-motion min-h-[100dvh] bg-gradient-to-br from-[#E0F2FE] via-[#F5F3FF] to-[#FFF1F2] dark:from-[#131416] dark:via-[#131416] dark:to-[#131416] text-[#3c4146] dark:text-[#e7e5e5] font-study-planner overflow-x-hidden selection:bg-blue-500/30 transition-colors duration-500">
         {/* Noise Texture */}
         <div
           className="fixed inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.02] z-0"
@@ -3663,7 +3695,7 @@ export default function StudyPlanner({
             <div>
               <button
                 onClick={() => navigate("/study/planner")}
-                className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] transition-colors mb-3 inline-block"
+                className={`text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] mb-3 inline-block ${PLANNER_TEXT_PRESSABLE}`}
               >
                 ← All Plans
               </button>
@@ -3687,7 +3719,7 @@ export default function StudyPlanner({
                     <motion.button
                       layout
                       onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
-                      className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] text-[20px] md:text-[22px] font-black uppercase tracking-[0.1em] px-8 py-3 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.12)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05),0_10px_20px_rgba(0,0,0,0.4)] border border-[#c0c4d1] dark:border-[#252626] transition-transform hover:scale-[1.03]"
+                      className={`bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] text-[20px] md:text-[22px] font-black uppercase tracking-[0.1em] px-8 py-3 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.12)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05),0_10px_20px_rgba(0,0,0,0.4)] border border-[#c0c4d1] dark:border-[#252626] hover:scale-[1.03] ${PLANNER_PRESSABLE}`}
                       title="Set your exam date"
                     >
                       Set Exam Date
@@ -3738,7 +3770,7 @@ export default function StudyPlanner({
                           onClick={() => {
                             void saveExamDate();
                           }}
-                          className="bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white text-[12px] font-extrabold uppercase tracking-[0.15em] px-5 py-2.5 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.35)]"
+                          className={`bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white text-[12px] font-extrabold uppercase tracking-[0.15em] px-5 py-2.5 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.35)] ${PLANNER_PRESSABLE}`}
                         >
                           Save Date
                         </button>
@@ -3751,7 +3783,7 @@ export default function StudyPlanner({
                             );
                             setIsExamDateEditorOpen(false);
                           }}
-                          className="bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[12px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-xl border border-[#c0c4d1] dark:border-[#2b2c2c]"
+                          className={`bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[12px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-xl border border-[#c0c4d1] dark:border-[#2b2c2c] ${PLANNER_PRESSABLE}`}
                         >
                           Cancel
                         </button>
@@ -3962,26 +3994,26 @@ export default function StudyPlanner({
               <div className="flex flex-col gap-3">
                 <button
                   onClick={() => handleViewChange("plan")}
-                  className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#1e40af] text-white shadow-md hover:shadow-lg transition-all"
+                  className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#1e40af] text-white shadow-md hover:shadow-lg ${PLANNER_PRESSABLE}`}
                 >
                   Build Schedule
                 </button>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <button
                     onClick={() => handleViewChange("syllabus")}
-                    className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md transition-all"
+                    className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md ${PLANNER_PRESSABLE}`}
                   >
                     Add Topics
                   </button>
                   <button
                     onClick={() => handleViewChange("plan")}
-                    className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md transition-all"
+                    className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md ${PLANNER_PRESSABLE}`}
                   >
                     Edit Plan
                   </button>
                   <button
                     onClick={() => handleViewChange("calendar")}
-                    className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md transition-all"
+                    className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md ${PLANNER_PRESSABLE}`}
                   >
                     Open Calendar
                   </button>
@@ -4107,7 +4139,7 @@ export default function StudyPlanner({
                 <button
                   key={value}
                   onClick={() => handleViewChange(value)}
-                  className={`relative px-6 py-2.5 rounded-full ${value === "plan" || value === "syllabus" ? "text-[13px] md:text-[15px]" : "text-[14px] md:text-[14px]"} font-semibold tracking-[0.01em] transition-[color,transform] duration-150 ease-out active:scale-[0.98] z-10 flex-1 md:flex-none ${
+                  className={`relative px-6 py-2.5 rounded-full ${value === "plan" || value === "syllabus" ? "text-[13px] md:text-[15px]" : "text-[14px] md:text-[14px]"} font-semibold tracking-[0.01em] z-10 flex-1 md:flex-none ${PLANNER_PRESSABLE} ${
                     view === value
                       ? "text-[#2d333b] dark:text-[#e7e5e5]"
                       : "text-[#8b919e] dark:text-[#767575] hover:text-[#4b5563] dark:hover:text-[#acabaa]"
@@ -8461,7 +8493,7 @@ export default function StudyPlanner({
             <div className="flex flex-col sm:flex-row gap-3 justify-end mt-6">
               <button
                 onClick={resetBulkAdd}
-                className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-sm font-bold uppercase tracking-widest text-slate-600 dark:text-slate-200"
+                className={`px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1a1f27] text-sm font-bold uppercase tracking-widest text-slate-600 dark:text-slate-200 ${PLANNER_PRESSABLE}`}
               >
                 Cancel
               </button>
@@ -8469,7 +8501,7 @@ export default function StudyPlanner({
                 onClick={() => {
                   void handleBulkAdd();
                 }}
-                className="px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold uppercase tracking-widest"
+                className={`px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-bold uppercase tracking-widest ${PLANNER_PRESSABLE}`}
               >
                 {isTxtBulkMode ? "Import Topics" : "Add Topics"}
               </button>
@@ -8527,7 +8559,7 @@ export default function StudyPlanner({
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setPendingDelete(null)}
-                  className={`px-5 py-2.5 rounded-xl border text-[13px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
+                  className={`px-5 py-2.5 rounded-xl border text-[13px] font-bold uppercase tracking-widest ${PLANNER_PRESSABLE} ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
                 >
                   Cancel
                 </button>
@@ -8535,7 +8567,7 @@ export default function StudyPlanner({
                   onClick={() => {
                     void executePendingDelete();
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-red-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-md"
+                  className={`px-5 py-2.5 rounded-xl bg-red-600 text-white text-[13px] font-bold uppercase tracking-widest shadow-md ${PLANNER_PRESSABLE}`}
                 >
                   Confirm
                 </button>
@@ -8571,7 +8603,7 @@ export default function StudyPlanner({
               </div>
               <button
                 onClick={() => setTemplatePickerOpen(false)}
-                className="text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"
+                className={`text-sm font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 ${PLANNER_TEXT_PRESSABLE}`}
               >
                 Close
               </button>
@@ -8710,7 +8742,7 @@ export default function StudyPlanner({
                             setIsLoadingTemplate(false);
                           }
                         }}
-                        className="text-[13px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full bg-[#3b82f6] text-white shadow-md disabled:opacity-60 whitespace-nowrap shrink-0"
+                        className={`text-[13px] font-black uppercase tracking-widest px-5 py-2.5 rounded-full bg-[#3b82f6] text-white shadow-md disabled:opacity-60 whitespace-nowrap shrink-0 ${PLANNER_PRESSABLE}`}
                       >
                         {isLoadingTemplate ? "Importing..." : "Use This"}
                       </button>
@@ -8752,7 +8784,7 @@ export default function StudyPlanner({
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setShowRebuildPrompt(false)}
-                  className={`px-5 py-2.5 rounded-xl border text-[13px] font-bold uppercase tracking-widest ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
+                  className={`px-5 py-2.5 rounded-xl border text-[13px] font-bold uppercase tracking-widest ${PLANNER_PRESSABLE} ${isDarkMode ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-600"}`}
                 >
                   Not Now
                 </button>
@@ -8761,7 +8793,7 @@ export default function StudyPlanner({
                     setShowRebuildPrompt(false);
                     void autoDistribute();
                   }}
-                  className="px-5 py-2.5 rounded-xl bg-[#3b82f6] text-white text-[13px] font-bold uppercase tracking-widest shadow-md"
+                  className={`px-5 py-2.5 rounded-xl bg-[#3b82f6] text-white text-[13px] font-bold uppercase tracking-widest shadow-md ${PLANNER_PRESSABLE}`}
                 >
                   Rebuild Now
                 </button>
