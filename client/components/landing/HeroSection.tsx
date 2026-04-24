@@ -4,7 +4,6 @@ import { ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import LanguageToggle from '../LanguageToggle';
-import AnimatedBorderPill from './AnimatedBorderPill';
 import HeroAnimation from './HeroAnimation';
 
 interface HeroSectionProps {
@@ -114,24 +113,17 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     <div className="hidden md:flex items-center md:gap-4 md:ml-auto md:mr-6 md:-translate-x-[30%]">
                         <Link
                             to="/updates"
-                            className="group relative inline-flex items-center justify-center overflow-hidden rounded-xl p-[1.5px] isolation-isolate transition-all duration-200 hover:-translate-y-0.5"
+                            className="group relative inline-flex items-center justify-center overflow-hidden rounded-xl p-[2.94px] isolation-isolate transition-all duration-200 hover:-translate-y-0.5"
                         >
                             <span
                                 aria-hidden="true"
                                 className="absolute -inset-[140%] opacity-75 blur-[18px] transition-opacity duration-300 group-hover:opacity-100"
                                 style={{
+                                    animation: 'spin 2.14s linear infinite',
                                     backgroundImage:
-                                        "conic-gradient(from 0deg, rgba(0,0,0,0), #1976ed, rgba(0,0,0,0) 25%)",
-                                    animation: "updatesBorderOrbit 3.2s linear infinite",
-                                }}
-                            />
-                            <span
-                                aria-hidden="true"
-                                className="absolute -inset-[140%]"
-                                style={{
-                                    backgroundImage:
-                                        "conic-gradient(from 0deg, rgba(0,0,0,0), #1976ed, rgba(0,0,0,0) 25%)",
-                                    animation: "updatesBorderOrbit 3.2s linear infinite",
+                                        theme === 'dark'
+                                            ? "conic-gradient(from 0deg, rgba(0,0,0,0), #f5c542, #ffdf7a, rgba(0,0,0,0) 25%)"
+                                            : "conic-gradient(from 0deg, rgba(0,0,0,0), rgba(0,0,0,0.82), rgba(0,0,0,0.45), rgba(0,0,0,0) 25%)",
                                 }}
                             />
                             <span className="relative z-10 inline-flex items-center rounded-[11px] bg-white/85 px-[14px] py-[10px] text-black dark:bg-slate-950/85 dark:text-white/90 font-semibold text-[17px] leading-none backdrop-blur-sm transition-colors duration-200 group-hover:text-black dark:group-hover:text-white">
@@ -222,11 +214,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     {/* Glassmorphic Scrim / Soft Glow - Left Aligned */}
                     <div className="absolute top-1/2 left-0 -translate-x-[15%] -translate-y-1/2 w-[110%] h-[150%] z-[-1] bg-[radial-gradient(ellipse_at_left,rgba(255,255,255,0.8)_0%,transparent_70%)] dark:bg-[radial-gradient(ellipse_at_left,rgba(0,0,0,0.8)_0%,transparent_70%)] pointer-events-none blur-3xl opacity-90"></div>
 
-                    <h1 className="text-3xl md:text-4xl lg:text-5xl font-playfair font-normal leading-tight mb-6 drop-shadow-md">
+                    <h1 className="text-[2.05rem] md:text-[2.5rem] lg:text-[3.3rem] font-playfair font-normal leading-tight mb-6 drop-shadow-md">
                         <span className="block whitespace-normal md:whitespace-nowrap font-extrabold text-black dark:text-white">{titlePart1}</span>
-                        <span className="block whitespace-normal md:whitespace-nowrap font-medium text-black dark:text-white mt-2">{titlePart2}</span>
+                        <span className="block whitespace-normal md:whitespace-nowrap font-medium text-black dark:text-white mt-0.5">{titlePart2}</span>
                     </h1>
-                    <p className="text-base md:text-lg lg:text-xl font-sans text-slate-800 dark:text-slate-100 mb-10 md:mb-12 max-w-[600px] leading-8 whitespace-pre-line">
+                    <p className="text-[1.1rem] md:text-[1.25rem] lg:text-[1.4rem] font-sans text-slate-800 dark:text-slate-100 mb-10 md:mb-12 max-w-[600px] leading-8 whitespace-pre-line">
                         {subtitleBody}
                     </p>
                     <div
@@ -238,7 +230,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     >
                         <Link
                             to="/dashboard"
-                            className="inline-flex self-start items-center justify-center gap-4 bg-indigo-600 dark:bg-[#0099ff] text-white px-9 py-[1.15rem] md:px-[3.25rem] md:py-[1.35rem] rounded-full text-lg md:text-[1.45rem] font-semibold shadow-lg shadow-indigo-900/20 dark:shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group"
+                            className="btn-shine-hover start-safar-shine relative overflow-hidden inline-flex self-start items-center justify-center gap-4 bg-black dark:bg-white text-white dark:text-black px-9 py-[1.15rem] md:px-[3.25rem] md:py-[1.35rem] rounded-full text-lg md:text-[1.45rem] font-semibold shadow-lg shadow-black/20 dark:shadow-white/10 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group"
                         >
                             <span>{t('landing.start_btn')}</span>
                             <ArrowRight className="w-6 h-6 transition-transform duration-300 group-hover:translate-x-1" />
@@ -257,16 +249,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     </div>
                 </div>
             </header>
-            <style>{`
-                @keyframes updatesBorderOrbit {
-                    from {
-                        transform: rotate(0deg);
-                    }
-                    to {
-                        transform: rotate(360deg);
-                    }
-                }
-            `}</style>
         </div>
     );
 };

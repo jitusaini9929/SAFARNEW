@@ -1734,14 +1734,7 @@ select {
     transition: none !important;
   }
 
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+  /* Universal motion reduction removed by user request to keep UI animations active */
 
   .glass-card:hover,
   .ui-hover-lift:hover,
@@ -1764,4 +1757,55 @@ select {
     animation-iteration-count: infinite !important;
     animation-delay: 1000ms !important;
   }
+}
+
+/* --- Shine Hover Effect --- */
+.btn-shine-hover::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.31),
+    transparent
+  );
+  transition: left 0.65s ease-in-out;
+  pointer-events: none;
+}
+
+.dark .btn-shine-hover::before {
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(0, 0, 0, 0.15),
+    transparent
+  );
+}
+
+.dark .start-safar-shine::before {
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(226, 232, 240, 0.87),
+    rgba(148, 163, 184, 0.51),
+    transparent
+  );
+}
+
+.start-safar-shine::before {
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.47),
+    transparent
+  );
+  transition-duration: 0.845s;
+}
+
+.btn-shine-hover:hover::before {
+  left: 100%;
 }

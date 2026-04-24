@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 
 // Helper functions (same as Meditation.tsx)
 const ADMIN_EMAIL = "steve123@gmail.com";
-const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/i65MjKQCWUE?si=XbBv4pq0N5vXHNkw";
+const DEFAULT_MEDITATION_VIDEO_URL = "https://youtu.be/Np6_bLAZgLU";
 const DEFAULT_VIDEO_THUMBNAIL = "/meditation-silhouette.webp";
 
 const getYoutubeVideoId = (url: string) => {
@@ -20,14 +20,14 @@ const getYoutubeThumbnailPair = (url: string) => {
         return { primary: DEFAULT_VIDEO_THUMBNAIL, fallback: DEFAULT_VIDEO_THUMBNAIL };
     }
     return {
-        primary: `https://img.youtube.com/vi/${id}/maxresdefault.jpg`,
-        fallback: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+        primary: `https://img.youtube.com/vi/${id}/hqdefault.jpg`,
+        fallback: `https://img.youtube.com/vi/${id}/mqdefault.jpg`,
     };
 };
 
 interface YoutubePromotionModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
 }
 
 export default function YoutubePromotionModal({ open, onOpenChange }: YoutubePromotionModalProps) {
@@ -37,35 +37,11 @@ export default function YoutubePromotionModal({ open, onOpenChange }: YoutubePro
     const [videoDraftUrl, setVideoDraftUrl] = useState(DEFAULT_MEDITATION_VIDEO_URL);
     const [videoSettingsError, setVideoSettingsError] = useState("");
     const [isSavingVideo, setIsSavingVideo] = useState(false);
-    
+
     const { primary: primaryVideoThumbnail, fallback: fallbackVideoThumbnail } = getYoutubeThumbnailPair(meditationVideoUrl);
     const [videoThumbnailSrc, setVideoThumbnailSrc] = useState(() => primaryVideoThumbnail);
 
-    useEffect(() => {
-        let isCancelled = false;
-        const loadMeditationVideo = async () => {
-            try {
-                const response = await fetch("/api/mehfil/meditation-video", { credentials: "include" });
-                if (!response.ok) throw new Error("Failed to fetch meditation video.");
-                const data = await response.json().catch(() => null);
-                const nextVideoUrl = typeof data?.videoUrl === "string" ? data.videoUrl.trim() : "";
-                const safeVideoUrl = getYoutubeVideoId(nextVideoUrl) ? nextVideoUrl : DEFAULT_MEDITATION_VIDEO_URL;
-
-                if (!isCancelled) {
-                    setMeditationVideoUrl(safeVideoUrl);
-                    setVideoDraftUrl(safeVideoUrl);
-                    setVideoSettingsError("");
-                }
-            } catch {
-                if (!isCancelled) {
-                    setMeditationVideoUrl(DEFAULT_MEDITATION_VIDEO_URL);
-                    setVideoDraftUrl(DEFAULT_MEDITATION_VIDEO_URL);
-                }
-            }
-        };
-        loadMeditationVideo();
-        return () => { isCancelled = true; };
-    }, []);
+    // Component loads with the hardcoded DEFAULT_MEDITATION_VIDEO_URL
 
     useEffect(() => {
         setVideoThumbnailSrc(primaryVideoThumbnail);
@@ -117,7 +93,7 @@ export default function YoutubePromotionModal({ open, onOpenChange }: YoutubePro
                     <X className="w-5 h-5 drop-shadow-md" />
                 </button>
                 <div className="relative w-full">
-                   <a
+                    <a
                         href={meditationVideoUrl}
                         target="_blank"
                         rel="noreferrer"
@@ -145,7 +121,7 @@ export default function YoutubePromotionModal({ open, onOpenChange }: YoutubePro
                         </div>
                     </a>
                 </div>
-                
+
                 <div className="p-6 text-center">
                     <h3 className="text-xl font-serif font-bold text-foreground">Latest Video</h3>
                     <p className="py-2 text-sm text-muted-foreground leading-relaxed">Discover our latest video on YouTube.</p>
