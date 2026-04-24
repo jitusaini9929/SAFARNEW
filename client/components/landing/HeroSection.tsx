@@ -10,9 +10,14 @@ import HeroAnimation from './HeroAnimation';
 interface HeroSectionProps {
     user: any;
     setIsAuthModalOpen: (isOpen: boolean) => void;
+    showStudyPlanner?: boolean;
 }
 
-const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) => {
+const HeroSection: React.FC<HeroSectionProps> = ({
+    user,
+    setIsAuthModalOpen,
+    showStudyPlanner = true,
+}) => {
     const { theme, toggleTheme } = useTheme();
     const { t } = useTranslation();
     const video1Ref = useRef<HTMLVideoElement>(null);
@@ -109,9 +114,29 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                     <div className="hidden md:flex items-center md:gap-4 md:ml-auto md:mr-6 md:-translate-x-[30%]">
                         <Link
                             to="/updates"
-                            className="inline-flex items-center px-[14px] py-[10px] rounded-lg text-black dark:text-white/80 font-semibold text-[17px] leading-none hover:text-black dark:hover:text-white transition-all duration-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
+                            className="group relative inline-flex items-center justify-center overflow-hidden rounded-xl p-[1.5px] isolation-isolate transition-all duration-200 hover:-translate-y-0.5"
                         >
-                            Updates
+                            <span
+                                aria-hidden="true"
+                                className="absolute -inset-[140%] opacity-75 blur-[18px] transition-opacity duration-300 group-hover:opacity-100"
+                                style={{
+                                    backgroundImage:
+                                        "conic-gradient(from 0deg, rgba(0,0,0,0), #1976ed, rgba(0,0,0,0) 25%)",
+                                    animation: "updatesBorderOrbit 3.2s linear infinite",
+                                }}
+                            />
+                            <span
+                                aria-hidden="true"
+                                className="absolute -inset-[140%]"
+                                style={{
+                                    backgroundImage:
+                                        "conic-gradient(from 0deg, rgba(0,0,0,0), #1976ed, rgba(0,0,0,0) 25%)",
+                                    animation: "updatesBorderOrbit 3.2s linear infinite",
+                                }}
+                            />
+                            <span className="relative z-10 inline-flex items-center rounded-[11px] bg-white/85 px-[14px] py-[10px] text-black dark:bg-slate-950/85 dark:text-white/90 font-semibold text-[17px] leading-none backdrop-blur-sm transition-colors duration-200 group-hover:text-black dark:group-hover:text-white">
+                                Updates
+                            </span>
                         </Link>
                         <a
                             href={supportGmailHref}
@@ -204,26 +229,44 @@ const HeroSection: React.FC<HeroSectionProps> = ({ user, setIsAuthModalOpen }) =
                     <p className="text-base md:text-lg lg:text-xl font-sans text-slate-800 dark:text-slate-100 mb-10 md:mb-12 max-w-[600px] leading-8 whitespace-pre-line">
                         {subtitleBody}
                     </p>
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-4 md:gap-6 justify-start w-full sm:w-auto mt-2">
+                    <div
+                        className={
+                            showStudyPlanner
+                                ? "flex flex-col sm:flex-row flex-wrap gap-4 md:gap-6 justify-start w-full sm:w-auto mt-2"
+                                : "flex justify-start w-full mt-2"
+                        }
+                    >
                         <Link
                             to="/dashboard"
-                            className="inline-flex items-center justify-center gap-3 bg-indigo-600 dark:bg-[#0099ff] text-white px-7 py-3.5 md:px-10 md:py-4 rounded-full text-base md:text-lg font-semibold shadow-lg shadow-indigo-900/20 dark:shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group"
+                            className="inline-flex self-start items-center justify-center gap-4 bg-indigo-600 dark:bg-[#0099ff] text-white px-9 py-[1.15rem] md:px-[3.25rem] md:py-[1.35rem] rounded-full text-lg md:text-[1.45rem] font-semibold shadow-lg shadow-indigo-900/20 dark:shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group"
                         >
                             <span>{t('landing.start_btn')}</span>
-                            <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />
+                            <ArrowRight className="w-6 h-6 transition-transform duration-300 group-hover:translate-x-1" />
                         </Link>
 
-                        <Link
-                            to="/study/planner"
-                            className="group relative flex items-center justify-center gap-3 bg-transparent border-2 border-slate-800 text-slate-900 dark:border-emerald-500 dark:text-emerald-400 px-8 py-3.5 md:px-10 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 hover:bg-slate-900/5 dark:hover:bg-emerald-500/10 cursor-pointer"
-                        >
-                            <span className="relative z-10">Try Study Planner</span>
-                            <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
-                        </Link>
+                        {showStudyPlanner && (
+                            <Link
+                                to="/study/planner"
+                                className="group relative flex items-center justify-center gap-3 bg-transparent border-2 border-slate-800 text-slate-900 dark:border-emerald-500 dark:text-emerald-400 px-8 py-3.5 md:px-10 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 hover:bg-slate-900/5 dark:hover:bg-emerald-500/10 cursor-pointer"
+                            >
+                                <span className="relative z-10">Try Study Planner</span>
+                                <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
+                            </Link>
+                        )}
 
                     </div>
                 </div>
             </header>
+            <style>{`
+                @keyframes updatesBorderOrbit {
+                    from {
+                        transform: rotate(0deg);
+                    }
+                    to {
+                        transform: rotate(360deg);
+                    }
+                }
+            `}</style>
         </div>
     );
 };

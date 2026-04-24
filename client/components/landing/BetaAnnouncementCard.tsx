@@ -36,13 +36,13 @@ export default function BetaAnnouncementCard() {
           
           <div className="space-y-4 text-[15px] md:text-base leading-relaxed text-slate-700 dark:text-slate-300 font-medium">
             <p>
-              Dear Students, The study planner mode was launched as a Beta feature to understand your needs and requirement.
+              The wait is almost over. Study Planner is now feature-ready and has moved into its final testing phase.
             </p>
             <p>
-              Your feedback has been immensely helpful, which gives us an idea on how to make this feature powerful and usable by all without any Bugs.
+              We used your feedback to refine the planning flow, tighten the experience, and smooth out the last edge cases before public release.
             </p>
             <p className="text-indigo-700 dark:text-indigo-300 font-bold">
-              It will be available soon, please bear with us. We promise we wont dissappoint.
+              Launch is coming soon. Final checks are in progress, and Study Planner will be available very shortly.
             </p>
           </div>
         </div>

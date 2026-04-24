@@ -62,15 +62,7 @@ const AppsGrid = () => {
                 {apps.map((app) => (
                     <Link key={app.key} to={app.path} className="group flex flex-col items-center w-full md:w-auto">
                         <div className={`w-full aspect-square max-w-[140px] md:w-44 md:h-44 rounded-xl ${app.bg} ${app.hoverBg} border-[5px] ${app.borderColor} ${app.darkBorderColor} transition-all duration-500 flex items-center justify-center hover:scale-105 overflow-hidden shadow-2xl shadow-black/5`}>
-                            {'image' in app ? (
-                                <img loading="lazy" src={app.image} alt={app.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                            ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500/20 via-white/80 to-teal-500/20 dark:from-indigo-500/25 dark:via-slate-900/80 dark:to-teal-500/20">
-                                    <span className="rounded-2xl border border-indigo-500/30 bg-white/70 px-5 py-4 font-manrope text-4xl font-extrabold tracking-[0.24em] text-indigo-700 shadow-lg shadow-indigo-500/10 dark:border-indigo-400/20 dark:bg-slate-900/70 dark:text-indigo-200">
-                                        {app.monogram}
-                                    </span>
-                                </div>
-                            )}
+                            <img loading="lazy" src={app.image} alt={app.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <h3 className={`mt-4 md:mt-5 text-xl md:text-2xl font-manrope font-extrabold text-forest dark:text-white ${app.textColor} transition-colors text-center tracking-tight`}>{app.name}</h3>
                         <p className="text-sm text-road/60 dark:text-white/50 font-inter font-medium text-center max-w-[170px] mt-2 line-clamp-2 leading-tight px-1 md:px-0">
