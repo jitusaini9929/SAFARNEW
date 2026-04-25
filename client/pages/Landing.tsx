@@ -80,7 +80,7 @@ const Landing = () => {
         <HeroSection
           user={user}
           setIsAuthModalOpen={handleOpenAuthModal}
-          showStudyPlanner={false}
+          showStudyPlanner
         />
 
         <div className="max-w-6xl mx-auto px-4 md:px-10 py-6 md:py-10 flex justify-center relative z-20">
