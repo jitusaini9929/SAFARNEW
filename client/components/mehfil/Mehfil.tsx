@@ -102,6 +102,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   const [isLoadingThoughts, setIsLoadingThoughts] = useState(false);
   const [guidelinesOpen, setGuidelinesOpen] = useState(false);
   const [ariaLiveMessage, setAriaLiveMessage] = useState('');
+  const [hasUnreadSandesh, setHasUnreadSandesh] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -584,15 +585,18 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
               setMehfilSidebarInitialView('connections');
               setIsSidebarOpen(true);
             }}
-            className="relative p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+            className={`relative p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${hasUnreadSandesh ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}
             title={t('mehfil.connection_requests')}
             aria-label="Open connections"
           >
-            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Bell className={`w-4 h-4 sm:w-5 sm:h-5 ${hasUnreadSandesh ? 'animate-swing' : ''}`} />
             {incomingRequestsCount > 0 && (
               <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 sm:h-5 sm:min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 sm:px-1.5 text-[9px] sm:text-[10px] font-bold text-white">
                 {incomingRequestsCount}
               </span>
+            )}
+            {incomingRequestsCount === 0 && hasUnreadSandesh && (
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rose-500" />
             )}
           </button>
 
@@ -753,7 +757,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
               {/* Mobile Sandesh (only visible on small screens) */}
               <div className="md:hidden">
-                <SandeshCard />
+                <SandeshCard onUnreadChange={setHasUnreadSandesh} />
               </div>
 
               <div className="space-y-6">
@@ -798,7 +802,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
             {/* Right Sidebar - Sandesh (visible on md+ screens, sticky) - Spans 5/4 columns */}
             <aside className="hidden md:block md:col-span-5 lg:col-span-4 md:sticky md:top-24 lg:top-28 h-fit">
-              <SandeshCard />
+              <SandeshCard onUnreadChange={setHasUnreadSandesh} />
             </aside>
 
           </div>

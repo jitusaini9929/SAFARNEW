@@ -12,7 +12,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import './SandeshCard.css';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
-const SANDESH_POLL_MS = 5 * 60 * 1000;
+const SANDESH_POLL_MS = 30 * 1000;
+const MEHFIL_LAST_READ_SANDESH_ID_KEY = 'mehfil_last_read_sandesh_id';
+const MEHFIL_SANDESH_READ_UPDATED_EVENT = 'mehfil:sandesh-read-updated';
 
 interface LinkMeta {
     url: string;
@@ -44,7 +46,11 @@ interface Sandesh {
     userLiked?: boolean;
 }
 
-const SandeshCard = () => {
+interface SandeshCardProps {
+    onUnreadChange?: (hasUnread: boolean) => void;
+}
+
+const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
     const { t, i18n } = useTranslation();
     const { user, status } = useAuth();
     const [sandeshes, setSandeshes] = useState<Sandesh[]>([]);
@@ -80,6 +86,12 @@ const SandeshCard = () => {
     const [isLikingById, setIsLikingById] = useState<Record<string, boolean>>({});
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+    const computeHasUnread = (latestSandeshId: string | null | undefined) => {
+        if (!latestSandeshId) return false;
+        const lastReadId = localStorage.getItem(MEHFIL_LAST_READ_SANDESH_ID_KEY);
+        return lastReadId !== latestSandeshId;
+    };
+
     const fetchSandesh = async () => {
         try {
             const res = await apiFetch(`${API_URL}/mehfil/sandesh`, { method: 'GET' });
@@ -101,11 +113,11 @@ const SandeshCard = () => {
                 setLikeCountById(nextLikeCounts);
                 setCommentCountById(nextCommentCounts);
                 setUserLikedById(nextUserLiked);
-                if (incomingSandeshes.length > 0) {
-                    const latestSandesh = incomingSandeshes[0];
-                    const lastReadId = localStorage.getItem('mehfil_last_read_sandesh_id');
-                    if (lastReadId !== latestSandesh.id) setHasUnread(true);
-                }
+                const latestSandeshId =
+                    typeof data.latestSandeshId === 'string' && data.latestSandeshId.length > 0
+                        ? data.latestSandeshId
+                        : incomingSandeshes[0]?.id;
+                setHasUnread(computeHasUnread(latestSandeshId));
             }
         } catch (err) {
             console.error('Failed to fetch sandesh', err);
@@ -221,10 +233,35 @@ const SandeshCard = () => {
         }
     }, [status, user?.id]);
 
+    useEffect(() => {
+        onUnreadChange?.(hasUnread);
+    }, [hasUnread, onUnreadChange]);
+
+    useEffect(() => {
+        const syncUnreadFromStorage = () => {
+            const latestSandeshId = sandeshes[0]?.id;
+            setHasUnread(computeHasUnread(latestSandeshId));
+        };
+
+        const onStorage = (event: StorageEvent) => {
+            if (event.key !== MEHFIL_LAST_READ_SANDESH_ID_KEY) return;
+            syncUnreadFromStorage();
+        };
+
+        window.addEventListener(MEHFIL_SANDESH_READ_UPDATED_EVENT, syncUnreadFromStorage);
+        window.addEventListener('storage', onStorage);
+
+        return () => {
+            window.removeEventListener(MEHFIL_SANDESH_READ_UPDATED_EVENT, syncUnreadFromStorage);
+            window.removeEventListener('storage', onStorage);
+        };
+    }, [sandeshes]);
+
     const markAsRead = () => {
         if (sandeshes.length > 0 && hasUnread) {
-            localStorage.setItem('mehfil_last_read_sandesh_id', sandeshes[0].id);
+            localStorage.setItem(MEHFIL_LAST_READ_SANDESH_ID_KEY, sandeshes[0].id);
             setHasUnread(false);
+            window.dispatchEvent(new Event(MEHFIL_SANDESH_READ_UPDATED_EVENT));
         }
     };
 

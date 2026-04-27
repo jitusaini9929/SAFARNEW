@@ -74,6 +74,7 @@ import {
   getGoalHistoryDateKey,
   getDailyCompletionMetrics,
   LEGACY_ONE_TIME_GOAL_KIND_OPTION,
+  LEGACY_REPEAT_GOAL_KIND_OPTION,
   isScheduledAndDormant,
   isGoalActiveForToday,
   getGoalScheduledInfo,
@@ -379,26 +380,32 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   const [desc, setDesc] = useState(goal?.description || "");
   const [goalKind, setGoalKind] = useState<GoalKind>(() => {
     const raw = String(goal?.goalKind || goal?.goal_kind || "").trim();
-    if (isEdit && (raw === "one_time" || raw === "today" || raw === "repeat")) {
+    // In edit mode, preserve whatever kind was stored (including legacy ones)
+    if (isEdit && (raw === "one_time" || raw === "today" || raw === "repeat" || raw === "scheduled")) {
       return raw as GoalKind;
     }
-    return raw === "repeat" ? "repeat" : "today";
+    return raw === "scheduled" ? "scheduled" : "today";
   });
-  const goalKindOptions = isEdit && (goal?.goalKind === "one_time" || goal?.goal_kind === "one_time" || goalKind === "one_time")
-    ? [LEGACY_ONE_TIME_GOAL_KIND_OPTION, ...GOAL_KIND_OPTIONS]
-    : GOAL_KIND_OPTIONS;
+
+  // Build the dropdown list for the Goal Type field:
+  //  - new goal  → just Today + Scheduled
+  //  - edit mode → prepend the legacy option if the stored kind is legacy
+  const goalKindOptions = (() => {
+    if (!isEdit) return GOAL_KIND_OPTIONS;
+    const legacyPrepend =
+      goalKind === "one_time" ? [LEGACY_ONE_TIME_GOAL_KIND_OPTION]
+      : goalKind === "repeat" ? [LEGACY_REPEAT_GOAL_KIND_OPTION]
+      : [];
+    return [...legacyPrepend, ...GOAL_KIND_OPTIONS];
+  })();
   const [unitType, setUnitType] = useState<GoalUnitType>(() => {
     const raw = String(goal?.unitType || goal?.unit_type || "").trim();
     return raw === "binary" || raw === "count" || raw === "duration_minutes" || raw === "checklist"
       ? (raw as GoalUnitType)
       : "binary";
   });
-  const [linkedFocusEnabled, setLinkedFocusEnabled] = useState(() => {
-    const raw = goal?.linkedFocusEnabled ?? goal?.linked_focus_enabled;
-    if (typeof raw === "boolean") return raw;
-    const rawUnit = String(goal?.unitType || goal?.unit_type || "").trim();
-    return rawUnit === "duration_minutes";
-  });
+  // duration_minutes always has focus linking — no longer a user toggle
+  const linkedFocusEnabled = unitType === "duration_minutes";
   const [repeatRule, setRepeatRule] = useState<"daily" | "weekdays" | "custom">("daily");
   const [targetValue, setTargetValue] = useState(() => {
     const raw = goal?.targetValue ?? goal?.target_value;
@@ -446,9 +453,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   });
   const unitOptions = useMemo(() => {
     let options = GOAL_UNIT_OPTIONS;
-    if (isEdit && unitType === "count" && !options.some((option) => option.value === "count")) {
-      options = [...options, { value: "count", label: "By number (count)" }];
-    }
+    // Legacy guard: if editing a goal that was created with 'count' or 'checklist'
     if (isEdit && unitType === "checklist" && !options.some((option) => option.value === "checklist")) {
       options = [...options, { value: "checklist", label: "Checklist points" }];
     }
@@ -479,26 +484,18 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
     if (goalKind === "today") {
       setDate(todayKey);
       if (!isEdit) setCarryForwardMode("none");
+    } else if (goalKind === "scheduled") {
+      if (!isEdit && date <= todayKey) setDate(tomorrowKey);
+      if (!isEdit) setCarryForwardMode("none");
     } else if (goalKind === "repeat") {
       if (!isEdit) setCarryForwardMode("ask");
     } else if (goalKind === "one_time") {
-      if (!isEdit) setCarryForwardMode("none");
-    } else if (goalKind === "scheduled") {
-      if (!isEdit && date <= todayKey) setDate(tomorrowKey);
+      // Legacy kinds — preserve user's existing date; just set carry-forward
       if (!isEdit) setCarryForwardMode("none");
     }
   }, [goalKind, isEdit, todayKey, tomorrowKey]);
 
-  useEffect(() => {
-    if (unitType !== "duration_minutes") {
-      setLinkedFocusEnabled(false);
-      return;
-    }
 
-    if (!isEdit) {
-      setLinkedFocusEnabled(true);
-    }
-  }, [unitType, isEdit]);
 
   const submit = () => {
     if (!title.trim()) return;
@@ -548,7 +545,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
             : Number(targetValue),
       achievedValue: achievedValue ? Number(achievedValue) : 0,
       status: isCreate ? "not_started" : status,
-      carryForwardMode: goalKind === "one_time" ? "none" : carryForwardMode,
+      carryForwardMode: (goalKind === "one_time" || goalKind === "scheduled") ? "none" : carryForwardMode,
       subtasks: subtasks
         .map((item) => ({ ...item, text: item.text.trim() }))
         .filter((item) => item.text.length > 0),
@@ -558,6 +555,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   const parsedTargetForValidation = Number(targetValue);
   const hasValidTarget = !requiresTarget
     || (targetValue !== "" && parsedTargetForValidation >= 0);
+  
   const needsFutureDate = goalKind === "scheduled" && !isEdit;
   const hasFutureDate = !needsFutureDate || (date > todayKey);
   const canSubmit = Boolean(title.trim()) && hasValidTarget && hasFutureDate;
@@ -633,24 +631,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
             </div>
           </div>
 
-          {unitType === "duration_minutes" && (
-            <div className="space-y-3 rounded-2xl border bg-amber-500/5 border-amber-500/20 p-4">
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-foreground">Work on this with a timer</p>
-                <p className="text-xs text-muted-foreground font-medium">Goal alag rahega, focus sessions alag rahengi, but session is goal ke saath link hogi.</p>
-              </div>
 
-              <label className="flex items-center gap-2 text-sm text-foreground font-medium cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={linkedFocusEnabled}
-                  onChange={(e) => setLinkedFocusEnabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-emerald-600 focus:ring-emerald-500/20"
-                />
-                Enable linked focus sessions
-              </label>
-            </div>
-          )}
 
           {unitType === "checklist" && (
             <div className="space-y-2">
@@ -1028,7 +1009,7 @@ export default function Goals() {
         subtasks: Array.isArray(goal.subtasks) 
             ? goal.subtasks.map((t: any) => ({ text: t.text, done: false, id: crypto.randomUUID() })) 
             : [],
-        goalKind: "one_time",
+        goalKind: "repeat",
         unitType: goal.unitType || 'binary',
         executionMode: goal.executionMode || 'manual',
         linkedFocusEnabled: goal.linkedFocusEnabled || false,
@@ -1036,7 +1017,7 @@ export default function Goals() {
         targetValue: goal.targetValue ?? null,
         achievedValue: 0,
         status: 'not_started',
-        carryForwardMode: 'none',
+        carryForwardMode: 'ask',
       });
       if (goal.unitType === "duration_minutes" && goal.linkedFocusEnabled && createdGoal?.id) {
           toast.success("Goal repeated. Use Start Focus to begin linked timer sessions.");

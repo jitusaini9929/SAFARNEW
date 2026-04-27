@@ -159,7 +159,7 @@ router.get('/', sandeshListLimiter, async (req: Request, res: Response) => {
 
         // If no sandesh, return empty list
         if (!sandeshes || sandeshes.length === 0) {
-            const payload = { sandesh: null, sandeshes: [], isAdmin };
+            const payload = { sandesh: null, sandeshes: [], latestSandeshId: null, isAdmin };
             setSandeshCache(cacheKey, payload);
             await setRedisCache(cacheKey, payload);
             res.set('Cache-Control', `private, max-age=${Math.floor(SANDESH_CACHE_TTL_MS / 1000)}`);
@@ -202,6 +202,7 @@ router.get('/', sandeshListLimiter, async (req: Request, res: Response) => {
         const payload = {
             sandesh: enrichedSandeshes[0],
             sandeshes: enrichedSandeshes,
+            latestSandeshId: enrichedSandeshes[0]?.id ?? null,
             isAdmin,
         };
         setSandeshCache(cacheKey, payload);

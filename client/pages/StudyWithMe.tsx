@@ -323,6 +323,7 @@ export default function StudyWithMe() {
     const [runtimeSessions, setRuntimeSessions] = useState<EkagraModeSession[]>([]);
     const [runtimeActiveSessionId, setRuntimeActiveSessionId] = useState<string | null>(null);
     const runtimeSessionIdRef = useRef<string | null>(null);
+    const lastPausedSessionIdRef = useRef<string | null>(null);
     const [dismissedPausedReminder, setDismissedPausedReminder] = useState(false);
     const [showNamedSessionPrompt, setShowNamedSessionPrompt] = useState(false);
     const [namedSessionTitleInput, setNamedSessionTitleInput] = useState("");
@@ -337,7 +338,7 @@ export default function StudyWithMe() {
         if (!runtimeSessions.length) return null;
         const directMatch = runtimeSessions.find((session) => session.id === runtimeActiveSessionId);
         if (directMatch) return directMatch;
-        return runtimeSessions.find((session) => String(session.status || "").toLowerCase() === "active") || null;
+        return null;
     }, [runtimeSessions, runtimeActiveSessionId]);
     const activeRuntimeSessionTitle =
         String(
@@ -351,7 +352,14 @@ export default function StudyWithMe() {
         activeRuntimeSession?.sessionType || (activeRuntimeSession as any)?.session_type || "",
     ).toLowerCase();
     const pausedRuntimeSessions = useMemo(
-        () => runtimeSessions.filter((session) => String(session.status || "").toLowerCase() === "paused"),
+        () =>
+            runtimeSessions
+                .filter((session) => String(session.status || "").toLowerCase() === "paused")
+                .sort(
+                    (a, b) =>
+                        new Date(String(b.updatedAt || b.updated_at || 0)).getTime()
+                        - new Date(String(a.updatedAt || a.updated_at || 0)).getTime(),
+                ),
         [runtimeSessions],
     );
     const pausedSessionCount = pausedRuntimeSessions.length;
@@ -365,6 +373,38 @@ export default function StudyWithMe() {
         ).trim() || null;
     const showPausedSessionReminder =
         !showAnalytics && !activeRuntimeSession && !isRunning && pausedSessionCount > 0 && !dismissedPausedReminder;
+    const currentLinkedGoalId = String(associatedGoalId || "").trim();
+    const activeRuntimeSessionGoalId = String(
+        activeRuntimeSession?.goalId || (activeRuntimeSession as any)?.goal_id || "",
+    ).trim();
+    const matchingPausedRuntimeSession = useMemo(() => {
+        if (!pausedRuntimeSessions.length) return null;
+
+        if (currentLinkedGoalId) {
+            return (
+                pausedRuntimeSessions.find(
+                    (session) =>
+                        String(session.goalId || (session as any)?.goal_id || "").trim() === currentLinkedGoalId,
+                ) || null
+            );
+        }
+
+        const trackedSessionId = runtimeSessionIdRef.current || lastPausedSessionIdRef.current;
+        if (!trackedSessionId) return null;
+
+        return pausedRuntimeSessions.find((session) => session.id === trackedSessionId) || null;
+    }, [currentLinkedGoalId, pausedRuntimeSessions]);
+    const hasMatchingResumeSession = Boolean(
+        currentLinkedGoalId
+            ? (activeRuntimeSession && activeRuntimeSessionGoalId === currentLinkedGoalId) || matchingPausedRuntimeSession
+            : activeRuntimeSession || matchingPausedRuntimeSession,
+    );
+    const shouldShowResumeLabel =
+        !isRunning
+        && mode === "Timer"
+        && remainingSeconds > 0
+        && remainingSeconds < totalSeconds
+        && hasMatchingResumeSession;
 
     const refreshRuntimeSessions = useCallback(async () => {
         if (status !== "authenticated" || !user?.id) {
@@ -968,6 +1008,7 @@ export default function StudyWithMe() {
         const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
         if (runtimeSessionId && status === "authenticated" && user?.id) {
             try {
+                lastPausedSessionIdRef.current = runtimeSessionId;
                 await dataService.updateEkagraSession(runtimeSessionId, {
                     status: "paused",
                     mode: "Timer",
@@ -1038,6 +1079,7 @@ export default function StudyWithMe() {
 
             runtimeSessionIdRef.current = resumed.id;
             setRuntimeActiveSessionId(resumed.id);
+            lastPausedSessionIdRef.current = null;
             toggleTimer();
             await refreshRuntimeSessions();
         } catch (error) {
@@ -1063,6 +1105,7 @@ export default function StudyWithMe() {
                 });
                 runtimeSessionIdRef.current = activated.id;
                 setRuntimeActiveSessionId(activated.id);
+                lastPausedSessionIdRef.current = null;
                 toggleTimer();
                 await refreshRuntimeSessions();
             } catch (resumeError) {
@@ -1139,6 +1182,7 @@ export default function StudyWithMe() {
             });
             runtimeSessionIdRef.current = activated.id;
             setRuntimeActiveSessionId(activated.id);
+            lastPausedSessionIdRef.current = null;
             setAssociatedGoal(null, null);
             await refreshRuntimeSessions();
             toggleTimer();
@@ -1154,16 +1198,16 @@ export default function StudyWithMe() {
         }
 
         const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
-        const baseTask = currentTask || linkedGoalTask;
-        const goalId = associatedGoalId || baseTask?.id;
-        const goalTitle = associatedGoalTitle || baseTask?.text;
-        const importedFromGoal = Boolean(baseTask?.importedFromGoal || linkedGoalTask?.importedFromGoal);
+        const goalId = associatedGoalId;
+        const goalTitle = associatedGoalTitle || linkedGoalTask?.text || null;
+        const importedFromGoal = Boolean(linkedGoalTask?.importedFromGoal);
 
         if (isRunning) {
             toggleTimer();
             if (!runtimeSessionId) return;
 
             try {
+                lastPausedSessionIdRef.current = runtimeSessionId;
                 await dataService.updateEkagraSession(runtimeSessionId, {
                     status: "paused",
                     mode: "Timer",
@@ -1177,6 +1221,21 @@ export default function StudyWithMe() {
                 console.error("Pause runtime Ekagra session error:", error);
             }
             return;
+        }
+
+        const isResuming = remainingSeconds < totalSeconds && remainingSeconds > 0;
+        
+        if (isResuming) {
+            const resumableSessionId =
+                lastPausedSessionIdRef.current
+                || runtimeSessionId
+                || pausedRuntimeSessions[0]?.id
+                || null;
+            if (resumableSessionId) {
+                lastPausedSessionIdRef.current = null;
+                await handleResumeSession(resumableSessionId);
+                return;
+            }
         }
 
         if (!goalId || !goalTitle) {
@@ -1200,13 +1259,14 @@ export default function StudyWithMe() {
             });
             runtimeSessionIdRef.current = activated.id;
             setRuntimeActiveSessionId(activated.id);
+            lastPausedSessionIdRef.current = null;
             await refreshRuntimeSessions();
         } catch (error) {
             console.error("Activate runtime Ekagra session error:", error);
         }
 
         toggleTimer();
-    }, [associatedGoalId, associatedGoalTitle, currentTask, isRunning, linkedGoalTask, mode, refreshRuntimeSessions, remainingSeconds, runtimeActiveSessionId, status, toggleTimer, totalSeconds, user?.id]);
+    }, [associatedGoalId, associatedGoalTitle, handleResumeSession, isRunning, linkedGoalTask, mode, pausedRuntimeSessions, refreshRuntimeSessions, remainingSeconds, runtimeActiveSessionId, status, toggleTimer, totalSeconds, user?.id]);
 
     const handleConfirmNamedSession = useCallback(async () => {
         const title = namedSessionTitleInput.trim();
@@ -1220,12 +1280,6 @@ export default function StudyWithMe() {
         setShowNamedSessionPrompt(false);
         setNamedSessionTitleInput("");
     }, []);
-
-    const handleQuickStartTimer = useCallback(() => {
-        setShowNamedSessionPrompt(false);
-        setNamedSessionTitleInput("");
-        toggleTimer();
-    }, [toggleTimer]);
 
     const liveSessionPreview = useMemo<EkagraModeSession | null>(() => {
         if (status === "authenticated" && user?.id) return null;
@@ -1606,7 +1660,7 @@ export default function StudyWithMe() {
                     <DialogHeader>
                         <DialogTitle>Start a focus session</DialogTitle>
                         <DialogDescription>
-                            Name your session to track it in analytics, or just start the timer.
+                            Enter a session name to start Ekagra focus.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex items-center gap-3">
@@ -1625,14 +1679,6 @@ export default function StudyWithMe() {
                         />
                     </div>
                     <DialogFooter className="flex-col sm:flex-row gap-2">
-                        <Button
-                            variant="ghost"
-                            onClick={handleQuickStartTimer}
-                            className="sm:mr-auto text-muted-foreground hover:text-foreground"
-                        >
-                            <Play className="w-3.5 h-3.5 mr-1.5" />
-                            Just Start Timer
-                        </Button>
                         <Button variant="outline" onClick={handleCancelNamedSession}>
                             Cancel
                         </Button>
@@ -1745,6 +1791,7 @@ export default function StudyWithMe() {
                         minutes={minutes}
                         seconds={seconds}
                         isRunning={isRunning}
+                        showResumeLabel={shouldShowResumeLabel}
                         mode={mode}
                         currentTheme={currentTheme}
                         onToggle={handleToggleTimer}

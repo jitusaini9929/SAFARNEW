@@ -122,6 +122,14 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
 
     const usageChart = useMemo(() => buildUsageChart(stats?.timerDurationUsage || []), [stats?.timerDurationUsage]);
     const focusSessions = useMemo(() => stats?.focusSessions || [], [stats?.focusSessions]);
+    const linkedSessionCount = useMemo(
+        () => focusSessions.filter((session) => Boolean(session.associatedGoalId)).length,
+        [focusSessions],
+    );
+    const unlinkedSessionCount = useMemo(
+        () => focusSessions.filter((session) => !session.associatedGoalId).length,
+        [focusSessions],
+    );
 
     const chartGradient = useMemo(() => {
         if (usageChart.total <= 0 || usageChart.slices.length === 0) return "";
@@ -201,6 +209,16 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                                 value={`${toWholeMinutes(stats?.totalSessions)}`}
                                 sub={`${toWholeMinutes(stats?.completedSessions)} completed`}
                             />
+                            <MetricCard
+                                label="Linked focus sessions"
+                                value={`${linkedSessionCount}`}
+                                sub="Goal-linked sessions"
+                            />
+                            <MetricCard
+                                label="Unlinked focus sessions"
+                                value={`${unlinkedSessionCount}`}
+                                sub="Named or timer-only sessions"
+                            />
                         </section>
 
                         <section className="rounded-2xl border border-border/60 bg-card p-5">
@@ -258,7 +276,16 @@ export default function FocusAnalytics({ onBack }: FocusAnalyticsProps) {
                                     <div key={session.id} className="rounded-xl border border-border/60 bg-background/70 p-3">
                                         <div className="flex items-start gap-3">
                                             <div className="min-w-0">
-                                                <p className="text-sm font-semibold truncate text-foreground">{session.taskText || "Unlabeled task"}</p>
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <p className="text-sm font-semibold truncate text-foreground">{session.taskText || "Unlabeled task"}</p>
+                                                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                                        session.associatedGoalId
+                                                            ? "border border-violet-300/60 bg-violet-500/10 text-violet-700 dark:text-violet-300"
+                                                            : "border border-blue-300/60 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+                                                    }`}>
+                                                        {session.associatedGoalId ? "Linked" : "Unlinked"}
+                                                    </span>
+                                                </div>
                                                 <div className="mt-1 text-xs text-muted-foreground inline-flex items-center gap-1.5 flex-wrap">
                                                     <span className="inline-flex items-center gap-1">
                                                         <CalendarClock className="w-3.5 h-3.5" />

@@ -25,20 +25,29 @@ export interface GoalScheduledInfo {
   rawHint: string;
 }
 
-export const GOAL_KIND_OPTIONS: Array<{ value: Exclude<GoalKind, "one_time">; label: string; hint: string }> = [
-  { value: "today", label: "Today", hint: "Only for today." },
-  { value: "scheduled", label: "Schedule Task", hint: "Set a goal for a future date." },
+// Goal type options shown when CREATING a new goal.
+// 'one_time' and 'repeat' are legacy — they only appear in EDIT mode via the guards below.
+export const GOAL_KIND_OPTIONS: Array<{ value: GoalKind; label: string; hint: string }> = [
+  { value: "today",  label: "Today",  hint: "A task for today only. Disappears tomorrow." },
+  { value: "scheduled", label: "Scheduled", hint: "Set a goal for a future date." },
 ];
 
+// Shown in edit mode only, for goals that were created before the options were simplified.
 export const LEGACY_ONE_TIME_GOAL_KIND_OPTION: { value: GoalKind; label: string; hint: string } = {
   value: "one_time",
-  label: "One-time",
-  hint: "No fixed day. Complete it when done.",
+  label: "One-time (legacy)",
+  hint: "No fixed day. Complete it whenever.",
+};
+export const LEGACY_REPEAT_GOAL_KIND_OPTION: { value: GoalKind; label: string; hint: string } = {
+  value: "repeat",
+  label: "Repeat (legacy)",
+  hint: "Recurs daily. Carries forward if not completed.",
 };
 
+// Tracking method options shown when CREATING a new goal.
 export const GOAL_UNIT_OPTIONS: Array<{ value: GoalUnitType; label: string }> = [
-  { value: "binary", label: "Done / Not done" },
-  { value: "duration_minutes", label: "Track by focused time" },
+  { value: "binary",           label: "Done / Not done" },
+  { value: "duration_minutes", label: "Time (focus timer)" },
 ];
 
 export const GOAL_CARRY_FORWARD_OPTIONS: Array<{ value: GoalCarryForwardMode; label: string }> = [

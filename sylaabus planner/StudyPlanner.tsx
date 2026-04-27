@@ -4210,9 +4210,9 @@ export default function StudyPlanner({
                               {topic.name}
                             </div>
                             <div
-                              className={`text-[14px] font-bold uppercase tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
+                              className={`text-[14px] font-bold tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
                             >
-                              {topic.subject.name}
+                              <span className="uppercase">{topic.subject.name}</span>
                               {topic.chapter?.name
                                 ? ` - ${topic.chapter.name}`
                                 : ""}
@@ -4244,7 +4244,7 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { status: "in_progress" })
                             }
-                            className={`text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
+                            className={`text-[14px] font-black tracking-wide px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
                           >
                             Start
                           </button>
@@ -4252,9 +4252,9 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { status: "done" })
                             }
-                            className="text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-emerald-600 text-white shadow-md"
+                            className="text-[14px] font-black tracking-wide px-4 py-2.5 rounded-full bg-emerald-600 text-white shadow-md"
                           >
-                            Mark Done
+                            Done
                           </button>
                           <button
                             onClick={() =>
@@ -4262,7 +4262,7 @@ export default function StudyPlanner({
                                 status: "revision_needed",
                               })
                             }
-                            className={`text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#3b0764] text-[#e9d5ff] border-[#7c3aed]" : "bg-[#f3e8ff] text-[#6b21a8] border-[#e9d5ff]"}`}
+                            className={`text-[14px] font-black tracking-wide px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#3b0764] text-[#e9d5ff] border-[#7c3aed]" : "bg-[#f3e8ff] text-[#6b21a8] border-[#e9d5ff]"}`}
                           >
                             Needs Revision
                           </button>
@@ -4273,9 +4273,9 @@ export default function StudyPlanner({
                                   prev === topic.id ? null : topic.id,
                                 )
                               }
-                              className={`text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
+                              className={`text-[14px] font-black tracking-wide px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
                             >
-                              Move Date ▾
+                              Move ▾
                             </button>
                             {moveDatePickerTopicId === topic.id && (
                               <div
@@ -4346,7 +4346,7 @@ export default function StudyPlanner({
                                 prev === topic.id ? null : topic.id,
                               )
                             }
-                            className={`text-[14px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
+                            className={`text-[14px] font-black tracking-wide px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
                           >
                             More
                           </button>
@@ -4358,7 +4358,7 @@ export default function StudyPlanner({
                               onClick={() =>
                                 patchTopic(topic.id, { plannedDate: "" })
                               }
-                              className="text-[12px] font-black uppercase tracking-widest px-3 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
+                              className="text-[12px] font-black tracking-wide px-3 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
                             >
                               Remove Date
                             </button>
@@ -4366,7 +4366,7 @@ export default function StudyPlanner({
                               onClick={() => {
                                 void editTopicNotes(topic);
                               }}
-                              className={`text-[12px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
+                              className={`text-[12px] font-black tracking-wide px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
                             >
                               Edit Notes
                             </button>
@@ -4378,7 +4378,7 @@ export default function StudyPlanner({
                                   topic.chapter,
                                 )
                               }
-                              className={`text-[12px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
+                              className={`text-[12px] font-black tracking-wide px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
                             >
                               Open in Syllabus
                             </button>
@@ -4393,19 +4393,19 @@ export default function StudyPlanner({
                         <div className="flex flex-wrap gap-2 justify-center mt-4">
                           <button
                             onClick={() => handleViewChange("calendar")}
-                            className={`text-[12px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
+                            className={`text-[12px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
                           >
                             View Upcoming
                           </button>
                           <button
                             onClick={() => handleViewChange("plan")}
-                            className="text-[12px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-[#3b82f6] text-white"
+                            className="text-[12px] font-black tracking-wide px-4 py-2 rounded-full bg-[#3b82f6] text-white"
                           >
                             Rebuild Plan
                           </button>
                           <button
                             onClick={() => handleViewChange("syllabus")}
-                            className={`text-[12px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
+                            className={`text-[12px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
                           >
                             Add Topics
                           </button>
@@ -4425,7 +4425,7 @@ export default function StudyPlanner({
                     </h3>
                     <button
                       onClick={() => handleViewChange("calendar")}
-                      className="text-[12px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400"
+                      className="text-[12px] font-black tracking-wide text-blue-600 dark:text-blue-400"
                     >
                       Open Calendar
                     </button>
@@ -4434,7 +4434,7 @@ export default function StudyPlanner({
                     {upcomingTasks.slice(0, 7).map((topic) => (
                       <div
                         key={topic.id}
-                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl p-4 border shadow-sm ${isDarkMode ? "bg-[#232628] border-[#3a3d42]" : "bg-white border-[#d1d5db]"}`}
+                        className={`flex flex-col justify-between gap-3 rounded-2xl p-4 border shadow-sm ${isDarkMode ? "bg-[#232628] border-[#3a3d42]" : "bg-white border-[#d1d5db]"}`}
                       >
                         <div>
                           <div
@@ -4443,16 +4443,16 @@ export default function StudyPlanner({
                             {topic.name}
                           </div>
                           <div
-                            className={`text-[14px] font-bold uppercase tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
+                            className={`text-[14px] font-bold tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
                           >
-                            {topic.subject.name}
+                            <span className="uppercase">{topic.subject.name}</span>
                             {topic.chapter?.name
                               ? ` - ${topic.chapter.name}`
                               : ""}
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <div className="text-[14px] font-black uppercase tracking-widest text-[#1e40af] dark:text-[#93c5fd]">
+                          <div className="text-[14px] font-black tracking-wide text-[#1e40af] dark:text-[#93c5fd]">
                             {topic.plannedDate
                               ? formatDate(topic.plannedDate)
                               : "Unplanned"}
@@ -4461,9 +4461,9 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { status: "done" })
                             }
-                            className="text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
+                            className="text-[13px] font-black tracking-wide px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
                           >
-                            Mark Done
+                            Done
                           </button>
                           <div className="relative move-date-dropdown-container">
                             <button
@@ -4472,9 +4472,9 @@ export default function StudyPlanner({
                                   prev === topic.id ? null : topic.id,
                                 )
                               }
-                              className={`text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
+                              className={`text-[13px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
                             >
-                              Move Date ▾
+                              Move ▾
                             </button>
                             {moveDatePickerTopicId === topic.id && (
                               <div
@@ -4535,7 +4535,7 @@ export default function StudyPlanner({
                           </div>
                           <button
                             onClick={() => handleViewChange("calendar")}
-                            className={`text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-slate-700 border-slate-300"}`}
+                            className={`text-[13px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-slate-700 border-slate-300"}`}
                           >
                             Calendar
                           </button>
@@ -4574,14 +4574,14 @@ export default function StudyPlanner({
                         <div className="text-[14px] font-bold text-[#7f1d1d] dark:text-[#fecaca]">
                           {topic.name}
                         </div>
-                        <div className="text-[12px] font-extrabold uppercase tracking-widest text-[#b91c1c] dark:text-[#fca5a5] mt-1">
-                          {topic.subject.name}
+                        <div className="text-[12px] font-extrabold tracking-wide text-[#b91c1c] dark:text-[#fca5a5] mt-1">
+                          <span className="uppercase">{topic.subject.name}</span>
                           {topic.chapter?.name
                             ? ` - ${topic.chapter.name}`
                             : ""}
                         </div>
                         {topic.plannedDate && (
-                          <div className="text-[12px] font-black uppercase tracking-widest text-[#b91c1c] dark:text-[#fca5a5] mt-2">
+                          <div className="text-[12px] font-black tracking-wide text-[#b91c1c] dark:text-[#fca5a5] mt-2">
                             {daysBetweenDateKeys(
                               toIsoDateOnly(topic.plannedDate),
                               todayKey,
@@ -4594,9 +4594,9 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { status: "done" })
                             }
-                            className="text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
+                            className="text-[13px] font-black tracking-wide px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
                           >
-                            Mark Done
+                            Done
                           </button>
                           <div className="relative move-date-dropdown-container">
                             <button
@@ -4605,9 +4605,9 @@ export default function StudyPlanner({
                                   prev === topic.id ? null : topic.id,
                                 )
                               }
-                              className={`text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
+                              className={`text-[13px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
                             >
-                              Move Date ▾
+                              Move ▾
                             </button>
                             {moveDatePickerTopicId === topic.id && (
                               <div
@@ -4670,9 +4670,9 @@ export default function StudyPlanner({
                             onClick={() =>
                               patchTopic(topic.id, { plannedDate: "" })
                             }
-                            className="text-[13px] font-black uppercase tracking-widest px-4 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
+                            className="text-[13px] font-black tracking-wide px-4 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
                           >
-                            Skip for Now
+                            Skip
                           </button>
                         </div>
                       </div>
@@ -4687,7 +4687,7 @@ export default function StudyPlanner({
 
                   <button
                     onClick={() => handleViewChange("calendar")}
-                    className="mt-5 w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#0ea5e9] text-white"
+                    className="mt-5 w-full text-[12px] font-black tracking-wide px-4 py-3 rounded-full bg-[#0ea5e9] text-white"
                   >
                     Reschedule Overdue
                   </button>
@@ -5352,7 +5352,7 @@ export default function StudyPlanner({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-10"
             >
               {plan?.subjects?.length === 0 ? (
                 <div className="lg:col-span-2 rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] flex flex-col items-center text-center gap-6">
@@ -5395,13 +5395,13 @@ export default function StudyPlanner({
                 <>
                   <div
                     data-tour="planner-plan-basics"
-                    className="flex flex-col gap-6"
+                    className="flex flex-col gap-8"
                   >
-                    <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
+                    <div className="rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
+                      <div className="text-[12px] font-bold tracking-wide text-[#64748b] dark:text-[#9aa2ae] mb-4">
                         Exam Settings
                       </div>
-                      <div className="grid gap-4">
+                      <div className="grid gap-6">
                         <input
                           value={planTitleDraft}
                           onChange={(e) => setPlanTitleDraft(e.target.value)}
@@ -5431,11 +5431,11 @@ export default function StudyPlanner({
                       </div>
                     </div>
 
-                    <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
+                    <div className="rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
+                      <div className="text-[12px] font-bold tracking-wide text-[#64748b] dark:text-[#9aa2ae] mb-4">
                         Study Capacity
                       </div>
-                      <div className="grid gap-4">
+                      <div className="grid gap-6">
                         <div>
                           <label className="text-[12px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#9aa2ae]">
                             Daily goal
@@ -5532,50 +5532,19 @@ export default function StudyPlanner({
                         >
                           Save Changes
                         </button>
-                        <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae]">
-                          These settings affect how your schedule is generated.
-                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div
                     data-tour="planner-plan-actions"
-                    className="flex flex-col gap-6"
+                    className="flex flex-col gap-8"
                   >
-                    <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
+                    <div className="rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
+                      <div className="text-[12px] font-bold tracking-wide text-[#64748b] dark:text-[#9aa2ae] mb-4">
                         Step 3: Create Your Planner Calendar
                       </div>
-                      <div className="mb-4 rounded-2xl bg-[#e6e7ee] dark:bg-[#131416] border border-[#c0c4d1] dark:border-[#2b2c2c] p-4">
-                        <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                          One Required Action
-                        </div>
-                        {beginnerMode ? (
-                          <p className="text-[13px] font-bold text-[#475569] dark:text-[#9aa2ae]">
-                            Auto-schedule uses your exam date, daily goal, and
-                            off days to place unfinished topics on upcoming
-                            days.
-                          </p>
-                        ) : (
-                          <ul className="text-[13px] font-bold text-[#475569] dark:text-[#9aa2ae] space-y-1.5">
-                            <li>Only unfinished topics are scheduled.</li>
-                            <li>Done topics are never scheduled again.</li>
-                            <li>Off days are skipped.</li>
-                            <li>
-                              Needs Revision topics are included only if
-                              enabled.
-                            </li>
-                            <li>
-                              Keep already planned dates preserves existing
-                              schedules.
-                            </li>
-                          </ul>
-                        )}
-                        <p className="mt-3 text-[12px] font-semibold tracking-[0.02em] text-[#1d4ed8] dark:text-[#93c5fd]">
-                          Your planner is not created until you click the button below.
-                        </p>
-                      </div>
+
                       <button
                         data-tour="planner-autoplan"
                         onClick={() => {
@@ -5588,9 +5557,7 @@ export default function StudyPlanner({
                           ? "Building Planner..."
                           : "Create Planner Calendar"}
                       </button>
-                      <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae]">
-                        Click once to generate your schedule from syllabus topics.
-                      </div>
+
 
                       {beginnerMode ? null : (
                         <>
@@ -5643,8 +5610,8 @@ export default function StudyPlanner({
 
                     </div>
 
-                    <div className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae] mb-4">
+                    <div className="rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
+                      <div className="text-[12px] font-bold tracking-wide text-[#64748b] dark:text-[#9aa2ae] mb-4">
                         Progress Snapshot
                       </div>
                       <div className="grid gap-3 text-[14px] font-bold text-[#475569] dark:text-[#9aa2ae]">
@@ -7846,9 +7813,9 @@ export default function StudyPlanner({
                                                 plannedDate: "",
                                               })
                                             }
-                                            className="text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-full bg-[#ef4444] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(239,68,68,0.4)] transition-transform hover:scale-[1.05]"
+                                            className="text-[11px] font-black tracking-wide px-5 py-3 rounded-full bg-[#f59e0b] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(245,158,11,0.4)] transition-transform hover:scale-[1.05]"
                                           >
-                                            Unsched
+                                            Unschedule
                                           </button>
                                           <button
                                             onClick={() => {

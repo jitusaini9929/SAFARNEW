@@ -217,17 +217,17 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ isOpen, ref
             </div>
 
             {renderHistorySection(
-                "Linked Goals",
-                "Today's linked goals with time set.",
-                "No linked goals today.",
+                "Linked Sessions",
+                "Today's goal-linked focus sessions.",
+                "No linked sessions today.",
                 linkedGoals,
                 "violet",
             )}
 
             {renderHistorySection(
-                "Unlinked Goals",
-                "Today's unlinked goals with time set.",
-                "No unlinked goals today.",
+                "Unlinked Sessions",
+                "Named and timer-only focus sessions.",
+                "No unlinked sessions today.",
                 unlinkedGoals,
                 "blue",
             )}

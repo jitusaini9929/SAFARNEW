@@ -107,28 +107,32 @@ const MODERATION_EXEMPT_EMAILS = new Set(
 );
 const MEHFIL_SOCKET_DEBUG_LOGS = process.env.MEHFIL_SOCKET_DEBUG_LOGS === 'true';
 
-const GROQ_SYSTEM_PROMPT = `You are the Content Architect for "Mehfil," a support community for students.
+const GROQ_SYSTEM_PROMPT = `You are the Content Moderator for "Mehfil," a student support community.
 
-Goal: Classify the user's input into one of three silos with a very lenient bias.
-Context: Users are students dealing with study pressure, family issues, financial struggles, and career anxiety. They speak English, Hindi, and Hinglish (including slang and casual phrasing).
+Your FIRST priority is safety: detect and block sexually explicit or abusive content. Your SECOND priority is leniency for genuine student struggles.
+
+Context: Users speak English, Hindi, Hinglish (romanized Hindi), and may mix scripts. Sexual slang is common in Hindi/Hinglish — you MUST detect it regardless of script or language.
 
 Categories:
-1. ACADEMIC: Study strategies, specific subjects, exam prep, results, or career guidance.
-2. REFLECTIVE: Deep thoughts, personal stories, venting about family/life/money, mental health, seeking support, or sharing struggles.
-   - PRIORITY RULE: If a post contains BOTH academic context (teachers, subjects, exams) AND personal/emotional struggle (family pressure, money, breakup, depression), ALWAYS classify as **REFLECTIVE**.
-   - HIGH-SIGNAL KEYWORDS: "suicide", "want to die", "parents pressure", "parents don't allow", "no support", "beat me", "breakup", "giving up".
-   - ALLOW: Long rants, sad stories, mentions of suicidal thoughts (seeking support), family fights, financial helplessness.
-   - THESE ARE NOT TOXIC. They are cries for help or support.
-3. BULLSHIT: Only use for explicit spam, harassment, hate speech, threats, or sexual/NSFW content.
-   - STRICTLY BLOCK: Explicit hate speech, sexual harassment/NSFW, threats of violence, coercion, or targeted abuse.
-   - DO NOT MARK BULLSHIT for Hinglish slang, casual Hindi/English mix, criticism, strong language, sarcasm, or low-effort but harmless posts.
-   - If unsure between BULLSHIT vs ACADEMIC/REFLECTIVE, choose ACADEMIC or REFLECTIVE.
+1. ACADEMIC: Study strategies, subjects, exam prep, results, career guidance.
+2. REFLECTIVE: Deep thoughts, personal stories, venting about family/life/money/mental health.
+   - PRIORITY RULE: Emotional + academic overlap → REFLECTIVE.
+   - ALLOW: Sad stories, suicidal ideation (seeking help), family fights, financial helplessness.
+   - These are NOT toxic — they are cries for help.
+3. BULLSHIT: STRICTLY block the following:
+   - Any sexual content: sexual acts, genitalia references, sexual solicitation, NSFW.
+   - THIS INCLUDES Hindi/Hinglish equivalents: words or phrases meaning sexual intercourse, genitalia, sexual slurs.
+   - Explicit hate speech, threats of violence, harassment, targeting specific people.
+   - Spam / repetitive nonsensical content with no genuine message.
+   - EXAMPLES of BULLSHIT in Hinglish: "teri X karunga", "tere saath X karna", phrases with sexual body parts, phrases describing sexual acts.
+   - DO NOT MARK BULLSHIT for: frustration, strong emotions, casual swearing without sexual content, criticism, sarcasm.
+   - If content is BOTH sexual AND emotional — it is still BULLSHIT. Sexual content is never acceptable regardless of emotional context.
 
-Output Requirement: Respond ONLY with a JSON object:
+Output ONLY a JSON object, no other text:
 {
   "category": "ACADEMIC" | "REFLECTIVE" | "BULLSHIT",
   "reasoning": "1-sentence explanation",
-  "is_toxic": boolean, // TRUE only for explicit hate speech, sexual content, or threats. FALSE for emotional venting.
+  "is_toxic": boolean,
   "suggested_tags": ["tag1", "tag2"]
 }`;
 
@@ -1117,9 +1121,36 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
               name: 1,
               avatar: 1,
               mehfil_post_ttl_minutes: 1,
+              // Ban fields — needed for getActivePostingBan check below
+              mehfil_banned_forever: 1,
+              mehfil_banned_until: 1,
+              mehfil_banned_reason: 1,
+              is_banned: 1,
             },
           },
         );
+
+        // ── Posting ban guard ────────────────────────────────────────────────
+        // Block site-wide banned users from posting
+        if (userProfile?.is_banned) {
+          socket.emit('thoughtRejected', {
+            message: 'Your account has been suspended. You cannot post in Mehfil.',
+          });
+          return;
+        }
+
+        const postingBan = getActivePostingBan(userProfile);
+        if (postingBan.isActive) {
+          socket.emit('thoughtRejected', {
+            message: postingBan.message,
+            ban: {
+              isActive: true,
+              isPermanent: postingBan.isPermanent,
+              bannedUntil: postingBan.bannedUntil ? postingBan.bannedUntil.toISOString() : null,
+            },
+          });
+          return;
+        }
 
         const userPostTtlMinutes =
           normalizePostTtlMinutes(userProfile?.mehfil_post_ttl_minutes) || DEFAULT_USER_POST_TTL_MINUTES;
@@ -1151,15 +1182,31 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         }
 
         const moderation = await classifyThought(content);
-        const effectiveModeration = moderation.category === 'BULLSHIT'
-          ? {
-            ...moderation,
-            category: 'REFLECTIVE',
-            reasoning: moderation.reasoning || 'Routed to reflective.',
-            aiScore: clampScore(moderation.aiScore),
-          }
-          : moderation;
 
+        // ── BULLSHIT → hard reject (do NOT silently reroute) ────────────────
+        if (moderation.category === 'BULLSHIT' || moderation.isToxic) {
+          // Log the flagged thought for admin review but do NOT broadcast it
+          await storeFlaggedThought({
+            userId,
+            authorName,
+            authorAvatar,
+            content,
+            imageUrl: data?.imageUrl,
+            isAnonymous,
+            moderation,
+            customExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // keep for 7 days for admin
+          });
+
+          // Apply an abuse strike (same mechanism as spam, but for abusive content)
+          await applySpamStrike(userId);
+
+          socket.emit('thoughtRejected', {
+            message: 'Your post was not allowed. It may contain abusive, sexual, or harmful content. Repeated violations will result in a ban.',
+          });
+          return;
+        }
+
+        const effectiveModeration = moderation;
         const routeRoom: MehfilRoom = effectiveModeration.category === 'REFLECTIVE' ? 'REFLECTIVE' : 'ACADEMIC';
         const id = uuidv4();
         const now = new Date();

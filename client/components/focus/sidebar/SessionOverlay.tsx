@@ -76,9 +76,9 @@ export const SessionOverlay: React.FC<SessionOverlayProps> = ({
         const pausedSessions = sorted.filter((session) => String(session.status || "").toLowerCase() === "paused");
 
         const currentSession =
-            activeSessions.find((session) => session.id === activeSessionId) ||
-            activeSessions[0] ||
-            null;
+            activeSessionId
+                ? activeSessions.find((session) => session.id === activeSessionId) || null
+                : null;
 
         return {
             current: currentSession,

@@ -741,11 +741,9 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setIsRunning(true);
         setMusicPlaying(true);
         syncPiPVideoPlayback(true);
-        // Pre-initialize stream and request PiP in the same gesture path.
+        // Prepare PiP stream lazily so manual PiP entry stays responsive,
+        // but do not force-open PiP when the timer starts.
         ensurePiPReady();
-        if (!isPiPActiveRef.current && document.pictureInPictureEnabled) {
-            togglePiPRef.current().catch(() => { /* fallback handlers can retry */ });
-        }
     }, [setMusicPlaying, syncPiPVideoPlayback, ensurePiPReady, ensureActiveFocusSession]);
 
     const pauseTimer = useCallback(() => {

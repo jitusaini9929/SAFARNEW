@@ -5,6 +5,7 @@ interface TimerCardProps {
     minutes: number;
     seconds: number;
     isRunning: boolean;
+    showResumeLabel?: boolean;
     mode: "Timer" | "short" | "long";
     currentTheme: { accent: string };
     onToggle: () => void;
@@ -30,6 +31,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
     minutes,
     seconds,
     isRunning,
+    showResumeLabel = false,
     mode,
     currentTheme,
     onToggle,
@@ -86,7 +88,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                 <button
                     data-tour="start-button"
                     onClick={onToggle}
-                    aria-label={isRunning ? "Pause timer" : "Start timer"}
+                    aria-label={isRunning ? "Pause timer" : showResumeLabel ? "Resume timer" : "Start timer"}
                     className="group relative px-8 py-4 md:px-16 md:py-5 landscape:px-6 landscape:py-3 text-white text-lg md:text-xl landscape:text-base font-bold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden action-btn-nowrap"
                     style={{
                         backgroundColor: currentTheme.accent,
@@ -102,7 +104,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                         ) : (
                             <>
                                 <Play className="w-6 h-6 landscape:w-5 landscape:h-5" />
-                                <span className="action-label-mobile-hidden">Start</span>
+                                <span className="action-label-mobile-hidden">{showResumeLabel ? "Resume" : "Start"}</span>
                             </>
                         )}
                     </span>
