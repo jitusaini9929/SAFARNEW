@@ -32,9 +32,10 @@ type Particle = {
 
 type WishFormProps = {
   onRequestSignIn?: () => void;
+  onSubmitted?: () => void;
 };
 
-const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn }) => {
+const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn, onSubmitted }) => {
   const { user, isAuthenticated } = useAuth();
   const canSubmitUnlimited = UNLIMITED_WISH_EMAILS.has(String(user?.email || "").trim().toLowerCase());
   const [displayName, setDisplayName] = useState(user?.name || "");
@@ -265,6 +266,7 @@ const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn }) => {
       if (canSubmitUnlimited) {
         resetComposer();
       }
+      onSubmitted?.();
     } catch (error) {
       console.error("[WISHBOX] Submission failed:", error);
       await sealAnimationPromise;

@@ -259,7 +259,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     >
                         <Link
                             to="/dashboard"
-                            className="btn-shine-hover start-safar-shine relative overflow-hidden inline-flex self-start items-center justify-center gap-3 bg-black dark:bg-white text-white dark:text-black px-8 py-3.5 md:px-10 md:py-4 rounded-full text-base md:text-lg font-bold shadow-lg shadow-black/20 dark:shadow-white/10 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group"
+                            className="btn-shine-hover start-safar-shine start-safar-shimmer relative overflow-hidden inline-flex self-start items-center justify-center gap-3 bg-black dark:bg-white text-white dark:text-black px-8 py-3.5 md:px-10 md:py-4 rounded-full text-base md:text-lg font-bold shadow-lg shadow-black/20 dark:shadow-white/10 active:scale-[0.98] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group"
                         >
                             <span>{t('landing.start_btn')}</span>
                             <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1" />

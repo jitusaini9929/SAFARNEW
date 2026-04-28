@@ -1810,6 +1810,26 @@ select {
   left: 100%;
 }
 
+.start-safar-shimmer::before {
+  animation: startSafarShimmer 2.8s ease-in-out infinite;
+}
+
+.start-safar-shimmer:hover::before {
+  left: -100%;
+}
+
+@keyframes startSafarShimmer {
+  0%,
+  42% {
+    left: -100%;
+  }
+
+  72%,
+  100% {
+    left: 100%;
+  }
+}
+
 @keyframes giftShimmer {
   0%,
   42% {
@@ -1824,6 +1844,23 @@ select {
   72%,
   100% {
     transform: translateX(5.25rem) rotate(12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes wishbox-intro-shine {
+  0%,
+  45% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+
+  55% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(390%);
     opacity: 0;
   }
 }

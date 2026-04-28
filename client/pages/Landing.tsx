@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '../components/AuthModal';
 import ThemeToggle from '../components/ui/theme-toggle';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Eye, Timer } from 'lucide-react';
 
 // Import extracted components
 import HeroSection from '../components/landing/HeroSection';
@@ -15,6 +16,18 @@ import YoutubePromotionModal from '../components/landing/YoutubePromotionModal';
 import BirthdayWishBoxModal from '../temporaryFeatures/birthdayWishBox/BirthdayWishBoxModal';
 
 const YOUTUBE_MODAL_SESSION_KEY_PREFIX = 'youtube-modal:auto-open-dismissed';
+const WISHBOX_COUNTDOWN_TARGET_MS = new Date('2026-05-01T00:00:00+05:30').getTime();
+
+function getWishboxCountdown() {
+  const remainingMs = Math.max(0, WISHBOX_COUNTDOWN_TARGET_MS - Date.now());
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return { days, hours, minutes, seconds, isClosed: remainingMs <= 0 };
+}
 
 const Landing = () => {
   const { user, refreshUser, isAuthenticated } = useAuth();
@@ -26,6 +39,7 @@ const Landing = () => {
   const [wishboxTab, setWishboxTab] = useState<'write' | 'view'>('write');
   const [wishboxIntroOpen, setWishboxIntroOpen] = useState(false);
   const [hasShownWishboxIntro, setHasShownWishboxIntro] = useState(false);
+  const [wishboxCountdown, setWishboxCountdown] = useState(getWishboxCountdown);
   const milestoneSessionKey = useMemo(
     () => `${YOUTUBE_MODAL_SESSION_KEY_PREFIX}:${user?.id ?? 'guest'}`,
     [user?.id],
@@ -34,9 +48,8 @@ const Landing = () => {
     () => ({
       eyebrow: 'Birthday Wishbox for Parmar Sir',
       title: 'Share one heartfelt wish',
-      description:
-        'Write a warm birthday message for your teacher. Choose public if you want it on the wall, or anonymous if it should stay private.',
-      note: 'One account can submit one wish. Public wishes appear only after moderation.',
+      description: 'Write a warm birthday message for Parmar Sir',
+      note: 'Ek account se sirf ek wish hi submit ho skti hai toh please apne Dil se likhe.',
       primaryAction: 'write',
       secondaryAction: 'view',
     }),
@@ -70,6 +83,10 @@ const Landing = () => {
 
   const handleIntroWishboxAction = (mode: 'write' | 'view') => {
     handleOpenWishbox(mode);
+  };
+
+  const handleWishSubmitted = () => {
+    setWishboxOpen(false);
   };
 
   const handleMilestoneOpenChange = (nextOpen: boolean) => {
@@ -126,6 +143,21 @@ const Landing = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [wishboxIntroOpen]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setWishboxCountdown(getWishboxCountdown());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const countdownUnits = [
+    ['Days', wishboxCountdown.days],
+    ['Hours', wishboxCountdown.hours],
+    ['Minutes', wishboxCountdown.minutes],
+    ['Seconds', wishboxCountdown.seconds],
+  ] as const;
+
   return (
     <div className="min-h-[100dvh] font-sans text-slate-800 dark:text-slate-100 selection:bg-brand-accent selection:text-black bg-gradient-to-br from-white via-slate-50 to-indigo-100 dark:bg-gradient-to-br dark:from-plum-dark dark:via-purple-deep dark:to-midnight">
       {/* Theme Toggle - Fixed Position */}
@@ -138,6 +170,57 @@ const Landing = () => {
           showStudyPlanner={false}
           onOpenWishbox={handleOpenWishbox}
         />
+
+        <section className="relative z-10 bg-[#f8fbf4] px-5 py-10 text-slate-900 dark:bg-[#07100d] dark:text-white sm:px-8 md:px-12">
+          <div className="mx-auto flex max-w-6xl flex-col gap-6 rounded-[28px] border border-emerald-900/10 bg-white/85 p-5 shadow-[0_24px_70px_rgba(15,23,42,0.10)] backdrop-blur md:flex-row md:items-center md:justify-between md:p-7 dark:border-white/10 dark:bg-white/[0.055] dark:shadow-[0_24px_70px_rgba(0,0,0,0.30)]">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-300/50 bg-amber-100 text-amber-800 shadow-inner dark:border-amber-200/25 dark:bg-amber-300/15 dark:text-amber-100">
+                <Timer className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="mt-1 font-playfair text-3xl font-black leading-tight text-slate-950 dark:text-white">
+                  Time left Until Sir's Birthday
+                </h2>
+                <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-slate-600 dark:text-emerald-50/70">
+                  Jinhone humein inspire kiya, unke liye ek wish toh banti hai
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex min-h-[96px] items-center justify-center gap-4 rounded-[22px] border border-white/10 bg-[#07100d] px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_46px_rgba(7,16,13,0.22)]">
+                {wishboxCountdown.isClosed ? (
+                  <p className="m-0 text-[28px] font-semibold leading-[1.2em] text-white">
+                    Countdown finished!
+                  </p>
+                ) : (
+                  countdownUnits.map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex min-w-[60px] select-none flex-col items-center justify-center gap-1"
+                    >
+                      <span className="block text-[40px] font-semibold leading-[1.2em] text-white tabular-nums">
+                        {String(value).padStart(2, '0')}
+                      </span>
+                      <span className="block text-sm font-normal capitalize leading-[1.2em] text-[#999999]">
+                        {label}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleOpenWishbox('view')}
+                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-[#07100d] px-5 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(7,16,13,0.24)] transition hover:bg-[#13231d] focus:outline-none focus:ring-2 focus:ring-emerald-400 dark:bg-emerald-200 dark:text-[#07100d] dark:hover:bg-emerald-100"
+              >
+                <Eye className="h-4 w-4" />
+                View Wishes
+              </button>
+            </div>
+          </div>
+        </section>
 
         {/* Combined Apps & Community Section */}
         <section className="bg-transparent light:bg-[#311B92]/10 dark:bg-transparent px-8 md:px-12 py-28 relative z-10 overflow-hidden">
@@ -180,6 +263,7 @@ const Landing = () => {
         onOpenChange={setWishboxOpen}
         initialTab={wishboxTab}
         onRequestSignIn={handleOpenAuthModal}
+        onWishSubmitted={handleWishSubmitted}
       />
 
       <AnimatePresence>
@@ -203,30 +287,33 @@ const Landing = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
               transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-              className="relative w-full max-w-[560px] overflow-hidden rounded-[32px] border border-white/12 bg-[#07100D] shadow-[0_34px_120px_rgba(0,0,0,0.64)]"
+              className="relative w-full max-w-[616px] overflow-hidden rounded-[34px] border border-white/12 bg-[#07100D] shadow-[0_34px_120px_rgba(0,0,0,0.64)]"
             >
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(244,114,182,0.30),transparent_34%),radial-gradient(circle_at_96%_18%,rgba(74,222,128,0.24),transparent_40%),linear-gradient(135deg,rgba(255,255,255,0.10),rgba(255,255,255,0.025)_42%,rgba(16,185,129,0.07))]" />
               <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-pink-200/70 to-transparent" />
               <div className="pointer-events-none absolute inset-y-10 right-0 w-px bg-gradient-to-b from-transparent via-emerald-200/28 to-transparent" />
 
-              <button
-                type="button"
-                onClick={handleDismissWishboxIntro}
-                className="absolute right-5 top-5 z-30 rounded-full border border-white/12 bg-white/[0.06] px-3.5 py-2 text-xs font-bold tracking-wide text-white/70 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-200/50"
-                aria-label="Close Wishbox announcement"
-              >
-                Close
-              </button>
+              <div className="relative z-10 px-7 pb-7 pt-8 sm:px-10 sm:pb-10 sm:pt-10">
+                <div className="mb-7 flex items-center justify-between gap-4">
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.08, duration: 0.3 }}
+                    className="inline-flex rounded-full border border-pink-200/20 bg-pink-300/[0.08] px-5 py-2.5 text-[15px] font-black uppercase tracking-[0.12em] text-pink-100/90"
+                    style={{ fontFamily: '"Work Sans", sans-serif' }}
+                  >
+                    {wishboxIntroCopy.eyebrow}
+                  </motion.div>
 
-              <div className="relative z-10 px-6 pb-6 pt-7 sm:px-8 sm:pb-8 sm:pt-8">
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.08, duration: 0.3 }}
-                  className="mb-7 inline-flex rounded-full border border-pink-200/20 bg-pink-300/[0.08] px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-pink-100/90"
-                >
-                  {wishboxIntroCopy.eyebrow}
-                </motion.div>
+                  <button
+                    type="button"
+                    onClick={handleDismissWishboxIntro}
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-2xl font-light leading-none text-white/75 backdrop-blur-xl transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-200/50"
+                    aria-label="Close Wishbox announcement"
+                  >
+                    ×
+                  </button>
+                </div>
 
                 <motion.div
                   initial={{ opacity: 0, y: 14 }}
@@ -269,9 +356,9 @@ const Landing = () => {
                     onClick={() => handleIntroWishboxAction('write')}
                     whileHover={{ y: -2 }}
                     whileTap={{ scale: 0.98 }}
-                    className="inline-flex flex-1 cursor-pointer items-center justify-center rounded-full bg-gradient-to-r from-pink-200 via-rose-200 to-emerald-200 px-5 py-3.5 text-sm font-black text-[#07100D] shadow-[0_18px_44px_rgba(244,114,182,0.22)] transition hover:brightness-105 focus:outline-none focus:ring-2 focus:ring-pink-100"
+                    className="relative inline-flex flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gradient-to-r from-pink-300 via-rose-200 to-emerald-300 px-5 py-3.5 text-sm font-black text-[#07100D] shadow-[0_18px_44px_rgba(244,114,182,0.28)] transition hover:brightness-105 focus:outline-none focus:ring-2 focus:ring-pink-100 before:absolute before:inset-y-[-55%] before:left-[-60%] before:w-[50%] before:skew-x-[-20deg] before:bg-gradient-to-r before:from-transparent before:via-white/90 before:to-transparent before:blur-[1.5px] before:content-[''] before:animate-[wishbox-intro-shine_2.4s_ease-in-out_infinite]"
                   >
-                    Write a Wish
+                    <span className="relative z-10">Write a Wish</span>
                   </motion.button>
 
                   <motion.button
