@@ -8,12 +8,14 @@ type BirthdayWishBoxModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialTab?: "write" | "view";
+  onRequestSignIn?: () => void;
 };
 
 const BirthdayWishBoxModal: React.FC<BirthdayWishBoxModalProps> = ({
   open,
   onOpenChange,
   initialTab = "write",
+  onRequestSignIn,
 }) => {
   const [activeTab, setActiveTab] = useState<"write" | "view">(initialTab);
 
@@ -39,7 +41,7 @@ const BirthdayWishBoxModal: React.FC<BirthdayWishBoxModalProps> = ({
           </DialogPrimitive.Close>
 
           {activeTab === "write" ? (
-            <WishForm />
+            <WishForm onRequestSignIn={onRequestSignIn} />
           ) : (
             <div className="mx-auto flex min-h-[100dvh] w-full max-w-3xl items-center px-4 py-20">
               <div className="w-full rounded-2xl border border-white/10 bg-slate-950/45 p-5 text-white shadow-2xl backdrop-blur-md">

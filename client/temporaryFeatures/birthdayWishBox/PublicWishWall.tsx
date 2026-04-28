@@ -8,6 +8,9 @@ type PublicWish = {
   id: string;
   message: string;
   displayName: string | null;
+  isAnonymous?: boolean;
+  publicVisible?: boolean;
+  status?: string;
   createdAt?: string;
 };
 
@@ -119,6 +122,20 @@ const PublicWishWall: React.FC<PublicWishWallProps> = ({ active }) => {
               key={wish.id}
               className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/5"
             >
+              {(wish.isAnonymous || wish.status) && (
+                <div className="mb-3 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-[0.12em]">
+                  {wish.isAnonymous && (
+                    <span className="rounded-full bg-purple-100 px-2.5 py-1 text-purple-800 dark:bg-purple-400/15 dark:text-purple-100">
+                      Anonymous
+                    </span>
+                  )}
+                  {wish.status && (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600 dark:bg-white/10 dark:text-slate-200">
+                      {wish.status}
+                    </span>
+                  )}
+                </div>
+              )}
               <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">
                 {wish.message}
               </p>

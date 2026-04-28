@@ -16,8 +16,10 @@ export type ModerationBatchResult = {
   decision: WishModerationDecision;
 };
 
-const GROQ_API_KEY = String(process.env.WISHBOX_GROQ_API_KEY || process.env.GROQ_API_KEY || "").trim();
-const GROQ_MODEL = process.env.WISHBOX_GROQ_MODEL || "llama-3.1-8b-instant";
+const GROQ_API_KEY = String(
+  process.env.Wishbox_GROQ_API_KEY || process.env.WISHBOX_GROQ_API_KEY || process.env.GROQ_API_KEY || "",
+).trim();
+const GROQ_MODEL = "llama-3.1-8b-instant";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 const GROQ_SYSTEM_PROMPT = `You are moderating birthday wishes for a teacher.

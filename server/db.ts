@@ -257,7 +257,19 @@ export async function initDatabase(): Promise<void> {
         await db.collection('user_social_handles').createIndex({ user_id: 1 }, { unique: true });
 
         // ── Birthday Wish Box ──
-        await db.collection('birthday_wishes').createIndex({ eventKey: 1, userId: 1 }, { unique: true });
+        try {
+            await db.collection('birthday_wishes').dropIndex('eventKey_1_userId_1');
+        } catch {
+            // Index may already have been migrated or may not exist in fresh databases.
+        }
+        await db.collection('birthday_wishes').createIndex(
+            { eventKey: 1, userId: 1 },
+            {
+                unique: true,
+                name: 'wishbox_one_wish_per_account',
+                partialFilterExpression: { devBypassLimit: { $exists: false } },
+            },
+        );
         await db.collection('birthday_wishes').createIndex({ eventKey: 1, status: 1, createdAt: -1 });
         await db.collection('birthday_wishes').createIndex({ eventKey: 1, publicVisible: 1, createdAt: -1 });
         await db.collection('birthday_wishes').createIndex({ purgeAt: 1 }, { expireAfterSeconds: 0 });

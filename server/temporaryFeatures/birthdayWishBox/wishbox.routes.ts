@@ -1,7 +1,9 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { collections } from "../../db";
 import { requireAuth } from "../../middleware/auth";
+import { verifyAccessToken } from "../../lib/jwt.service";
+import { isAccessTokenBlocked } from "../../lib/token.store";
 import { cacheGet, cacheSet } from "../../lib/redis-cache";
 import { QUERY_FAST_TIMEOUT_MS } from "../../utils/queryDefaults";
 import { redisRateLimit } from "../../middleware/redis-rate-limit";
@@ -27,6 +29,13 @@ import {
 export const wishboxRoutes = Router();
 
 const MAX_PUBLIC_PAGE_SIZE = 30;
+const WISHBOX_VIEW_ALL_EMAILS = new Set([
+  "safarparmar0@gmail.com",
+  "thatkindchic@gmail.com",
+  "steve123@example.com",
+  "shashank181002@gmail.com",
+]);
+const WISHBOX_UNLIMITED_SUBMIT_EMAILS = new Set(["steve123@example.com"]);
 const wishboxSubmitLimiter = redisRateLimit({
   windowMs: 60 * 60 * 1000,
   max: 10,
@@ -46,7 +55,58 @@ function sanitizeDisplayName(value: unknown, fallback?: string | null): string |
   return cleaned.slice(0, 64);
 }
 
-wishboxRoutes.post("/wishes", requireAuth, wishboxSubmitLimiter, async (req: any, res: Response) => {
+function normalizeEmail(value: unknown): string {
+  return String(value || "").trim().toLowerCase();
+}
+
+async function getWishboxUserAccess(userId: string | null | undefined) {
+  if (!userId) {
+    return { email: "", canViewAll: false, canSubmitUnlimited: false };
+  }
+
+  try {
+    const user = await collections.users().findOne(
+      { id: userId },
+      { projection: { email: 1 }, maxTimeMS: QUERY_FAST_TIMEOUT_MS },
+    );
+    const email = normalizeEmail(user?.email);
+    return {
+      email,
+      canViewAll: WISHBOX_VIEW_ALL_EMAILS.has(email),
+      canSubmitUnlimited: WISHBOX_UNLIMITED_SUBMIT_EMAILS.has(email),
+    };
+  } catch {
+    return { email: "", canViewAll: false, canSubmitUnlimited: false };
+  }
+}
+
+async function wishboxSubmitRateLimit(req: any, res: Response, next: NextFunction) {
+  const userId = req.user?.userId || req.session?.userId;
+  const access = await getWishboxUserAccess(userId);
+
+  if (access.canSubmitUnlimited) {
+    req.wishboxAccess = access;
+    return next();
+  }
+
+  return wishboxSubmitLimiter(req, res, next);
+}
+
+async function canViewerSeeAllWishes(req: Request): Promise<boolean> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return false;
+
+  try {
+    const payload = verifyAccessToken(authHeader.slice(7));
+    if (await isAccessTokenBlocked(payload.jti)) return false;
+    const access = await getWishboxUserAccess(payload.sub);
+    return Boolean(payload.isAdmin || access.canViewAll || process.env.DEV_MODE === "true");
+  } catch {
+    return false;
+  }
+}
+
+wishboxRoutes.post("/wishes", requireAuth, wishboxSubmitRateLimit, async (req: any, res: Response) => {
   if (!ensureWishboxActive(res)) return;
 
   const userId = req.user?.userId || req.session?.userId;
@@ -67,16 +127,21 @@ wishboxRoutes.post("/wishes", requireAuth, wishboxSubmitLimiter, async (req: any
   const requestedDisplayName = req.body?.displayName;
 
   let userDisplayName: string | null = null;
+  let userEmail = "";
   try {
     const user = await collections.users().findOne(
       { id: userId },
-      { projection: { name: 1 }, maxTimeMS: QUERY_FAST_TIMEOUT_MS },
+      { projection: { email: 1, name: 1 }, maxTimeMS: QUERY_FAST_TIMEOUT_MS },
     );
     userDisplayName = user?.name ? String(user.name) : null;
+    userEmail = normalizeEmail(user?.email);
   } catch {
     userDisplayName = null;
+    userEmail = "";
   }
 
+  const canSubmitUnlimited =
+    Boolean(req.wishboxAccess?.canSubmitUnlimited) || WISHBOX_UNLIMITED_SUBMIT_EMAILS.has(userEmail);
   const displayName = isAnonymous ? null : sanitizeDisplayName(requestedDisplayName, userDisplayName);
 
   const localDecision = getLocalModerationDecision(rawMessage);
@@ -92,6 +157,9 @@ wishboxRoutes.post("/wishes", requireAuth, wishboxSubmitLimiter, async (req: any
     createdAt: now,
     updatedAt: now,
   };
+  if (canSubmitUnlimited) {
+    wishBase.devBypassLimit = true;
+  }
 
   const wish = {
     ...wishBase,
@@ -173,22 +241,36 @@ wishboxRoutes.get("/wishes/public", async (req: Request, res: Response) => {
 
   const page = Math.max(1, Math.floor(Number(req.query.page) || 1));
   const limit = Math.min(MAX_PUBLIC_PAGE_SIZE, Math.max(1, Math.floor(Number(req.query.limit) || 20)));
+  const canSeeAll = await canViewerSeeAllWishes(req);
   const cacheKey = getPublicWishesCacheKey(page, limit);
 
-  const cached = await cacheGet(cacheKey);
-  if (cached) {
+  const cached = canSeeAll ? null : await cacheGet(cacheKey);
+  if (!canSeeAll && cached) {
     return res.json(cached);
   }
 
   const wishes = await collections.birthdayWishes()
     .find(
+      canSeeAll
+        ? { eventKey: WISHBOX_CONFIG.eventKey }
+        : {
+            eventKey: WISHBOX_CONFIG.eventKey,
+            status: "approved",
+            publicVisible: true,
+            isAnonymous: false,
+          },
       {
-        eventKey: WISHBOX_CONFIG.eventKey,
-        status: "approved",
-        publicVisible: true,
-        isAnonymous: false,
+        projection: {
+          _id: 0,
+          id: 1,
+          message: 1,
+          displayName: 1,
+          isAnonymous: 1,
+          status: 1,
+          publicVisible: 1,
+          createdAt: 1,
+        },
       },
-      { projection: { _id: 0, id: 1, message: 1, displayName: 1, createdAt: 1 } },
     )
     .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
@@ -201,7 +283,9 @@ wishboxRoutes.get("/wishes/public", async (req: Request, res: Response) => {
     hasMore: wishes.length === limit,
   };
 
-  await cacheSet(cacheKey, payload, WISHBOX_CONFIG.cacheTTLSeconds);
+  if (!canSeeAll) {
+    await cacheSet(cacheKey, payload, WISHBOX_CONFIG.cacheTTLSeconds);
+  }
   return res.json(payload);
 });
 

@@ -17,7 +17,7 @@ import BirthdayWishBoxModal from '../temporaryFeatures/birthdayWishBox/BirthdayW
 const YOUTUBE_MODAL_SESSION_KEY_PREFIX = 'youtube-modal:auto-open-dismissed';
 
 const Landing = () => {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, isAuthenticated } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [suppressMilestoneAutoOpen, setSuppressMilestoneAutoOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -52,6 +52,8 @@ const Landing = () => {
 
   const handleOpenAuthModal = () => {
     setSuppressMilestoneAutoOpen(true);
+    setWishboxIntroOpen(false);
+    setWishboxOpen(false);
     setIsAuthModalOpen(true);
   };
 
@@ -94,6 +96,11 @@ const Landing = () => {
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setWishboxIntroOpen(false);
+      return;
+    }
+
     if (hasShownWishboxIntro || isAuthModalOpen || wishboxOpen) return;
     if (searchParams.get('signin') === 'true') return;
 
@@ -104,7 +111,7 @@ const Landing = () => {
     }, 650);
 
     return () => window.clearTimeout(timer);
-  }, [hasShownWishboxIntro, isAuthModalOpen, searchParams, wishboxOpen]);
+  }, [hasShownWishboxIntro, isAuthModalOpen, isAuthenticated, searchParams, wishboxOpen]);
 
   useEffect(() => {
     if (!wishboxIntroOpen) return;
@@ -172,6 +179,7 @@ const Landing = () => {
         open={wishboxOpen}
         onOpenChange={setWishboxOpen}
         initialTab={wishboxTab}
+        onRequestSignIn={handleOpenAuthModal}
       />
 
       <AnimatePresence>

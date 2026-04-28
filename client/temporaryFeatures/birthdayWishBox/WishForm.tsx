@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,6 +7,7 @@ import "./WishForm.css";
 
 const MAX_MESSAGE_WORDS = 60;
 const SEAL_ANIMATION_MS = 2900;
+const UNLIMITED_WISH_EMAILS = new Set(["steve123@example.com"]);
 
 type MyWishResponse =
   | { hasSubmitted: false; wish: null }
@@ -30,9 +30,13 @@ type Particle = {
   delay: number;
 };
 
-const WishForm: React.FC = () => {
+type WishFormProps = {
+  onRequestSignIn?: () => void;
+};
+
+const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn }) => {
   const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  const canSubmitUnlimited = UNLIMITED_WISH_EMAILS.has(String(user?.email || "").trim().toLowerCase());
   const [displayName, setDisplayName] = useState(user?.name || "");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [message, setMessage] = useState("");
@@ -106,8 +110,8 @@ const WishForm: React.FC = () => {
         }
 
         const data = (await res.json()) as MyWishResponse;
-        setHasSubmitted(Boolean(data?.hasSubmitted));
-        if (data?.hasSubmitted) {
+        setHasSubmitted(!canSubmitUnlimited && Boolean(data?.hasSubmitted));
+        if (!canSubmitUnlimited && data?.hasSubmitted) {
           setStatusMessage("You have already submitted your birthday wish.");
         }
       } catch (error) {
@@ -119,7 +123,7 @@ const WishForm: React.FC = () => {
     };
 
     fetchMyWish();
-  }, [isAuthenticated]);
+  }, [canSubmitUnlimited, isAuthenticated]);
 
   const createParticles = () => {
     const nextParticles = Array.from({ length: 8 }, (_, index) => ({
@@ -244,7 +248,7 @@ const WishForm: React.FC = () => {
       ]);
 
       if (res.status === 409) {
-        setHasSubmitted(true);
+        setHasSubmitted(!canSubmitUnlimited);
         setStatusMessage(data?.message || "You have already submitted your birthday wish.");
         return;
       }
@@ -257,7 +261,10 @@ const WishForm: React.FC = () => {
 
       setMessage("");
       setStatusMessage(data?.message || "Your wish has been submitted.");
-      setHasSubmitted(true);
+      setHasSubmitted(!canSubmitUnlimited);
+      if (canSubmitUnlimited) {
+        resetComposer();
+      }
     } catch (error) {
       console.error("[WISHBOX] Submission failed:", error);
       await sealAnimationPromise;
@@ -274,7 +281,7 @@ const WishForm: React.FC = () => {
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Please sign in to submit your wish.
         </p>
-        <Button className="mt-4 rounded-xl" onClick={() => navigate("/?signin=true")}>
+        <Button className="mt-4 rounded-xl" onClick={onRequestSignIn}>
           Sign In to Write
         </Button>
       </div>
