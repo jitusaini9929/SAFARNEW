@@ -28,6 +28,9 @@ import mehfilSocialRouter from "./routes/mehfil-social";
 import { dmRoutes } from "./routes/dm";
 import { getRedisClient } from "./lib/redis.client";
 import { missionRouter } from "./routes/mission";
+import { wishboxRoutes } from "./temporaryFeatures/birthdayWishBox/wishbox.routes";
+import { wishboxAdminRoutes } from "./temporaryFeatures/birthdayWishBox/wishbox.admin.routes";
+import { startWishboxWorker } from "./temporaryFeatures/birthdayWishBox/wishbox.worker";
 
 // Setup Mehfil Socket.IO Config Constants
 // Redis adapter logic moved down
@@ -192,6 +195,8 @@ export async function createServer() {
   app.use("/api/plans", planModule.default);
   app.use("/api/suggestions", suggestionsModule.suggestionsRoutes);
   app.use("/api/mission", missionRouter);
+  app.use("/api/wishbox", wishboxRoutes);
+  app.use("/api/admin/wishbox", wishboxAdminRoutes);
 
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";
@@ -213,6 +218,8 @@ export async function createServer() {
   });
 
   app.get("/api/demo", handleDemo);
+
+  startWishboxWorker();
 
 
   // Create HTTP server and Socket.IO

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { Gift } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../contexts/ThemeContext';
 import LanguageToggle from '../LanguageToggle';
@@ -10,12 +12,14 @@ interface HeroSectionProps {
     user: any;
     setIsAuthModalOpen: (isOpen: boolean) => void;
     showStudyPlanner?: boolean;
+    onOpenWishbox?: (tab: 'write' | 'view') => void;
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({
     user,
     setIsAuthModalOpen,
     showStudyPlanner = true,
+    onOpenWishbox,
 }) => {
     const { theme, toggleTheme } = useTheme();
     const { t } = useTranslation();
@@ -96,8 +100,8 @@ const HeroSection: React.FC<HeroSectionProps> = ({
     return (
         <div className="relative w-full min-h-[100dvh]">
             {/* Simplified Header - Scrollable (Absolute) */}
-            <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center px-4 py-4 md:px-8 md:py-5 backdrop-blur-md bg-white/10 dark:bg-black/10 border-b border-white/20 dark:border-white/5">
-                <div className="w-full max-w-[1400px] flex items-center justify-between">
+            <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-center overflow-visible px-4 py-4 md:px-8 md:py-5 backdrop-blur-md bg-white/10 dark:bg-black/10 border-b border-white/20 dark:border-white/5">
+                <div className="w-full max-w-[1400px] flex items-center justify-between overflow-visible">
                     {/* Logo and SAFAR Title */}
                     <div className="flex items-center gap-3 md:gap-4">
                         <div className="flex items-center justify-center rounded-full shadow-2xl shadow-black/25 dark:shadow-white/15">
@@ -110,26 +114,51 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                         <span className="text-2xl md:text-[40px] font-playfair font-bold text-black dark:text-white tracking-tight">SAFAR</span>
                     </div>
 
-                    <div className="hidden md:flex items-center md:gap-4 md:ml-auto md:mr-6 md:-translate-x-[30%]">
+                    <div className="relative z-[90] hidden md:flex items-center overflow-visible md:gap-4 md:ml-auto md:mr-6 md:-translate-x-[30%]">
+                        <>
                         <Link
                             to="/updates"
-                            className="group relative inline-flex items-center justify-center overflow-hidden rounded-xl p-[2.94px] isolation-isolate transition-all duration-200 hover:-translate-y-0.5"
+                            className="group relative inline-flex items-center justify-center overflow-visible rounded-xl isolation-isolate transition-all duration-200 hover:-translate-y-0.5"
                         >
-                            <span
-                                aria-hidden="true"
-                                className="absolute -inset-[140%] opacity-75 blur-[18px] transition-opacity duration-300 group-hover:opacity-100"
-                                style={{
-                                    animation: 'spin 2.14s linear infinite',
-                                    backgroundImage:
-                                        theme === 'dark'
-                                            ? "conic-gradient(from 0deg, rgba(0,0,0,0), #f5c542, #ffdf7a, rgba(0,0,0,0) 25%)"
-                                            : "conic-gradient(from 0deg, rgba(0,0,0,0), rgba(0,0,0,0.82), rgba(0,0,0,0.45), rgba(0,0,0,0) 25%)",
-                                }}
-                            />
-                            <span className="relative z-10 inline-flex items-center rounded-[11px] bg-white/85 px-[14px] py-[10px] text-black dark:bg-slate-950/85 dark:text-white/90 font-semibold text-[17px] leading-none backdrop-blur-sm transition-colors duration-200 group-hover:text-black dark:group-hover:text-white">
+                            <span className="relative z-10 inline-flex items-center rounded-[11px] bg-transparent px-[14px] py-[10px] text-black dark:text-white/90 font-semibold text-[17px] leading-none transition-colors duration-200 group-hover:text-black dark:group-hover:text-white">
                                 Updates
                             </span>
                         </Link>
+                        {/* Present gateway button: opens Wishbox composer modal */}
+                        <button
+                            type="button"
+                            onClick={() => onOpenWishbox?.('write')}
+                            title="Send a Present / Write a wish"
+                            className="relative z-[130] ml-3 inline-flex items-center justify-center overflow-visible border-0 bg-transparent p-0 text-black dark:text-white/90 transition-transform duration-150 hover:scale-105"
+                        >
+                            <motion.span
+                                className="relative z-[131] inline-flex items-center justify-center overflow-hidden rounded-xl border border-amber-500/90 text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.58)] transition-colors duration-200 will-change-transform hover:border-amber-400 hover:text-amber-400 hover:drop-shadow-[0_0_18px_rgba(251,191,36,0.78)]"
+                                animate={{
+                                    y: [0, -6, 0],
+                                    rotate: [0, -6, 6, 0],
+                                    scale: [1, 1.08, 1],
+                                }}
+                                transition={{
+                                    repeat: Infinity,
+                                    duration: 1.8,
+                                    ease: "easeInOut",
+                                }}
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    className="pointer-events-none absolute inset-0 z-[1] overflow-hidden rounded-[inherit]"
+                                >
+                                    <span
+                                        className="absolute inset-y-0 -left-1/2 w-1/2 rotate-12 bg-white/55 blur-[1px]"
+                                        style={{
+                                            animation: "giftShimmer 2.4s ease-in-out infinite",
+                                        }}
+                                    />
+                                </span>
+                                <Gift className="relative z-[2] w-14 h-14" strokeWidth={1.65} />
+                            </motion.span>
+                        </button>
+                        </>
                         <a
                             href={supportGmailHref}
                             target="_blank"

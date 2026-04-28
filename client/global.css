@@ -1809,3 +1809,21 @@ select {
 .btn-shine-hover:hover::before {
   left: 100%;
 }
+
+@keyframes giftShimmer {
+  0%,
+  42% {
+    transform: translateX(0) rotate(12deg);
+    opacity: 0;
+  }
+
+  52% {
+    opacity: 0.75;
+  }
+
+  72%,
+  100% {
+    transform: translateX(5.25rem) rotate(12deg);
+    opacity: 0;
+  }
+}

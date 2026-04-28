@@ -70,6 +70,7 @@ export const collections = {
     sandeshReactions: () => getDb().collection('sandesh_reactions'),
     sandeshComments: () => getDb().collection('sandesh_comments'),
     userSocialHandles: () => getDb().collection('user_social_handles'),
+    birthdayWishes: () => getDb().collection('birthday_wishes'),
     
     // ── Mission Mode ──
     missionProfiles: () => getDb().collection('mission_profiles'),
@@ -254,6 +255,12 @@ export async function initDatabase(): Promise<void> {
 
         // ── Social handles ──
         await db.collection('user_social_handles').createIndex({ user_id: 1 }, { unique: true });
+
+        // ── Birthday Wish Box ──
+        await db.collection('birthday_wishes').createIndex({ eventKey: 1, userId: 1 }, { unique: true });
+        await db.collection('birthday_wishes').createIndex({ eventKey: 1, status: 1, createdAt: -1 });
+        await db.collection('birthday_wishes').createIndex({ eventKey: 1, publicVisible: 1, createdAt: -1 });
+        await db.collection('birthday_wishes').createIndex({ purgeAt: 1 }, { expireAfterSeconds: 0 });
 
         // ── Mission Mode ──
         await db.collection('mission_profiles').createIndex({ user_id: 1 }, { unique: true });
