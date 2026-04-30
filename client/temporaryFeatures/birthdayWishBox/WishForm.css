@@ -49,16 +49,16 @@
     74% -34%,
     92% -24%;
   background-size:
-    0.78rem 0.78rem,
-    0.68rem 0.68rem,
-    0.64rem 0.64rem,
-    0.72rem 0.72rem,
-    0.68rem 0.68rem,
-    0.76rem 0.76rem,
-    0.35rem 0.35rem;
+    0.44rem 0.44rem,
+    0.38rem 0.38rem,
+    0.36rem 0.36rem,
+    0.4rem 0.4rem,
+    0.38rem 0.38rem,
+    0.42rem 0.42rem,
+    0.2rem 0.2rem;
   background-repeat: repeat-y;
-  opacity: 0.62;
-  animation: wishboxConfettiFall 18s linear infinite;
+  opacity: 0.46;
+  animation: wishboxConfettiFall 27s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 .wishbox-composer--submitted {
@@ -128,9 +128,70 @@
   color: #ffe4e6;
 }
 
+.wishbox-title {
+  position: absolute;
+  top: calc(50% - 32rem + 4vh);
+  left: 50%;
+  z-index: 5;
+  width: min(calc(100% - 1rem), 62rem);
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  filter: drop-shadow(0 18px 38px rgba(0, 0, 0, 0.28));
+}
+
+.wishbox-title__arc {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.wishbox-title__arc-text {
+  color: #fbbf24;
+  fill: #fbbf24;
+  font-size: 88px;
+  font-weight: 950;
+  letter-spacing: -0.5px;
+  dominant-baseline: middle;
+  text-shadow:
+    0 0 18px rgba(255, 236, 153, 0.55),
+    0 0 46px rgba(250, 204, 21, 0.42),
+    0 16px 34px rgba(124, 45, 18, 0.3);
+}
+
+.wishbox-title__bottom {
+  margin-top: -1.45rem;
+  color: transparent;
+  background:
+    linear-gradient(
+      115deg,
+      rgba(255, 252, 244, 0.9) 0%,
+      rgba(255, 255, 255, 0.98) 22%,
+      rgba(255, 255, 255, 0.98) 42%,
+      rgba(255, 237, 176, 0.95) 49%,
+      rgba(255, 255, 255, 0.99) 56%,
+      rgba(255, 255, 255, 0.98) 76%,
+      rgba(255, 252, 244, 0.9) 100%
+    );
+  background-size: 220% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  font-size: clamp(3.2rem, 6vw, 5.7rem);
+  font-weight: 950;
+  line-height: 0.95;
+  letter-spacing: -0.07em;
+  text-shadow:
+    0 0 18px rgba(255, 255, 255, 0.62),
+    0 0 44px rgba(255, 255, 255, 0.32),
+    0 16px 36px rgba(15, 23, 42, 0.34);
+  animation: wishboxTitleShimmer 3.2s ease-in-out infinite;
+}
+
 .wishbox-banner {
   position: absolute;
-  top: calc(50% - 19.2rem + 10vh);
+  top: calc(50% - 19.2rem + 30vh);
   left: 50%;
   z-index: 65;
   width: min(calc(100% - 2rem), 31rem);
@@ -187,13 +248,13 @@
 
 .wishbox-composer__stage {
   position: relative;
-  z-index: 1;
+  z-index: 30;
   width: min(100%, 34rem);
   height: 100dvh;
   min-height: 500px;
   margin: 0 auto;
   perspective: 1200px;
-  transform: translateY(-10vh);
+  transform: translateY(10vh);
 }
 
 .wishbox-envelope {
@@ -210,6 +271,28 @@
   pointer-events: none;
   transform: translate(-50%, 0.25rem) scale(0.2);
   transition: all 800ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.wishbox-envelope::before {
+  position: absolute;
+  left: 50%;
+  bottom: -0.7rem;
+  z-index: -1;
+  width: 88%;
+  height: 42%;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(15, 23, 42, 0.3) 0%,
+    rgba(15, 23, 42, 0.2) 34%,
+    rgba(15, 23, 42, 0.08) 62%,
+    rgba(15, 23, 42, 0) 100%
+  );
+  transform: translateX(-50%);
+  filter: blur(14px);
+  opacity: 0.95;
+  pointer-events: none;
+  content: "";
 }
 
 .wishbox-envelope--popped {
@@ -611,10 +694,11 @@
       92% -24%;
   }
 
-  50% {
-    opacity: 0.78;
+  42% {
+    opacity: 0.58;
   }
 
+  76%,
   100% {
     background-position:
       10% 112%,
@@ -624,6 +708,20 @@
       60% 118%,
       72% 134%,
       90% 124%;
+    opacity: 0.18;
+  }
+}
+
+@keyframes wishboxTitleShimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+    filter: brightness(0.98);
+  }
+
+  50% {
+    background-position: 100% 50%;
+    filter: brightness(1.08);
   }
 }
 
@@ -654,8 +752,22 @@
   }
 
   .wishbox-banner {
-    top: calc(50% - 17.2rem + 8vh);
+    top: calc(50% - 17.2rem + 28vh);
     width: min(calc(100% - 1.25rem), 24rem);
+  }
+
+  .wishbox-title {
+    top: calc(50% - 25.5rem + 7vh);
+    width: min(calc(100% - 0.75rem), 27rem);
+  }
+
+  .wishbox-title__arc-text {
+    font-size: 56px;
+  }
+
+  .wishbox-title__bottom {
+    margin-top: -0.9rem;
+    font-size: clamp(2.6rem, 10vw, 3.8rem);
   }
 
   .wishbox-envelope {

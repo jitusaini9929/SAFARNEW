@@ -45,9 +45,9 @@ const BirthdayWishBoxModal: React.FC<BirthdayWishBoxModalProps> = ({
           {activeTab === "write" ? (
             <WishForm onRequestSignIn={onRequestSignIn} onSubmitted={onWishSubmitted} />
           ) : (
-            <div className="mx-auto flex min-h-[100dvh] w-full max-w-3xl items-center px-4 py-20">
-              <div className="w-full rounded-2xl border border-white/10 bg-slate-950/45 p-5 text-white shadow-2xl backdrop-blur-md">
-                <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="mx-auto flex h-[100dvh] w-full max-w-3xl items-center px-4 py-20">
+              <div className="flex max-h-[calc(100dvh-10rem)] w-full flex-col rounded-2xl border border-white/10 bg-slate-950/45 p-5 text-white shadow-2xl backdrop-blur-md">
+                <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
                   <h2 className="font-playfair text-2xl font-black">Birthday Wishes</h2>
                   <button
                     type="button"
@@ -57,7 +57,9 @@ const BirthdayWishBoxModal: React.FC<BirthdayWishBoxModalProps> = ({
                     Write Wish
                   </button>
                 </div>
-                <PublicWishWall active={open && activeTab === "view"} />
+                <div className="min-h-0 flex-1 overflow-y-auto pr-2">
+                  <PublicWishWall active={open && activeTab === "view"} />
+                </div>
               </div>
             </div>
           )}

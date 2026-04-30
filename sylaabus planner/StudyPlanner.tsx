@@ -438,7 +438,7 @@ function parseBulkTopicsByChapter(
     }
 
     const chapterHeading = rawLine.match(
-      /^(?:chapter|unit|module|section)\s*\d*\s*[-:.]?\s*(.+)$/i,
+      /^(?:chapter|unit|module|section)\s*\d*(?:-|:|\.)?\s*(.+)$/i,
     );
     if (chapterHeading && chapterHeading[1]) {
       activeChapterIndex = ensureChapter(chapterHeading[1]);

@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import Lottie from "lottie-react";
+
+import successCelebrationData from "../../public/animations/Success celebration.json";
+import celebrationData from "../../public/animations/Celebration.json";
+import celebrationParticleData from "../../public/animations/Celebration particle.json";
+import confettiData from "../../public/animations/Confetti.json";
+import confettiTransparentData from "../../public/animations/confetti on transparent background.json";
+import balloonCelebrationData from "../../public/animations/BalloonCelebration.json";
+import bubbleExplosionData from "../../public/animations/Bubble Explosion.json";
+import ellipseBustData from "../../public/animations/Ellipse bust.json";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch, API_BASE } from "@/utils/apiFetch";
@@ -141,6 +150,10 @@ const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn, onSubmitted }) => 
 
   const summonEnvelope = () => {
     if (isSubmitting || isWriting) return;
+    if (!isAuthenticated) {
+      onRequestSignIn?.();
+      return;
+    }
 
     setErrorMessage(null);
     setIsWriting(true);
@@ -210,6 +223,10 @@ const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn, onSubmitted }) => 
 
   const handleMagicalSubmit = async () => {
     if (isSubmitting) return;
+    if (!isAuthenticated) {
+      onRequestSignIn?.();
+      return;
+    }
 
     if (message.trim().length < 5) {
       shakeLetter("Please write at least 5 characters before sealing your wish.");
@@ -277,19 +294,6 @@ const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn, onSubmitted }) => 
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center dark:border-white/10 dark:bg-white/5">
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          Please sign in to submit your wish.
-        </p>
-        <Button className="mt-4 rounded-xl" onClick={onRequestSignIn}>
-          Sign In to Write
-        </Button>
-      </div>
-    );
-  }
-
   if (closedMessage) {
     return (
       <div className="rounded-2xl border border-amber-200/70 bg-amber-50 p-6 text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
@@ -303,12 +307,17 @@ const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn, onSubmitted }) => 
 
   if (hasSubmitted) {
     return (
-      <div className="wishbox-composer wishbox-composer--submitted">
-        <div className="wishbox-submitted-card">
-          <p className="wishbox-submitted-card__title">
+      <div className="wishbox-composer wishbox-composer--submitted relative overflow-hidden">
+        {/* Massive Celebration Effects */}
+        <div className="absolute inset-0 pointer-events-none z-0 opacity-40">
+          <Lottie animationData={successCelebrationData} loop={false} />
+        </div>
+
+        <div className="wishbox-submitted-card relative z-50 backdrop-blur-md bg-slate-950/60 border-white/20">
+          <p className="wishbox-submitted-card__title text-white">
             {statusMessage || "Thank you. Your wish has been received and will appear after review."}
           </p>
-          <p className="wishbox-submitted-card__body">
+          <p className="wishbox-submitted-card__body text-white/70">
             You can submit only one wish per account.
           </p>
         </div>
@@ -317,9 +326,34 @@ const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn, onSubmitted }) => 
   }
 
   return (
-    <div className="wishbox-composer">
+    <div className="wishbox-composer relative">
+      {/* Background Balloons */}
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-40 mix-blend-screen overflow-hidden">
+        <Lottie animationData={balloonCelebrationData} loop={true} />
+      </div>
+      
+      {/* Confetti from 4 Corners (Scaled down via grid) */}
+      <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden grid grid-cols-2 grid-rows-2">
+        {/* Top-Left Corner (Always visible) */}
+        <div className="w-full h-full rotate-[135deg] scale-[1.3]">
+          <Lottie animationData={confettiData} loop={true} />
+        </div>
+        {/* Top-Right Corner */}
+        <div className="w-full h-full -rotate-[135deg] scale-[1.3]">
+          {!(isWriting && !envelopeSent) && <Lottie animationData={confettiTransparentData} loop={true} />}
+        </div>
+        {/* Bottom-Left Corner */}
+        <div className="w-full h-full rotate-[45deg] scale-[1.3]">
+          {!(isWriting && !envelopeSent) && <Lottie animationData={confettiTransparentData} loop={true} />}
+        </div>
+        {/* Bottom-Right Corner */}
+        <div className="w-full h-full -rotate-[45deg] scale-[1.3]">
+          {!(isWriting && !envelopeSent) && <Lottie animationData={confettiData} loop={true} />}
+        </div>
+      </div>
+
       {isLoading && (
-        <div className="wishbox-composer__status">Checking your submission status...</div>
+        <div className="wishbox-composer__status relative z-10">Checking your submission status...</div>
       )}
 
       {errorMessage && (
@@ -327,6 +361,20 @@ const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn, onSubmitted }) => 
           {errorMessage}
         </div>
       )}
+
+      <div className="wishbox-title" aria-hidden="true">
+        <svg className="wishbox-title__arc" viewBox="0 0 920 280" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <path id="wishboxTitleArcPath" d="M 70 228 Q 460 18 850 228" />
+          </defs>
+          <text className="wishbox-title__arc-text">
+            <textPath href="#wishboxTitleArcPath" startOffset="50%" textAnchor="middle">
+              Happy Birthday
+            </textPath>
+          </text>
+        </svg>
+        <div className="wishbox-title__bottom">Parmar Sir</div>
+      </div>
 
       <button
         type="button"
@@ -403,6 +451,16 @@ const WishForm: React.FC<WishFormProps> = ({ onRequestSignIn, onSubmitted }) => 
             boxReturning ? "wishbox-composer__stage--sealing" : "",
           ].join(" ")}
         >
+          {envelopePopped && !envelopeSent && (
+            <div className="absolute top-[20%] left-1/2 w-[300px] h-[300px] -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50 mix-blend-screen">
+              <Lottie animationData={bubbleExplosionData} loop={false} />
+            </div>
+          )}
+          {envelopeSent && (
+            <div className="absolute top-[60%] left-1/2 w-[400px] h-[400px] -translate-x-1/2 -translate-y-1/2 pointer-events-none z-50 mix-blend-screen">
+              <Lottie animationData={ellipseBustData} loop={false} />
+            </div>
+          )}
         <div
           className={[
             "wishbox-envelope",

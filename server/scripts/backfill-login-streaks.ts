@@ -74,11 +74,13 @@ async function main() {
   const bulkOps = [];
 
   for (const userId of targetIds) {
-    const rows = await loginHistory
+    const rows = (await loginHistory
       .find({ user_id: userId }, { projection: { timestamp: 1 } })
       .sort({ timestamp: -1 })
       .limit(4000)
-      .toArray();
+      .toArray()).map((row) => ({
+        timestamp: row.timestamp as LoginHistoryRow['timestamp'],
+      }));
 
     const { streak, latestTimestamp } = computeLoginStreak(rows);
     processed += 1;
