@@ -156,6 +156,7 @@ wishboxRoutes.post("/wishes", requireAuth, wishboxSubmitRateLimit, async (req: a
     normalizedMessageHash: normalizedHash,
     createdAt: now,
     updatedAt: now,
+    devBypassLimit: false,
   };
   if (canSubmitUnlimited) {
     wishBase.devBypassLimit = true;

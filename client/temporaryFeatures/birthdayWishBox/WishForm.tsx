@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { apiFetch, API_BASE } from "@/utils/apiFetch";
 import "./WishForm.css";
 
-const MAX_MESSAGE_WORDS = 60;
+const MAX_MESSAGE_WORDS = 300;
 const SEAL_ANIMATION_MS = 2900;
 const UNLIMITED_WISH_EMAILS = new Set(["steve123@example.com"]);
 

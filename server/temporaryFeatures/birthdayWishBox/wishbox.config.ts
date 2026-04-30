@@ -6,8 +6,8 @@ export const WISHBOX_CONFIG = {
   endDate: new Date("2026-05-04T23:59:59+05:30"),
   purgeDate: new Date("2026-05-06T23:59:59+05:30"),
 
-  maxMessageLength: 600,
-  maxMessageWords: 60,
+  maxMessageLength: 3000,
+  maxMessageWords: 300,
   minMessageLength: 5,
 
   maxBatchSize: 15,

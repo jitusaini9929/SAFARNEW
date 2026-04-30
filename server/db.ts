@@ -267,7 +267,7 @@ export async function initDatabase(): Promise<void> {
             {
                 unique: true,
                 name: 'wishbox_one_wish_per_account',
-                partialFilterExpression: { devBypassLimit: { $exists: false } },
+                partialFilterExpression: { devBypassLimit: false },
             },
         );
         await db.collection('birthday_wishes').createIndex({ eventKey: 1, status: 1, createdAt: -1 });
