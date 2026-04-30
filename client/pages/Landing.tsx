@@ -165,9 +165,40 @@ const WishboxCountdownBanner = React.memo(function WishboxCountdownBanner({
       }, 380);
     };
 
+    const fireSideCannons = () => {
+      const end = Date.now() + 3 * 1000; // 3 seconds
+      const colors = ["#a786ff", "#fd8bbc", "#eca184", "#f8deb1"];
+
+      const frame = () => {
+        if (Date.now() > end) return;
+
+        scopedConfetti({
+          particleCount: 2,
+          angle: 60,
+          spread: 55,
+          startVelocity: 60,
+          origin: { x: 0, y: 0.5 },
+          colors: colors,
+        });
+        scopedConfetti({
+          particleCount: 2,
+          angle: 120,
+          spread: 55,
+          startVelocity: 60,
+          origin: { x: 1, y: 0.5 },
+          colors: colors,
+        });
+
+        requestAnimationFrame(frame);
+      };
+
+      frame();
+    };
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
+          fireSideCannons();
           fireSectionConfetti();
           if (!loopInterval) {
             loopInterval = window.setInterval(fireSectionConfetti, 5000);
@@ -222,74 +253,73 @@ const WishboxCountdownBanner = React.memo(function WishboxCountdownBanner({
       <div className="group relative z-10 mx-auto w-full max-w-6xl">
         <DisintegratingBorder />
 
-        <div className="relative z-10 flex w-full flex-col gap-6 overflow-hidden rounded-[40px] border border-pink-400/12 bg-[linear-gradient(135deg,rgba(63,11,34,0.94),rgba(34,7,22,0.94))] p-5 shadow-[inset_0_0_20px_rgba(236,72,153,0.04),0_20px_45px_rgba(0,0,0,0.28)] md:flex-row md:items-center md:justify-between md:p-7">
+        <div className="relative z-10 flex w-full flex-col gap-6 overflow-hidden rounded-[40px] border border-pink-400/12 bg-[linear-gradient(135deg,rgba(63,11,34,0.94),rgba(34,7,22,0.94))] p-5 shadow-[inset_0_0_20px_rgba(236,72,153,0.04),0_20px_45px_rgba(0,0,0,0.28)] md:items-center md:justify-between md:p-7">
           <div className="absolute inset-0 z-0 pointer-events-none bg-[radial-gradient(circle_at_18%_20%,rgba(244,114,182,0.12),transparent_26%),radial-gradient(circle_at_75%_40%,rgba(236,72,153,0.08),transparent_28%)]" />
           <div className="absolute -inset-x-1/4 top-1/2 z-0 h-40 -translate-y-1/2 animate-[pulse_10s_ease-in-out_infinite] bg-[radial-gradient(circle_at_center,rgba(244,114,182,0.12),transparent_62%)] blur-3xl" />
-
-          <div className="relative z-10 flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-pink-500/30 bg-pink-900/40 text-pink-300 shadow-[inset_0_0_15px_rgba(236,72,153,0.2)]">
-              <Timer className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="mt-1 font-playfair text-3xl font-black leading-tight text-white drop-shadow-[0_0_12px_rgba(236,72,153,0.4)]">
-                Time left Until Parmar Sir Birthday
+          {wishboxCountdown.isClosed ? (
+            <div className="relative z-10 flex w-full flex-col items-center gap-3 text-center">
+              <h2 className="font-playfair text-4xl font-black leading-tight text-white drop-shadow-[0_0_12px_rgba(236,72,153,0.45)] sm:text-5xl">
+                Happy Birthday Parmar Sir
               </h2>
-              <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-pink-100/70">
-                Jinhone humein inspire kiya, unke liye ek wish toh banti hai
+              <p className="max-w-2xl text-sm font-medium leading-6 text-pink-100/70 sm:text-base">
+                Aapka din khushiyon se bhara ho.
               </p>
-            </div>
-          </div>
-
-          <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex min-h-[96px] items-center justify-center gap-4 rounded-[22px] border border-pink-500/20 bg-pink-950/40 px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_32px_rgba(236,72,153,0.15)] backdrop-blur-md">
-              {wishboxCountdown.isClosed ? (
-                <p className="m-0 text-center text-[22px] font-semibold leading-[1.2em] text-pink-300 drop-shadow-[0_0_12px_rgba(236,72,153,0.5)] sm:text-[26px] md:text-[30px]">
-                  Happy Birthday Parmar Sir
-                </p>
-              ) : (
-                countdownUnits.map(([label, value]) => (
-                  <div
-                    key={label}
-                    className="flex min-w-[72px] select-none flex-col items-center justify-center gap-1"
-                  >
-                    <span className="block text-[40px] font-semibold leading-[1.2em] tabular-nums text-pink-300 drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]">
-                      {String(value).padStart(2, '0')}
-                    </span>
-                    <span className="block text-[13px] font-semibold capitalize leading-[1.2em] text-pink-200/60">
-                      {label}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {!wishboxCountdown.isClosed && (
               <button
                 type="button"
                 onClick={() => onOpenWishbox('view')}
-                className="group relative inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full border border-pink-400/50 bg-gradient-to-r from-pink-500 to-rose-400 px-7 py-3.5 text-sm font-black text-white shadow-[0_8px_24px_rgba(236,72,153,0.25)] transition-all hover:scale-105 hover:shadow-[0_12px_32px_rgba(236,72,153,0.4)] focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-2 focus:ring-offset-white dark:border-pink-500/30 dark:from-pink-600 dark:to-rose-500 dark:focus:ring-offset-slate-950"
+                className="group relative mt-4 inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full border border-pink-400/50 bg-gradient-to-r from-pink-500 to-rose-400 px-7 py-3.5 text-sm font-black text-white shadow-[0_8px_24px_rgba(236,72,153,0.25)] transition-all hover:scale-105 hover:shadow-[0_12px_32px_rgba(236,72,153,0.4)] focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-2 focus:ring-offset-white dark:border-pink-500/30 dark:from-pink-600 dark:to-rose-500 dark:focus:ring-offset-slate-950"
               >
                 <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-500 ease-in-out group-hover:translate-x-full" />
                 <Eye className="h-4 w-4" />
                 <span>View Wishes</span>
               </button>
-            )}
-          </div>
-        </div>
+            </div>
+          ) : (
+            <div className="relative z-10 flex w-full flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-pink-500/30 bg-pink-900/40 text-pink-300 shadow-[inset_0_0_15px_rgba(236,72,153,0.2)]">
+                  <Timer className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="mt-1 font-playfair text-3xl font-black leading-tight text-white drop-shadow-[0_0_12px_rgba(236,72,153,0.4)]">
+                    Time left Until Parmar Sir Birthday
+                  </h2>
+                  <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-pink-100/70">
+                    Jinhone humein inspire kiya, unke liye ek wish toh banti hai
+                  </p>
+                </div>
+              </div>
 
-        {wishboxCountdown.isClosed && (
-          <div className="mt-6 flex justify-center">
-            <button
-              type="button"
-              onClick={() => onOpenWishbox('view')}
-              className="group relative inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full border border-pink-400/50 bg-gradient-to-r from-pink-500 to-rose-400 px-7 py-3.5 text-sm font-black text-white shadow-[0_8px_24px_rgba(236,72,153,0.25)] transition-all hover:scale-105 hover:shadow-[0_12px_32px_rgba(236,72,153,0.4)] focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-2 focus:ring-offset-white dark:border-pink-500/30 dark:from-pink-600 dark:to-rose-500 dark:focus:ring-offset-slate-950"
-            >
-              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-500 ease-in-out group-hover:translate-x-full" />
-              <Eye className="h-4 w-4" />
-              <span>View Wishes</span>
-            </button>
-          </div>
-        )}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="flex min-h-[96px] items-center justify-center gap-4 rounded-[22px] border border-pink-500/20 bg-pink-950/40 px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_32px_rgba(236,72,153,0.15)] backdrop-blur-md">
+                  {countdownUnits.map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex min-w-[72px] select-none flex-col items-center justify-center gap-1"
+                    >
+                      <span className="block text-[40px] font-semibold leading-[1.2em] tabular-nums text-pink-300 drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]">
+                        {String(value).padStart(2, '0')}
+                      </span>
+                      <span className="block text-[13px] font-semibold capitalize leading-[1.2em] text-pink-200/60">
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onOpenWishbox('view')}
+                  className="group relative inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full border border-pink-400/50 bg-gradient-to-r from-pink-500 to-rose-400 px-7 py-3.5 text-sm font-black text-white shadow-[0_8px_24px_rgba(236,72,153,0.25)] transition-all hover:scale-105 hover:shadow-[0_12px_32px_rgba(236,72,153,0.4)] focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-2 focus:ring-offset-white dark:border-pink-500/30 dark:from-pink-600 dark:to-rose-500 dark:focus:ring-offset-slate-950"
+                >
+                  <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-500 ease-in-out group-hover:translate-x-full" />
+                  <Eye className="h-4 w-4" />
+                  <span>View Wishes</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
