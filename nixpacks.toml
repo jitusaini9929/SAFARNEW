@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ['nodejs_20', 'npm-9_x']
+nixPkgs = ['nodejs_22', 'npm-9_x']
 
 [phases.install]
-cmds = ['npm ci --prefer-offline --no-audit']
+cmds = ['npm ci --include=dev --prefer-offline --no-audit']
 
 [phases.build]
 cmds = ['npm run build']
