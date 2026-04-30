@@ -119,7 +119,7 @@ const WishboxCountdownBanner = React.memo(function WishboxCountdownBanner({
   useEffect(() => {
     const section = sectionRef.current;
     const canvas = confettiCanvasRef.current;
-    if (!section || !canvas) return;
+    if (!section || !canvas || !wishboxCountdown.isClosed) return;
 
     let burstInterval: number | undefined;
     let loopInterval: number | undefined;
@@ -188,7 +188,7 @@ const WishboxCountdownBanner = React.memo(function WishboxCountdownBanner({
       if (loopInterval) window.clearInterval(loopInterval);
       scopedConfetti.reset();
     };
-  }, []);
+  }, [wishboxCountdown.isClosed]);
 
   const countdownUnits = [
     ...(wishboxCountdown.days > 0 ? [['Days', wishboxCountdown.days] as const] : []),
@@ -243,8 +243,8 @@ const WishboxCountdownBanner = React.memo(function WishboxCountdownBanner({
           <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex min-h-[96px] items-center justify-center gap-4 rounded-[22px] border border-pink-500/20 bg-pink-950/40 px-5 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_32px_rgba(236,72,153,0.15)] backdrop-blur-md">
               {wishboxCountdown.isClosed ? (
-                <p className="m-0 text-[28px] font-semibold leading-[1.2em] text-pink-300 drop-shadow-[0_0_10px_rgba(236,72,153,0.5)]">
-                  Countdown finished!
+                <p className="m-0 text-center text-[22px] font-semibold leading-[1.2em] text-pink-300 drop-shadow-[0_0_12px_rgba(236,72,153,0.5)] sm:text-[26px] md:text-[30px]">
+                  Happy Birthday Parmar Sir
                 </p>
               ) : (
                 countdownUnits.map(([label, value]) => (
@@ -263,6 +263,22 @@ const WishboxCountdownBanner = React.memo(function WishboxCountdownBanner({
               )}
             </div>
 
+            {!wishboxCountdown.isClosed && (
+              <button
+                type="button"
+                onClick={() => onOpenWishbox('view')}
+                className="group relative inline-flex cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full border border-pink-400/50 bg-gradient-to-r from-pink-500 to-rose-400 px-7 py-3.5 text-sm font-black text-white shadow-[0_8px_24px_rgba(236,72,153,0.25)] transition-all hover:scale-105 hover:shadow-[0_12px_32px_rgba(236,72,153,0.4)] focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-offset-2 focus:ring-offset-white dark:border-pink-500/30 dark:from-pink-600 dark:to-rose-500 dark:focus:ring-offset-slate-950"
+              >
+                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-500 ease-in-out group-hover:translate-x-full" />
+                <Eye className="h-4 w-4" />
+                <span>View Wishes</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {wishboxCountdown.isClosed && (
+          <div className="mt-6 flex justify-center">
             <button
               type="button"
               onClick={() => onOpenWishbox('view')}
@@ -273,7 +289,7 @@ const WishboxCountdownBanner = React.memo(function WishboxCountdownBanner({
               <span>View Wishes</span>
             </button>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );
