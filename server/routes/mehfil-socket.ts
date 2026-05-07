@@ -5,6 +5,8 @@ import { collections } from '../db';
 import type { RequestHandler } from 'express';
 import { markDmUserOffline, markDmUserOnline } from './dm-presence';
 import { validateBlockedWords } from '../utils/contentFilter';
+import { sendNotificationToUser } from '../services/push-notifications';
+import { queueCommunityLikeNotification } from '../services/community-activity-aggregator';
 
 type MehfilCategory = 'ACADEMIC' | 'REFLECTIVE' | 'BULLSHIT';
 type MehfilRoom = 'ACADEMIC' | 'REFLECTIVE';
@@ -743,6 +745,16 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         dmRequests.set(requestId, requestPayload);
         scheduleDmRequestExpiry(requestId);
 
+        const senderName = getDisplayName(fromUserId) || 'Someone';
+        await sendNotificationToUser(toUserId, {
+          type: 'community_connect',
+          title: `${senderName} wants to connect`,
+          body: 'Open Mehfil to respond to the request.',
+          channel: 'community',
+          deepLink: 'safar://mehfil',
+          priority: 'high',
+        });
+
         const recipientSocketId = await getActiveSocketIdForUser(toUserId);
 
         if (!recipientSocketId) {
@@ -1312,6 +1324,11 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           userId,
           hasReacted: !existing,
         };
+
+        if (!existing && thought?.user_id && thought.user_id !== userId) {
+          const actorName = getDisplayName(userId) || 'Someone';
+          queueCommunityLikeNotification(thought.user_id, actorName);
+        }
 
         socket.emit('reactionUpdated', payload);
         socket.broadcast.to(toRoomName(room)).emit('reactionUpdated', payload);

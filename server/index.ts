@@ -23,14 +23,17 @@ import { connectMongo, initDatabase } from "./db";
 import { setupMehfilSocket } from "./routes/mehfil-socket";
 import { paymentRoutes } from "./routes/payments";
 import { uploadRoutes, imageServeRouter } from "./routes/uploads";
+import { syllabusImportRoutes } from "./routes/syllabus-import";
 import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
 import mehfilSocialRouter from "./routes/mehfil-social";
 import { dmRoutes } from "./routes/dm";
 import { getRedisClient } from "./lib/redis.client";
 import { missionRouter } from "./routes/mission";
+import { notificationRoutes } from "./routes/notifications";
 import { wishboxRoutes } from "./temporaryFeatures/birthdayWishBox/wishbox.routes";
 import { wishboxAdminRoutes } from "./temporaryFeatures/birthdayWishBox/wishbox.admin.routes";
 import { startWishboxWorker } from "./temporaryFeatures/birthdayWishBox/wishbox.worker";
+import { startNotificationScheduler } from "./services/notification-scheduler";
 
 // Setup Mehfil Socket.IO Config Constants
 // Redis adapter logic moved down
@@ -187,6 +190,7 @@ export async function createServer() {
   app.use("/api/analytics", analyticsRoutes);
   app.use("/api/payments", paymentRoutes);
   app.use("/api/upload", uploadRoutes);
+  app.use("/api/syllabus", syllabusImportRoutes);
   app.use("/api/images", imageServeRouter);
   app.use("/api/mehfil/interactions", mehfilInteractionRoutes);
   app.use("/api/mehfil/sandesh", sandeshModule.sandeshRoutes);
@@ -195,6 +199,7 @@ export async function createServer() {
   app.use("/api/plans", planModule.default);
   app.use("/api/suggestions", suggestionsModule.suggestionsRoutes);
   app.use("/api/mission", missionRouter);
+  app.use("/api", notificationRoutes);
   app.use("/api/wishbox", wishboxRoutes);
   app.use("/api/admin/wishbox", wishboxAdminRoutes);
 
@@ -220,6 +225,7 @@ export async function createServer() {
   app.get("/api/demo", handleDemo);
 
   startWishboxWorker();
+  startNotificationScheduler();
 
 
   // Create HTTP server and Socket.IO

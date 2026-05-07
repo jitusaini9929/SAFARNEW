@@ -327,55 +327,12 @@ const normalizeSessionResponse = (doc: any) => {
     };
 };
 
-const findActiveSession = async (userId: string) => {
-    return collections.ekagraModeSessions()
-        .findOne({ user_id: userId, status: "active" }, { sort: { updated_at: -1 } });
-};
-
-const pauseActiveSession = async (userId: string, exceptId?: string) => {
-    const filter: Record<string, any> = { user_id: userId, status: "active" };
-    if (exceptId) {
-        filter.id = { $ne: exceptId };
-    }
-    await collections.ekagraModeSessions().updateMany(
-        filter,
-        {
-            $set: {
-                status: "paused",
-                is_running: false,
-                updated_at: new Date(),
-            },
-        },
-    );
-};
-
-router.get("/", requireAuth, async (req: Request, res) => {
-    try {
-        const userId = req.session.userId!;
-        const openSessions = await collections.ekagraModeSessions()
-            .find({ user_id: userId, status: { $in: ["active", "paused"] } })
-            .sort({ updated_at: -1 })
-            .limit(LIST_LIMIT)
-            .maxTimeMS(QUERY_TIMEOUT_MS)
-            .toArray();
-        const sessions = openSessions.map(normalizeSessionResponse);
-        res.json({ sessions });
-    } catch (error) {
-        console.error("Get Ekagra sessions error:", error);
-        res.status(500).json({ message: "Failed to fetch Ekagra sessions" });
-    }
+// GET /active — DEPRECATED stub (client-side mocked to null)
+router.get("/active", requireAuth, async (_req: Request, res) => {
+    res.json({ session: null });
 });
 
-router.get("/active", requireAuth, async (req: Request, res) => {
-    try {
-        const userId = req.session.userId!;
-        const activeSession = await findActiveSession(userId);
-        res.json({ session: activeSession ? normalizeSessionResponse(activeSession) : null });
-    } catch (error) {
-        console.error("Get active Ekagra session error:", error);
-        res.status(500).json({ message: "Failed to fetch active Ekagra session" });
-    }
-});
+
 
 router.get("/analytics", requireAuth, async (req: Request, res) => {
     try {
@@ -628,348 +585,139 @@ router.get("/analytics", requireAuth, async (req: Request, res) => {
     }
 });
 
-router.post("/activate", requireAuth, async (req: Request, res) => {
+router.post("/save", requireAuth, async (req: Request, res) => {
     try {
         const userId = req.session.userId!;
-        const goalId = String(req.body?.goalId || "").trim();
-        const goalTitle = String(req.body?.goalTitle || "").trim();
-        const sessionTitleRaw = String(req.body?.sessionTitle || "").trim();
-        const sessionTypeRaw = normalizeSessionType(req.body?.sessionType);
-        const overrideActive = Boolean(req.body?.overrideActive);
-        const importedFromGoal = Boolean(req.body?.importedFromGoal);
-        const source = importedFromGoal ? "imported" : normalizeSource(req.body?.source);
-        const isNamedSession = sessionTypeRaw === "named" || !goalId;
+        const mode = String(req.body?.mode || "focus").trim();
+        const startedAtRaw = parseIso(req.body?.startedAt);
+        const endedAtRaw = parseIso(req.body?.endedAt);
+        const plannedDurationMinutes = Math.max(0, Math.round(Number(req.body?.plannedDurationMinutes || 0)));
+        const actualDurationMinutes = Math.max(0, Math.round(Number(req.body?.actualDurationMinutes || 0)));
+        const completed = Boolean(req.body?.completed);
+        const markGoalComplete = Boolean(req.body?.markGoalComplete);
+        const goalId = String(req.body?.goalId || "").trim() || null;
+        const goalTitle = String(req.body?.goalTitle || "").trim() || null;
+        const taskTitle = String(req.body?.taskTitle || "").trim() || goalTitle || null;
 
-        if (isNamedSession && !sessionTitleRaw) {
-            return res.status(400).json({ message: "sessionTitle is required for named sessions" });
-        }
-        if (!isNamedSession && !goalId) {
-            return res.status(400).json({ message: "goalId is required" });
-        }
-
-        let goal: any = null;
-        if (!isNamedSession) {
-            goal = await collections.goals().findOne({ id: goalId, user_id: userId });
-            if (!goal) {
-                return res.status(404).json({ message: "Goal not found or unauthorized" });
-            }
-            const lifecycleStatus = String(goal.lifecycle_status || goal.lifecycleStatus || "active").toLowerCase();
-            const isArchived = lifecycleStatus === "abandoned" || lifecycleStatus === "rolled_over";
-            const isCompleted = Boolean(goal.completed || goal.completed_at || goal.completedAt);
-            if (isCompleted || isArchived) {
-                return res.status(409).json({ message: "Completed or archived goals cannot be focused in Ekagra" });
-            }
+        if (actualDurationMinutes <= 0 && !completed) {
+            return res.status(400).json({ message: "Session has no recorded duration" });
         }
 
-        const activeSession = await findActiveSession(userId);
-        if (activeSession && String(activeSession.goal_id) !== goalId && !overrideActive) {
-            return res.status(409).json({
-                message: "An Ekagra session is already active",
-                code: "ACTIVE_SESSION_CONFLICT",
-                activeSession: normalizeSessionResponse(activeSession),
-            });
-        }
+        const now = endedAtRaw || new Date();
+        const startedAt = startedAtRaw || new Date(now.getTime() - actualDurationMinutes * 60 * 1000);
+        const sessionType: AnalyticsSessionType = mode === "short" ? "short_break" : mode === "long" ? "long_break" : "focus";
+        const focusMinutes = sessionType === "focus" ? actualDurationMinutes : 0;
+        const breakMinutes = sessionType === "focus" ? 0 : actualDurationMinutes;
+        const logId = uuidv4();
+        const dateKey = toLocalDayKey(now);
 
-        if (activeSession && String(activeSession.goal_id) !== goalId && overrideActive) {
-            await pauseActiveSession(userId);
-        }
-
-        const existingOpen = !isNamedSession
-            ? await collections.ekagraModeSessions().findOne(
-                { user_id: userId, goal_id: goalId, status: { $in: ["active", "paused"] } },
-                { sort: { updated_at: -1 } },
-            )
-            : null;
-        const now = new Date();
-
-        if (existingOpen) {
-            await collections.ekagraModeSessions().updateOne(
-                { id: existingOpen.id, user_id: userId },
-                {
-                    $set: {
-                        status: "active",
-                        goal_title: goalTitle || String(goal.title || goal.text || ""),
-                        source,
-                        imported_from_goal: importedFromGoal,
-                        updated_at: now,
-                    },
-                },
-            );
-            const updated = await collections.ekagraModeSessions().findOne({ id: existingOpen.id, user_id: userId });
-            return res.json({ session: normalizeSessionResponse(updated) });
-        }
-
-        const sessionId = uuidv4();
-        const namedGoalId = isNamedSession ? `named:${sessionId}` : goalId;
-        const sessionTitle = isNamedSession ? sessionTitleRaw : "";
-        const effectiveGoalTitle = isNamedSession
-            ? sessionTitle
-            : goalTitle || String(goal?.title || goal?.text || "");
-
-        const totalSeconds = clampPositiveSeconds(req.body?.totalSeconds, 25 * 60);
-        const remainingSeconds = clampRemainingSeconds(req.body?.remainingSeconds, totalSeconds, totalSeconds);
-        const mode = normalizeMode(req.body?.mode);
-        const isRunning = Boolean(req.body?.isRunning);
-        const startedAt = parseIso(req.body?.sessionStartedAt);
-
-        const doc = {
-            id: sessionId,
+        await collections.focusSessions().insertOne({
+            id: logId,
             user_id: userId,
-            goal_id: namedGoalId,
-            goal_title: effectiveGoalTitle,
-            session_type: isNamedSession ? "named" : "goal",
-            session_title: sessionTitle || null,
-            source,
-            status: "active" as EkagraSessionStatus,
-            mode,
-            total_seconds: totalSeconds,
-            remaining_seconds: remainingSeconds,
-            is_running: isRunning,
-            imported_from_goal: importedFromGoal,
-            pause_count: 0,
-            session_started_at: startedAt,
-            created_at: now,
-            updated_at: now,
-            completed_at: null,
-            ended_at: null,
-            discarded_at: null,
-        };
-
-        try {
-            await collections.ekagraModeSessions().insertOne(doc);
-            return res.status(201).json({ session: normalizeSessionResponse(doc) });
-        } catch (insertError: any) {
-            if (insertError?.code === 11000) {
-                const collided = await collections.ekagraModeSessions().findOne(
-                    { user_id: userId, goal_id: goalId, status: { $in: ["active", "paused"] } },
-                    { sort: { updated_at: -1 } },
-                );
-                if (collided) {
-                    await pauseActiveSession(userId, String(collided.id || ""));
-                    await collections.ekagraModeSessions().updateOne(
-                        { id: collided.id, user_id: userId },
-                        {
-                            $set: {
-                                status: "active",
-                                goal_title: goalTitle || String(goal.title || goal.text || ""),
-                                source,
-                                imported_from_goal: importedFromGoal,
-                                updated_at: now,
-                            },
-                        },
-                    );
-                    const resumed = await collections.ekagraModeSessions().findOne({ id: collided.id, user_id: userId });
-                    if (resumed) {
-                        return res.json({ session: normalizeSessionResponse(resumed) });
-                    }
-                }
-            }
-            throw insertError;
-        }
-    } catch (error) {
-        console.error("Activate Ekagra session error:", error);
-        return res.status(500).json({ message: "Failed to activate Ekagra session" });
-    }
-});
-
-router.patch("/:id", requireAuth, async (req: Request, res) => {
-    try {
-        const userId = req.session.userId!;
-        const { id } = req.params;
-        const session = await collections.ekagraModeSessions().findOne({ id, user_id: userId });
-        if (!session) {
-            return res.status(404).json({ message: "Ekagra session not found" });
-        }
-
-        const updates: Record<string, any> = {};
-        const hasMode = req.body && "mode" in req.body;
-        const hasTotalSeconds = req.body && "totalSeconds" in req.body;
-        const hasRemainingSeconds = req.body && "remainingSeconds" in req.body;
-        const hasIsRunning = req.body && "isRunning" in req.body;
-        const hasSessionStartedAt = req.body && "sessionStartedAt" in req.body;
-        const hasStatus = req.body && "status" in req.body;
-        const hasGoalTitle = req.body && "goalTitle" in req.body;
-        const hasSource = req.body && "source" in req.body;
-        const hasImportedFromGoal = req.body && "importedFromGoal" in req.body;
-
-        if (hasMode) updates.mode = normalizeMode(req.body.mode);
-        const existingTotalSeconds = clampPositiveSeconds(session.total_seconds, 25 * 60);
-        if (hasTotalSeconds) {
-            updates.total_seconds = clampPositiveSeconds(req.body.totalSeconds, existingTotalSeconds);
-        }
-        if (hasRemainingSeconds) {
-            updates.remaining_seconds = clampRemainingSeconds(
-                req.body.remainingSeconds,
-                clampRemainingSeconds(session.remaining_seconds, existingTotalSeconds, existingTotalSeconds),
-                hasTotalSeconds ? updates.total_seconds : existingTotalSeconds,
-            );
-        }
-        if (hasIsRunning) updates.is_running = Boolean(req.body.isRunning);
-        if (hasSessionStartedAt) updates.session_started_at = parseIso(req.body.sessionStartedAt);
-        if (hasGoalTitle) updates.goal_title = String(req.body.goalTitle || "").trim() || session.goal_title;
-        if (hasSource) updates.source = normalizeSource(req.body.source);
-        if (hasImportedFromGoal) updates.imported_from_goal = Boolean(req.body.importedFromGoal);
-
-        if (hasStatus) {
-            const status = normalizeStatus(req.body.status);
-            if (!status) {
-                return res.status(400).json({ message: "Invalid status" });
-            }
-            updates.status = status;
-            if (status === "completed") {
-                updates.completed_at = new Date();
-                updates.ended_at = new Date();
-                updates.is_running = false;
-                updates.remaining_seconds = 0;
-            }
-            if (status === "ended_early") {
-                updates.ended_at = new Date();
-                updates.is_running = false;
-            }
-            if (status === "discarded") {
-                updates.discarded_at = new Date();
-                updates.is_running = false;
-            }
-            if (status === "paused") {
-                updates.is_running = false;
-            }
-            if (status === "active") {
-                await pauseActiveSession(userId, id);
-            }
-        }
-
-        if (Object.keys(updates).length === 0) {
-            return res.status(400).json({ message: "Nothing to update" });
-        }
-
-        updates.updated_at = new Date();
-
-        // Build the MongoDB update document: always $set, optionally $inc for pause_count
-        const updateDoc: Record<string, any> = { $set: updates };
-        if (hasStatus && normalizeStatus(req.body.status) === "paused") {
-            updateDoc.$inc = { pause_count: 1 };
-        }
-
-        await collections.ekagraModeSessions().updateOne(
-            { id, user_id: userId },
-            updateDoc,
-        );
-        const updated = await collections.ekagraModeSessions().findOne({ id, user_id: userId });
-        return res.json({ session: normalizeSessionResponse(updated) });
-    } catch (error) {
-        console.error("Update Ekagra session error:", error);
-        return res.status(500).json({ message: "Failed to update Ekagra session" });
-    }
-});
-
-router.post("/:id/complete", requireAuth, async (req: Request, res) => {
-    try {
-        const userId = req.session.userId!;
-        const { id } = req.params;
-        const session = await collections.ekagraModeSessions().findOne({ id, user_id: userId });
-        if (!session) {
-            return res.status(404).json({ message: "Ekagra session not found" });
-        }
-
-        const plannedTotalSeconds = clampPositiveSeconds(session.total_seconds, 25 * 60);
-        const sessionRemainingSeconds = clampRemainingSeconds(session.remaining_seconds, plannedTotalSeconds, plannedTotalSeconds);
-        const payloadElapsedSeconds = Number(req.body?.elapsedSeconds);
-        const payloadRemainingSeconds = Number(req.body?.remainingSeconds);
-
-        let elapsedSeconds = Math.max(0, plannedTotalSeconds - sessionRemainingSeconds);
-        if (Number.isFinite(payloadElapsedSeconds)) {
-            elapsedSeconds = Math.max(0, Math.round(payloadElapsedSeconds));
-        } else if (Number.isFinite(payloadRemainingSeconds)) {
-            elapsedSeconds = Math.max(0, plannedTotalSeconds - Math.max(0, Math.round(payloadRemainingSeconds)));
-        }
-
-        const normalizedElapsedSeconds = Math.max(0, Math.min(24 * 60 * 60, elapsedSeconds));
-        const remainingSeconds = Math.max(0, plannedTotalSeconds - normalizedElapsedSeconds);
-        const resolvedMode = normalizeMode(req.body?.mode ?? session.mode);
-        const now = new Date();
-        const completedDoc = {
-            ...session,
-            status: "completed" as EkagraSessionStatus,
-            mode: resolvedMode,
-            total_seconds: plannedTotalSeconds,
-            remaining_seconds: remainingSeconds,
-            is_running: false,
-            session_started_at: parseIso(req.body?.sessionStartedAt) || session.session_started_at || null,
-            updated_at: now,
+            duration_minutes: focusMinutes,
+            actual_duration_minutes: focusMinutes,
+            planned_duration_minutes: plannedDurationMinutes,
+            break_minutes: breakMinutes,
+            completed,
+            associated_goal_id: goalId,
+            interrupted: !completed,
+            started_at: startedAt,
             completed_at: now,
-            ended_at: now,
-        };
-
-        await upsertFocusLogFromEkagraSession(userId, completedDoc, {
-            mode: resolvedMode,
-            plannedTotalSeconds,
-            elapsedSeconds: normalizedElapsedSeconds,
-            completedAt: now,
-            sessionStartedAt: parseIso(req.body?.sessionStartedAt) || parseIso(session.session_started_at) || parseIso(session.created_at),
+            pause_count: 0,
+            task_title: taskTitle,
+            session_type: sessionType,
+            timer_mode: normalizeMode(mode === "focus" ? "Timer" : mode),
+            source_session_id: null,
+            session_domain: "ekagra",
+            created_at: now,
         });
 
-        const goalId = getSessionGoalId(session);
-        if (resolvedMode === "Timer" && goalId && !goalId.startsWith("named:")) {
+        await collections.focusSessionLogs().insertOne({
+            id: uuidv4(),
+            user_id: userId,
+            duration_minutes: focusMinutes,
+            associated_goal_id: goalId,
+            interrupted: !completed,
+            completed,
+            timestamp: now,
+            date_key: dateKey,
+            created_at: now,
+            pause_count: 0,
+            task_title: taskTitle,
+            session_type: sessionType,
+            timer_mode: normalizeMode(mode === "focus" ? "Timer" : mode),
+            source_session_id: null,
+            session_domain: "ekagra",
+        });
+
+        // Timer-linked goal progress is duration-aware. Binary/count goals are only
+        // completed when the user explicitly chooses that action.
+        if (completed && sessionType === "focus" && goalId && !goalId.startsWith("named:")) {
             const linkedGoal = await collections.goals().findOne(
                 { id: goalId, user_id: userId },
-                { projection: { unit_type: 1, target_value: 1, achieved_value: 1 } },
+                { projection: { unit_type: 1, target_value: 1, achieved_value: 1, completed: 1 } },
             );
-            const goalUpdates: Record<string, unknown> = {
-                completed: true,
-                completed_at: now,
-                completed_via_focus: true,
-                status_value: "completed",
-                lifecycle_status: "active",
-                updated_at: now,
-            };
-            const targetValue = Number(linkedGoal?.target_value);
-            const achievedValue = Number(linkedGoal?.achieved_value);
-            if (Number.isFinite(targetValue) && targetValue >= 0) {
-                goalUpdates.achieved_value = Math.max(targetValue, Number.isFinite(achievedValue) ? achievedValue : 0);
-            } else if (String(linkedGoal?.unit_type || "").trim().toLowerCase() === "binary") {
-                goalUpdates.achieved_value = 1;
+            if (linkedGoal) {
+                const goalUpdates: Record<string, unknown> = {
+                    completed_via_focus: true,
+                    lifecycle_status: "active",
+                    updated_at: now,
+                };
+                const unitType = String(linkedGoal.unit_type || "").trim().toLowerCase();
+                const targetValue = Number(linkedGoal.target_value);
+                const achievedValue = Number(linkedGoal.achieved_value);
+
+                if (unitType === "duration_minutes") {
+                    const nextAchievedValue = Math.max(0, Number.isFinite(achievedValue) ? achievedValue : 0) + actualDurationMinutes;
+                    goalUpdates.achieved_value = nextAchievedValue;
+                    if (Number.isFinite(targetValue) && targetValue > 0 && nextAchievedValue >= targetValue) {
+                        goalUpdates.completed = true;
+                        goalUpdates.completed_at = now;
+                        goalUpdates.status_value = "completed";
+                    } else if (!linkedGoal.completed) {
+                        goalUpdates.completed = false;
+                        goalUpdates.completed_at = null;
+                        goalUpdates.status_value = "in_progress";
+                    }
+                }
+
+                if (markGoalComplete) {
+                    goalUpdates.completed = true;
+                    goalUpdates.completed_at = now;
+                    goalUpdates.status_value = "completed";
+                    if (unitType === "binary") {
+                        goalUpdates.achieved_value = 1;
+                    } else if (Number.isFinite(targetValue) && targetValue >= 0) {
+                        goalUpdates.achieved_value = Math.max(targetValue, Number(goalUpdates.achieved_value ?? achievedValue) || 0);
+                    }
+                }
+
+                await collections.goals().updateOne(
+                    { id: goalId, user_id: userId },
+                    { $set: goalUpdates },
+                );
             }
-            await collections.goals().updateOne(
-                { id: goalId, user_id: userId },
-                { $set: goalUpdates },
-            );
         }
 
-        await collections.ekagraModeSessions().deleteOne({ id, user_id: userId });
-
-        return res.json({ session: normalizeSessionResponse(completedDoc) });
+        return res.status(201).json({
+            session: {
+                id: logId,
+                userId,
+                mode,
+                startedAt: startedAt.toISOString(),
+                completedAt: now.toISOString(),
+                plannedDurationMinutes,
+                actualDurationMinutes,
+                completed,
+                goalId,
+                goalTitle,
+                taskTitle,
+                sessionType,
+            },
+        });
     } catch (error) {
-        console.error("Complete Ekagra session error:", error);
-        return res.status(500).json({ message: "Failed to complete Ekagra session" });
-    }
-});
-
-router.post("/:id/discard", requireAuth, async (req: Request, res) => {
-    try {
-        const userId = req.session.userId!;
-        const { id } = req.params;
-        const session = await collections.ekagraModeSessions().findOne({ id, user_id: userId });
-        if (!session) {
-            return res.status(404).json({ message: "Ekagra session not found" });
-        }
-
-        const now = new Date();
-
-        const discardedDoc = {
-            ...session,
-            status: "discarded" as EkagraSessionStatus,
-            is_running: false,
-            ended_at: null,
-            completed_at: null,
-            discarded_at: now,
-            updated_at: now,
-        };
-
-        await collections.ekagraModeSessions().deleteOne({ id, user_id: userId });
-        return res.json({ session: normalizeSessionResponse(discardedDoc) });
-    } catch (error) {
-        console.error("Discard Ekagra session error:", error);
-        return res.status(500).json({ message: "Failed to discard Ekagra session" });
+        console.error("Save Ekagra session error:", error);
+        return res.status(500).json({ message: "Failed to save Ekagra session" });
     }
 });
 
@@ -978,12 +726,19 @@ router.delete("/:id", requireAuth, async (req: Request, res) => {
         const userId = req.session.userId!;
         const { id } = req.params;
 
-        const existing = await collections.ekagraModeSessions().findOne({ id, user_id: userId });
-        if (!existing) {
-            return res.status(404).json({ message: "Ekagra session not found" });
+        // Try deleting from focusSessions (analytics log) since that's where /save writes
+        const focusResult = await collections.focusSessions().deleteOne({ id, user_id: userId });
+        if (focusResult.deletedCount === 0) {
+            // Fall back to legacy ekagraModeSessions collection
+            const legacyResult = await collections.ekagraModeSessions().deleteOne({ id, user_id: userId });
+            if (legacyResult.deletedCount === 0) {
+                return res.status(404).json({ message: "Ekagra session not found" });
+            }
         }
 
-        await collections.ekagraModeSessions().deleteOne({ id, user_id: userId });
+        // Also clean up any matching focusSessionLogs entry
+        await collections.focusSessionLogs().deleteMany({ source_session_id: id, user_id: userId }).catch(() => {});
+
         return res.json({ ok: true, deletedId: id });
     } catch (error) {
         console.error("Delete Ekagra session error:", error);

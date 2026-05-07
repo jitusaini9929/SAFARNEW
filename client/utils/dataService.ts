@@ -205,18 +205,8 @@ export const dataService = {
         });
     },
 
-    async getActiveEkagraSession(options?: { forceFresh?: boolean }): Promise<EkagraModeSession | null> {
-        return withReadCache(EKAGRA_ACTIVE_CACHE_KEY, 30000, Boolean(options?.forceFresh), async () => {
-            const res = await apiFetch(`${API_URL}/ekagra-sessions/active`, {
-                method: "GET",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-            });
-            if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to fetch active Ekagra session"));
-            const data = await res.json();
-            return data?.session ? (data.session as EkagraModeSession) : null;
-        });
-    },
+    // --- DEPRECATED MOCKS TO PREVENT COMPILER ERRORS IN OLD PAGES ---
+    async getActiveEkagraSession(options?: { forceFresh?: boolean }): Promise<EkagraModeSession | null> { return null; },
 
     async getEkagraAnalytics(options?: { forceFresh?: boolean }): Promise<EkagraAnalyticsStats> {
         return withReadCache(EKAGRA_ANALYTICS_CACHE_KEY, 60000, Boolean(options?.forceFresh), async () => {
@@ -260,95 +250,35 @@ export const dataService = {
         });
     },
 
-    async activateEkagraSession(payload: {
+    async activateEkagraSession(payload: any): Promise<any> { return { id: "local-draft-" + Date.now(), ...payload }; },
+    async updateEkagraSession(sessionId: string, payload: any): Promise<any> { return { id: sessionId, ...payload }; },
+    async completeEkagraSession(sessionId: string, payload?: any): Promise<any> { return { id: sessionId, ...payload }; },
+    async discardEkagraSession(sessionId: string): Promise<any> { return { id: sessionId }; },
+
+    // --- NEW LOCAL-FIRST API ---
+    async saveEkagraSession(payload: {
+        mode: string;
+        startedAt: string;
+        endedAt?: string;
+        plannedDurationMinutes: number;
+        actualDurationMinutes: number;
         goalId?: string;
         goalTitle?: string;
-        sessionType?: EkagraSessionType;
-        sessionTitle?: string;
-        source?: EkagraSessionSource;
-        importedFromGoal?: boolean;
-        overrideActive?: boolean;
-        mode?: EkagraTimerMode;
-        totalSeconds?: number;
-        remainingSeconds?: number;
-        isRunning?: boolean;
-        sessionStartedAt?: string | null;
+        completed: boolean;
+        taskTitle?: string;
+        source?: string;
+        markGoalComplete?: boolean;
     }): Promise<EkagraModeSession> {
-        const res = await apiFetch(`${API_URL}/ekagra-sessions/activate`, {
+        const res = await apiFetch(`${API_URL}/ekagra-sessions/save`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            credentials: "include",
             body: JSON.stringify(payload),
+            credentials: 'include',
         });
-        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to activate Ekagra session"));
+        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to save Ekagra session"));
         const data = await res.json();
-        if (!data?.session) throw new Error("Missing Ekagra session in activate response");
         invalidateEkagraReadCache();
-        return data.session as EkagraModeSession;
-    },
-
-    async updateEkagraSession(
-        sessionId: string,
-        payload: {
-            status?: EkagraSessionStatus;
-            mode?: EkagraTimerMode;
-            totalSeconds?: number;
-            remainingSeconds?: number;
-            isRunning?: boolean;
-            sessionStartedAt?: string | null;
-            goalTitle?: string;
-            source?: EkagraSessionSource;
-            importedFromGoal?: boolean;
-        },
-    ): Promise<EkagraModeSession> {
-        const res = await apiFetch(`${API_URL}/ekagra-sessions/${encodeURIComponent(sessionId)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to update Ekagra session"));
-        const data = await res.json();
-        if (!data?.session) throw new Error("Missing Ekagra session in update response");
-        invalidateEkagraReadCache();
-        return data.session as EkagraModeSession;
-    },
-
-    async completeEkagraSession(
-        sessionId: string,
-        payload?: {
-            mode?: EkagraTimerMode;
-            totalSeconds?: number;
-            elapsedSeconds?: number;
-            remainingSeconds?: number;
-            sessionStartedAt?: string | null;
-        },
-    ): Promise<EkagraModeSession> {
-        const res = await apiFetch(`${API_URL}/ekagra-sessions/${encodeURIComponent(sessionId)}/complete`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(payload || {}),
-        });
-        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to complete Ekagra session"));
-        const data = await res.json();
-        if (!data?.session) throw new Error("Missing Ekagra session in complete response");
-        invalidateEkagraReadCache();
-        return data.session as EkagraModeSession;
-    },
-
-    async discardEkagraSession(sessionId: string): Promise<EkagraModeSession> {
-        const res = await apiFetch(`${API_URL}/ekagra-sessions/${encodeURIComponent(sessionId)}/discard`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({}),
-        });
-        if (!res.ok) throw new Error(await getApiErrorMessage(res, "Failed to discard Ekagra session"));
-        const data = await res.json();
-        if (!data?.session) throw new Error("Missing Ekagra session in discard response");
-        invalidateEkagraReadCache();
-        return data.session as EkagraModeSession;
+        return data.session;
     },
 
     async deleteEkagraSession(sessionId: string): Promise<void> {

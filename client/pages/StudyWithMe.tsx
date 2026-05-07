@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/utils/authService";
 import { dataService } from "@/utils/dataService";
-import FocusAnalytics from "./FocusAnalytics";
 import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard, Layers3, X } from "lucide-react";
 import TasksSidebar, { type Task } from "./TasksSidebar";
 import { TimerCard } from "../components/focus/TimerCard";
@@ -34,7 +33,7 @@ import { focusTimerTour } from "@/components/guided-tour/tourSteps";
 import { TourPrompt } from "@/components/guided-tour";
 import MobileDrawer from "@/components/ui/mobile-drawer";
 import { Heart, MessageSquare, Wind, Menu, Shield } from "lucide-react";
-import { EkagraModeSession } from "@shared/api";
+import { EkagraModeSession, Goal } from "@shared/api";
 
 // Theme configuration
 interface FocusTheme {
@@ -140,8 +139,8 @@ const getInitialMusicTrackId = () => {
     return focusMusicTracks[0].id;
 };
 
-const TIMER_MINUTES_MIN = 5;
-const TIMER_STEP_MINUTES = 5;
+const TIMER_MINUTES_MIN = 1;
+const TIMER_STEP_MINUTES = 1;
 const TIMER_SLIDER_MAX = 120;
 const BREAK_MINUTES_MIN = 5;
 const BREAK_STEP_MINUTES = 5;
@@ -252,6 +251,18 @@ const extractEkagraTasks = (goals: any[]) =>
             .filter((task) => task.text.length > 0),
     );
 
+const getGoalTitle = (goal: Pick<Goal, "title" | "text">) =>
+    String(goal.title || goal.text || "").trim();
+
+const isUsableFocusGoal = (goal: Goal) => {
+    const lifecycle = String(goal.lifecycleStatus || goal.lifecycle_status || "active").toLowerCase();
+    return Boolean(goal.id)
+        && getGoalTitle(goal).length > 0
+        && !goal.completed
+        && lifecycle !== "abandoned"
+        && lifecycle !== "rolled_over";
+};
+
 export default function StudyWithMe() {
     const navigate = useNavigate();
     const { user, status } = useAuth();
@@ -277,6 +288,10 @@ export default function StudyWithMe() {
         setAssociatedGoal,
         associatedGoalId,
         associatedGoalTitle,
+        hasPendingResume,
+        resumeStoredSession,
+        discardStoredSession,
+        getRuntimeSnapshot,
         applyRuntimeSnapshot,
     } = useFocus(); // Use Context
 
@@ -319,14 +334,26 @@ export default function StudyWithMe() {
     const [awaitingProceed, setAwaitingProceed] = useState(false);
     const [showDurationPrompt, setShowDurationPrompt] = useState(false);
     const [nextDurationInput, setNextDurationInput] = useState("");
-    const [sessionOverlayTrigger, setSessionOverlayTrigger] = useState(0);
     const [runtimeSessions, setRuntimeSessions] = useState<EkagraModeSession[]>([]);
     const [runtimeActiveSessionId, setRuntimeActiveSessionId] = useState<string | null>(null);
+    const [availableGoals, setAvailableGoals] = useState<Goal[]>([]);
     const runtimeSessionIdRef = useRef<string | null>(null);
     const lastPausedSessionIdRef = useRef<string | null>(null);
     const [dismissedPausedReminder, setDismissedPausedReminder] = useState(false);
-    const [showNamedSessionPrompt, setShowNamedSessionPrompt] = useState(false);
-    const [namedSessionTitleInput, setNamedSessionTitleInput] = useState("");
+    const [showTitlePrompt, setShowTitlePrompt] = useState(false);
+    const [sessionTitleInput, setSessionTitleInput] = useState("");
+    const [showLinkGoalPrompt, setShowLinkGoalPrompt] = useState(false);
+    const [showOrganizePrompt, setShowOrganizePrompt] = useState(false);
+    const [organizeStep, setOrganizeStep] = useState<"choice" | "free" | "link">("choice");
+    const [goalPendingConfirmation, setGoalPendingConfirmation] = useState<Goal | null>(null);
+    const [pendingEndedSession, setPendingEndedSession] = useState<{
+        sessionId: string;
+        elapsedSeconds: number;
+        remainingSeconds: number;
+        sessionStartedAt?: string | null;
+        endedAt?: string | null;
+        plannedDurationMinutes?: number;
+    } | null>(null);
 
     const linkedGoalTask = associatedGoalId ? tasks.find((task) => task.id === associatedGoalId) : undefined;
     const linkedActiveTask = linkedGoalTask && !linkedGoalTask.completed ? linkedGoalTask : undefined;
@@ -351,6 +378,14 @@ export default function StudyWithMe() {
     const activeRuntimeSessionType = String(
         activeRuntimeSession?.sessionType || (activeRuntimeSession as any)?.session_type || "",
     ).toLowerCase();
+    const activeRuntimeSessionGoalId = String(
+        activeRuntimeSession?.goalId || (activeRuntimeSession as any)?.goal_id || "",
+    ).trim();
+    const isActiveFreeFocusSession =
+        mode === "Timer"
+        && Boolean(activeRuntimeSession)
+        && (activeRuntimeSessionType === "named" || activeRuntimeSessionGoalId.startsWith("named:"));
+    const activeFreeFocusLabel = activeRuntimeSessionTitle || "Free Focus";
     const pausedRuntimeSessions = useMemo(
         () =>
             runtimeSessions
@@ -374,9 +409,6 @@ export default function StudyWithMe() {
     const showPausedSessionReminder =
         !showAnalytics && !activeRuntimeSession && !isRunning && pausedSessionCount > 0 && !dismissedPausedReminder;
     const currentLinkedGoalId = String(associatedGoalId || "").trim();
-    const activeRuntimeSessionGoalId = String(
-        activeRuntimeSession?.goalId || (activeRuntimeSession as any)?.goal_id || "",
-    ).trim();
     const matchingPausedRuntimeSession = useMemo(() => {
         if (!pausedRuntimeSessions.length) return null;
 
@@ -403,30 +435,16 @@ export default function StudyWithMe() {
         !isRunning
         && mode === "Timer"
         && remainingSeconds > 0
-        && remainingSeconds < totalSeconds
-        && hasMatchingResumeSession;
+        && remainingSeconds < totalSeconds;
+    const hasLocalTimerDraft =
+        mode === "Timer"
+        && (isRunning || (remainingSeconds > 0 && remainingSeconds < totalSeconds));
+    const freeFocusDraftLabel = sessionTitleInput.trim() || "Free Focus";
 
     const refreshRuntimeSessions = useCallback(async () => {
-        if (status !== "authenticated" || !user?.id) {
-            setRuntimeSessions([]);
-            setRuntimeActiveSessionId(null);
-            runtimeSessionIdRef.current = null;
-            return;
-        }
-
-        try {
-            const [sessions, activeSession] = await Promise.all([
-                dataService.getEkagraSessions({ forceFresh: true }),
-                dataService.getActiveEkagraSession({ forceFresh: true }),
-            ]);
-
-            setRuntimeSessions(sessions);
-            const activeId = activeSession?.id || null;
-            setRuntimeActiveSessionId(activeId);
-            runtimeSessionIdRef.current = activeId;
-        } catch (error) {
-            console.error("Refresh runtime sessions error:", error);
-        }
+        setRuntimeSessions([]);
+        setRuntimeActiveSessionId(null);
+        runtimeSessionIdRef.current = null;
     }, [status, user?.id]);
 
     const refreshEkagraTasksFromServer = useCallback(async () => {
@@ -434,6 +452,7 @@ export default function StudyWithMe() {
 
         try {
             const goals = await dataService.getGoals();
+            setAvailableGoals(goals);
             setTasks(extractEkagraTasks(goals));
         } catch (error) {
             console.error("Refresh Ekagra tasks error:", error);
@@ -447,12 +466,12 @@ export default function StudyWithMe() {
     const completionHandledRef = useRef(false);
     const selectedMusicTrack = focusMusicTracks.find((track) => track.id === selectedMusicTrackId) || focusMusicTracks[0];
 
-    // Deep link handling for analytics
+    // Deep link handling for the central Analytics hub.
     useEffect(() => {
         if (searchParams.get('view') === 'analytics') {
-            setShowAnalytics(true);
+            navigate("/nishtha/analytics?tab=focus", { replace: true });
         }
-    }, [searchParams]);
+    }, [navigate, searchParams]);
 
     useEffect(() => {
         if (pausedSessionCount > 0) {
@@ -551,7 +570,40 @@ export default function StudyWithMe() {
         void persistTasks(next);
     }, [persistTasks, tasks]);
 
-    // Auto-complete task only when an Ekagra focus timer finishes.
+    const buildEndedDraft = useCallback((elapsedSeconds: number, remaining: number) => {
+        const snapshot = getRuntimeSnapshot();
+        const safeElapsedSeconds = Math.max(0, Math.round(elapsedSeconds));
+        const nowIso = new Date().toISOString();
+        const startedAt = snapshot.sessionStartedAt
+            || new Date(Date.now() - safeElapsedSeconds * 1000).toISOString();
+
+        setPendingEndedSession({
+            sessionId: `local-draft-${Date.now()}`,
+            elapsedSeconds: safeElapsedSeconds,
+            remainingSeconds: Math.max(0, Math.round(remaining)),
+            sessionStartedAt: startedAt,
+            endedAt: nowIso,
+            plannedDurationMinutes: Math.max(1, Math.round(Math.max(totalSeconds, safeElapsedSeconds) / 60)),
+        });
+        setGoalPendingConfirmation(null);
+        setOrganizeStep("choice");
+        setShowOrganizePrompt(true);
+    }, [getRuntimeSnapshot, totalSeconds]);
+
+    const openPostSessionReview = useCallback(() => {
+        const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
+        if (elapsedSeconds <= 0) {
+            resetTimer();
+            return;
+        }
+
+        if (isRunning) {
+            toggleTimer();
+        }
+        buildEndedDraft(elapsedSeconds, remainingSeconds);
+    }, [buildEndedDraft, isRunning, remainingSeconds, resetTimer, toggleTimer, totalSeconds]);
+
+    // Auto-open the save review when an Ekagra focus timer finishes.
     const prevRemainingRef = useRef(remainingSeconds);
     useEffect(() => {
         const justCompleted = remainingSeconds === 0 && prevRemainingRef.current > 0;
@@ -564,68 +616,12 @@ export default function StudyWithMe() {
         if (!justCompleted || completionHandledRef.current || mode !== "Timer") return;
         completionHandledRef.current = true;
 
-        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
-        const runtimeSession = runtimeSessionId
-            ? runtimeSessions.find((session) => session.id === runtimeSessionId)
-            : null;
-        const runtimeSessionType = String(
-            runtimeSession?.sessionType || (runtimeSession as any)?.session_type || "",
-        ).toLowerCase();
-        const runtimeGoalId = String(runtimeSession?.goalId || (runtimeSession as any)?.goal_id || "");
-        const isNamedSession = runtimeSessionType === "named" || runtimeGoalId.startsWith("named:");
-        if (runtimeSessionId && status === "authenticated" && user?.id) {
-            void (async () => {
-                try {
-                    await dataService.completeEkagraSession(runtimeSessionId, {
-                        mode: "Timer",
-                        elapsedSeconds: Math.max(0, totalSeconds - remainingSeconds),
-                        remainingSeconds: Math.max(0, remainingSeconds),
-                        sessionStartedAt: null,
-                    });
-                    runtimeSessionIdRef.current = null;
-                    setRuntimeActiveSessionId(null);
-                    await refreshRuntimeSessions();
-                    await refreshEkagraTasksFromServer();
-                } catch (error) {
-                    console.error("Auto-complete Ekagra session error:", error);
-                }
-            })();
-        }
-
-        const taskToComplete = currentTask;
-        if (taskToComplete && !isNamedSession && (status !== "authenticated" || !runtimeSessionId || !user?.id)) {
-            const completedAt = new Date().toISOString();
-            updateTasks((prev) =>
-                prev.map(task =>
-                    task.id === taskToComplete.id ? { ...task, completed: true, completedAt } : task
-                )
-            );
-            setCompletedTask(null);
-            setAwaitingProceed(false);
-            setShowDurationPrompt(false);
-        }
-
-        if (associatedGoalId && !isNamedSession) {
-            setAssociatedGoal(null, null);
-        }
-
-        // A timer hitting zero should behave like a finished session, not a paused 00:00 state.
-        resetTimer();
+        buildEndedDraft(totalSeconds, 0);
     }, [
-        associatedGoalId,
-        currentTask,
+        buildEndedDraft,
         mode,
-        refreshEkagraTasksFromServer,
-        refreshRuntimeSessions,
         remainingSeconds,
-        resetTimer,
-        runtimeActiveSessionId,
-        runtimeSessions,
-        setAssociatedGoal,
-        status,
         totalSeconds,
-        updateTasks,
-        user?.id,
     ]);
 
     useEffect(() => {
@@ -647,6 +643,7 @@ export default function StudyWithMe() {
                 const goals = await dataService.getGoals();
                 if (cancelled) return;
 
+                setAvailableGoals(goals);
                 let ekagraTasks = extractEkagraTasks(goals);
 
                 if (ekagraTasks.length === 0 && localTasks.length > 0) {
@@ -670,6 +667,7 @@ export default function StudyWithMe() {
 
                     const refreshedGoals = await dataService.getGoals();
                     if (cancelled) return;
+                    setAvailableGoals(refreshedGoals);
                     ekagraTasks = extractEkagraTasks(refreshedGoals);
                 }
 
@@ -817,50 +815,9 @@ export default function StudyWithMe() {
         try { localStorage.setItem('focus-theme-id', newTheme.id); } catch { }
     };
 
-    const handleResetTimer = useCallback(async () => {
-        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
-        const runtimeSession = runtimeSessionId
-            ? runtimeSessions.find((session) => session.id === runtimeSessionId)
-            : null;
-        const runtimeSessionType = String(
-            runtimeSession?.sessionType || (runtimeSession as any)?.session_type || "",
-        ).toLowerCase();
-        const runtimeGoalId = String(runtimeSession?.goalId || (runtimeSession as any)?.goal_id || "");
-        const isNamedSession = runtimeSessionType === "named" || runtimeGoalId.startsWith("named:");
-
-        if (mode === "Timer" && runtimeSessionId && isNamedSession && status === "authenticated" && user?.id) {
-            // Always use the live local timer values — the server-cached
-            // runtimeSession.remainingSeconds is only updated on pause and
-            // will be stale (equal to totalSeconds) if the user resets
-            // without pausing first.
-            const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
-            try {
-                await dataService.completeEkagraSession(runtimeSessionId, {
-                    mode: "Timer",
-                    elapsedSeconds,
-                    remainingSeconds: Math.max(0, remainingSeconds),
-                    sessionStartedAt: runtimeSession?.sessionStartedAt || (runtimeSession as any)?.session_started_at || null,
-                });
-                runtimeSessionIdRef.current = null;
-                setRuntimeActiveSessionId(null);
-                await refreshRuntimeSessions();
-            } catch (error) {
-                console.error("Complete Ekagra session error:", error);
-            }
-        }
-
-        resetTimer();
-    }, [
-        mode,
-        refreshRuntimeSessions,
-        remainingSeconds,
-        resetTimer,
-        runtimeActiveSessionId,
-        runtimeSessions,
-        status,
-        totalSeconds,
-        user?.id,
-    ]);
+    const handleResetTimer = useCallback(() => {
+        openPostSessionReview();
+    }, [openPostSessionReview]);
 
     const handleUnlinkGoal = () => {
         setAssociatedGoal(null, null);
@@ -904,255 +861,133 @@ export default function StudyWithMe() {
         }
     };
 
-    const handleCompleteCurrentTask = useCallback(async () => {
-        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
-        const runtimeSession = runtimeSessionId
-            ? runtimeSessions.find((session) => session.id === runtimeSessionId)
-            : null;
-        const runtimeSessionType = String(
-            runtimeSession?.sessionType || (runtimeSession as any)?.session_type || "",
-        ).toLowerCase();
-        const runtimeGoalId = String(runtimeSession?.goalId || (runtimeSession as any)?.goal_id || "");
-        const isNamedSession = runtimeSessionType === "named" || runtimeGoalId.startsWith("named:");
+    const focusGoalOptions = useMemo(
+        () => availableGoals.filter(isUsableFocusGoal),
+        [availableGoals],
+    );
+    const preselectedFocusGoal = useMemo(
+        () => associatedGoalId
+            ? focusGoalOptions.find((goal) => String(goal.id) === String(associatedGoalId)) || null
+            : null,
+        [associatedGoalId, focusGoalOptions],
+    );
 
-        if (!runtimeSessionId && !currentTask) return;
-
-        // Always use the live local timer values — the server-cached
-        // runtimeSession.remainingSeconds is only updated on pause and
-        // will be stale if the user completes without pausing first.
-        const elapsedSeconds = Math.max(0, totalSeconds - remainingSeconds);
-
-        if (runtimeSessionId && status === "authenticated" && user?.id) {
-            try {
-                await dataService.completeEkagraSession(runtimeSessionId, {
-                    mode: "Timer",
-                    elapsedSeconds,
-                    remainingSeconds: Math.max(0, remainingSeconds),
-                    sessionStartedAt: null,
-                });
-                runtimeSessionIdRef.current = null;
-                setRuntimeActiveSessionId(null);
-                await refreshRuntimeSessions();
-                await refreshEkagraTasksFromServer();
-            } catch (error) {
-                console.error("Complete Ekagra session error:", error);
-                return;
-            }
-        }
-
-        if (!isNamedSession && (status !== "authenticated" || !runtimeSessionId || !user?.id)) {
-            const goalIdToComplete = runtimeGoalId && !runtimeGoalId.startsWith("named:")
-                ? runtimeGoalId
-                : currentTask?.id;
-            if (!goalIdToComplete) return;
-            const completedAt = new Date().toISOString();
-            if (status === "authenticated" && user?.id) {
-                try {
-                    await dataService.updateGoal(goalIdToComplete, true, completedAt);
-                    setTasks((prev) => sortTasks(prev.map((task) =>
-                        task.id === goalIdToComplete ? { ...task, completed: true, completedAt } : task
-                    )));
-                } catch (error) {
-                    console.error("Complete Ekagra task error:", error);
-                    return;
-                }
-            } else {
-                const nextTasks = sortTasks(tasks.map((task) =>
-                    task.id === goalIdToComplete ? { ...task, completed: true, completedAt } : task
-                ));
-                setTasks(nextTasks);
-                saveTasks(nextTasks, user?.id);
-            }
-        }
-
-        if (isRunning) {
-            toggleTimer();
-        }
+    const discardPendingDraft = useCallback(() => {
+        setPendingEndedSession(null);
+        setGoalPendingConfirmation(null);
+        setOrganizeStep("choice");
+        setShowOrganizePrompt(false);
+        setSessionTitleInput("");
+        setAssociatedGoal(null, null);
+        discardStoredSession();
         resetTimer();
+    }, [discardStoredSession, resetTimer, setAssociatedGoal]);
 
-        if (associatedGoalId && !isNamedSession) {
-            setAssociatedGoal(null, null);
+    const saveRecoveredDraft = useCallback(() => {
+        let snapshot = getRuntimeSnapshot();
+        try {
+            const raw = localStorage.getItem("focus_timer_session_snapshot_v1");
+            if (raw) {
+                snapshot = JSON.parse(raw);
+            }
+        } catch {
+            // Fall back to the current runtime state.
         }
+        const elapsedSeconds = Math.max(0, snapshot.totalSeconds - snapshot.remainingSeconds);
+        if (elapsedSeconds <= 0) {
+            discardStoredSession();
+            return;
+        }
+        buildEndedDraft(elapsedSeconds, snapshot.remainingSeconds);
+    }, [buildEndedDraft, discardStoredSession, getRuntimeSnapshot]);
 
-        setCompletedTask(null);
-        setAwaitingProceed(false);
-        setShowDurationPrompt(false);
+    const handleSaveSessionTitle = useCallback(async () => {
+        const title = sessionTitleInput.trim();
+        if (!title) return;
+        setShowTitlePrompt(false);
+    }, [sessionTitleInput]);
+
+    const handleLinkActiveSessionToGoal = useCallback(async (goal: Goal) => {
+        const goalTitle = getGoalTitle(goal);
+        if (!goal.id || !goalTitle) return;
+        setAssociatedGoal(goal.id, goalTitle);
+        setShowLinkGoalPrompt(false);
+    }, [setAssociatedGoal]);
+
+    const completePendingFreeFocus = useCallback(async (options?: {
+        goal?: Goal;
+        markGoalComplete?: boolean;
+    }) => {
+        if (!pendingEndedSession || status !== "authenticated" || !user?.id) return;
+
+        try {
+            let linkedGoal = options?.goal || null;
+            const durationMinutes = Math.max(1, Math.round(pendingEndedSession.elapsedSeconds / 60));
+
+            await dataService.saveEkagraSession({
+                mode: "Timer",
+                startedAt: pendingEndedSession.sessionStartedAt || new Date(Date.now() - pendingEndedSession.elapsedSeconds * 1000).toISOString(),
+                endedAt: pendingEndedSession.endedAt || new Date().toISOString(),
+                plannedDurationMinutes: pendingEndedSession.plannedDurationMinutes || Math.max(1, Math.round((pendingEndedSession.elapsedSeconds + pendingEndedSession.remainingSeconds) / 60)),
+                actualDurationMinutes: durationMinutes,
+                completed: true,
+                goalId: linkedGoal?.id,
+                goalTitle: linkedGoal ? getGoalTitle(linkedGoal) : undefined,
+                taskTitle: sessionTitleInput.trim() || (linkedGoal ? getGoalTitle(linkedGoal) : "Free Focus"),
+                source: linkedGoal ? "goal_continue" : "manual",
+                markGoalComplete: Boolean(options?.markGoalComplete),
+            });
+
+            runtimeSessionIdRef.current = null;
+            setRuntimeActiveSessionId(null);
+            setPendingEndedSession(null);
+            setShowOrganizePrompt(false);
+            setGoalPendingConfirmation(null);
+            setOrganizeStep("choice");
+            setSessionTitleInput("");
+            setAssociatedGoal(null, null);
+            discardStoredSession();
+            resetTimer();
+            await refreshRuntimeSessions();
+            await refreshEkagraTasksFromServer();
+        } catch (error) {
+            console.error("Complete free focus session error:", error);
+        }
     }, [
-        associatedGoalId,
-        currentTask,
-        isRunning,
+        pendingEndedSession,
+        discardStoredSession,
         refreshEkagraTasksFromServer,
         refreshRuntimeSessions,
-        remainingSeconds,
         resetTimer,
-        runtimeActiveSessionId,
-        runtimeSessions,
         setAssociatedGoal,
+        sessionTitleInput,
         status,
-        tasks,
-        toggleTimer,
-        totalSeconds,
         user?.id,
     ]);
 
-    const handleCreateSessionFromOverlay = useCallback(async (title: string) => {
-        await handleManualTaskAdd(title);
-    }, [handleManualTaskAdd]);
-
-    const handleOpenSessionOverlay = useCallback(() => {
-        setIsTasksOpen(false);
-        setSessionOverlayTrigger((value) => value + 1);
-    }, []);
+    const handleCompleteCurrentTask = useCallback(async () => {
+        openPostSessionReview();
+    }, [openPostSessionReview]);
 
     const handlePauseLiveSession = useCallback(async () => {
-        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
-        if (runtimeSessionId && status === "authenticated" && user?.id) {
-            try {
-                lastPausedSessionIdRef.current = runtimeSessionId;
-                await dataService.updateEkagraSession(runtimeSessionId, {
-                    status: "paused",
-                    mode: "Timer",
-                    totalSeconds: Math.max(1, totalSeconds),
-                    remainingSeconds: Math.max(0, remainingSeconds),
-                    isRunning: false,
-                });
-                setRuntimeActiveSessionId(null);
-                await refreshRuntimeSessions();
-            } catch (error) {
-                console.error("Pause Ekagra session error:", error);
-            }
-        }
-
         if (isRunning) {
             toggleTimer();
         }
-    }, [isRunning, refreshRuntimeSessions, remainingSeconds, runtimeActiveSessionId, status, toggleTimer, totalSeconds, user?.id]);
+    }, [isRunning, toggleTimer]);
 
-    const handleResumeSession = useCallback(async (sessionId: string) => {
-        if (status !== "authenticated" || !user?.id) return;
-
-        const session = runtimeSessions.find((entry) => entry.id === sessionId);
-        if (!session) return;
-
-        const goalId = String(session.goalId || (session as any).goal_id || "").trim();
-        const goalTitle = String(session.goalTitle || (session as any).goal_title || "").trim();
-        const sessionTitle = String(session.sessionTitle || (session as any).session_title || goalTitle || "").trim();
-        const sessionType = String(session.sessionType || (session as any).session_type || "").toLowerCase();
-        const isNamedSession = sessionType === "named" || goalId.startsWith("named:");
-        const nextTotalSeconds = Math.max(1, Number(session.totalSeconds ?? (session as any).total_seconds ?? totalSeconds));
-        const nextRemainingSeconds = Math.max(0, Math.min(nextTotalSeconds, Number(session.remainingSeconds ?? (session as any).remaining_seconds ?? nextTotalSeconds)));
-
-        if (!isNamedSession && (!goalId || !goalTitle)) return;
-        if (isNamedSession && !sessionTitle) return;
-
-        try {
-            const resumed = await dataService.updateEkagraSession(sessionId, {
-                status: "active",
-                mode: "Timer",
-                totalSeconds: nextTotalSeconds,
-                remainingSeconds: nextRemainingSeconds,
-                isRunning: true,
-                sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
-                goalTitle: isNamedSession ? sessionTitle : goalTitle,
-                source: String(session.source || "").toLowerCase() === "imported"
-                    ? "imported"
-                    : isNamedSession
-                        ? "manual"
-                        : "goal_continue",
-                importedFromGoal: Boolean(session.importedFromGoal || (session as any).imported_from_goal),
-            });
-
-            if (isNamedSession) {
-                setAssociatedGoal(null, null);
-            } else {
-                setAssociatedGoal(goalId, goalTitle);
-            }
-            applyRuntimeSnapshot({
-                mode: "Timer",
-                totalSeconds: nextTotalSeconds,
-                remainingSeconds: nextRemainingSeconds,
-                isRunning: false,
-                associatedGoalId: isNamedSession ? null : goalId,
-                associatedGoalTitle: isNamedSession ? null : goalTitle,
-                sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
-            });
-
-            runtimeSessionIdRef.current = resumed.id;
-            setRuntimeActiveSessionId(resumed.id);
-            lastPausedSessionIdRef.current = null;
-            toggleTimer();
-            await refreshRuntimeSessions();
-        } catch (error) {
-            try {
-                const normalizedSource = String(session.source || "").toLowerCase();
-                const source = normalizedSource === "imported"
-                    ? "imported"
-                    : isNamedSession
-                        ? "manual"
-                        : "goal_continue";
-                const activated = await dataService.activateEkagraSession({
-                    ...(isNamedSession
-                        ? { sessionType: "named" as const, sessionTitle }
-                        : { goalId, goalTitle }),
-                    source,
-                    importedFromGoal: Boolean(session.importedFromGoal || (session as any).imported_from_goal),
-                    overrideActive: true,
-                    mode: "Timer",
-                    totalSeconds: nextTotalSeconds,
-                    remainingSeconds: nextRemainingSeconds,
-                    isRunning: true,
-                    sessionStartedAt: session.sessionStartedAt || (session as any).session_started_at || null,
-                });
-                runtimeSessionIdRef.current = activated.id;
-                setRuntimeActiveSessionId(activated.id);
-                lastPausedSessionIdRef.current = null;
-                toggleTimer();
-                await refreshRuntimeSessions();
-            } catch (resumeError) {
-                console.error("Resume Ekagra session error:", resumeError);
-            }
-        }
-    }, [applyRuntimeSnapshot, refreshRuntimeSessions, runtimeSessions, setAssociatedGoal, status, toggleTimer, totalSeconds, user?.id]);
+    const handleResumeSession = useCallback(async (_sessionId: string) => {
+        resumeStoredSession();
+    }, [resumeStoredSession]);
 
     const handleDiscardSession = useCallback(async (sessionId: string) => {
-        if (status !== "authenticated" || !user?.id) return;
-
-        try {
-            await dataService.discardEkagraSession(sessionId);
-            if ((runtimeSessionIdRef.current || runtimeActiveSessionId) === sessionId) {
-                runtimeSessionIdRef.current = null;
-                setRuntimeActiveSessionId(null);
-                if (isRunning) {
-                    toggleTimer();
-                }
-            }
-            await refreshRuntimeSessions();
-        } catch (error) {
-            console.error("Discard Ekagra session error:", error);
-        }
-    }, [isRunning, refreshRuntimeSessions, runtimeActiveSessionId, status, toggleTimer, user?.id]);
+        discardStoredSession();
+        setRuntimeSessions((prev) => prev.filter((session) => session.id !== sessionId));
+    }, [discardStoredSession]);
 
     const handleDeleteSession = useCallback(async (sessionId: string) => {
-        if (status !== "authenticated" || !user?.id) return;
-
-        try {
-            const wasRuntimeSession = (runtimeSessionIdRef.current || runtimeActiveSessionId) === sessionId;
-            await dataService.deleteEkagraSession(sessionId);
-            if (wasRuntimeSession) {
-                runtimeSessionIdRef.current = null;
-                setRuntimeActiveSessionId(null);
-                if (isRunning) {
-                    toggleTimer();
-                }
-            }
-            if (associatedGoalId && wasRuntimeSession) {
-                setAssociatedGoal(null, null);
-            }
-            await refreshRuntimeSessions();
-        } catch (error) {
-            console.error("Delete Ekagra session error:", error);
-        }
-    }, [associatedGoalId, isRunning, refreshRuntimeSessions, runtimeActiveSessionId, status, toggleTimer, user?.id]);
+        discardStoredSession();
+        setRuntimeSessions((prev) => prev.filter((session) => session.id !== sessionId));
+    }, [discardStoredSession]);
 
     const handleSwitchLiveSession = useCallback(() => {
         if (!currentTask) {
@@ -1164,122 +999,16 @@ export default function StudyWithMe() {
         }
     }, [currentTask, isRunning, mode, toggleTimer]);
 
-    const handleStartNamedSession = useCallback(async (title: string) => {
-        const sessionTitle = String(title || "").trim();
-        if (!sessionTitle || status !== "authenticated" || !user?.id) return;
-
-        try {
-            const activated = await dataService.activateEkagraSession({
-                sessionType: "named",
-                sessionTitle,
-                source: "manual",
-                overrideActive: true,
-                mode: "Timer",
-                totalSeconds: Math.max(1, totalSeconds),
-                remainingSeconds: Math.max(0, remainingSeconds),
-                isRunning: true,
-                sessionStartedAt: new Date().toISOString(),
-            });
-            runtimeSessionIdRef.current = activated.id;
-            setRuntimeActiveSessionId(activated.id);
-            lastPausedSessionIdRef.current = null;
-            setAssociatedGoal(null, null);
-            await refreshRuntimeSessions();
-            toggleTimer();
-        } catch (error) {
-            console.error("Activate named Ekagra session error:", error);
-        }
-    }, [refreshRuntimeSessions, remainingSeconds, setAssociatedGoal, status, toggleTimer, totalSeconds, user?.id]);
+    const handleStartFreeFocusSession = useCallback(async () => {
+        setAssociatedGoal(null, null);
+        toggleTimer();
+    }, [setAssociatedGoal, toggleTimer]);
 
     const handleToggleTimer = useCallback(async () => {
-        if (mode !== "Timer" || status !== "authenticated" || !user?.id) {
-            toggleTimer();
-            return;
-        }
-
-        const runtimeSessionId = runtimeSessionIdRef.current || runtimeActiveSessionId;
-        const goalId = associatedGoalId;
-        const goalTitle = associatedGoalTitle || linkedGoalTask?.text || null;
-        const importedFromGoal = Boolean(linkedGoalTask?.importedFromGoal);
-
-        if (isRunning) {
-            toggleTimer();
-            if (!runtimeSessionId) return;
-
-            try {
-                lastPausedSessionIdRef.current = runtimeSessionId;
-                await dataService.updateEkagraSession(runtimeSessionId, {
-                    status: "paused",
-                    mode: "Timer",
-                    totalSeconds: Math.max(1, totalSeconds),
-                    remainingSeconds: Math.max(0, remainingSeconds),
-                    isRunning: false,
-                });
-                setRuntimeActiveSessionId(null);
-                await refreshRuntimeSessions();
-            } catch (error) {
-                console.error("Pause runtime Ekagra session error:", error);
-            }
-            return;
-        }
-
-        const isResuming = remainingSeconds < totalSeconds && remainingSeconds > 0;
-        
-        if (isResuming) {
-            const resumableSessionId =
-                lastPausedSessionIdRef.current
-                || runtimeSessionId
-                || pausedRuntimeSessions[0]?.id
-                || null;
-            if (resumableSessionId) {
-                lastPausedSessionIdRef.current = null;
-                await handleResumeSession(resumableSessionId);
-                return;
-            }
-        }
-
-        if (!goalId || !goalTitle) {
-            setNamedSessionTitleInput("");
-            setShowNamedSessionPrompt(true);
-            return;
-        }
-
-        try {
-            const activated = await dataService.activateEkagraSession({
-                goalId: String(goalId),
-                goalTitle: String(goalTitle),
-                source: importedFromGoal ? "imported" : "goal_continue",
-                importedFromGoal,
-                overrideActive: true,
-                mode: "Timer",
-                totalSeconds: Math.max(1, totalSeconds),
-                remainingSeconds: Math.max(0, remainingSeconds),
-                isRunning: true,
-                sessionStartedAt: new Date().toISOString(),
-            });
-            runtimeSessionIdRef.current = activated.id;
-            setRuntimeActiveSessionId(activated.id);
-            lastPausedSessionIdRef.current = null;
-            await refreshRuntimeSessions();
-        } catch (error) {
-            console.error("Activate runtime Ekagra session error:", error);
-        }
-
+        // Local-first: just toggle the FocusContext timer.
+        // FocusContext handles localStorage snapshotting and session finalization.
         toggleTimer();
-    }, [associatedGoalId, associatedGoalTitle, handleResumeSession, isRunning, linkedGoalTask, mode, pausedRuntimeSessions, refreshRuntimeSessions, remainingSeconds, runtimeActiveSessionId, status, toggleTimer, totalSeconds, user?.id]);
-
-    const handleConfirmNamedSession = useCallback(async () => {
-        const title = namedSessionTitleInput.trim();
-        if (!title) return;
-        setShowNamedSessionPrompt(false);
-        setNamedSessionTitleInput("");
-        await handleStartNamedSession(title);
-    }, [handleStartNamedSession, namedSessionTitleInput]);
-
-    const handleCancelNamedSession = useCallback(() => {
-        setShowNamedSessionPrompt(false);
-        setNamedSessionTitleInput("");
-    }, []);
+    }, [toggleTimer]);
 
     const liveSessionPreview = useMemo<EkagraModeSession | null>(() => {
         if (status === "authenticated" && user?.id) return null;
@@ -1650,40 +1379,176 @@ export default function StudyWithMe() {
                 </div>
             )}
 
-            <Dialog
-                open={showNamedSessionPrompt}
-                onOpenChange={(open) => {
-                    if (!open) handleCancelNamedSession();
-                }}
-            >
+            <Dialog open={showTitlePrompt} onOpenChange={setShowTitlePrompt}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Start a focus session</DialogTitle>
+                        <DialogTitle>Add title</DialogTitle>
                         <DialogDescription>
-                            Enter a session name to start Ekagra focus.
+                            Name this Free Focus session without changing it into another session type.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="flex items-center gap-3">
-                        <input
-                            type="text"
-                            value={namedSessionTitleInput}
-                            onChange={(e) => setNamedSessionTitleInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && namedSessionTitleInput.trim()) {
-                                    handleConfirmNamedSession();
-                                }
-                            }}
-                            placeholder="e.g., Read Maths"
-                            className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            autoFocus
-                        />
-                    </div>
+                    <input
+                        type="text"
+                        value={sessionTitleInput}
+                        onChange={(e) => setSessionTitleInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && sessionTitleInput.trim()) {
+                                void handleSaveSessionTitle();
+                            }
+                        }}
+                        placeholder="e.g., Physics revision"
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        autoFocus
+                    />
                     <DialogFooter className="flex-col sm:flex-row gap-2">
-                        <Button variant="outline" onClick={handleCancelNamedSession}>
+                        <Button variant="outline" onClick={() => setShowTitlePrompt(false)}>
                             Cancel
                         </Button>
-                        <Button onClick={handleConfirmNamedSession} disabled={!namedSessionTitleInput.trim()}>
-                            Start Session
+                        <Button onClick={handleSaveSessionTitle} disabled={!sessionTitleInput.trim()}>
+                            Save Title
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showLinkGoalPrompt} onOpenChange={setShowLinkGoalPrompt}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Link goal</DialogTitle>
+                        <DialogDescription>
+                            Attach this Free Focus session to an existing goal.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="max-h-72 space-y-2 overflow-y-auto">
+                        {focusGoalOptions.length === 0 ? (
+                            <p className="rounded-xl bg-muted/50 p-4 text-sm text-muted-foreground">No open goals available.</p>
+                        ) : (
+                            focusGoalOptions.map((goal) => (
+                                <button
+                                    key={goal.id}
+                                    type="button"
+                                    onClick={() => handleLinkActiveSessionToGoal(goal)}
+                                    className="w-full rounded-xl border bg-card px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-muted/50"
+                                >
+                                    {getGoalTitle(goal)}
+                                </button>
+                            ))
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showOrganizePrompt} onOpenChange={(open) => {
+                if (!open) setShowOrganizePrompt(false);
+            }}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>You focused for {Math.max(1, Math.round((pendingEndedSession?.elapsedSeconds || 0) / 60))} min.</DialogTitle>
+                        <DialogDescription>
+                            {Math.round((pendingEndedSession?.elapsedSeconds || 0) / 60) < 2
+                                ? "This was a short session. Save it only if it was intentional."
+                                : "What would you like to do?"}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {organizeStep === "choice" && (
+                            <div className="space-y-3">
+                                {preselectedFocusGoal && (
+                                    <Button
+                                        className="h-12 w-full justify-start rounded-xl"
+                                        onClick={() => setGoalPendingConfirmation(preselectedFocusGoal)}
+                                    >
+                                        Save to {getGoalTitle(preselectedFocusGoal)}
+                                    </Button>
+                                )}
+                                <Button
+                                    className="h-12 w-full justify-start rounded-xl"
+                                    variant="outline"
+                                    onClick={() => setOrganizeStep("link")}
+                                >
+                                    Link to Goal
+                                </Button>
+                                <Button
+                                    className="h-12 w-full justify-start rounded-xl"
+                                    variant="outline"
+                                    onClick={() => setOrganizeStep("free")}
+                                >
+                                    Save as Free Focus
+                                </Button>
+                            </div>
+                        )}
+
+                        {goalPendingConfirmation && (
+                            <div className="rounded-xl border bg-muted/40 p-3">
+                                <p className="text-sm font-semibold">
+                                    Add {Math.max(1, Math.round((pendingEndedSession?.elapsedSeconds || 0) / 60))} min to {getGoalTitle(goalPendingConfirmation)}?
+                                </p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    <Button size="sm" onClick={() => completePendingFreeFocus({ goal: goalPendingConfirmation })}>
+                                        Save to Goal
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={() => completePendingFreeFocus({ goal: goalPendingConfirmation, markGoalComplete: true })}>
+                                        Save & Complete Goal
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setGoalPendingConfirmation(null)}>
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {organizeStep === "free" && !goalPendingConfirmation && (
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                    <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Add title optional</div>
+                                    <input
+                                        type="text"
+                                        value={sessionTitleInput}
+                                        onChange={(e) => setSessionTitleInput(e.target.value)}
+                                        placeholder="Maths Revision"
+                                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    />
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                    <Button variant="ghost" onClick={() => setOrganizeStep("choice")}>
+                                        Back
+                                    </Button>
+                                    <Button onClick={() => completePendingFreeFocus()}>
+                                        Save Free Focus
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {organizeStep === "link" && !goalPendingConfirmation && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Choose a goal</div>
+                                    <Button size="sm" variant="ghost" onClick={() => setOrganizeStep("choice")}>Back</Button>
+                                </div>
+                                <div className="max-h-56 space-y-2 overflow-y-auto">
+                                    {focusGoalOptions.length === 0 ? (
+                                        <p className="rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground">No open goals available.</p>
+                                    ) : (
+                                        focusGoalOptions.map((goal) => (
+                                            <button
+                                                key={goal.id}
+                                                type="button"
+                                                onClick={() => setGoalPendingConfirmation(goal)}
+                                                className="w-full rounded-xl border bg-card px-4 py-3 text-left text-sm font-semibold transition-colors hover:bg-muted/50"
+                                            >
+                                                {getGoalTitle(goal)}
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                    </div>
+                    <DialogFooter className="mt-2">
+                        <Button variant="ghost" onClick={discardPendingDraft}>
+                            Discard
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -1732,26 +1597,55 @@ export default function StudyWithMe() {
             <TasksSidebar
                 isOpen={isTasksOpen}
                 onClose={() => setIsTasksOpen(false)}
-                sessions={runtimeSessions}
-                activeSessionId={runtimeActiveSessionId}
-                liveSessionPreview={liveSessionPreview}
-                onResumeSession={handleResumeSession}
-                onDiscardSession={handleDiscardSession}
-                onDeleteSession={handleDeleteSession}
-                onPauseLiveSession={handlePauseLiveSession}
-                onCompleteLiveSession={handleCompleteCurrentTask}
-                onSwitchLiveSession={handleSwitchLiveSession}
-                onCreateSession={handleCreateSessionFromOverlay}
-                sessionOverlayTrigger={sessionOverlayTrigger}
             />
 
             {/* Main Content or Analytics */}
             {showAnalytics ? (
                 <div className="flex-1 overflow-auto bg-white dark:bg-slate-950 relative z-30 flex flex-col items-center justify-center p-4">
-                    <FocusAnalytics onBack={() => setShowAnalytics(false)} />
+                    <div className="rounded-3xl border bg-card p-8 text-center shadow-sm">
+                        <h2 className="text-2xl font-black text-foreground">Focus Insights moved to Analytics</h2>
+                        <p className="mt-2 text-sm text-muted-foreground">Timer stays for focus execution. Deep focus patterns and session history now live in the Analytics hub.</p>
+                        <button
+                            type="button"
+                            onClick={() => navigate("/nishtha/analytics?tab=focus")}
+                            className="mt-6 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground"
+                        >
+                            Open Focus Insights
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 pt-24 sm:pt-4 min-h-full pb-32 landscape:pb-24">
+                    {hasPendingResume && !hasLocalTimerDraft && (
+                        <div className="w-full max-w-2xl mb-4 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 text-white backdrop-blur-md shadow-lg">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Unsaved Ekagra timer</div>
+                                    <div className="mt-1 text-sm font-semibold">Recovered local focus time</div>
+                                </div>
+                                <div className="flex shrink-0 flex-wrap gap-2">
+                                    <button
+                                        onClick={resumeStoredSession}
+                                        className="rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+                                    >
+                                        Resume
+                                    </button>
+                                    <button
+                                        onClick={saveRecoveredDraft}
+                                        className="rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+                                    >
+                                        Save
+                                    </button>
+                                    <button
+                                        onClick={discardPendingDraft}
+                                        className="rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+                                    >
+                                        Discard
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     {associatedGoalId && associatedGoalTitle && (
                         <div className="w-full max-w-2xl mb-4 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 text-white backdrop-blur-md shadow-lg">
                             <div className="flex items-center justify-between gap-3">
@@ -1771,21 +1665,6 @@ export default function StudyWithMe() {
                             </div>
                         </div>
                     )}
-                    {!associatedGoalId && activeRuntimeSessionType === "named" && activeRuntimeSessionTitle && (
-                        <div className="w-full max-w-2xl mb-4 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 text-white backdrop-blur-md shadow-lg">
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-2">
-                                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Named Session</div>
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-2 text-sm font-semibold">
-                                        <Target className="h-4 w-4 shrink-0" />
-                                        <span className="truncate">{activeRuntimeSessionTitle}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     {/* Timer Card */}
                     <TimerCard
                         minutes={minutes}
@@ -1796,6 +1675,8 @@ export default function StudyWithMe() {
                         currentTheme={currentTheme}
                         onToggle={handleToggleTimer}
                         onReset={handleResetTimer}
+                        startLabel="Start"
+                        endLabel="End Session"
                         onTogglePiP={togglePiP}
                         onSetMode={handleModeChange}
                         isPiPActive={isPiPActive}
@@ -1888,7 +1769,7 @@ export default function StudyWithMe() {
                             className="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted/50 transition-all font-medium"
                         >
                             <History className="w-5 h-5" style={{ color: currentTheme.accent }} />
-                            <span>History</span>
+                            <span>Session History</span>
                         </button>
                         <button
                             onClick={() => navigate("/home")}
@@ -2042,7 +1923,7 @@ export default function StudyWithMe() {
                         <Menu className="w-5 h-5" />
                     </button>
 
-                    {/* History Button */}
+                    {/* Session History Button */}
                     <button
                         onClick={() => setIsTasksOpen(true)}
                         data-tour="history-button"
@@ -2054,30 +1935,7 @@ export default function StudyWithMe() {
                         title="Session History"
                     >
                         <History className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline">History</span>
-                    </button>
-
-                    <button
-                        onClick={handleOpenSessionOverlay}
-                        data-tour="sessions-button"
-                        className={`relative flex items-center gap-2 h-10 px-4 rounded-full transition-all group ${
-                            showAnalytics
-                                ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
-                                : "hover:bg-white/10 text-white"
-                        } ${pausedSessionCount > 0 && !showAnalytics ? "bg-white/10 ring-1 ring-amber-300/50" : ""}`}
-                        title="Focus Sessions"
-                    >
-                        <Layers3 className="w-4 h-4 group-hover:scale-110 transition-transform" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline">Sessions</span>
-                        {pausedSessionCount > 0 && (
-                            <span className={`inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
-                                showAnalytics
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-amber-300 text-slate-900"
-                            }`}>
-                                {pausedSessionCount}
-                            </span>
-                        )}
                     </button>
 
                     <button
@@ -2145,16 +2003,16 @@ export default function StudyWithMe() {
 
                     {/* Analytics Toggle */}
                     <button
-                        onClick={() => setShowAnalytics(!showAnalytics)}
+                        onClick={() => navigate("/nishtha/analytics?tab=focus")}
                         data-tour="analytics-link"
                         className={`hidden sm:flex items-center justify-center w-10 h-10 rounded-full transition-all ${
                             showAnalytics 
                             ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" 
                             : "hover:bg-white/10 text-white"
                         }`}
-                        title={showAnalytics ? "Return to Timer" : "View Analytics"}
+                        title="View Focus Insights"
                     >
-                        {showAnalytics ? <LayoutDashboard className="w-4 h-4" /> : <BarChart2 className="w-4 h-4" />}
+                        <BarChart2 className="w-4 h-4" />
                     </button>
 
                     {/* Profile Avatar with Dropdown */}
@@ -2204,32 +2062,6 @@ export default function StudyWithMe() {
                     </DropdownMenu>
                 </div>
             </div>
-            {showPausedSessionReminder && (
-                <div className="fixed top-20 right-4 sm:right-8 z-[55]">
-                    <div className="flex items-center gap-2 rounded-full border border-amber-200/35 bg-slate-950/45 px-3 py-2 text-white shadow-lg backdrop-blur-xl">
-                        <button
-                            onClick={handleOpenSessionOverlay}
-                            className="flex items-center gap-2 rounded-full text-sm font-medium text-white/90 transition-colors hover:text-white"
-                        >
-                            <Clock className="h-4 w-4 text-amber-300" />
-                            <span className="hidden sm:inline">
-                                {pausedSessionCount === 1
-                                    ? `${pausedSessionPreviewTitle ? `${pausedSessionPreviewTitle} is` : "Paused session is"} safe in Sessions`
-                                    : `${pausedSessionCount} paused sessions safe in Sessions`}
-                            </span>
-                            <span className="sm:hidden">{pausedSessionCount} paused</span>
-                        </button>
-                        <button
-                            onClick={() => setDismissedPausedReminder(true)}
-                            className="rounded-full p-1 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-                            aria-label="Dismiss paused session hint"
-                        >
-                            <X className="h-3.5 w-3.5" />
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {showEkagraGuide && (
                 <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm p-4 flex items-center justify-center">
                     <div className="w-full max-w-3xl max-h-[85dvh] rounded-3xl border border-white/20 bg-slate-900/95 text-white shadow-2xl overflow-hidden flex flex-col">
@@ -2252,18 +2084,18 @@ export default function StudyWithMe() {
                             <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-white/90">
                                 <h3 className="text-sm font-bold mb-2">What changed (quick recap)</h3>
                                 <ul className="list-disc pl-5 space-y-1">
-                                    <li>Goals stay in Goals. Ekagra only links to them while you focus.</li>
-                                    <li>Finished sessions move out of the Sessions overlay and into History and Analytics.</li>
-                                    <li>Ending a linked session marks that goal completed.</li>
-                                    <li>Timer analytics now uses actual timer time used by the session.</li>
+                                    <li>Ekagra starts as a local timer. Nothing is saved until you choose to save.</li>
+                                    <li>Finished focus time can become Free Focus, linked goal progress, a new goal, or nothing.</li>
+                                    <li>Linked goals gain studied time without being falsely completed.</li>
+                                    <li>Analytics and history use saved focus time only.</li>
                                 </ul>
                             </div>
                             <section className="space-y-2">
                                 <h3 className="font-bold text-base">1. How to start a session</h3>
                                 <ol className="list-decimal pl-5 space-y-1 text-white/90">
-                                    <li>Open Ekagra from a goal using Focus, or start an unlinked session with your own task title.</li>
+                                    <li>Open Ekagra from a goal using Focus, or start Free Focus directly.</li>
                                     <li>Set the timer duration from the sidebar.</li>
-                                    <li>Press Start to begin the active focus session.</li>
+                                    <li>Press Start to begin the local timer.</li>
                                 </ol>
                             </section>
 
@@ -2271,21 +2103,20 @@ export default function StudyWithMe() {
                                 <h3 className="font-bold text-base">2. Timer controls</h3>
                                 <ul className="list-disc pl-5 space-y-1 text-white/90">
                                     <li><strong>Start / Pause</strong>: begins or pauses the current session.</li>
-                                    <li><strong>Reset</strong>: resets the current timer cycle.</li>
+                                    <li><strong>End Session</strong>: opens the save review.</li>
                                     <li><strong>Modes</strong>: switch between focus, short break, and long break.</li>
-                                    <li><strong>End Session</strong>: finishes the session and saves it to focus history.</li>
+                                    <li><strong>Discard</strong>: clears the local draft without saving.</li>
                                     <li><strong>PiP</strong>: opens a mini timer window while you work elsewhere.</li>
                                 </ul>
                             </section>
 
                             <section className="space-y-2">
-                                <h3 className="font-bold text-base">3. History and Sessions</h3>
+                                <h3 className="font-bold text-base">3. History and recovery</h3>
                                 <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li><strong>Sessions</strong>: manage running and paused live sessions here.</li>
-                                    <li><strong>Reload safety</strong>: if you pause and reload, your session stays safe under <strong>Sessions</strong>.</li>
-                                    <li><strong>Resume</strong>: reopens the same paused session and starts the timer again.</li>
-                                    <li><strong>Delete</strong>: removes a live session completely.</li>
-                                    <li><strong>History</strong>: shows today's finished focus work, split into linked and unlinked items.</li>
+                                    <li><strong>Reload safety</strong>: unsaved timer drafts are recovered locally.</li>
+                                    <li><strong>Resume</strong>: continues the recovered local timer.</li>
+                                    <li><strong>Save</strong>: opens the post-session review for recovered time.</li>
+                                    <li><strong>Session History</strong>: shows saved focus work only.</li>
                                 </ul>
                             </section>
 
@@ -2295,7 +2126,7 @@ export default function StudyWithMe() {
                                     <li>The linked goal appears at the top so you always know what you are working on.</li>
                                     <li>The goal stays inside Goals; Ekagra only links to it.</li>
                                     <li>Unlink removes the connection without deleting the goal.</li>
-                                    <li>When the linked session ends, the goal is completed and the banner clears.</li>
+                                    <li>When linked focus is saved, duration goals gain time. Binary goals complete only when you choose that explicitly.</li>
                                 </ul>
                             </section>
 
@@ -2311,11 +2142,11 @@ export default function StudyWithMe() {
                             <section className="space-y-2">
                                 <h3 className="font-bold text-base">6. Recommended flow</h3>
                                 <ol className="list-decimal pl-5 space-y-1 text-white/90">
-                                    <li>Pick a linked goal or create a simple unlinked focus session.</li>
+                                    <li>Start Ekagra immediately.</li>
                                     <li>Set a realistic duration before you start.</li>
-                                    <li>Pause only when needed, then resume the same session.</li>
-                                    <li>End the session when you finish. It will move into History and Timer Analytics automatically.</li>
-                                    <li>Open Analytics when you want to review total focus time and session logs.</li>
+                                    <li>Pause only when needed.</li>
+                                    <li>End the timer and decide whether to save as Free Focus, link a goal, create a goal, or discard.</li>
+                                    <li>Open Analytics when you want to review saved focus time and goal progress.</li>
                                 </ol>
                             </section>
                         </div>

@@ -451,6 +451,16 @@
     border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
+:root:not(.dark) .sandesh-input-card input,
+:root:not(.dark) .sandesh-input-card textarea {
+    color: #1e293b;
+}
+
+:root:not(.dark) .sandesh-input-card input::placeholder,
+:root:not(.dark) .sandesh-input-card textarea::placeholder {
+    color: #94a3b8;
+}
+
 :root:not(.dark) .sandesh-action-btn {
     background: rgba(255, 255, 255, 0.7);
     border: 1px solid rgba(0, 0, 0, 0.12);
@@ -470,14 +480,10 @@
     background: rgba(255, 255, 255, 0.8);
 }
 
-:root:not(.dark) .sandesh-cancel-btn {
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-}
-
 :root:not(.dark) .sandesh-cancel-btn:hover {
     background: rgba(255, 255, 255, 0.8);
 }
+
 
 :root:not(.dark) .sandesh-divider {
     background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.08), transparent);

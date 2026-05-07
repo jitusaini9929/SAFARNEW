@@ -1,5 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { PremiumEmoji } from '@/components/PremiumEmoji';
+import SafarLogo from './SafarLogo';
 
 const Footer = () => {
     const { t } = useTranslation();
@@ -10,10 +12,8 @@ const Footer = () => {
                 {/* Top Section - Logo & Tagline */}
                 <div className="text-center mb-12">
                     <div className="flex items-center justify-center gap-4 mb-4">
-                        <div className="rounded-full bg-forest p-1 shadow-xl">
-                            <img loading="lazy" src="/safar-logo.png.webp" alt="Safar Logo" className="w-12 h-12 rounded-full object-cover" />
-                        </div>
-                        <span className="text-3xl font-playfair font-extrabold text-forest dark:text-white tracking-widest uppercase">Safar</span>
+                        <SafarLogo className="w-12 h-12 shrink-0 text-[#042854] dark:text-white" title="Safar Logo" />
+                        <span className="text-3xl font-playfair font-extrabold text-[#042854] dark:text-white tracking-widest uppercase">Safar</span>
                     </div>
                     <p className="text-road/60 dark:text-white/50 font-inter font-medium text-base max-w-md mx-auto">{t('footer.tagline')}</p>
                 </div>
@@ -43,7 +43,8 @@ const Footer = () => {
                     <div className="text-center md:text-right">
                         <h4 className="text-forest dark:text-white font-manrope font-bold mb-3 text-sm tracking-widest uppercase">{t('footer.meditation')}</h4>
                         <p className="text-road/60 dark:text-white/50 font-inter font-medium text-xs mb-4">{t('footer.app_subtitle')}</p>
-                        <a href="https://play.google.com/store/apps/details?id=com.parmar.academy" target="_blank" rel="noopener noreferrer" className="btn-horizon-solar px-6 py-2.5 text-sm">
+                        <a href="https://play.google.com/store/apps/details?id=com.parmar.academy" target="_blank" rel="noopener noreferrer" className="btn-horizon-solar px-6 py-2.5 text-sm inline-flex items-center gap-2">
+                            <PremiumEmoji name="deviceMobile" alt="" className="h-4 w-4" />
                             {t('footer.download_app')}
                         </a>
                     </div>

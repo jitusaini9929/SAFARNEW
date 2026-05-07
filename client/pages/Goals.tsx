@@ -1,29 +1,28 @@
-import React, { lazy, Suspense, useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
 import { dataService } from "@/utils/dataService";
 import { Goal, GoalSubtask, GoalKind, GoalUnitType, GoalExecutionStatus, GoalCarryForwardMode } from "@shared/api";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
-import { 
-  getISTDateKey, 
-  dateKeyToUtcDate, 
-  formatDateLabel, 
-  formatISTDate, 
-  getISTMinutesSinceMidnight, 
+import {
+  getISTDateKey,
+  dateKeyToUtcDate,
+  formatDateLabel,
+  formatISTDate,
+  getISTMinutesSinceMidnight,
   diffISTDays
 } from "@/utils/dateUtils";
-import { 
-  Plus, 
-  Check, 
+import {
+  Plus,
+  Check,
   CheckCircle2,
-  Edit2, 
-  Trash2, 
-  Play, 
-  RotateCcw, 
-  Calendar, 
-  TrendingUp, 
-  Clock, 
+  Edit2,
+  Trash2,
+  RotateCcw,
+  Calendar,
+  TrendingUp,
+  Clock,
   BarChart3,
   HelpCircle,
   X,
@@ -35,20 +34,13 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import ChartErrorBoundary from "@/components/charts/ChartErrorBoundary";
 import { cn } from "@/lib/utils";
-
-const StreaksConsistencyChart = lazy(() => import("@/components/charts/StreaksConsistencyChart"));
-const StudyTimeDonutChart = lazy(() => import("@/components/charts/StudyTimeDonutChart"));
 
 import { ekagraAnalyticsService } from "@/services/ekagraAnalyticsService";
 
 import {
   UIGoal,
   GOAL_KIND_OPTIONS,
-  GOAL_UNIT_OPTIONS,
-  GOAL_CARRY_FORWARD_OPTIONS,
-  GOAL_STATUS_OPTIONS,
   formatTime,
   DAY_MS,
   parseValidDate,
@@ -123,7 +115,7 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
       {data.map((d, i) => (
         <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full">
           <div className="flex-1 flex items-end w-full">
-            <div 
+            <div
               className={`w-full min-h-[4px] rounded-t-md transition-all duration-500 relative group
                 ${d.count > 0 ? 'bg-gradient-to-t from-emerald-600 to-emerald-400' : 'bg-muted'}`}
               style={{ height: `${(d.count / max) * 100}%` }}
@@ -142,7 +134,7 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
   );
 };
 
-const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideActions = false, hideMeta = false, createdMeta }: any) => {
+const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, hideActions = false, hideMeta = false, createdMeta }: any) => {
   const { t } = useTranslation();
   const completedAt = getGoalCompletedDate(goal);
   const completedDateLabel = completedAt ? formatDateLabel(completedAt.toISOString()) : "";
@@ -152,13 +144,12 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
   const targetValue = normalizeTargetValue(goal);
   const achievedValue = normalizeAchievedValue(goal);
   const status = normalizeGoalStatus(goal);
-  const linkedFocusEnabled = Boolean(goal.linkedFocusEnabled ?? (goal as any).linked_focus_enabled);
   const showProgress = unitType !== "binary" && (unitType === "checklist" || targetValue !== null);
   const progressPercent = getGoalProgressPercent(goal);
   const kindTone = getGoalKindTone(goalKind);
   const unitTone = getGoalUnitTone(unitType);
   const statusTone = getGoalStatusTone(status);
-  
+
   const primaryMeta = goal.completed
     ? completedTimeLabel
       ? t("goals.meta.completed_with_time", { date: completedDateLabel, time: completedTimeLabel })
@@ -206,13 +197,6 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
             </span>
           </div>
         )}
-        {linkedFocusEnabled && (
-          <div className="mb-2">
-            <span className="inline-flex items-center rounded-full border border-amber-500/15 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
-              Timer linked
-            </span>
-          </div>
-        )}
         <div className="flex items-start justify-between gap-3">
           <h4 className={cn("text-[15px] font-semibold leading-6 text-foreground", goal.completed && "line-through text-muted-foreground")}>
             {goal.title}
@@ -228,7 +212,7 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
           <div className="mt-3 space-y-2">
             <div className="h-2 overflow-hidden rounded-full bg-muted/80">
               <div
-                className={cn("h-full rounded-full transition-[width] duration-300", linkedFocusEnabled ? "bg-amber-500" : "bg-emerald-500")}
+                className="h-full rounded-full bg-emerald-500 transition-[width] duration-300"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -260,14 +244,9 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
       {!hideActions && (
         <div className="flex items-center gap-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
           {!goal.completed && (
-            <>
-              <button onClick={() => onFocus(goal)} className={cn(actionButtonClass, "text-amber-600 hover:bg-amber-500/10 hover:text-amber-700 dark:hover:text-amber-300")} title={t("goals.actions.start_focus")}>
-                <Play size={16} fill="currentColor" />
-              </button>
-              <button onClick={() => onEdit(goal)} className={cn(actionButtonClass, "text-sky-600 hover:bg-sky-500/10 hover:text-sky-700 dark:hover:text-sky-300")} title={t("goals.actions.edit")}>
-                <Edit2 size={16} />
-              </button>
-            </>
+            <button onClick={() => onEdit(goal)} className={cn(actionButtonClass, "text-sky-600 hover:bg-sky-500/10 hover:text-sky-700 dark:hover:text-sky-300")} title={t("goals.actions.edit")}>
+              <Edit2 size={16} />
+            </button>
           )}
           <button onClick={() => onRepeat(goal)} className={cn(actionButtonClass, "text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300")} title={t("goals.actions.repeat_task")}>
             <RotateCcw size={16} />
@@ -277,7 +256,7 @@ const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, onFocus, hideAct
               <button onClick={() => onDelete(goal.id)} className={cn(actionButtonClass, "text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-300")} title={t("goals.actions.delete")}>
                 <Trash2 size={16} />
               </button>
-              <button 
+              <button
                 onClick={() => onToggle(goal.id, goal.completed)}
                 className="ui-pressable flex h-9 w-9 items-center justify-center rounded-full border-2 border-emerald-500/25 text-emerald-600 hover:border-emerald-500 hover:bg-emerald-500/10"
                 title={t("goals.actions.mark_done")}
@@ -315,14 +294,14 @@ const ScheduledTasksSection = ({ goals, onEdit, onDelete, t }: { goals: UIGoal[]
         </div>
         <ChevronDown size={18} className={`text-muted-foreground transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
       </button>
-      
+
       {expanded && (
         <div className="divide-y divide-muted/50 border-t">
           {goals.map(goal => {
             const scheduledKey = goal.scheduledDate ?? (goal as any).scheduled_date ?? '';
             const scheduledInfo = getGoalScheduledInfo(scheduledKey);
             const scheduledDisplay = scheduledInfo.isValid ? scheduledInfo.display : 'Invalid date';
-            
+
             return (
               <div key={goal.id} className="group flex items-center gap-4 p-5 transition-colors hover:bg-muted/10">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-500/15 bg-violet-500/10">
@@ -394,30 +373,27 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
     if (!isEdit) return GOAL_KIND_OPTIONS;
     const legacyPrepend =
       goalKind === "one_time" ? [LEGACY_ONE_TIME_GOAL_KIND_OPTION]
-      : goalKind === "repeat" ? [LEGACY_REPEAT_GOAL_KIND_OPTION]
-      : [];
+        : goalKind === "repeat" ? [LEGACY_REPEAT_GOAL_KIND_OPTION]
+          : [];
     return [...legacyPrepend, ...GOAL_KIND_OPTIONS];
   })();
-  const [unitType, setUnitType] = useState<GoalUnitType>(() => {
+  const [unitType] = useState<GoalUnitType>(() => {
     const raw = String(goal?.unitType || goal?.unit_type || "").trim();
     return raw === "binary" || raw === "count" || raw === "duration_minutes" || raw === "checklist"
       ? (raw as GoalUnitType)
       : "binary";
   });
-  // duration_minutes always has focus linking — no longer a user toggle
-  const linkedFocusEnabled = unitType === "duration_minutes";
-  const [repeatRule, setRepeatRule] = useState<"daily" | "weekdays" | "custom">("daily");
-  const [targetValue, setTargetValue] = useState(() => {
+  const [targetValue] = useState(() => {
     const raw = goal?.targetValue ?? goal?.target_value;
     const value = Number(raw);
     return Number.isFinite(value) && value >= 0 ? String(value) : "";
   });
-  const [achievedValue, setAchievedValue] = useState(() => {
+  const [achievedValue] = useState(() => {
     const raw = goal?.achievedValue ?? goal?.achieved_value;
     const value = Number(raw);
     return Number.isFinite(value) && value >= 0 ? String(value) : "";
   });
-  const [status, setStatus] = useState<GoalExecutionStatus>(() => {
+  const [status] = useState<GoalExecutionStatus>(() => {
     const raw = String(goal?.status || goal?.status_value || "").trim();
     if (
       raw === "not_started" ||
@@ -451,15 +427,6 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
       }))
       .filter((entry: GoalSubtask) => entry.text.length > 0);
   });
-  const unitOptions = useMemo(() => {
-    let options = GOAL_UNIT_OPTIONS;
-    // Legacy guard: if editing a goal that was created with 'count' or 'checklist'
-    if (isEdit && unitType === "checklist" && !options.some((option) => option.value === "checklist")) {
-      options = [...options, { value: "checklist", label: "Checklist points" }];
-    }
-    return options;
-  }, [isEdit, unitType]);
-
   const addSubtask = () => {
     const text = newSubtaskText.trim();
     if (!text) return;
@@ -503,14 +470,6 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
     const effectiveDurationTarget = Number.isFinite(parsedTargetValue) && parsedTargetValue > 0
       ? Math.round(parsedTargetValue)
       : null;
-    const existingTargetValue = isEdit ? Number(goal?.targetValue ?? goal?.target_value ?? null) : null;
-    const existingPlannedMinutes = isEdit ? Number(goal?.plannedFocusMinutes ?? goal?.planned_focus_minutes ?? null) : null;
-    const fallbackDurationTarget = Number.isFinite(existingPlannedMinutes) && existingPlannedMinutes > 0
-      ? Math.round(existingPlannedMinutes)
-      : Number.isFinite(existingTargetValue) && existingTargetValue > 0
-        ? Math.round(existingTargetValue)
-        : null;
-
     if (unitType === "count" && (targetValue === "" || parsedTargetValue < 0)) return;
     const scheduleDateKey = goalKind === "today"
       ? todayKey
@@ -523,10 +482,6 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
       ? (goal?.startedAt || goal?.started_at || null)
       : null;
 
-    const plannedFocusMinutes = unitType === "duration_minutes"
-      ? (effectiveDurationTarget ?? fallbackDurationTarget)
-      : null;
-
     onSave({
       title: title.trim(),
       description: desc.trim(),
@@ -534,14 +489,14 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
       startedAt,
       goalKind,
       unitType,
-      executionMode: unitType === "duration_minutes" && linkedFocusEnabled ? "timed" : "manual",
-      linkedFocusEnabled: unitType === "duration_minutes" ? linkedFocusEnabled : false,
-      plannedFocusMinutes,
+      executionMode: "manual",
+      linkedFocusEnabled: false,
+      plannedFocusMinutes: null,
       targetValue:
         unitType === "binary" || unitType === "checklist"
           ? null
           : unitType === "duration_minutes"
-            ? (effectiveDurationTarget ?? fallbackDurationTarget)
+            ? effectiveDurationTarget
             : Number(targetValue),
       achievedValue: achievedValue ? Number(achievedValue) : 0,
       status: isCreate ? "not_started" : status,
@@ -555,7 +510,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
   const parsedTargetForValidation = Number(targetValue);
   const hasValidTarget = !requiresTarget
     || (targetValue !== "" && parsedTargetForValidation >= 0);
-  
+
   const needsFutureDate = goalKind === "scheduled" && !isEdit;
   const hasFutureDate = !needsFutureDate || (date > todayKey);
   const canSubmit = Boolean(title.trim()) && hasValidTarget && hasFutureDate;
@@ -564,7 +519,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-3 backdrop-blur-[2px] animate-in fade-in duration-200 sm:items-center sm:p-4">
       <div className="ui-panel w-full max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-hidden rounded-3xl flex flex-col animate-in zoom-in-95 duration-200 sm:max-h-[calc(100dvh-2rem)]">
         <div className="border-b border-border/70 bg-muted/20 p-5 relative overflow-hidden">
-          <button 
+          <button
             type="button"
             onClick={onClose}
             className="ui-pressable absolute right-3 top-3 z-20 rounded-full border border-border/70 bg-background/80 p-1.5 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
@@ -587,7 +542,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                 </div>
               </FieldInfo>
             </label>
-            <input 
+            <input
               className="w-full bg-emerald-50/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
               placeholder={t("goals.modal.title_placeholder")}
               value={title}
@@ -596,7 +551,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-2xl border bg-muted/20">
+          <div className="grid grid-cols-1 gap-3 p-4 rounded-2xl border bg-muted/20">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
                 Goal type
@@ -607,22 +562,6 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                 onChange={(e) => setGoalKind(e.target.value as GoalKind)}
               >
                 {goalKindOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest pl-1 flex items-center gap-2">
-                How will you track it?
-              </label>
-              <select
-                className="w-full bg-background border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all cursor-pointer"
-                value={unitType}
-                onChange={(e) => setUnitType(e.target.value as GoalUnitType)}
-              >
-                {unitOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -823,7 +762,7 @@ const StudyDurationModal = ({ goalTitle, onConfirm, onClose }: {
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
       <div className="ui-panel w-full max-w-sm overflow-hidden rounded-3xl animate-in zoom-in-95 duration-200">
         <div className="relative overflow-hidden border-b border-border/70 bg-muted/20 p-5">
-          <button 
+          <button
             onClick={onClose}
             className="ui-pressable absolute right-3 top-3 z-20 rounded-full border border-border/70 bg-background/80 p-1.5 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
           >
@@ -928,7 +867,7 @@ const StudyDurationModal = ({ goalTitle, onConfirm, onClose }: {
 export default function Goals() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  
+
   const [goals, setGoals] = useState<UIGoal[]>([]);
   const [modal, setModal] = useState<any>(null);
   const [showGoalsGuide, setShowGoalsGuide] = useState(false);
@@ -961,7 +900,7 @@ export default function Goals() {
     fetchGoals();
     ekagraAnalyticsService.getEkagraAnalytics().then(stats => {
       setEkagraFocusSessions(stats.focusSessions || []);
-    }).catch(() => {});
+    }).catch(() => { });
     const interval = setInterval(() => setTodayKey(getISTDateKey(new Date())), 60000);
     return () => clearInterval(interval);
   }, []);
@@ -1001,29 +940,25 @@ export default function Goals() {
 
   const handleRepeatGoal = async (goal: UIGoal) => {
     try {
-      const createdGoal = await dataService.addGoal({
+      await dataService.addGoal({
         title: goal.title || goal.text || '',
         description: goal.description || '',
         scheduledDate: todayKey,
         startedAt: null,
-        subtasks: Array.isArray(goal.subtasks) 
-            ? goal.subtasks.map((t: any) => ({ text: t.text, done: false, id: crypto.randomUUID() })) 
-            : [],
+        subtasks: Array.isArray(goal.subtasks)
+          ? goal.subtasks.map((t: any) => ({ text: t.text, done: false, id: crypto.randomUUID() }))
+          : [],
         goalKind: "repeat",
         unitType: goal.unitType || 'binary',
-        executionMode: goal.executionMode || 'manual',
-        linkedFocusEnabled: goal.linkedFocusEnabled || false,
-        plannedFocusMinutes: goal.plannedFocusMinutes || null,
+        executionMode: 'manual',
+        linkedFocusEnabled: false,
+        plannedFocusMinutes: null,
         targetValue: goal.targetValue ?? null,
         achievedValue: 0,
         status: 'not_started',
         carryForwardMode: 'ask',
       });
-      if (goal.unitType === "duration_minutes" && goal.linkedFocusEnabled && createdGoal?.id) {
-          toast.success("Goal repeated. Use Start Focus to begin linked timer sessions.");
-      } else {
-          toast.success(t("goals.toast.created"));
-      }
+      toast.success(t("goals.toast.created"));
       fetchGoals();
     } catch (error) {
       console.error(error);
@@ -1041,9 +976,9 @@ export default function Goals() {
           subtasks: data.subtasks || [],
           goalKind: data.goalKind,
           unitType: data.unitType,
-          executionMode: data.executionMode,
-          linkedFocusEnabled: data.linkedFocusEnabled,
-          plannedFocusMinutes: data.plannedFocusMinutes,
+          executionMode: "manual",
+          linkedFocusEnabled: false,
+          plannedFocusMinutes: null,
           targetValue: data.targetValue ?? null,
           achievedValue: data.achievedValue,
           status: data.status,
@@ -1056,7 +991,7 @@ export default function Goals() {
         await dataService.updateGoalStartTime(modal.goal.id, data.startedAt ?? null);
         toast.success(t("goals.toast.updated"));
       } else {
-        const createdGoal = await dataService.addGoal({
+        await dataService.addGoal({
           title: data.title,
           description: data.description,
           scheduledDate: data.scheduledDate,
@@ -1064,20 +999,16 @@ export default function Goals() {
           subtasks: data.subtasks || [],
           goalKind: data.goalKind,
           unitType: data.unitType,
-          executionMode: data.executionMode,
-          linkedFocusEnabled: data.linkedFocusEnabled,
-          plannedFocusMinutes: data.plannedFocusMinutes,
+          executionMode: "manual",
+          linkedFocusEnabled: false,
+          plannedFocusMinutes: null,
           targetValue: data.targetValue ?? null,
           achievedValue: data.achievedValue,
           status: data.status,
           carryForwardMode: data.carryForwardMode,
         });
 
-        if (data.unitType === "duration_minutes" && data.linkedFocusEnabled && createdGoal?.id) {
-          toast.success("Goal created. Use Start Focus on the goal card to begin linked timer sessions.");
-        } else {
-          toast.success(t("goals.toast.created"));
-        }
+        toast.success(t("goals.toast.created"));
       }
       fetchGoals();
     } catch (error) {
@@ -1149,11 +1080,6 @@ export default function Goals() {
       }),
     [manualCompletedGoals, todayKey],
   );
-
-  const handleFocusGoal = async (goal: UIGoal) => {
-    const goalTitle = goal.title || goal.text || "Focus session";
-    navigate(`/study?goalId=${encodeURIComponent(goal.id)}&goalTitle=${encodeURIComponent(goalTitle)}`);
-  };
 
   const todayMetrics = useMemo(
     () => getDailyCompletionMetrics(manualCompletedGoals, todayKey),
@@ -1294,16 +1220,11 @@ export default function Goals() {
       })),
     [sevenDaySeries],
   );
-  const timerLinkedGoalsCount = useMemo(
-    () => analyticsGoals.filter((goal) => Boolean(goal.linkedFocusEnabled ?? (goal as any).linked_focus_enabled)).length,
-    [analyticsGoals],
-  );
-
   return (
     <NishthaLayout>
       <div className="flex-1 min-h-screen bg-background/95 p-6 md:p-8 animate-in fade-in duration-500">
         <div className="max-w-7xl mx-auto space-y-8">
-          
+
           <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-1">
               <h1 className="text-3xl font-black flex items-center gap-3 tracking-tight">
@@ -1327,11 +1248,10 @@ export default function Goals() {
           </header>
 
           <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-            <div className="grid w-full grid-cols-3 items-center rounded-2xl border bg-muted/50 p-1 md:flex md:w-fit">
+            <div className="grid w-full grid-cols-2 items-center rounded-2xl border bg-muted/50 p-1 md:flex md:w-fit">
               {[
                 { id: "goals", label: t('goals.tab_goals'), icon: Check },
                 { id: "history", label: t('goals.tab_history'), icon: Clock },
-                { id: "analytics", label: t('goals.tab_analytics'), icon: TrendingUp }
               ].map((tabItem) => (
                 <button
                   key={tabItem.id}
@@ -1352,10 +1272,18 @@ export default function Goals() {
             >
               <Plus size={18} strokeWidth={3} /> {t('goals.add_goal')}
             </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/nishtha/analytics?tab=goals")}
+              className="ui-pressable flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/20 bg-card px-6 py-3 font-bold text-primary shadow-sm hover:bg-muted/70 md:w-auto"
+            >
+              <TrendingUp size={18} strokeWidth={2.5} /> Goal Insights
+            </button>
           </div>
 
           {tab === "goals" && (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="rounded-[28px] border border-border/70 bg-card/88 p-5 shadow-sm">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Done Today</p>
                 <div className="mt-3 flex items-end justify-between">
@@ -1380,121 +1308,12 @@ export default function Goals() {
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">Future goals parked until their scheduled day arrives.</p>
               </div>
-              <div className="rounded-[28px] border border-border/70 bg-card/88 p-5 shadow-sm">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Timer Linked</p>
-                <div className="mt-3 flex items-end justify-between">
-                  <p className="text-3xl font-black text-amber-500">{timerLinkedGoalsCount}</p>
-                  <Sparkles className="h-5 w-5 text-amber-500/70" />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">Goals that can jump straight into Ekagra sessions.</p>
-              </div>
             </div>
           )}
 
-          {tab === "analytics" ? (
-            <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div className="p-6 bg-card border rounded-3xl shadow-sm">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Completion Rate</p>
-                  <p className="text-4xl font-black text-emerald-500">{manualCompletionRate}%</p>
-                  <p className="text-xs text-muted-foreground mt-2">{manualCompletedGoals.length} of {manualGoalsCount} active manual goals completed</p>
-                </div>
-                <div className="p-6 bg-card border rounded-3xl shadow-sm">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Average Progress</p>
-                  <p className="text-4xl font-black text-blue-500">{averageProgressPercent}%</p>
-                  <p className="text-xs text-muted-foreground mt-2">Future scheduled goals stay excluded until their date arrives.</p>
-                </div>
-                <div className="p-6 bg-card border rounded-3xl shadow-sm">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Consistency (7 Days)</p>
-                  <p className="text-4xl font-black text-violet-500">{consistencyDays}/7</p>
-                  <p className="text-xs text-muted-foreground mt-2">Days with at least one completed manual goal</p>
-                </div>
-                <div className="p-6 bg-card border rounded-3xl shadow-sm">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Current Streak</p>
-                  <p className="text-4xl font-black text-amber-500">{currentCompletionStreak}d</p>
-                  <p className="text-xs text-muted-foreground mt-2">Consecutive days with completions</p>
-                </div>
-              </div>
-
-              <div className="bg-card border rounded-[32px] p-8 shadow-sm">
-                <div className="mb-6">
-                  <h3 className="text-xl font-black flex items-center gap-3">
-                    <BarChart3 size={24} className="text-teal-500" /> Study Time Breakdown
-                  </h3>
-                  <p className="text-sm font-medium text-muted-foreground mt-2">How your total study time is distributed</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                  <ChartErrorBoundary>
-                    <Suspense fallback={<div className="h-[200px] w-full" />}>
-                      <StudyTimeDonutChart manualMinutes={totalStudiedMinutes} focusMinutes={focusTotalMinutes} />
-                    </Suspense>
-                  </ChartErrorBoundary>
-                  <div className="space-y-4">
-                    <div className="p-5 rounded-2xl border bg-teal-500/5 border-teal-500/20">
-                      <div className="flex items-center gap-2 mb-1">
-                        <BookOpen size={14} className="text-teal-500" />
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Manual Study</p>
-                      </div>
-                      <p className="text-3xl font-black text-teal-500">{formatStudyTime(totalStudiedMinutes)}</p>
-                      <p className="text-[11px] text-muted-foreground mt-1">Self-reported when completing goals</p>
-                    </div>
-                    <div className="p-5 rounded-2xl border bg-indigo-500/5 border-indigo-500/20">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Clock size={14} className="text-indigo-500" />
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Focus Timer</p>
-                      </div>
-                      <p className="text-3xl font-black text-indigo-500">{formatStudyTime(focusTotalMinutes)}</p>
-                      <p className="text-[11px] text-muted-foreground mt-1">Ekagra sessions linked to goals only</p>
-                    </div>
-                    <div className="p-5 rounded-2xl border bg-muted/30">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Avg per Completed Goal</p>
-                      <p className="text-2xl font-black text-foreground">{formatStudyTime(avgStudiedMinutes)}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-card border rounded-[32px] p-8 shadow-sm" data-tour="consistency-chart">
-                <div className="mb-6">
-                  <h3 className="text-xl font-black flex items-center gap-3">
-                    <TrendingUp size={24} className="text-emerald-500" /> Goal Consistency Trend
-                  </h3>
-                  <p className="text-sm font-medium text-muted-foreground mt-2">Your goal completion over the last 7 days</p>
-                </div>
-                <div className="h-[250px] w-full">
-                  <ChartErrorBoundary>
-                    <Suspense fallback={<div className="h-full w-full" />}>
-                      <StreaksConsistencyChart data={consistencyTrendData} />
-                    </Suspense>
-                  </ChartErrorBoundary>
-                </div>
-              </div>
-
-              <div className="p-8 bg-card border rounded-[32px] shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-bold flex items-center gap-2"><Calendar className="text-primary w-4 h-4" /> Weekly Growth Pulse</h3>
-                  <span className="text-xs text-muted-foreground">{averageDailyCompletionThisWeek} avg completions/day</span>
-                </div>
-                <div className="space-y-3">
-                  {sevenDaySeries.map((entry) => (
-                    <div key={entry.dayKey} className="rounded-2xl border bg-muted/20 p-3">
-                      <div className="flex items-center justify-between text-xs font-semibold mb-2">
-                        <span>{entry.dayLabel}</span>
-                        <span className="text-muted-foreground">{entry.completed}/{entry.total || 0} done</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden mb-2">
-                        <div className="h-full bg-emerald-500 transition-all" style={{ width: `${entry.total > 0 ? Math.round((entry.completed / entry.total) * 100) : 0}%` }} />
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">Average progress: {entry.avgProgress}%</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in slide-in-from-bottom-4 duration-500">
               <div className="lg:col-span-7 space-y-6">
-                
+
                 {tab === "goals" && (
                   <div className="overflow-hidden rounded-[32px] border border-border/70 bg-card shadow-sm" data-tour="goal-cards">
                     <div className="flex items-center justify-between border-b bg-muted/10 p-6">
@@ -1508,7 +1327,7 @@ export default function Goals() {
                         {t("goals.pending_tasks", { count: pendingGoals.length })}
                       </span>
                     </div>
-                    
+
                     {pendingGoals.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-20 text-center">
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/15 bg-emerald-500/10">
@@ -1520,7 +1339,7 @@ export default function Goals() {
                     ) : (
                       <div className="divide-y divide-muted/50">
                         {pendingGoals.map(g => (
-                              <GoalCard key={g.id} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={handleRepeatGoal} onFocus={() => handleFocusGoal(g)} />
+                          <GoalCard key={g.id} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={handleRepeatGoal} />
                         ))}
                       </div>
                     )}
@@ -1546,7 +1365,7 @@ export default function Goals() {
                         <p className="mt-1 text-xs text-muted-foreground">Review what was completed on a specific day.</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <input 
+                        <input
                           type="date"
                           value={historyDateFilter || todayKey}
                           onChange={e => setHistoryDateFilter(e.target.value)}
@@ -1557,7 +1376,7 @@ export default function Goals() {
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="flex-1 overflow-y-auto divide-y divide-muted/50">
                       {filteredHistory.length === 0 ? (
                         <div className="py-20 text-center">
@@ -1589,7 +1408,7 @@ export default function Goals() {
               <div className="lg:col-span-5 space-y-6">
                 <div className="p-8 bg-card border rounded-[32px] shadow-sm space-y-6">
                   <div>
-                    <h3 className="text-sm font-bold opacity-60 uppercase tracking-widest mb-6">{t("goals.live_pulse")}</h3>
+                    <h3 className="text-sm font-bold opacity-60 uppercase tracking-widest mb-6">Today Pulse</h3>
                     <div className="space-y-6">
                       <div className="flex justify-between items-center bg-muted/30 p-4 rounded-2xl">
                         <div className="space-y-1">
@@ -1604,7 +1423,7 @@ export default function Goals() {
                         </div>
                         <TrendingUp className="text-emerald-500 w-8 h-8 opacity-20" />
                       </div>
-                      
+
                       <div className="bg-muted/30 p-4 rounded-2xl space-y-3 shadow-sm border border-border/50">
                         <div className="flex items-center gap-2">
                           <Clock size={14} className="text-emerald-500" />
@@ -1636,18 +1455,18 @@ export default function Goals() {
                       <div className="space-y-3 bg-muted/20 p-4 rounded-2xl border">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Time Studied</p>
                         <div className="space-y-3 pt-1">
-                           <div className="flex items-center justify-between text-sm">
-                             <span className="text-muted-foreground font-medium flex items-center gap-2">
-                               <Clock size={16} className="text-indigo-500"/> Ekagra Mode
-                             </span>
-                             <span className="font-black text-indigo-500 text-base">{formatStudyTime(focusTotalMinutes)}</span>
-                           </div>
-                           <div className="flex items-center justify-between text-sm">
-                             <span className="text-muted-foreground font-medium flex items-center gap-2">
-                               <BookOpen size={16} className="text-teal-500"/> Manual Goal
-                             </span>
-                             <span className="font-black text-teal-500 text-base">{formatStudyTime(totalStudiedMinutes)}</span>
-                           </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground font-medium flex items-center gap-2">
+                              <Clock size={16} className="text-indigo-500" /> Ekagra Mode
+                            </span>
+                            <span className="font-black text-indigo-500 text-base">{formatStudyTime(focusTotalMinutes)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground font-medium flex items-center gap-2">
+                              <BookOpen size={16} className="text-teal-500" /> Manual Goal
+                            </span>
+                            <span className="font-black text-teal-500 text-base">{formatStudyTime(totalStudiedMinutes)}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1665,7 +1484,6 @@ export default function Goals() {
                 </div>
               </div>
             </div>
-          )}
         </div>
 
         {showGoalsGuide && (
@@ -1690,9 +1508,9 @@ export default function Goals() {
                 <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-foreground">
                   <h3 className="text-sm font-bold mb-2">What changed (quick recap)</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li>Goals analytics now shows completion insights only, not time spent.</li>
-                    <li>Timer-based study time now lives only inside Ekagra analytics.</li>
-                    <li>Linked focus sessions stay attached to the same goal instead of moving it.</li>
+                    <li>Goals are for planning, editing, and manual completion.</li>
+                    <li>Ekagra time is assigned to a goal after the timer ends.</li>
+                    <li>Goal insights use saved manual progress and saved goal-linked focus sessions.</li>
                   </ul>
                 </div>
                 <section className="space-y-2">
@@ -1700,7 +1518,7 @@ export default function Goals() {
                   <ol className="list-decimal pl-5 space-y-1">
                     <li><strong>What do you want to do?</strong>: Write the goal in simple words.</li>
                     <li><strong>Goal Type</strong>: Pick Today or Repeat.</li>
-                    <li><strong>How will you track it?</strong>: Choose Done / Not done or Track by focused time.</li>
+                    <li><strong>How will you track it?</strong>: Use Done / Not done for normal goal completion.</li>
                   </ol>
                 </section>
 
@@ -1715,15 +1533,14 @@ export default function Goals() {
                 <section className="space-y-2">
                   <h3 className="font-bold text-base">3. Tracking Method ka matlab</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Done / Not done</strong>: good for simple goals where you only care whether it got done.</li>
-                    <li><strong>Track by focused time</strong>: use this when you want to work on the goal through the Ekagra timer.</li>
+                    <li><strong>Done / Not done</strong>: good for goals where you care whether the work got done.</li>
+                    <li><strong>Study time</strong>: enter it when manually completing a goal, or assign Ekagra time after ending a timer.</li>
                   </ul>
                 </section>
 
                 <section className="space-y-2">
                   <h3 className="font-bold text-base">4. Conditional fields ka use</h3>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Enable linked focus sessions</strong>: this lets the goal open directly inside Ekagra.</li>
                     <li><strong>Repeat setting</strong>: this decides how the goal behaves on the next day if it is a repeating goal.</li>
                   </ul>
                 </section>
@@ -1744,8 +1561,8 @@ export default function Goals() {
                   <ol className="list-decimal pl-5 space-y-1">
                     <li>Write the goal title.</li>
                     <li>Pick Today or Repeat.</li>
-                    <li>If you want to complete it with the timer, choose Track by focused time and keep linked focus on.</li>
-                    <li>Create the goal, then click Focus from the goal card when you are ready to work.</li>
+                    <li>Create the goal and manage it here.</li>
+                    <li>When you use Ekagra, assign the finished timer session to this goal from the timer save popup.</li>
                   </ol>
                 </section>
               </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import NishthaLayout from "@/components/NishthaLayout";
+import { PremiumEmoji, type PremiumEmojiName } from "@/components/PremiumEmoji";
 import { useAuth } from "@/contexts/AuthContext";
 import { dataService } from "@/utils/dataService";
 import { toast } from "sonner";
@@ -44,19 +45,19 @@ const PROMPT_KEYS = [
 ];
 
 const MOOD_OPTIONS = [
-  { value: "calm", emoji: "😌" },
-  { value: "happy", emoji: "😊" },
-  { value: "grateful", emoji: "🙏" },
-  { value: "motivated", emoji: "💪" },
-  { value: "peaceful", emoji: "☮️" },
-  { value: "sad", emoji: "😢" },
-  { value: "anxious", emoji: "😰" },
-  { value: "angry", emoji: "😠" },
-  { value: "tired", emoji: "😴" },
-  { value: "confused", emoji: "😕" },
-  { value: "hopeful", emoji: "🌟" },
-  { value: "neutral", emoji: "😐" }
-];
+  { value: "calm", emoji: "😌", premiumIcon: "smile" },
+  { value: "happy", emoji: "😊", premiumIcon: "smile" },
+  { value: "grateful", emoji: "🙏", premiumIcon: "handsPraying" },
+  { value: "motivated", emoji: "💪", premiumIcon: "biceps" },
+  { value: "peaceful", emoji: "☮️", premiumIcon: "peace" },
+  { value: "sad", emoji: "😢", premiumIcon: "frown" },
+  { value: "anxious", emoji: "😰", premiumIcon: "frown" },
+  { value: "angry", emoji: "😠", premiumIcon: "frown" },
+  { value: "tired", emoji: "😴", premiumIcon: null },
+  { value: "confused", emoji: "😕", premiumIcon: "meh" },
+  { value: "hopeful", emoji: "🌟", premiumIcon: "star" },
+  { value: "neutral", emoji: "😐", premiumIcon: "meh" }
+] satisfies Array<{ value: string; emoji: string; premiumIcon: PremiumEmojiName | null }>;
 
 // ─── HELPERS ─────────────────────────────────────────────────
 const getEntryTitle = (html: string, fallback: string) => {
@@ -194,7 +195,12 @@ export default function Journal() {
                       onClick={() => setShowMoodDropdown(!showMoodDropdown)}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl bg-background border hover:border-emerald-500/50 transition-all text-sm font-bold shadow-sm"
                     >
-                      <span className="text-lg">{MOOD_OPTIONS.find(m => m.value === selectedMood)?.emoji}</span>
+                      <PremiumEmoji
+                        name={MOOD_OPTIONS.find(m => m.value === selectedMood)?.premiumIcon}
+                        fallback={MOOD_OPTIONS.find(m => m.value === selectedMood)?.emoji}
+                        alt=""
+                        className="h-5 w-5"
+                      />
                       <span className="hidden md:inline">{t(`journal.moods.${selectedMood}`)}</span>
                       <ChevronDown size={14} className={`transition-transform duration-300 ${showMoodDropdown ? 'rotate-180' : ''}`} />
                     </button>
@@ -207,7 +213,7 @@ export default function Journal() {
                             onClick={() => { setSelectedMood(m.value); setShowMoodDropdown(false); }}
                             className="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-muted transition-colors"
                           >
-                            <span className="text-base">{m.emoji}</span>
+                            <PremiumEmoji name={m.premiumIcon} fallback={m.emoji} alt="" className="h-5 w-5" />
                             <span className={selectedMood === m.value ? "font-bold text-emerald-500" : "font-medium"}>{t(`journal.moods.${m.value}`)}</span>
                           </button>
                         ))}

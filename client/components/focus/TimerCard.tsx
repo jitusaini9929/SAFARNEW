@@ -10,6 +10,8 @@ interface TimerCardProps {
     currentTheme: { accent: string };
     onToggle: () => void;
     onReset: () => void;
+    startLabel?: string;
+    endLabel?: string;
     onTogglePiP: () => void;
     onSetMode?: (mode: "Timer" | "short" | "long") => void;
     isPiPActive: boolean;
@@ -24,7 +26,7 @@ const MODE_TABS: { key: "Timer" | "short" | "long"; label: string; icon: React.R
 const modeHint = (mode: "Timer" | "short" | "long") => {
     if (mode === "short") return "Short break session";
     if (mode === "long") return "Long break session";
-    return "Focus timer session";
+    return "Free Focus";
 };
 
 export const TimerCard: React.FC<TimerCardProps> = ({
@@ -36,6 +38,8 @@ export const TimerCard: React.FC<TimerCardProps> = ({
     currentTheme,
     onToggle,
     onReset,
+    startLabel = "Start",
+    endLabel = "End Session",
     onTogglePiP,
     onSetMode,
     isPiPActive,
@@ -79,10 +83,11 @@ export const TimerCard: React.FC<TimerCardProps> = ({
             <div className="flex items-center justify-center gap-4 landscape:gap-3">
                 <button
                     onClick={onReset}
-                    className="w-12 h-12 landscape:w-10 landscape:h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:opacity-80 transition-all"
+                    className="h-12 landscape:h-10 rounded-full bg-muted px-4 flex items-center justify-center gap-2 text-muted-foreground hover:opacity-80 transition-all"
                     style={{ '--hover-color': currentTheme.accent } as React.CSSProperties}
                 >
                     <RotateCcw className="w-5 h-5 landscape:w-4 landscape:h-4" />
+                    <span className="hidden sm:inline text-xs font-bold uppercase tracking-wider">{endLabel}</span>
                 </button>
 
                 <button
@@ -104,7 +109,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                         ) : (
                             <>
                                 <Play className="w-6 h-6 landscape:w-5 landscape:h-5" />
-                                <span className="action-label-mobile-hidden">{showResumeLabel ? "Resume" : "Start"}</span>
+                                <span className="action-label-mobile-hidden">{showResumeLabel ? "Resume" : startLabel}</span>
                             </>
                         )}
                     </span>

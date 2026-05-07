@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import NishthaLayout from "@/components/NishthaLayout";
+import { PremiumEmoji } from "@/components/PremiumEmoji";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/utils/authService";
 import { dataService } from "@/utils/dataService";
@@ -127,7 +128,10 @@ export default function Streaks() {
                    <span className="text-6xl font-black tracking-tighter">{streakData?.loginStreak || 0}</span>
                    <span className="text-xl font-bold text-muted-foreground ml-2">{t('streaks.days')}</span>
                  </div>
-                 <p className="text-orange-600/80 font-bold text-sm bg-orange-500/10 px-3 py-1.5 rounded-xl border border-orange-500/10 w-fit">✨ {t('streaks.amazing')}</p>
+                <p className="text-orange-600/80 font-bold text-sm bg-orange-500/10 px-3 py-1.5 rounded-xl border border-orange-500/10 w-fit inline-flex items-center gap-1.5">
+                  <PremiumEmoji name="sparkle" alt="" className="h-4 w-4" />
+                  {t('streaks.amazing')}
+                </p>
               </div>
             </div>
           </div>

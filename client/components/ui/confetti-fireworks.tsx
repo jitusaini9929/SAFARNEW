@@ -1,6 +1,7 @@
 import React from "react"
 import confetti from "canvas-confetti"
 import { Button } from "@/components/ui/button"
+import { PremiumEmoji } from "@/components/PremiumEmoji"
 
 export function ConfettiFireworks() {
   const handleClick = () => {
@@ -39,7 +40,7 @@ export function ConfettiFireworks() {
         className="bg-transparent border border-amber-300 dark:border-amber-500/50 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/30 font-bold uppercase tracking-widest text-xs px-4 py-1.5 rounded-full shadow-lg transition-all flex items-center gap-2"
         variant="outline"
       >
-        <span className="text-xl">🎇</span> Firecracker
+        <PremiumEmoji name="party" alt="" className="h-5 w-5" /> Firecracker
       </Button>
     </div>
   )

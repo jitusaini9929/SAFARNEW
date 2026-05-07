@@ -170,7 +170,7 @@ export default function Achievements() {
             const data = await res.json();
             setWeekTitle(data);
             if (data.title) {
-                toast.success(`🎉 You earned: "${data.title}"`);
+                toast.success(`You earned: "${data.title}"`);
                 const allData = await dataService.getAllAchievements();
                 setAchievements(allData.achievements || []);
             } else {

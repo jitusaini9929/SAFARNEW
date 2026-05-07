@@ -33,26 +33,27 @@ import {
 import youtubeImg from "@/assets/youtube-thumbnail.webp";
 import courseImg from "@/assets/course-thumbnail.webp";
 import GlobalSidebar from "@/components/GlobalSidebar";
+import { PremiumEmoji, type PremiumEmojiName } from "@/components/PremiumEmoji";
 import { useTranslation } from "react-i18next";
 
 import ChartErrorBoundary from "@/components/charts/ChartErrorBoundary";
 const DashboardMoodChart = lazy(() => import("@/components/charts/DashboardMoodChart"));
 
 
-const getMoodEmoji = (mood: string): string => {
+const getMoodPremiumIcon = (mood: string): PremiumEmojiName => {
     // Must match exactly with CheckIn.tsx moodOptions emojis
-    const moodEmojis: Record<string, string> = {
-        peaceful: "😌",     // Calm & Content
-        happy: "😃",        // Great & Positive (NOT 😊)
-        okay: "😐",         // Neutral & Balanced
-        motivated: "🌱",    // Inspired & Driven (NOT 💪)
-        anxious: "😟",      // Worried (NOT 😰)
-        low: "😔",          // Down or Discouraged
-        frustrated: "😠",   // Irritated
-        overwhelmed: "😵",  // Stressed
-        numb: "😶",         // Disconnected
+    const moodIcons: Record<string, PremiumEmojiName> = {
+        peaceful: "smile",
+        happy: "smile",
+        okay: "meh",
+        motivated: "leaf",
+        anxious: "frown",
+        low: "frown",
+        frustrated: "frown",
+        overwhelmed: "frown",
+        numb: "meh",
     };
-    return moodEmojis[mood.toLowerCase()] || "😐";
+    return moodIcons[mood.toLowerCase()] || "meh";
 };
 
 // Achievement badge images - mythological theme mapping
@@ -370,7 +371,7 @@ export default function Dashboard() {
 
                                 {todayMood ? (
                                     <div className="m-auto text-center flex flex-col items-center justify-center h-full">
-                                        <span className="text-7xl mb-4">{getMoodEmoji(todayMood.mood)}</span>
+                                        <PremiumEmoji name={getMoodPremiumIcon(todayMood.mood)} alt="" className="h-20 w-20 mb-4" />
                                         <p className="text-2xl font-semibold capitalize text-foreground">{todayMood.mood}</p>
                                         <p className="text-muted-foreground">{t('dashboard.mood_intensity')}: {todayMood.intensity}/5</p>
                                     </div>
@@ -517,19 +518,14 @@ export default function Dashboard() {
                             <p className="text-sm text-muted-foreground mb-6">{t('dashboard.monthly_snapshot_desc')}</p>
 
                             {monthlySummary ? (
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-foreground">{t('dashboard.consistency')}</span>
-                                        <span className="text-sm font-bold text-primary">{monthlySummary.consistencyScore.toFixed(1)}%</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-foreground">{t('dashboard.completion_rate')}</span>
-                                        <span className="text-sm font-bold text-primary">{monthlySummary.completionRate.toFixed(1)}%</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-foreground">{t('dashboard.focus_depth')}</span>
-                                        <span className="text-sm font-bold text-primary">{monthlySummary.focusDepth.toFixed(1)}</span>
-                                    </div>
+                                <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4">
+                                    <p className="text-3xl font-black text-primary">{monthlySummary.consistencyScore.toFixed(0)}%</p>
+                                    <p className="mt-2 text-sm font-medium text-foreground">
+                                        This month: {monthlySummary.consistencyScore.toFixed(0)}% consistency · {monthlySummary.completionRate.toFixed(0)}% completion
+                                    </p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Detailed charts live in Analytics.
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="text-center my-auto text-muted-foreground">
@@ -538,7 +534,7 @@ export default function Dashboard() {
                             )}
 
                             <button
-                                onClick={() => navigate('/nishtha/analytics')}
+                                onClick={() => navigate('/nishtha/analytics?tab=overview')}
                                 aria-label={t('dashboard.open_analytics')}
                                 className="w-full mt-auto bg-muted hover:bg-muted/80 text-primary border border-primary/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group action-btn-nowrap"
                             >

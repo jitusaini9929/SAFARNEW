@@ -6,6 +6,7 @@ import { requireAuth } from "../middleware/auth";
 import { getMehfilNamespace } from "./mehfil-socket";
 import { validateBlockedWords } from "../utils/contentFilter";
 import { cacheGet, cacheSet, cacheInvalidate } from "../lib/redis-cache";
+import { queueCommunityCommentNotification } from "../services/community-activity-aggregator";
 
 // ─── Email helper ────────────────────────────────────────────────────────────
 async function sendMehfilBanEmail(toEmail: string, userName: string, banState: MehfilBanState) {
@@ -315,6 +316,15 @@ mehfilInteractionRoutes.post("/comments", async (req: any, res: Response) => {
             { id: userId },
             { projection: { name: 1, avatar: 1 } }
         );
+
+        const thought = await collections.mehfilThoughts().findOne(
+            { id: thoughtId },
+            { projection: { user_id: 1 } },
+        );
+
+        if (thought?.user_id && thought.user_id !== userId) {
+            queueCommunityCommentNotification(thought.user_id, user?.name || "Someone");
+        }
 
         res.status(201).json({
             comment: {

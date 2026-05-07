@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { GuidedTourProvider } from "@/contexts/GuidedTourContext";
 import { GuidedTour } from "@/components/guided-tour";
 import { FocusProvider } from "@/contexts/FocusContext";
+import { NotificationOptIn } from "@/components/NotificationOptIn";
 
 // Lazy-loaded pages (code splitting)
 const Test = React.lazy(() => import("./pages/Test"));
@@ -27,7 +28,6 @@ const Profile = React.lazy(() => import("./pages/Profile"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
 const ForgotPassword = React.lazy(() => import("./pages/ForgotPassword"));
 const StudyWithMe = React.lazy(() => import("./pages/StudyWithMe"));
-const FocusAnalytics = React.lazy(() => import("./pages/FocusAnalytics"));
 const Achievements = React.lazy(() => import("./pages/Achievements"));
 const Landing = React.lazy(() => import("./pages/Landing"));
 const Challenge100K = React.lazy(() => import("./pages/Challenge100K"));
@@ -63,6 +63,7 @@ function NishthaRouteAlias() {
 
   const routeMap: Record<string, string> = {
     "/": "/check-in",
+    "/dashboard": "/dashboard",
     "/check-in": "/check-in",
     "/journal": "/journal",
     "/goals": "/goals",
@@ -71,6 +72,7 @@ function NishthaRouteAlias() {
     "/achievements": "/achievements",
     "/suggestions": "/suggestions",
     "/focus": "/study",
+    "/study": "/study",
     "/mehfil": "/mehfil",
     "/history": "/goals",
   };
@@ -101,6 +103,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/?signin=true" replace />;
 }
 
+/** Show the push notification opt-in banner only for authenticated users. */
+function AuthenticatedPushBanner() {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) return null;
+  return <NotificationOptIn />;
+}
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -110,6 +119,7 @@ const App = () => {
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
             <AnalyticsTracker />
+            <AuthenticatedPushBanner />
             <FocusProvider>
               <GuidedTourProvider>
                 <Suspense fallback={<PageLoadingFallback />}>
@@ -215,7 +225,7 @@ const App = () => {
                   path="/study/analytics"
                   element={
                     <ProtectedRoute>
-                      <FocusAnalytics />
+                      <Navigate to="/analytics?tab=focus" replace />
                     </ProtectedRoute>
                   }
                 />

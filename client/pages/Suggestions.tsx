@@ -1,6 +1,7 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/MainLayout';
+import { PremiumEmoji, type PremiumEmojiName } from '@/components/PremiumEmoji';
 import {
   Sparkles, AlertTriangle, Heart, Target, Brain, Moon,
   ChevronRight, Wind, Clock, Trophy, Flame, ArrowRight,
@@ -78,21 +79,10 @@ const difficultyColors: Record<string, string> = {
   'Hard': 'text-rose-700 bg-rose-100 border-rose-200 dark:text-rose-300 dark:bg-rose-500/10 dark:border-rose-500/20',
 };
 
-const moodEmojis: Record<string, ReactNode> = {
-  low: '😔',
-  neutral: '😊',
-  high: (
-    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" className="bi bi-fire inline-block" viewBox="0 0 16 16">
-      <defs>
-        <linearGradient id="fireGradient" x1="8" y1="0" x2="8" y2="16" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FFD166"/>
-          <stop offset="45%" stopColor="#FF7A18"/>
-          <stop offset="100%" stopColor="#E63946"/>
-        </linearGradient>
-      </defs>
-      <path fill="url(#fireGradient)" d="M8 16c3.314 0 6-2 6-5.5 0-1.5-.5-4-2.5-6 .25 1.5-1.25 2-1.25 2C11 4 9 .5 6 0c.357 2 .5 4-2 6-1.25 1-2 2.729-2 4.5C2 14 4.686 16 8 16m0-1c-1.657 0-3-1-3-2.75 0-.75.25-2 1.25-3C6.125 10 7 10.5 7 10.5c-.375-1.25.5-3.25 2-3.5-.179 1-.25 2 1 3 .625.5 1 1.364 1 2.25C11 14 9.657 15 8 15"/>
-    </svg>
-  ),
+const moodEmojis: Record<string, PremiumEmojiName> = {
+  low: 'frown',
+  neutral: 'smile',
+  high: 'flame',
 };
 
 const CRISIS_HELPLINE = {
@@ -168,7 +158,7 @@ export default function Suggestions() {
           </div>
 
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl">{moodEmojis[data.mood.category]}</span>
+            <PremiumEmoji name={moodEmojis[data.mood.category]} alt="" className="h-8 w-8" />
             <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white">
               {data.greeting}
             </h1>
@@ -219,7 +209,7 @@ export default function Suggestions() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {data.sosExercises.map((ex, i) => (
                   <div key={i} className="p-3 rounded-xl bg-white border border-rose-100 hover:bg-rose-50 transition-all cursor-pointer group dark:bg-white/5 dark:border-white/5 dark:hover:bg-white/10">
-                    <span className="text-2xl">{ex.icon}</span>
+                    <PremiumEmoji emoji={ex.icon} fallback={ex.icon} alt="" className="h-7 w-7" />
                     <h4 className="text-sm font-semibold text-slate-900 dark:text-white mt-2">{ex.title}</h4>
                     <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">{ex.description}</p>
                     <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20">{ex.duration}</span>
@@ -243,7 +233,7 @@ export default function Suggestions() {
                 onClick={() => navigate(suggestion.link)}
                 className="group cursor-pointer p-5 rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-300 hover:-translate-y-1 dark:bg-white/[0.03] dark:border-white/10 dark:hover:bg-white/[0.07] dark:hover:border-white/20"
               >
-                <span className="text-3xl">{suggestion.icon}</span>
+                <PremiumEmoji emoji={suggestion.icon} fallback={suggestion.icon} alt="" className="h-8 w-8" />
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-3">{suggestion.title}</h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">{suggestion.description}</p>
                 <div className="flex items-center gap-1 mt-4 text-xs font-medium text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors">

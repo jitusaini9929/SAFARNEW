@@ -71,6 +71,9 @@ export const collections = {
     sandeshComments: () => getDb().collection('sandesh_comments'),
     userSocialHandles: () => getDb().collection('user_social_handles'),
     birthdayWishes: () => getDb().collection('birthday_wishes'),
+    deviceTokens: () => getDb().collection('device_tokens'),
+    notificationPreferences: () => getDb().collection('notification_preferences'),
+    notificationDeliveryLog: () => getDb().collection('notification_delivery_log'),
     
     // ── Mission Mode ──
     missionProfiles: () => getDb().collection('mission_profiles'),
@@ -273,6 +276,14 @@ export async function initDatabase(): Promise<void> {
         await db.collection('birthday_wishes').createIndex({ eventKey: 1, status: 1, createdAt: -1 });
         await db.collection('birthday_wishes').createIndex({ eventKey: 1, publicVisible: 1, createdAt: -1 });
         await db.collection('birthday_wishes').createIndex({ purgeAt: 1 }, { expireAfterSeconds: 0 });
+
+        // Android push notifications
+        await db.collection('device_tokens').createIndex({ token: 1 }, { unique: true });
+        await db.collection('device_tokens').createIndex({ user_id: 1, updated_at: -1 });
+        await db.collection('device_tokens').createIndex({ notifications_enabled: 1, platform: 1, flavor: 1 });
+        await db.collection('notification_preferences').createIndex({ user_id: 1 }, { unique: true });
+        await db.collection('notification_delivery_log').createIndex({ user_id: 1, type: 1, dedupe_key: 1, created_at: -1 });
+        await db.collection('notification_delivery_log').createIndex({ created_at: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 });
 
         // ── Mission Mode ──
         await db.collection('mission_profiles').createIndex({ user_id: 1 }, { unique: true });

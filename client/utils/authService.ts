@@ -1,5 +1,6 @@
 import { apiFetch, API_BASE, refreshAccessToken, resetCsrfToken, setAccessToken } from "@/utils/apiFetch";
 import { User, Streak } from "@shared/api";
+import { revokeNotificationToken } from "@/lib/firebase-messaging";
 
 interface AuthResponse {
   user: User;
@@ -141,6 +142,13 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
+    // Revoke web push token before clearing auth state
+    try {
+      await revokeNotificationToken();
+    } catch {
+      // Non-fatal — continue with logout
+    }
+
     try {
       await apiFetch(`${API_BASE}/auth/logout`, {
         method: "POST",

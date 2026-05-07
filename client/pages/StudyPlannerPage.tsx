@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch, API_BASE } from "@/utils/apiFetch";
 import { useTheme } from "@/contexts/ThemeContext";
+import { PremiumEmoji, type PremiumEmojiName } from "@/components/PremiumEmoji";
 import StudyPlanner from "../../sylaabus planner/StudyPlanner";
 
 // ── Types ──
@@ -42,12 +43,12 @@ function normalizeSection(section?: string): PlannerSection {
 
 // ── Template card styling ──
 
-const TEMPLATE_ICONS: Record<string, string> = {
-  "ssc-cgl-tier1": "📋",
-  "railway-ntpc": "🚂",
-  "bank-po-prelims": "🏦",
-  "jee-mains": "⚡",
-  "neet-ug": "🧬",
+const TEMPLATE_ICONS: Record<string, { name: PremiumEmojiName | null; fallback: string }> = {
+  "ssc-cgl-tier1": { name: "bookmarks", fallback: "📋" },
+  "railway-ntpc": { name: "train", fallback: "🚂" },
+  "bank-po-prelims": { name: "bank", fallback: "🏦" },
+  "jee-mains": { name: "zap", fallback: "⚡" },
+  "neet-ug": { name: "dna", fallback: "🧬" },
 };
 
 const TEMPLATE_GRADIENTS: Record<string, string> = {
@@ -104,7 +105,7 @@ function TemplateCard({
       `}
     >
       <div className="flex items-start justify-between mb-4">
-        <span className="text-3xl">{TEMPLATE_ICONS[template.id] || "📋"}</span>
+        <PremiumEmoji name={TEMPLATE_ICONS[template.id] ? TEMPLATE_ICONS[template.id].name : "bookmarks"} fallback={TEMPLATE_ICONS[template.id]?.fallback || "📋"} alt="" className="h-8 w-8" />
         {CATEGORY_BADGES[template.category] && (
           <span className={`text-[11px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full ${CATEGORY_BADGES[template.category].color}`}>
             {CATEGORY_BADGES[template.category].label}
@@ -396,7 +397,7 @@ function QuickStart({
                 onClick={() => setShowCustom(true)}
                 className={`group flex flex-col h-full text-left rounded-2xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:scale-[1.02] bg-white/50 dark:bg-[#141518]/50 ${PRESSABLE_CARD}`}
               >
-                <div className="text-3xl mb-4">✏️</div>
+                <PremiumEmoji name="pencil" alt="" className="h-8 w-8 mb-4" />
                 <h3 className="text-xl font-bold text-[#0f172a] dark:text-white mb-2">
                   Custom Plan
                 </h3>
@@ -603,7 +604,7 @@ function QuickStart({
 
         {/* Selected template badge */}
         <div className="flex items-center gap-3 mb-6 mt-4">
-          <span className="text-2xl">{TEMPLATE_ICONS[selectedTemplate!.id] || "📋"}</span>
+          <PremiumEmoji name={TEMPLATE_ICONS[selectedTemplate!.id] ? TEMPLATE_ICONS[selectedTemplate!.id].name : "bookmarks"} fallback={TEMPLATE_ICONS[selectedTemplate!.id]?.fallback || "📋"} alt="" className="h-7 w-7" />
           <div>
             <h2 className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}>
               {selectedTemplate!.name}
@@ -1061,7 +1062,7 @@ export default function StudyPlannerPage() {
           {/* Empty state (first time) */}
           {plans.length === 0 && (
             <div className="text-center mt-16">
-              <div className="text-6xl mb-6 opacity-80">📚</div>
+              <PremiumEmoji name="library" alt="" className="h-16 w-16 mb-6 mx-auto opacity-80" />
               <h2
                 className="text-2xl font-bold text-[#0f172a] dark:text-white mb-3"
                 style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}

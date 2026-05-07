@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    Bell, Plus, Bold, Italic, ImageIcon, Mic, X, Loader2, Pencil, Send,
+    Bell, Plus, ImageIcon, Mic, X, Loader2, Pencil, Send,
     ShieldCheck, Trash2, LinkIcon, Play, Pause, Heart, MessageCircle, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -68,6 +68,8 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const imageInputRef = useRef<HTMLInputElement>(null);
 
     const [audioUrl, setAudioUrl] = useState('');
     const [showAudioInput, setShowAudioInput] = useState(false);
@@ -285,20 +287,6 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
         } else if (!match) { setLinkMeta(null); }
     };
 
-    const insertText = (before: string, after: string = '') => {
-        if (!textareaRef.current) return;
-        const start = textareaRef.current.selectionStart;
-        const end = textareaRef.current.selectionEnd;
-        const newText = newContent.substring(0, start) + before + newContent.substring(start, end) + after + newContent.substring(end);
-        setNewContent(newText);
-        setTimeout(() => {
-            if (textareaRef.current) {
-                textareaRef.current.focus();
-                textareaRef.current.setSelectionRange(start + before.length, end + before.length);
-            }
-        }, 0);
-    };
-
     const handlePost = async () => {
         if (!newContent.trim() && !imageUrl && !audioUrl) return;
         setIsPosting(true);
@@ -344,6 +332,28 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
             else { toast.error(data.message || t('sandesh.toast.audio_error')); }
             setIsUploadingAudio(false);
         } catch { toast.error(t('sandesh.toast.audio_error')); setIsUploadingAudio(false); }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) { toast.error('Please select an image file.'); return; }
+        setIsUploadingImage(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const accessToken = getAccessToken();
+            const res = await fetch(`${API_URL}/upload`, {
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+            });
+            const data = await res.json();
+            if (data.success) { setImageUrl(data.url); toast.success('Image uploaded!'); }
+            else { toast.error(data.message || 'Image upload failed.'); }
+        } catch { toast.error('Image upload failed.'); }
+        finally { setIsUploadingImage(false); if (imageInputRef.current) imageInputRef.current.value = ''; }
     };
 
     const toggleAudioPlay = (url: string, id: string) => {
@@ -430,8 +440,6 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
                     {/* Toolbar */}
                     <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
                         {[
-                            { icon: <Bold size={13} />, action: () => insertText('**', '**'), title: t('sandesh.toolbar.bold') },
-                            { icon: <Italic size={13} />, action: () => insertText('*', '*'), title: t('sandesh.toolbar.italic') },
                             { icon: <ImageIcon size={13} />, action: () => setShowImageInput(p => !p), title: t('sandesh.toolbar.image'), active: showImageInput },
                             { icon: <Mic size={13} />, action: () => audioInputRef.current?.click(), title: t('sandesh.toolbar.audio'), active: !!audioUrl },
                         ].map((btn, i) => (
@@ -447,28 +455,40 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
                             </button>
                         ))}
                         <input type="file" ref={audioInputRef} className="hidden" accept="audio/*" onChange={handleAudioUpload} />
+                        <input type="file" ref={imageInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                     </div>
 
-                    {/* Image URL input */}
+                    {/* Image input — file upload OR URL/YT paste */}
                     {showImageInput && (
-                        <div className="sandesh-input-card" style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', marginBottom: '8px', gap: '8px' }}>
-                            <input
-                                type="text"
-                                value={imageUrl}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    const ytMatch = val.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                                    setImageUrl(ytMatch?.[1] ? `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg` : val);
-                                }}
-                                className="text-slate-800 dark:text-slate-200"
-                                placeholder={t('sandesh.image_placeholder')}
-                                style={{ flex: 1 }}
-                            />
-                            {imageUrl && <button onClick={() => setImageUrl('')} className="text-slate-500 dark:text-slate-400" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={13} /></button>}
+                        <div style={{ marginBottom: '8px' }}>
+                            <div className="sandesh-input-card" style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', marginBottom: '6px', gap: '8px', flexWrap: 'wrap' }}>
+                                <button onClick={() => imageInputRef.current?.click()} disabled={isUploadingImage}
+                                    className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer', fontWeight: 500, flexShrink: 0, border: 'none' }}>
+                                    {isUploadingImage ? <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Uploading&hellip;</> : <><ImageIcon size={12} /> Upload Image</>}
+                                </button>
+                                <span className="text-slate-400 dark:text-slate-600" style={{ fontSize: '11px' }}>or paste URL / YouTube link</span>
+                                <input type="text" value={imageUrl}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        const ytMatch = val.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                                        setImageUrl(ytMatch?.[1] ? `https://img.youtube.com/vi/${ytMatch[1]}/maxresdefault.jpg` : val);
+                                    }}
+                                    className="text-slate-800 dark:text-slate-200"
+                                    placeholder="https://... or YouTube URL"
+                                    style={{ flex: 1, minWidth: '120px', fontSize: '12px' }}
+                                />
+                                {imageUrl && <button onClick={() => setImageUrl('')} className="text-slate-500 dark:text-slate-400" style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={13} /></button>}
+                            </div>
+                            {imageUrl && (
+                                <div style={{ borderRadius: '8px', overflow: 'hidden', maxHeight: '120px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                                    <img src={imageUrl} alt="preview" style={{ width: '100%', height: '120px', objectFit: 'cover' }} />
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {/* Textarea */}
+                    {/* Standard Textarea */}
                     <div className="sandesh-input-card text-slate-800 dark:text-slate-200" style={{ padding: '12px 14px', marginBottom: '10px' }}>
                         <textarea
                             ref={textareaRef}
@@ -476,8 +496,8 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
                             value={newContent}
                             onChange={(e) => { setNewContent(e.target.value); handleUrlDetection(e.target.value); }}
                             placeholder={t('sandesh.content_placeholder')}
-                            className="text-slate-800 dark:text-slate-200"
-                            style={{ fontSize: '13.5px' }}
+                            className="text-slate-800 dark:text-slate-200 bg-transparent border-none focus:ring-0 w-full resize-none"
+                            style={{ fontSize: '13.5px', outline: 'none' }}
                         />
                     </div>
 
@@ -583,15 +603,8 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
                             </div>
 
                             {/* Body text */}
-                            <div className="text-[13.5px] text-slate-700 dark:text-slate-400" style={{ lineHeight: '1.65', marginBottom: '10px' }}>
-                                {sandesh.content.split('\n').map((line, i) => (
-                                    <p key={i} style={{ marginBottom: '4px' }} dangerouslySetInnerHTML={{
-                                        __html: line
-                                            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900 dark:text-slate-200" style="font-weight:600">$1</strong>')
-                                            .replace(/\*(.*?)\*/g, '<em class="text-slate-600 dark:text-slate-400">$1</em>')
-                                            .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#818cf8;text-decoration:underline;text-underline-offset:2px">$1</a>')
-                                    }} />
-                                ))}
+                            <div className="text-[13.5px] text-slate-700 dark:text-slate-400" style={{ lineHeight: '1.65', marginBottom: '10px', whiteSpace: 'pre-wrap' }}>
+                                {sandesh.content}
                             </div>
 
                             {/* Attached Image / YouTube Link fallback */}

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { useAuth } from "@/contexts/AuthContext";
 import { FocusOverlayStats } from "@/utils/focusOverlayService";
 import { clearPiPNudgeSessionDismissal, dismissPiPNudgeSession, shouldShowPiPNudge } from "@/utils/pipNudge";
+import { ResumeSessionToast } from "@/components/focus/ResumeSessionToast";
 
 // Types
 type FocusMode = "Timer" | "short" | "long";
@@ -95,6 +96,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const [totalSeconds, setTotalSeconds] = useState(25 * 60);
     const [remainingSeconds, setRemainingSeconds] = useState(25 * 60);
     const [isRunning, setIsRunning] = useState(false);
+    const [hasPendingResume, setHasPendingResume] = useState(false);
 
     // Goal linking
     const [associatedGoalId, setAssociatedGoalId] = useState<string | null>(null);
@@ -202,13 +204,44 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         userIdRef.current = userId;
     }, [userId]);
 
+    // Persist timer state to localStorage while timer is running (survives refresh)
     useEffect(() => {
+        if (!isRunning || remainingSeconds <= 0 || remainingSeconds >= totalSeconds) {
+            return;
+        }
         try {
-            sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+            const snapshot: FocusRuntimeSnapshot = {
+                mode,
+                totalSeconds,
+                remainingSeconds,
+                isRunning,
+                associatedGoalId,
+                associatedGoalTitle,
+                sessionStartedAt: activeFocusSessionRef.current?.startedAt || null,
+            };
+            localStorage.setItem(FOCUS_SESSION_SNAPSHOT_KEY, JSON.stringify(snapshot));
         } catch {
             // Ignore storage failures
         }
     }, [mode, totalSeconds, remainingSeconds, isRunning, associatedGoalId, associatedGoalTitle]);
+
+    // On mount: check for a pending localStorage snapshot to offer resume
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(FOCUS_SESSION_SNAPSHOT_KEY);
+            if (!raw) return;
+            const snap = JSON.parse(raw) as FocusRuntimeSnapshot;
+            // Only show resume if there was actual progress
+            if (snap && snap.remainingSeconds > 0 && snap.remainingSeconds < snap.totalSeconds) {
+                setHasPendingResume(true);
+            } else {
+                localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+            }
+        } catch {
+            localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Sync refs
     useEffect(() => {
@@ -251,19 +284,12 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         dismissPiPNudgeSession();
     }, []);
 
-    const resumeStoredSession = useCallback(() => {
-        try {
-            sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
-        } catch {
-            // Ignore storage failures
-        }
-    }, []);
-
     const discardStoredSession = useCallback(() => {
         resumeEligibleRef.current = false;
         activeFocusSessionRef.current = null;
+        setHasPendingResume(false);
         try {
-            sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+            localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
         } catch {
             // Ignore storage failures
         }
@@ -325,6 +351,20 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         }
 
     }, [setAssociatedGoal]);
+
+    const resumeStoredSession = useCallback(() => {
+        try {
+            const raw = localStorage.getItem(FOCUS_SESSION_SNAPSHOT_KEY);
+            localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY);
+            setHasPendingResume(false);
+            if (!raw) return;
+            const snap = JSON.parse(raw) as FocusRuntimeSnapshot;
+            if (!snap || snap.remainingSeconds <= 0 || snap.remainingSeconds >= snap.totalSeconds) return;
+            applyRuntimeSnapshot({ ...snap, isRunning: true });
+        } catch {
+            setHasPendingResume(false);
+        }
+    }, [applyRuntimeSnapshot]);
 
     useEffect(() => {
         musicShouldPlayRef.current = isMusicPlaying;
@@ -415,11 +455,8 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         };
     }, []);
 
-    const finalizeFocusSession = useCallback((opts?: { completed?: boolean; interrupted?: boolean }) => {
+    const finalizeFocusSession = useCallback((_opts?: { completed?: boolean; interrupted?: boolean }) => {
         if (modeRef.current !== "Timer") return;
-
-        const activeSession = activeFocusSessionRef.current;
-        if (!activeSession) return;
         activeFocusSessionRef.current = null;
     }, []);
 
@@ -461,7 +498,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             resumeEligibleRef.current = false;
             finalizeFocusSession({ completed: true, interrupted: false });
             setIsRunning(false);
-            try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
+            try { localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
 
             // 🔔 Play notification sound for ALL modes (pomodoro, short break, long break)
             try {
@@ -1014,7 +1051,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setMusicPlaying(false);
         setRemainingSeconds(totalSeconds);
         setAssociatedGoal(null, null);
-        try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
+        try { localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
     }, [totalSeconds, setMusicPlaying, finalizeFocusSession, setAssociatedGoal]);
 
     const handleSetMode = useCallback((newMode: FocusMode) => {
@@ -1035,7 +1072,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         setRemainingSeconds(duration * 60);
         setIsRunning(false);
         setMusicPlaying(false);
-        try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
+        try { localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
     }, [timerDuration, breakDuration, longBreakDuration, setMusicPlaying, finalizeFocusSession]);
 
     const handleSetTimerDuration = useCallback((mins: number) => {
@@ -1049,7 +1086,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
             setMusicPlaying(false);
-            try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
+            try { localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
         }
     }, [mode, setMusicPlaying, finalizeFocusSession]);
 
@@ -1061,7 +1098,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
             setMusicPlaying(false);
-            try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
+            try { localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
         }
     }, [mode, setMusicPlaying]);
 
@@ -1073,7 +1110,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             setRemainingSeconds(mins * 60);
             setIsRunning(false);
             setMusicPlaying(false);
-            try { sessionStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
+            try { localStorage.removeItem(FOCUS_SESSION_SNAPSHOT_KEY); } catch { }
         }
     }, [mode, setMusicPlaying]);
 
@@ -1095,7 +1132,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
         pauseTimer,
         toggleTimer,
         resetTimer,
-        hasPendingResume: false,
+        hasPendingResume,
         resumeStoredSession,
         discardStoredSession,
         getRuntimeSnapshot,
@@ -1141,6 +1178,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
                 loop
                 src={musicSource}
             />
+            <ResumeSessionToast />
         </FocusContext.Provider>
     );
 }

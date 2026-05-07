@@ -44,12 +44,6 @@ export const LEGACY_REPEAT_GOAL_KIND_OPTION: { value: GoalKind; label: string; h
   hint: "Recurs daily. Carries forward if not completed.",
 };
 
-// Tracking method options shown when CREATING a new goal.
-export const GOAL_UNIT_OPTIONS: Array<{ value: GoalUnitType; label: string }> = [
-  { value: "binary",           label: "Done / Not done" },
-  { value: "duration_minutes", label: "Time (focus timer)" },
-];
-
 export const GOAL_CARRY_FORWARD_OPTIONS: Array<{ value: GoalCarryForwardMode; label: string }> = [
   { value: "none", label: "End for this day" },
   { value: "remaining", label: "Carry remaining to next day" },

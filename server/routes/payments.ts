@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { DHYAN_COURSES_BY_ID } from "../../shared/payments";
 import { collections, getMongoClient } from "../db";
 import { requireAuth } from "../middleware/auth";
+import { sendNotificationToUser } from "../services/push-notifications";
 
 const router = Router();
 
@@ -49,6 +50,19 @@ function getPaymentAvailabilityMessage(): string {
   return razorpayReady
     ? "Payments are available."
     : "Payments are temporarily unavailable because Razorpay is not configured on the server.";
+}
+
+function notifyPaymentSuccess(userId: string, courseName: string): void {
+  void sendNotificationToUser(userId, {
+    type: "account_system",
+    title: "Payment confirmed",
+    body: `Your access to ${courseName} is active.`,
+    channel: "account_system",
+    deepLink: "safar://account",
+    priority: "high",
+  }).catch((error) => {
+    console.error("Payment push notification error:", error);
+  });
 }
 
 function verifyRazorpaySignature(
@@ -196,6 +210,7 @@ router.post("/verify", requireAuth, async (req: any, res: Response) => {
     const mongoClient = getMongoClient();
     const session = mongoClient.startSession();
     let enrollmentId: string | undefined;
+    let paidCourseId: string | undefined;
 
     try {
       await session.withTransaction(async () => {
@@ -214,6 +229,7 @@ router.post("/verify", requireAuth, async (req: any, res: Response) => {
         if (courseId && order.course_id !== courseId) {
           throw new Error("COURSE_MISMATCH");
         }
+        paidCourseId = order.course_id;
 
         await collections.orders().updateOne(
           { razorpay_order_id },
@@ -285,6 +301,10 @@ router.post("/verify", requireAuth, async (req: any, res: Response) => {
           { session },
         );
       });
+
+      if (paidCourseId) {
+        notifyPaymentSuccess(userId, COURSES[paidCourseId]?.name || paidCourseId);
+      }
 
       return res.json({
         success: true,
@@ -417,6 +437,8 @@ router.post("/webhook", async (req: Request, res: Response) => {
       },
       created_at: now,
     });
+
+    notifyPaymentSuccess(order.user_id, COURSES[order.course_id]?.name || order.course_id);
 
     return res.status(200).json({ received: true });
   } catch (error: any) {

@@ -55,19 +55,13 @@ export const focusTimerTour: TourConfig = {
         {
             target: "[data-tour='start-button']",
             title: "Start or Pause",
-            content: "Use this button to start the active session or pause it when you need a break.",
+            content: "Start Ekagra immediately, then pause or resume the local timer when you need a break.",
             placement: "top",
         },
         {
-            target: "[data-tour='sessions-button']",
-            title: "Sessions Overlay",
-            content: "Open this to manage your running and paused sessions. Finished sessions do not stay here.",
-            placement: "bottom",
-        },
-        {
             target: "[data-tour='history-button']",
-            title: "Today's History",
-            content: "Open today's focus history here. You will see linked and unlinked finished sessions separately.",
+            title: "Session History",
+            content: "Open saved focus history here. Unsaved or discarded timers do not appear in analytics.",
             placement: "bottom",
         },
         {
@@ -222,20 +216,20 @@ export const goalsTour: TourConfig = {
         {
             target: "[data-tour='add-goal']",
             title: "Create a Goal",
-            content: "Create a new goal here. The flow is now simpler: title, type, and tracking method come first.",
+            content: "Create a new goal here. Goals stay focused on planning, editing, and manual completion.",
             placement: "bottom",
         },
         {
             target: "[data-tour='goal-cards']",
             title: "Your Goals",
-            content: "Your active manual goals appear here. From each card you can complete, edit, delete, or open Focus in Ekagra.",
+            content: "Your active goals appear here. From each card you can complete, edit, repeat, or delete the goal.",
             placement: "bottom",
             spotlightPadding: 16,
         },
         {
             target: "[data-tour='consistency-chart']",
             title: "Goal Analytics",
-            content: "Goal analytics now focuses on completion and consistency only. Time spent is shown in Ekagra analytics, not here.",
+            content: "Goal analytics focuses on completion, progress, and saved Ekagra time that you assign after a timer ends.",
             placement: "left",
         },
     ],
@@ -426,7 +420,7 @@ export const studyPlannerTour: TourConfig = {
 // =====================================================
 export const tourDescriptions: Record<string, string> = {
     "nishtha-checkin": "Track your daily emotions and moods with a simple, honest check-in.",
-    "focus-timer": "Run focused study sessions, manage live timers, and review your completed focus history.",
+    "focus-timer": "Start a local Ekagra timer quickly, then save or discard the session after it ends.",
     "meditation": "Guided breathing exercises to help you relax and find calm.",
     "mehfil": "An anonymous community space to share thoughts and support each other.",
     "nishtha-journal": "A personal writing space to reflect on your day and build self-awareness.",

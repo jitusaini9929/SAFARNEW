@@ -171,7 +171,7 @@
         "instagram": "Follow us on Instagram",
         "meditation": "Join Daily Meditation",
         "app_subtitle": "SAFAR 3.0 on Parmar Academy",
-        "download_app": "📱 Download App",
+        "download_app": "Download App",
         "copyright": "© 2026 Safar. Made for students."
     },
     "dashboard": {
@@ -474,7 +474,6 @@
             "took": "Took {{duration}}"
         },
         "actions": {
-            "start_focus": "Start Focus",
             "edit": "Edit",
             "repeat_task": "Repeat Task",
             "delete": "Delete",
@@ -665,7 +664,7 @@
             "audio": "Audio"
         },
         "image_placeholder": "Paste image URL or YouTube link...",
-        "content_placeholder": "Write an announcement… (**bold**, *italic* supported)",
+        "content_placeholder": "Write an announcement...",
         "loading_preview": "Loading preview...",
         "uploading_audio": "Uploading audio...",
         "audio_attached": "Audio attached",

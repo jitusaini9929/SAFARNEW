@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { validateBlockedWords } from '../utils/contentFilter';
 import { verifyAccessToken } from '../lib/jwt.service';
 import { isAccessTokenBlocked } from '../lib/token.store';
+import { sendAnnouncementToActiveTokens } from '../services/push-notifications';
 
 const router = Router();
 const SANDESH_CACHE_TTL_MS = Number(process.env.SANDESH_CACHE_TTL_MS || 30000);
@@ -133,6 +134,7 @@ const sandeshListLimiter = redisRateLimit({
 // Get Sandesh list (admin: all, users: latest 5)
 router.get('/', sandeshListLimiter, async (req: Request, res: Response) => {
     try {
+        // Always resolve auth live — never serve isAdmin from cache
         const { userId, isAdmin } = await getOptionalAuthContext(req);
 
         const cacheKey = `sandesh:list:${userId ?? 'public'}`;
@@ -140,13 +142,14 @@ router.get('/', sandeshListLimiter, async (req: Request, res: Response) => {
         if (redisCached) {
             setSandeshCache(cacheKey, redisCached);
             res.set('Cache-Control', `private, max-age=${Math.floor(SANDESH_CACHE_TTL_MS / 1000)}`);
-            return res.json(redisCached);
+            // Override isAdmin in cached response with the live value
+            return res.json({ ...redisCached, isAdmin });
         }
 
         const cached = getSandeshCache(cacheKey);
         if (cached) {
             res.set('Cache-Control', `private, max-age=${Math.floor(SANDESH_CACHE_TTL_MS / 1000)}`);
-            return res.json(cached);
+            return res.json({ ...cached, isAdmin });
         }
 
         const sandeshQuery = collections.sandeshMessages()
@@ -159,11 +162,11 @@ router.get('/', sandeshListLimiter, async (req: Request, res: Response) => {
 
         // If no sandesh, return empty list
         if (!sandeshes || sandeshes.length === 0) {
-            const payload = { sandesh: null, sandeshes: [], latestSandeshId: null, isAdmin };
+            const payload = { sandesh: null, sandeshes: [], latestSandeshId: null };
             setSandeshCache(cacheKey, payload);
             await setRedisCache(cacheKey, payload);
             res.set('Cache-Control', `private, max-age=${Math.floor(SANDESH_CACHE_TTL_MS / 1000)}`);
-            return res.json(payload);
+            return res.json({ ...payload, isAdmin });
         }
 
         const sandeshIds = sandeshes.map((item) => item.id);
@@ -199,21 +202,22 @@ router.get('/', sandeshListLimiter, async (req: Request, res: Response) => {
             userLiked: userId ? likedSet.has(item.id) : false,
         }));
 
+        // Cache only the sandesh data — never cache isAdmin (it must be resolved live)
         const payload = {
             sandesh: enrichedSandeshes[0],
             sandeshes: enrichedSandeshes,
             latestSandeshId: enrichedSandeshes[0]?.id ?? null,
-            isAdmin,
         };
         setSandeshCache(cacheKey, payload);
         await setRedisCache(cacheKey, payload);
         res.set('Cache-Control', `private, max-age=${Math.floor(SANDESH_CACHE_TTL_MS / 1000)}`);
-        res.json(payload);
+        res.json({ ...payload, isAdmin });
     } catch (error) {
         console.error('Error fetching sandesh:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
 
 // Helper to extract meta tags
 const fetchUrlMetadata = async (url: string) => {
@@ -288,7 +292,17 @@ router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) 
         };
 
         await collections.sandeshMessages().insertOne(newSandesh);
-        await invalidateSandeshCache();
+        void invalidateSandeshCache().catch(console.error);
+
+        const contentPreview = String(content || '').trim().slice(0, 120);
+        await sendAnnouncementToActiveTokens({
+            type: 'announcements',
+            title: 'New Sandesh announcement',
+            body: contentPreview || 'Open Mehfil for the latest announcement.',
+            channel: 'announcements',
+            deepLink: 'safar://mehfil',
+            priority: importance === 'high' ? 'high' : 'normal',
+        });
 
         res.status(201).json({
             message: 'Sandesh posted successfully',
@@ -328,7 +342,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response
             return res.status(404).json({ message: 'Sandesh not found' });
         }
 
-        await invalidateSandeshCache();
+        void invalidateSandeshCache().catch(console.error);
         res.json({ message: 'Sandesh updated successfully' });
     } catch (error) {
         console.error('Error updating sandesh:', error);
@@ -347,7 +361,7 @@ router.delete('/:id', requireAuth, requireAdmin, async (req: Request, res: Respo
             return res.status(404).json({ message: 'Sandesh not found' });
         }
 
-        await invalidateSandeshCache();
+        void invalidateSandeshCache().catch(console.error);
         res.json({ message: 'Sandesh deleted successfully' });
     } catch (error) {
         console.error('Error deleting sandesh:', error);

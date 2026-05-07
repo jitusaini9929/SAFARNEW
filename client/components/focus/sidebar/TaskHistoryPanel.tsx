@@ -110,7 +110,7 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ isOpen, ref
                 setFocusSessions(Array.isArray(stats.focusSessions) ? stats.focusSessions : []);
             } catch (error) {
                 if (!cancelled) {
-                    console.error("Load focus history error:", error);
+                    console.error("Load session history error:", error);
                     setFocusSessions([]);
                 }
             } finally {
@@ -169,7 +169,7 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ isOpen, ref
         [todayFocusSessions],
     );
 
-    const unlinkedGoals = useMemo(
+    const freeFocusRows = useMemo(
         () =>
             todayFocusSessions
                 .filter((session) => !session.associatedGoalId)
@@ -188,7 +188,7 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ isOpen, ref
     if (loading) {
         return (
             <div className="rounded-2xl border border-border/60 bg-card/80 p-6">
-                <div className="text-sm text-muted-foreground">Loading today&apos;s focus history...</div>
+                <div className="text-sm text-muted-foreground">Loading today&apos;s session history...</div>
             </div>
         );
     }
@@ -217,7 +217,7 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ isOpen, ref
             </div>
 
             {renderHistorySection(
-                "Linked Sessions",
+                "Goal Focus",
                 "Today's goal-linked focus sessions.",
                 "No linked sessions today.",
                 linkedGoals,
@@ -225,10 +225,10 @@ export const TaskHistoryPanel: React.FC<FocusHistoryPanelProps> = ({ isOpen, ref
             )}
 
             {renderHistorySection(
-                "Unlinked Sessions",
-                "Named and timer-only focus sessions.",
-                "No unlinked sessions today.",
-                unlinkedGoals,
+                "Free Focus",
+                "Saved focus sessions without a goal.",
+                "No free focus today.",
+                freeFocusRows,
                 "blue",
             )}
         </div>

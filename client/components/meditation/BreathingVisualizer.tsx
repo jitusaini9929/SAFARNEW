@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PremiumEmoji, type PremiumEmojiName } from '@/components/PremiumEmoji';
 
 interface BreathingVisualizerProps {
     sessionId: string;
@@ -83,9 +84,9 @@ const WavyPathViz: React.FC<{ breathPhase: string; isActive: boolean }> = ({ bre
                         <motion.span
                             animate={{ y: isActive ? (isInhale ? -4 : isExhale ? 4 : 0) : 0 }}
                             transition={{ duration: isInhale ? 4 : 6, ease: 'easeInOut' }}
-                            className="text-3xl mb-1"
+                            className="mb-1"
                         >
-                            {isInhale ? '🫁' : isExhale ? '💨' : '✨'}
+                            <PremiumEmoji name={isInhale ? null : isExhale ? 'wind' : 'sparkle'} fallback={isInhale ? '🫁' : undefined} alt="" className="h-8 w-8" />
                         </motion.span>
                         <motion.span
                             initial={{ opacity: 0 }}
@@ -400,13 +401,13 @@ const NostrilViz: React.FC<{ breathPhase: string; isActive: boolean }> = () => {
     const baseDuration = 4000;
     const duration = baseDuration / speed;
 
-    const phases = [
-        { label: 'Inhale Left', side: 'left', action: 'inhale', color: 'from-blue-400 to-blue-500', icon: '🌊' },
-        { label: 'Hold', side: 'both', action: 'hold', color: 'from-purple-400 to-purple-500', icon: '✨' },
-        { label: 'Exhale Right', side: 'right', action: 'exhale', color: 'from-teal-400 to-teal-500', icon: '🍃' },
-        { label: 'Inhale Right', side: 'right', action: 'inhale', color: 'from-teal-400 to-teal-500', icon: '🍃' },
-        { label: 'Hold', side: 'both', action: 'hold', color: 'from-purple-400 to-purple-500', icon: '✨' },
-        { label: 'Exhale Left', side: 'left', action: 'exhale', color: 'from-blue-400 to-blue-500', icon: '🌊' },
+    const phases: Array<{ label: string; side: string; action: string; color: string; icon: PremiumEmojiName }> = [
+        { label: 'Inhale Left', side: 'left', action: 'inhale', color: 'from-blue-400 to-blue-500', icon: 'waves' },
+        { label: 'Hold', side: 'both', action: 'hold', color: 'from-purple-400 to-purple-500', icon: 'sparkle' },
+        { label: 'Exhale Right', side: 'right', action: 'exhale', color: 'from-teal-400 to-teal-500', icon: 'leaf' },
+        { label: 'Inhale Right', side: 'right', action: 'inhale', color: 'from-teal-400 to-teal-500', icon: 'leaf' },
+        { label: 'Hold', side: 'both', action: 'hold', color: 'from-purple-400 to-purple-500', icon: 'sparkle' },
+        { label: 'Exhale Left', side: 'left', action: 'exhale', color: 'from-blue-400 to-blue-500', icon: 'waves' },
     ];
 
     useEffect(() => {
@@ -481,9 +482,9 @@ const NostrilViz: React.FC<{ breathPhase: string; isActive: boolean }> = () => {
                                 <motion.div
                                     animate={{ rotate: 360 }}
                                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                                    className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${current.color} shadow-lg flex items-center justify-center text-3xl`}
+                                    className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${current.color} shadow-lg flex items-center justify-center`}
                                 >
-                                    {current.icon}
+                                    <PremiumEmoji name={current.icon} alt="" className="h-9 w-9" />
                                 </motion.div>
                             </div>
                         </motion.div>

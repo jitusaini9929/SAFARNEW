@@ -29,6 +29,10 @@ dist-ssr
 .env
 .env.*
 !.env.example
+study_planner_agent/.env
+study_planner_agent/.venv/
+__pycache__/
+*.pyc
 
 # Local database dumps
 safar_dump/

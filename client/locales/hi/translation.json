@@ -171,7 +171,7 @@
         "instagram": "इंस्टाग्राम पर फॉलो करें",
         "meditation": "दैनिक ध्यान से जुड़ें",
         "app_subtitle": "परमार अकादमी पर SAFAR 3.0",
-        "download_app": "📱 ऐप डाउनलोड करें",
+        "download_app": "ऐप डाउनलोड करें",
         "copyright": "© 2026 सफ़र। छात्रों के लिए बनाया गया।"
     },
     "dashboard": {
@@ -474,7 +474,6 @@
             "took": "लगा {{duration}}"
         },
         "actions": {
-            "start_focus": "फोकस शुरू करो",
             "edit": "एडिट",
             "repeat_task": "फिर से करो",
             "delete": "हटाओ",
@@ -665,7 +664,7 @@
             "audio": "आवाज"
         },
         "image_placeholder": "फोटो का लिंक या YouTube लिंक डालें...",
-        "content_placeholder": "सूचना लिखें… (**bold**, *italic* इस्तेमाल करें)",
+        "content_placeholder": "सूचना लिखें...",
         "loading_preview": "प्रीव्यू लोड हो रहा है...",
         "uploading_audio": "आवाज अपलोड हो रही है...",
         "audio_attached": "आवाज जुड़ गई है",

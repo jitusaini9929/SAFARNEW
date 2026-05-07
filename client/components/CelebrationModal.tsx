@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
+import { PremiumEmoji } from '@/components/PremiumEmoji';
 
 // ─── Types ──────────────────────────────────────────────────
 interface CelebrationModalProps {
@@ -318,7 +319,10 @@ export default function CelebrationModal({ isOpen, onClose, achievement, achieve
                     </button>
 
                     <p className="text-white/80 text-xs font-bold uppercase tracking-[0.3em] mb-3 animate-in slide-in-from-bottom-2 duration-500">
-                        {achievement.type === 'badge' ? '🏆 New Badge Earned!' : '✨ New Title Unlocked!'}
+                        <span className="inline-flex items-center justify-center gap-2">
+                            <PremiumEmoji name={achievement.type === 'badge' ? 'trophy' : 'sparkle'} alt="" className="h-4 w-4" />
+                            {achievement.type === 'badge' ? 'New Badge Earned!' : 'New Title Unlocked!'}
+                        </span>
                     </p>
 
                     {/* Achievement Image */}
