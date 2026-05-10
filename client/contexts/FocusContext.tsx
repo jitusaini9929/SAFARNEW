@@ -29,6 +29,8 @@ interface TimerState {
 interface FocusContextType {
     // Timer State
     timerState: TimerState;
+    /** Configured Pomodoro length (minutes), including when not in Timer mode. */
+    timerDuration: number;
     setTimerDuration: (minutes: number) => void;
     setBreakDuration: (minutes: number) => void;
     setLongBreakDuration: (minutes: number) => void;
@@ -1123,6 +1125,7 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
             isRunning,
             mode
         },
+        timerDuration,
         setTimerDuration: handleSetTimerDuration,
         setBreakDuration: handleSetBreakDuration,
         setLongBreakDuration: handleSetLongBreakDuration,

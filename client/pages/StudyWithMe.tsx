@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { authService } from "@/utils/authService";
 import { dataService } from "@/utils/dataService";
-import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, HelpCircle, Volume2, VolumeX, Music, LayoutDashboard, Layers3, X } from "lucide-react";
+import { Moon, Sun, History, Plus, Home, Settings, Play, Pause, RotateCcw, Leaf, Sparkles, LogOut, ArrowRight, BarChart2, Clock, Zap, Target, Flame, Calendar, Palette, ChevronLeft, ChevronRight, Trees, Waves, Sunset, MoonStar, Sparkle, Volume2, VolumeX, Music, LayoutDashboard, Layers3 } from "lucide-react";
 import TasksSidebar, { type Task } from "./TasksSidebar";
 import { TimerCard } from "../components/focus/TimerCard";
 import { PiPNudgeToast } from "@/components/focus/PiPNudgeToast";
@@ -94,6 +94,9 @@ const focusThemes: FocusTheme[] = [
 ];
 
 const MUSIC_TRACK_STORAGE_KEY = "focus-music-track-id";
+
+const getEkagraLastOpeningTimerKey = (userId?: string | null) =>
+    `ekagra-last-opening-timer-minutes-${userId || "guest"}`;
 
 const focusMusicTracks: FocusMusicTrack[] = [
     {
@@ -254,6 +257,27 @@ const extractEkagraTasks = (goals: any[]) =>
 const getGoalTitle = (goal: Pick<Goal, "title" | "text">) =>
     String(goal.title || goal.text || "").trim();
 
+const getLocalDateKey = (value: Date | string | null | undefined) => {
+    if (!value) return "";
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) return "";
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
+const formatFocusMinutes = (totalMinutes: number) => {
+    const safeMinutes = Math.max(0, Math.round(totalMinutes));
+    const hours = Math.floor(safeMinutes / 60);
+    const minutes = safeMinutes % 60;
+
+    if (hours <= 0) return `${minutes}m`;
+    if (minutes === 0) return `${hours}h`;
+    return `${hours}h ${minutes}m`;
+};
+
 const isUsableFocusGoal = (goal: Goal) => {
     const lifecycle = String(goal.lifecycleStatus || goal.lifecycle_status || "active").toLowerCase();
     return Boolean(goal.id)
@@ -269,6 +293,7 @@ export default function StudyWithMe() {
     const { theme } = useTheme();
     const {
         timerState,
+        timerDuration,
         toggleTimer,
         resetTimer,
         togglePiP,
@@ -305,7 +330,7 @@ export default function StudyWithMe() {
     const [breakSliderValue, setBreakSliderValue] = useState(5);
     const [isTasksOpen, setIsTasksOpen] = useState(false);
     const [showAnalytics, setShowAnalytics] = useState(false);
-    const [showEkagraGuide, setShowEkagraGuide] = useState(false);
+    const [todaySavedFocusMinutes, setTodaySavedFocusMinutes] = useState(0);
 
     // Sync slider with global state if needed, or just let slider drive global
     useEffect(() => {
@@ -346,6 +371,8 @@ export default function StudyWithMe() {
     const [showOrganizePrompt, setShowOrganizePrompt] = useState(false);
     const [organizeStep, setOrganizeStep] = useState<"choice" | "free" | "link">("choice");
     const [goalPendingConfirmation, setGoalPendingConfirmation] = useState<Goal | null>(null);
+    const [showPomodoroIncrementGlow, setShowPomodoroIncrementGlow] = useState(false);
+    const ekagraOpeningTimerMinutesRef = useRef<number | null>(null);
     const [pendingEndedSession, setPendingEndedSession] = useState<{
         sessionId: string;
         elapsedSeconds: number;
@@ -750,6 +777,68 @@ export default function StudyWithMe() {
     };
 
     const timerSliderValue = Math.min(sliderValue, TIMER_SLIDER_MAX);
+    const currentTimerElapsedMinutes =
+        mode === "Timer" ? Math.floor(Math.max(0, totalSeconds - remainingSeconds) / 60) : 0;
+    const todayFocusMinutes = todaySavedFocusMinutes + currentTimerElapsedMinutes;
+    const todayFocusLabel = formatFocusMinutes(todayFocusMinutes);
+
+    const refreshTodayFocusMinutes = useCallback(async (options?: { forceFresh?: boolean }) => {
+        if (status !== "authenticated" || !user?.id) {
+            setTodaySavedFocusMinutes(0);
+            return;
+        }
+
+        try {
+            const analytics = await dataService.getEkagraAnalytics({ forceFresh: options?.forceFresh });
+            const todayKey = getLocalDateKey(new Date());
+            const total = analytics.focusSessions.reduce((sum, session) => {
+                if (getLocalDateKey(session.endedAt) !== todayKey) return sum;
+                return sum + Math.max(0, Number(session.actualMinutes || 0));
+            }, 0);
+            setTodaySavedFocusMinutes(Math.round(total));
+        } catch (error) {
+            console.error("Refresh today's focus time error:", error);
+        }
+    }, [status, user?.id]);
+
+    useEffect(() => {
+        void refreshTodayFocusMinutes();
+    }, [refreshTodayFocusMinutes]);
+
+    useLayoutEffect(() => {
+        if (ekagraOpeningTimerMinutesRef.current !== null) return;
+        const openMin = normalizeMinutes(timerDuration);
+        ekagraOpeningTimerMinutesRef.current = openMin;
+        try {
+            const raw = localStorage.getItem(getEkagraLastOpeningTimerKey(user?.id));
+            if (raw == null || raw.trim() === "") return;
+            const parsed = parseInt(raw, 10);
+            if (!Number.isFinite(parsed)) return;
+            const prior = normalizeMinutes(parsed);
+            if (openMin > prior) setShowPomodoroIncrementGlow(true);
+        } catch {
+            // Ignore storage failures.
+        }
+    }, [timerDuration, user?.id]);
+
+    useEffect(() => {
+        const key = getEkagraLastOpeningTimerKey(user?.id);
+        return () => {
+            const v = ekagraOpeningTimerMinutesRef.current;
+            if (v == null) return;
+            try {
+                localStorage.setItem(key, String(v));
+            } catch {
+                // Ignore storage failures.
+            }
+        };
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (isRunning && mode === "Timer") {
+            setShowPomodoroIncrementGlow(false);
+        }
+    }, [isRunning, mode]);
 
     const applyCustomTimer = () => {
         const parsed = parseInt(customTimerInput.trim(), 10);
@@ -950,6 +1039,7 @@ export default function StudyWithMe() {
             resetTimer();
             await refreshRuntimeSessions();
             await refreshEkagraTasksFromServer();
+            await refreshTodayFocusMinutes({ forceFresh: true });
         } catch (error) {
             console.error("Complete free focus session error:", error);
         }
@@ -958,6 +1048,7 @@ export default function StudyWithMe() {
         discardStoredSession,
         refreshEkagraTasksFromServer,
         refreshRuntimeSessions,
+        refreshTodayFocusMinutes,
         resetTimer,
         setAssociatedGoal,
         sessionTitleInput,
@@ -1671,6 +1762,7 @@ export default function StudyWithMe() {
                         seconds={seconds}
                         isRunning={isRunning}
                         showResumeLabel={shouldShowResumeLabel}
+                        emphasizeStartButton={showPomodoroIncrementGlow && mode === "Timer"}
                         mode={mode}
                         currentTheme={currentTheme}
                         onToggle={handleToggleTimer}
@@ -1938,19 +2030,18 @@ export default function StudyWithMe() {
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline">Sessions</span>
                     </button>
 
-                    <button
-                        onClick={() => setShowEkagraGuide(true)}
-                        data-tour="guide-button"
-                        className={`flex items-center gap-2 h-10 px-4 rounded-full transition-all group ${
+                    <div
+                        data-tour="today-focus-time"
+                        className={`flex items-center gap-2 h-10 px-3 sm:px-4 rounded-full transition-all ${
                             showAnalytics
-                                ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
-                                : "hover:bg-white/10 text-white"
+                                ? "bg-slate-100 dark:bg-slate-800/70 text-slate-700 dark:text-slate-200"
+                                : "bg-white/5 border border-white/10 text-white"
                         }`}
-                        title="Ekagra Usage Guide"
+                        title={`Today's total focus time: ${todayFocusLabel}`}
                     >
-                        <HelpCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline">Guide</span>
-                    </button>
+                        <Clock className="w-4 h-4 shrink-0" />
+                        <span className="text-xs font-black tabular-nums leading-none">{todayFocusLabel}</span>
+                    </div>
 
                     <div className={`w-px h-4 mx-1 ${showAnalytics ? "bg-slate-300 dark:bg-slate-700" : "bg-slate-900/20 dark:bg-white/20"}`} />
 
@@ -2062,98 +2153,6 @@ export default function StudyWithMe() {
                     </DropdownMenu>
                 </div>
             </div>
-            {showEkagraGuide && (
-                <div className="fixed inset-0 z-[90] bg-black/55 backdrop-blur-sm p-4 flex items-center justify-center">
-                    <div className="w-full max-w-3xl max-h-[85dvh] rounded-3xl border border-white/20 bg-slate-900/95 text-white shadow-2xl overflow-hidden flex flex-col">
-                        <div className="px-5 py-4 border-b border-white/10 bg-white/5 flex items-center justify-between">
-                            <div>
-                                <h2 className="text-lg font-bold">Ekagra Mode Detailed Guide</h2>
-                                <p className="text-xs text-white/70 mt-1">Har major control ka kaam aur practical usage steps.</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setShowEkagraGuide(false)}
-                                className="p-2 rounded-lg hover:bg-white/10"
-                                title="Close guide"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        <div className="overflow-y-auto p-5 sm:p-6 space-y-6 text-sm leading-relaxed">
-                            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-white/90">
-                                <h3 className="text-sm font-bold mb-2">What changed (quick recap)</h3>
-                                <ul className="list-disc pl-5 space-y-1">
-                                    <li>Ekagra starts as a local timer. Nothing is saved until you choose to save.</li>
-                                    <li>Finished focus time can become Free Focus, linked goal progress, a new goal, or nothing.</li>
-                                    <li>Linked goals gain studied time without being falsely completed.</li>
-                                    <li>Analytics and history use saved focus time only.</li>
-                                </ul>
-                            </div>
-                            <section className="space-y-2">
-                                <h3 className="font-bold text-base">1. How to start a session</h3>
-                                <ol className="list-decimal pl-5 space-y-1 text-white/90">
-                                    <li>Open Ekagra from a goal using Focus, or start Free Focus directly.</li>
-                                    <li>Set the timer duration from the sidebar.</li>
-                                    <li>Press Start to begin the local timer.</li>
-                                </ol>
-                            </section>
-
-                            <section className="space-y-2">
-                                <h3 className="font-bold text-base">2. Timer controls</h3>
-                                <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li><strong>Start / Pause</strong>: begins or pauses the current session.</li>
-                                    <li><strong>End Session</strong>: opens the save review.</li>
-                                    <li><strong>Modes</strong>: switch between focus, short break, and long break.</li>
-                                    <li><strong>Discard</strong>: clears the local draft without saving.</li>
-                                    <li><strong>PiP</strong>: opens a mini timer window while you work elsewhere.</li>
-                                </ul>
-                            </section>
-
-                            <section className="space-y-2">
-                                <h3 className="font-bold text-base">3. History and recovery</h3>
-                                <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li><strong>Reload safety</strong>: unsaved timer drafts are recovered locally.</li>
-                                    <li><strong>Resume</strong>: continues the recovered local timer.</li>
-                                    <li><strong>Save</strong>: opens the post-session review for recovered time.</li>
-                                    <li><strong>Session History</strong>: shows saved focus work only.</li>
-                                </ul>
-                            </section>
-
-                            <section className="space-y-2">
-                                <h3 className="font-bold text-base">4. Linked goal behaviour</h3>
-                                <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li>The linked goal appears at the top so you always know what you are working on.</li>
-                                    <li>The goal stays inside Goals; Ekagra only links to it.</li>
-                                    <li>Unlink removes the connection without deleting the goal.</li>
-                                    <li>When linked focus is saved, duration goals gain time. Binary goals complete only when you choose that explicitly.</li>
-                                </ul>
-                            </section>
-
-                            <section className="space-y-2">
-                                <h3 className="font-bold text-base">5. Audio and environment</h3>
-                                <ul className="list-disc pl-5 space-y-1 text-white/90">
-                                    <li>Theme changes the visual background of your focus room.</li>
-                                    <li>Music controls are in the top toolbar.</li>
-                                    <li>Volume can be adjusted directly from the slider.</li>
-                                </ul>
-                            </section>
-
-                            <section className="space-y-2">
-                                <h3 className="font-bold text-base">6. Recommended flow</h3>
-                                <ol className="list-decimal pl-5 space-y-1 text-white/90">
-                                    <li>Start Ekagra immediately.</li>
-                                    <li>Set a realistic duration before you start.</li>
-                                    <li>Pause only when needed.</li>
-                                    <li>End the timer and decide whether to save as Free Focus, link a goal, create a goal, or discard.</li>
-                                    <li>Open Analytics when you want to review saved focus time and goal progress.</li>
-                                </ol>
-                            </section>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* Styles */}
             <style>{`
                 @keyframes crawl {

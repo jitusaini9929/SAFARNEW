@@ -6,6 +6,8 @@ interface TimerCardProps {
     seconds: number;
     isRunning: boolean;
     showResumeLabel?: boolean;
+    /** When true, draws an extra gradient glow on the primary start/pause control (e.g. after a longer Pomodoro was chosen). */
+    emphasizeStartButton?: boolean;
     mode: "Timer" | "short" | "long";
     currentTheme: { accent: string };
     onToggle: () => void;
@@ -34,6 +36,7 @@ export const TimerCard: React.FC<TimerCardProps> = ({
     seconds,
     isRunning,
     showResumeLabel = false,
+    emphasizeStartButton = false,
     mode,
     currentTheme,
     onToggle,
@@ -94,10 +97,14 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                     data-tour="start-button"
                     onClick={onToggle}
                     aria-label={isRunning ? "Pause timer" : showResumeLabel ? "Resume timer" : "Start timer"}
-                    className="group relative px-8 py-4 md:px-16 md:py-5 landscape:px-6 landscape:py-3 text-white text-lg md:text-xl landscape:text-base font-bold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden action-btn-nowrap"
+                    className={`group relative px-8 py-4 md:px-16 md:py-5 landscape:px-6 landscape:py-3 text-white text-lg md:text-xl landscape:text-base font-bold rounded-2xl shadow-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 overflow-hidden action-btn-nowrap ${
+                        emphasizeStartButton && !isRunning ? "animate-[pulse-glow_2.4s_ease-in-out_infinite]" : ""
+                    }`}
                     style={{
                         backgroundColor: currentTheme.accent,
-                        boxShadow: `0 0 30px ${currentTheme.accent}50`,
+                        boxShadow: emphasizeStartButton && !isRunning
+                            ? `0 0 28px ${currentTheme.accent}99, 0 0 56px ${currentTheme.accent}66, 0 0 80px ${currentTheme.accent}44`
+                            : `0 0 30px ${currentTheme.accent}50`,
                     }}
                 >
                     <span className="relative z-10 uppercase tracking-widest flex items-center gap-3">
@@ -124,6 +131,14 @@ export const TimerCard: React.FC<TimerCardProps> = ({
                     <PictureInPicture2 className="w-5 h-5 landscape:w-4 landscape:h-4" />
                 </button>
             </div>
+            {emphasizeStartButton && !isRunning ? (
+                <style>{`
+                    @keyframes pulse-glow {
+                        0%, 100% { filter: brightness(1); transform: scale(1); }
+                        50% { filter: brightness(1.12); transform: scale(1.02); }
+                    }
+                `}</style>
+            ) : null}
         </div>
     );
 };

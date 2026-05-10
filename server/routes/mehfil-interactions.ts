@@ -81,7 +81,8 @@ export const mehfilInteractionRoutes = Router();
 
 mehfilInteractionRoutes.use(requireAuth);
 
-const REPORTS_TO_BAN = Math.max(1, Number(process.env.MEHFIL_REPORTS_TO_BAN || 3));
+const MIN_REPORTS_TO_BAN = 3;
+const REPORTS_TO_BAN = Math.max(MIN_REPORTS_TO_BAN, Number(process.env.MEHFIL_REPORTS_TO_BAN || MIN_REPORTS_TO_BAN));
 const BAN_MESSAGE = "you have been banned from posting messages";
 const BAN_2_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 const BAN_7_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -440,6 +441,27 @@ mehfilInteractionRoutes.post("/report", async (req: any, res: Response) => {
 
         if (!thoughtId || !reason) {
             return res.status(400).json({ error: "ThoughtId and reason are required" });
+        }
+
+        const reporter = await collections.users().findOne(
+            { id: userId },
+            {
+                projection: {
+                    is_banned: 1,
+                    mehfil_banned_forever: 1,
+                    mehfil_banned_until: 1,
+                },
+            },
+        );
+
+        const reporterBannedUntil = reporter?.mehfil_banned_until ? new Date(reporter.mehfil_banned_until) : null;
+        const isReporterRestricted =
+            Boolean(reporter?.is_banned) ||
+            Boolean(reporter?.mehfil_banned_forever) ||
+            Boolean(reporterBannedUntil && reporterBannedUntil.getTime() > Date.now());
+
+        if (isReporterRestricted) {
+            return res.status(403).json({ error: "Your account is restricted from reporting Mehfil posts" });
         }
 
         const thought = await collections.mehfilThoughts().findOne(
