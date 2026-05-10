@@ -1,8 +1,8 @@
 import { Router, Request, Response } from "express";
 import { ObjectId } from "mongodb";
 import { v4 as uuidv4 } from "uuid";
-import { getDb } from "../server/db";
-import { requireAuth } from "../server/middleware/auth";
+import { getDb } from "../../../server/db";
+import { requireAuth } from "../../../server/middleware/auth";
 import {
   StudyPlan,
   StudySubject,

@@ -1,9 +1,14 @@
 import re
+from pathlib import Path
 
-with open('StudyPlanner_HEAD.tsx', 'r', encoding='utf-8') as f:
+ROOT = Path(__file__).resolve().parents[2]
+HEAD = ROOT / "archive" / "dev-scripts" / "StudyPlanner_HEAD.tsx"
+CURRENT = ROOT / "client" / "features" / "study-planner" / "StudyPlanner.tsx"
+
+with open(HEAD, "r", encoding="utf-8") as f:
     head_content = f.read()
 
-with open('sylaabus planner/StudyPlanner.tsx', 'r', encoding='utf-8') as f:
+with open(CURRENT, "r", encoding="utf-8") as f:
     curr_content = f.read()
 
 # In HEAD, find the section starting from: "  const [beginnerMode, setBeginnerMode] = useState"
@@ -32,7 +37,7 @@ if curr_start == -1 or curr_end == -1:
 
 new_content = curr_content[:curr_start] + text_to_inject + curr_content[curr_end:]
 
-with open('sylaabus planner/StudyPlanner.tsx', 'w', encoding='utf-8') as f:
+with open(CURRENT, "w", encoding="utf-8") as f:
     f.write(new_content)
 
 print("Successfully injected text from HEAD to CURRENT!")

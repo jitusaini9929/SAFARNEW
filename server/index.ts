@@ -76,7 +76,7 @@ export async function createServer() {
   const achievementsModule = await loadStartupModule("achievement routes", () => import("./routes/achievements"));
   const perksModule = await loadStartupModule("perk routes", () => import("./routes/perks"));
   const authModule = await loadStartupModule("auth routes", () => import("./routes/auth"));
-  const planModule = await loadStartupModule("study planner routes", () => import("../sylaabus planner/plan.routes"));
+  const planModule = await loadStartupModule("study planner routes", () => import("../client/features/study-planner/plan.routes"));
   const sandeshModule = await loadStartupModule("sandesh routes", () => import("./routes/sandesh"));
   const suggestionsModule = await loadStartupModule("suggestions routes", () => import("./routes/suggestions"));
 

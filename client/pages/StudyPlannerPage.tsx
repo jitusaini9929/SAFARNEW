@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch, API_BASE } from "@/utils/apiFetch";
 import { useTheme } from "@/contexts/ThemeContext";
 import { PremiumEmoji, type PremiumEmojiName } from "@/components/PremiumEmoji";
-import StudyPlanner from "../../sylaabus planner/StudyPlanner";
+import StudyPlanner from "@/features/study-planner/StudyPlanner";
 
 // ── Types ──
 

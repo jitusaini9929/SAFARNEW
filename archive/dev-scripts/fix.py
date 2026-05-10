@@ -1,5 +1,7 @@
-file_path = r'd:\\SAFAR\\sylaabus planner\\StudyPlanner.tsx'
-with open(file_path, 'r', encoding='utf-8') as f:
+from pathlib import Path
+
+file_path = Path(__file__).resolve().parents[2] / "client" / "features" / "study-planner" / "StudyPlanner.tsx"
+with open(file_path, "r", encoding="utf-8") as f:
     text = f.read()
 
 # Remove the old Exams block which is malformed.

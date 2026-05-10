@@ -1,7 +1,8 @@
 import re
+from pathlib import Path
 
-file_path = r'd:\SAFAR\sylaabus planner\StudyPlanner.tsx'
-with open(file_path, 'r', encoding='utf-8') as f:
+file_path = Path(__file__).resolve().parents[2] / "client" / "features" / "study-planner" / "StudyPlanner.tsx"
+with open(file_path, "r", encoding="utf-8") as f:
     content = f.read()
 
 # 1. Update PlannerSection and PlannerView types

@@ -1,4 +1,4 @@
-import { getDb } from "../server/db";
+import { getDb } from "../../../server/db";
 
 export type PlannerEventType =
   | "topic_completed"

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { API_BASE, apiFetch, getAccessToken, type ApiFetchOptions } from "../client/utils/apiFetch";
-import PlannerSidebar from "../client/components/PlannerSidebar";
-import LanguageToggle from "../client/components/LanguageToggle";
-import ThemeToggle from "../client/components/ui/theme-toggle";
-import { Switch } from "../client/components/ui/switch";
-import { TourPrompt } from "../client/components/guided-tour";
-import { studyPlannerTour } from "../client/components/guided-tour/tourSteps";
-import { useGuidedTour } from "../client/contexts/GuidedTourContext";
-import { PremiumEmoji } from "../client/components/PremiumEmoji";
+import { API_BASE, apiFetch, getAccessToken, type ApiFetchOptions } from "@/utils/apiFetch";
+import PlannerSidebar from "@/components/PlannerSidebar";
+import LanguageToggle from "@/components/LanguageToggle";
+import ThemeToggle from "@/components/ui/theme-toggle";
+import { Switch } from "@/components/ui/switch";
+import { TourPrompt } from "@/components/guided-tour";
+import { studyPlannerTour } from "@/components/guided-tour/tourSteps";
+import { useGuidedTour } from "@/contexts/GuidedTourContext";
+import { PremiumEmoji } from "@/components/PremiumEmoji";
 
 type TopicStatus = "todo" | "in_progress" | "done" | "revision_needed";
 type PlannerSection = "today" | "plan" | "syllabus" | "calendar" | "insights";
