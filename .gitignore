@@ -38,3 +38,6 @@ __pycache__/
 safar_dump/
 safar_dump_final/
 safar_dump_resync/
+
+# If `misc/` could not be fully moved into Extras (file locks), ignore root leftovers
+/misc/

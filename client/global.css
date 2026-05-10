@@ -4,7 +4,7 @@
 
 @font-face {
   font-family: "Ranade";
-  src: url("../ranade/Ranade-Regular.otf") format("opentype");
+  src: url("../Extras/ranade/Ranade-Regular.otf") format("opentype");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -12,7 +12,7 @@
 
 @font-face {
   font-family: "Ranade";
-  src: url("../ranade/Ranade-Medium.otf") format("opentype");
+  src: url("../Extras/ranade/Ranade-Medium.otf") format("opentype");
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -20,7 +20,7 @@
 
 @font-face {
   font-family: "Ranade";
-  src: url("../ranade/Ranade-Bold.otf") format("opentype");
+  src: url("../Extras/ranade/Ranade-Bold.otf") format("opentype");
   font-style: normal;
   font-weight: 700;
   font-display: swap;
