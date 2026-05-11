@@ -3,7 +3,7 @@ MVP Agent for Syllabus Conversion
 ---------------------------------
 
 This script provides a command‑line interface (CLI) to convert a syllabus
-contained in a variety of common document formats (PDF, DOCX, TXT and images)
+contained in common document formats (PDF, DOCX, TXT)
 into a plain‑text representation using a simple three‑symbol grammar:
 
     * ``-`` at the beginning of a line denotes a **Subject**.
@@ -46,16 +46,6 @@ except ImportError:
     Document = None
 
 try:
-    from PIL import Image  # Pillow
-except ImportError:
-    Image = None
-
-try:
-    import pytesseract
-except ImportError:
-    pytesseract = None
-
-try:
     from groq import Groq
 except ImportError:
     Groq = None
@@ -79,7 +69,6 @@ def extract_text(file_path: str) -> str:
     - .pdf   : Extracts text from each page using PyMuPDF.
     - .docx  : Reads paragraphs using python‑docx.
     - .txt   : Returns the file contents as is.
-    - .jpg/.jpeg/.png : Performs OCR using Tesseract via pytesseract.
 
     Args:
         file_path: Absolute or relative path to the source file.
@@ -113,15 +102,6 @@ def extract_text(file_path: str) -> str:
     elif ext == ".txt":
         with open(file_path, "r", encoding="utf‑8", errors="ignore") as f:
             return f.read()
-    elif ext in {".jpg", ".jpeg", ".png"}:
-        if Image is None or pytesseract is None:
-            raise RuntimeError(
-                "Pillow and pytesseract are required for OCR. Please install them to extract text from images."
-            )
-        image = Image.open(file_path)
-        # Use pytesseract to convert image to string
-        ocr_text = pytesseract.image_to_string(image)
-        return ocr_text
     else:
         raise RuntimeError(f"Unsupported file extension: {ext}")
 
@@ -220,7 +200,7 @@ def main() -> None:
     parser.add_argument(
         "file",
         type=str,
-        help="Path to the input syllabus file (PDF, DOCX, TXT, JPG/PNG)",
+        help="Path to the input syllabus file (PDF, DOCX, TXT)",
     )
     parser.add_argument(
         "-o",

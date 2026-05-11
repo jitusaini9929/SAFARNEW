@@ -19,9 +19,7 @@ to disk or passed to your existing planner.
 
 ## Features
 
-- **Multi‑format extraction** – supports PDF, DOCX, plain‑text and
-  common image formats (JPEG/PNG).  OCR is performed via [Tesseract]
-  when reading from images.
+- **Multi‑format extraction** – supports PDF, DOCX, and plain‑text files.
 - **Agentic formatting** – uses Groq’s
   `meta-llama/llama-4-scout-17b-16e-instruct` model to convert messy
   syllabus text into the strict subject/chapter/topic code.  The client
@@ -32,6 +30,8 @@ to disk or passed to your existing planner.
   that do not start with one of the three allowed symbols.
 - **Command‑line interface** – run the agent from your terminal to
   convert files in bulk and save the results.
+- **HTTP API mode** – expose the same parser + model flow at
+  `POST /api/syllabus/import` for your deployed backend.
 
 ## Installation
 
@@ -51,18 +51,7 @@ to disk or passed to your existing planner.
    pip install -r requirements.txt
    ```
 
-4. **Install Tesseract** (optional, only required for image OCR).
-   - **Ubuntu/Debian:** `sudo apt install tesseract-ocr`
-   - **macOS:** `brew install tesseract`
-   - **Windows:** download the installer from
-     <https://github.com/tesseract-ocr/tesseract> and follow the
-     instructions.
-
-   If you install Tesseract somewhere other than the default path,
-   set the `TESSDATA_PREFIX` environment variable to point to its
-   installation directory.
-
-5. Obtain a **Groq API key** from the [Groq Console](https://console.groq.com/) and
+4. Obtain a **Groq API key** from the [Groq Console](https://console.groq.com/) and
    set it in your environment.  You can either export it directly:
 
    ```sh
@@ -86,7 +75,7 @@ python main.py /path/to/syllabus.pdf -o formatted_syllabus.txt
 
 Arguments:
 
-- `file` (required): path to the syllabus input file (PDF, DOCX, TXT, JPG, PNG).
+- `file` (required): path to the syllabus input file (PDF, DOCX, TXT).
 - `-o`/`--output` (optional): path to write the formatted output.  If omitted
   the result is printed to the console.
 
@@ -112,6 +101,57 @@ If validation fails the script prints all detected errors and exits with
 a non‑zero status.  In that case you can inspect the AI output, adjust
 the extracted text (perhaps removing extraneous content), and re‑run.
 
+## API Mode (for deployed website integration)
+
+This project also includes a FastAPI server in `app.py` with:
+
+- `GET /health`
+- `POST /api/syllabus/import` (multipart form-data, key: `file`)
+
+### Run locally
+
+```sh
+pip install -r requirements.txt
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+Then configure your Node backend:
+
+```env
+SYLLABUS_AGENT_URL=http://127.0.0.1:8000
+```
+
+### Response contract
+
+Success:
+
+```json
+{
+  "success": true,
+  "message": "Syllabus imported successfully.",
+  "syllabusCode": "- Subject\n_ Chapter\n> Topic"
+}
+```
+
+Validation failure:
+
+```json
+{
+  "success": false,
+  "message": "Generated syllabus format failed validation.",
+  "errors": ["..."],
+  "syllabusCode": "..."
+}
+```
+
+### Railway deploy command
+
+If Railway does not auto-detect from `Procfile`, set the start command:
+
+```sh
+uvicorn app:app --host 0.0.0.0 --port $PORT
+```
+
 ## Configuration and Customisation
 
 - **Model selection:** The default model is `meta-llama/llama-4-scout-17b-16e-instruct`.  To
@@ -132,8 +172,7 @@ This MVP implements the core workflow described in the user’s design notes
 
 1. **A unified interface** for importing and parsing complex syllabus
    documents.
-2. **A text extraction layer** that hides format details and performs
-   OCR when necessary.
+2. **A text extraction layer** that hides format details for supported document types.
 3. **A strict AI formatting agent** that outputs only the three‑symbol
    grammar, reducing cost by delegating the heavy lifting to a single
    call.
