@@ -498,7 +498,7 @@ mehfilInteractionRoutes.post("/report", async (req: any, res: Response) => {
 
         const reporterGroups = await collections.mehfilReports()
             .aggregate([
-                { $match: { thought_id: thoughtId } },
+                { $match: { thought_id: thoughtId, status: "pending" } },
                 { $group: { _id: "$reporter_id" } },
                 { $count: "count" },
             ])
