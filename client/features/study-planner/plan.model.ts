@@ -318,13 +318,23 @@ export function autoDistributeTopics(plan: StudyPlan, opts?: AutoDistributeOptio
   // Normalize both dates to midnight to avoid day-truncation from time offsets
   const cursor = new Date(from);
   cursor.setHours(0, 0, 0, 0);
-  const examEnd = new Date(examDate);
-  examEnd.setHours(23, 59, 59, 999);
+  const examDayEnd = new Date(examDate);
+  examDayEnd.setHours(23, 59, 59, 999);
+
+  // If the exam date is already before the schedule start (e.g. user still tracks the plan
+  // after the exam), the window [from, exam] is empty and nothing gets dates. Extend forward.
+  const SCHEDULE_FORWARD_MAX_DAYS = 730;
+  let scheduleEnd = examDayEnd;
+  if (scheduleEnd.getTime() < cursor.getTime()) {
+    scheduleEnd = new Date(cursor);
+    scheduleEnd.setDate(scheduleEnd.getDate() + SCHEDULE_FORWARD_MAX_DAYS);
+    scheduleEnd.setHours(23, 59, 59, 999);
+  }
 
   let i = 0;
   let assigned = 0;
 
-  while (i < queue.length && cursor.getTime() <= examEnd.getTime()) {
+  while (i < queue.length && cursor.getTime() <= scheduleEnd.getTime()) {
     if (offDays.has(cursor.getDay())) {
       cursor.setDate(cursor.getDate() + 1);
       continue;

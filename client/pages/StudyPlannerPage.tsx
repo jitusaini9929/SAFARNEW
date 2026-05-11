@@ -317,7 +317,7 @@ function QuickStart({
             chapterCache.set(chapterKey, chapter);
           }
 
-          // 3. Add Topics
+          // 3. Syllabus
           for (const topicName of topics) {
             await apiFetch(
               `${API_BASE}/plans/${plan.id}/subjects/${subject.id}/chapters/${chapter.id}/topics`,
@@ -402,7 +402,7 @@ function QuickStart({
                   Custom Plan
                 </h3>
                 <p className="text-[14px] font-medium leading-relaxed text-[#64748b] dark:text-[#94a3b8] mb-6 flex-grow line-clamp-2">
-                  Build your own plan from scratch. Paste your syllabus or add topics manually.
+                  Build your own plan from scratch. Paste your syllabus or edit it manually.
                 </p>
                 <div className="text-[13px] font-bold text-[#64748b] dark:text-[#94a3b8]">
                   Any exam · Your syllabus

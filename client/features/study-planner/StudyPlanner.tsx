@@ -365,6 +365,11 @@ interface BulkSubjectGroup {
 
 type BulkAddMode = "manual" | "txt-file";
 
+type BulkSyllabusOverwritePrompt =
+  | null
+  | { flow: "file"; file: File }
+  | { flow: "submit" };
+
 function normalizeBulkTopicToken(input: string): string {
   return input
     .replace(/^[>\s-]*[-*•]\s*/, "")
@@ -657,10 +662,21 @@ function findNextAvailableDate(start: Date, offDays: number[]): string {
 
 function dayDiff(dateStr?: string): number | null {
   if (!dateStr) return null;
-  const now = new Date();
-  const target = new Date(dateStr);
-  if (Number.isNaN(target.getTime())) return null;
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const examKey = toIsoDateOnly(dateStr);
+  if (!examKey) return null;
+  const todayKey = toIsoDateOnly(new Date());
+  const parseLocalMidnight = (key: string) => {
+    const [y, m, d] = key.split("-").map((x) => Number.parseInt(x, 10));
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d))
+      return NaN;
+    return new Date(y, m - 1, d).getTime();
+  };
+  const examMs = parseLocalMidnight(examKey);
+  const todayMs = parseLocalMidnight(todayKey);
+  if (Number.isNaN(examMs) || Number.isNaN(todayMs)) return null;
+  const msPerDay = 1000 * 60 * 60 * 24;
+  // Whole calendar days from today → exam (negative = exam already passed).
+  return Math.round((examMs - todayMs) / msPerDay);
 }
 
 function flattenTopics(
@@ -897,6 +913,23 @@ function CustomDatePicker({
     "Dec",
   ];
 
+  const minCalendarYear =
+    minDate && /^\d{4}-\d{2}-\d{2}$/.test(minDate)
+      ? Number.parseInt(minDate.slice(0, 4), 10)
+      : null;
+  let prevMonthDisabled = false;
+  if (minDate && /^\d{4}-\d{2}-\d{2}$/.test(minDate)) {
+    const parts = minDate.split("-").map((x) => Number.parseInt(x, 10));
+    if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
+      const [minY, minMo1] = parts;
+      const minMonth0 = minMo1 - 1;
+      prevMonthDisabled =
+        viewYear < minY || (viewYear === minY && viewMonth <= minMonth0);
+    }
+  }
+  const yearBackDisabled =
+    minCalendarYear !== null && viewYear - 1 < minCalendarYear;
+
   const selectedKey = value || "";
 
   function pickDay(day: number) {
@@ -907,10 +940,15 @@ function CustomDatePicker({
   }
 
   function prevMonth() {
-    if (minDate) {
-      const minD = new Date(minDate);
-      if (!Number.isNaN(minD.getTime())) {
-        if (viewYear === minD.getFullYear() && viewMonth <= minD.getMonth()) {
+    if (minDate && /^\d{4}-\d{2}-\d{2}$/.test(minDate)) {
+      const parts = minDate.split("-").map((x) => Number.parseInt(x, 10));
+      if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
+        const [minY, minMo1] = parts;
+        const minMonth0 = minMo1 - 1;
+        if (
+          viewYear < minY ||
+          (viewYear === minY && viewMonth <= minMonth0)
+        ) {
           return;
         }
       }
@@ -980,7 +1018,13 @@ function CustomDatePicker({
               <button
                 type="button"
                 onClick={prevMonth}
-                className={`p-1.5 rounded-lg ${hoverBg} ${text} ${PLANNER_PRESSABLE}`}
+                disabled={prevMonthDisabled}
+                aria-disabled={prevMonthDisabled}
+                className={`p-1.5 rounded-lg ${text} ${
+                  prevMonthDisabled
+                    ? "opacity-30 cursor-not-allowed"
+                    : `${hoverBg} ${PLANNER_PRESSABLE}`
+                }`}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -1041,8 +1085,8 @@ function CustomDatePicker({
                 const isSelected = iso === selectedKey;
                 const isTodayCell = iso === toIsoDateOnly(new Date());
                 const dow = new Date(viewYear, viewMonth, day).getDay();
-                const isRestDay = offDays?.includes(dow);
                 const isBeforeMin = minDate ? iso < minDate : false;
+                const isRestDay = offDays?.includes(dow);
                 const isDisabled = isRestDay || isBeforeMin;
 
                 return (
@@ -1053,8 +1097,8 @@ function CustomDatePicker({
                       if (!isDisabled) pickDay(day);
                     }}
                     disabled={isDisabled}
-                    className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg text-sm relative ${PLANNER_PRESSABLE}
-                      ${isDisabled ? "opacity-30 cursor-not-allowed font-medium bg-[#f9fafb] dark:bg-[#151718]" : "font-bold hover:bg-[#f0f5ff] dark:hover:bg-[#2a2d31]"}
+                    className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg text-sm relative
+                      ${isDisabled ? "opacity-40 cursor-not-allowed font-medium bg-[#f3f4f6] text-[#9ca3af] dark:bg-[#121314] dark:text-[#4b5563]" : `font-bold ${PLANNER_PRESSABLE} hover:bg-[#f0f5ff] dark:hover:bg-[#2a2d31]`}
                       ${!isDisabled && isSelected ? selectedBg : ""}
                       ${!isDisabled && !isSelected && isTodayCell ? `ring-1 ring-blue-400 ${text}` : ""}
                       ${!isDisabled && !isSelected && !isTodayCell ? `${text}` : ""}
@@ -1078,8 +1122,17 @@ function CustomDatePicker({
             >
               <button
                 type="button"
-                onClick={() => setViewYear((y) => y - 1)}
-                className={`text-[12px] font-bold px-2 py-1 rounded ${hoverBg} ${muted} ${PLANNER_PRESSABLE}`}
+                onClick={() => {
+                  if (yearBackDisabled) return;
+                  setViewYear((y) => y - 1);
+                }}
+                disabled={yearBackDisabled}
+                aria-disabled={yearBackDisabled}
+                className={`text-[12px] font-bold px-2 py-1 rounded ${muted} ${
+                  yearBackDisabled
+                    ? "opacity-30 cursor-not-allowed"
+                    : `${hoverBg} ${PLANNER_PRESSABLE}`
+                }`}
               >
                 &larr; Year
               </button>
@@ -1298,12 +1351,12 @@ export default function StudyPlanner({
       const stored = window.localStorage.getItem(
         SYLLABUS_LAYOUT_MODE_STORAGE_KEY,
       );
-      if (stored === "org-chart" || stored === "classic") return stored;
-      // Migrate old or unknown persisted modes to org-chart for beginner-first flow.
+      if (stored === "org-chart" || stored === "classic" || stored === "hierarchy")
+        return stored;
       return "org-chart";
     });
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
-  const [bulkAddMode, setBulkAddMode] = useState<BulkAddMode>("manual");
+  const [bulkAddMode, setBulkAddMode] = useState<BulkAddMode>("txt-file");
   const [bulkSubjectId, setBulkSubjectId] = useState("");
   const [bulkSubjectName, setBulkSubjectName] = useState("");
   const [bulkChapterName, setBulkChapterName] = useState("");
@@ -1312,6 +1365,9 @@ export default function StudyPlanner({
   const [bulkImportedFileName, setBulkImportedFileName] = useState("");
   const [bulkTxtGuideOpen, setBulkTxtGuideOpen] = useState(false);
   const isTxtBulkMode = bulkAddMode === "txt-file";
+  const [bulkSyllabusOverwritePrompt, setBulkSyllabusOverwritePrompt] =
+    useState<BulkSyllabusOverwritePrompt>(null);
+  const bulkSyllabusImportOverwriteRef = useRef(false);
 
   // ── Premium Upgrade Modal ──
   type PremiumModalReason =
@@ -1366,7 +1422,6 @@ export default function StudyPlanner({
     Record<string, string>
   >({});
   const beginnerMode = false;
-  const [showHeaderActions, setShowHeaderActions] = useState(false);
   const [showAdvancedCapacity, setShowAdvancedCapacity] = useState(false);
   const [showAdvancedPlanActions, setShowAdvancedPlanActions] = useState(false);
   const [isAutoDistributing, setIsAutoDistributing] = useState(false);
@@ -1417,20 +1472,13 @@ export default function StudyPlanner({
     [plan],
   );
   const countdown = useMemo(() => dayDiff(plan?.examDate), [plan?.examDate]);
-  const countdownLabel = useMemo(() => {
-    if (countdown === null) return "Set Exam Date";
-    if (Math.abs(countdown) > 9999) return "Invalid Date";
-    if (countdown > 0) return `${countdown} Days Remaining`;
-    if (countdown === 0) return "Exam is Today";
-    return `${Math.abs(countdown)} Days Since Exam`;
-  }, [countdown]);
-
   // ── Confirm Delete Modal state ──
   const [pendingDelete, setPendingDelete] = useState<{
     type: "subject" | "chapter" | "topic";
     id: string;
     parentId?: string;
     label: string;
+    confirmLabel?: string;
   } | null>(null);
 
   // ── Toast Notification state ──
@@ -1482,6 +1530,9 @@ export default function StudyPlanner({
       if (id === "__clear_future__") {
         const didClear = await clearFutureDates();
         if (didClear) showToast("Future dates cleared.", "success");
+      } else if (id === "__clear_syllabus__") {
+        const didClear = await clearEntireSyllabus();
+        if (didClear) showToast("Syllabus cleared.", "success");
       } else if (id === "__reset_plan__") {
         const didReset = await resetPlanTopics();
         if (didReset) showToast("Plan reset to start.", "success");
@@ -1571,11 +1622,6 @@ export default function StudyPlanner({
   const [isOrgChartEditorOpen, setIsOrgChartEditorOpen] = useState(false);
 
   useEffect(() => {
-    if (syllabusLayoutMode === "org-chart") return;
-    setSyllabusLayoutMode("org-chart");
-  }, [syllabusLayoutMode]);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(
       BEGINNER_MODE_STORAGE_KEY,
@@ -1596,6 +1642,11 @@ export default function StudyPlanner({
     return flattenTopics(plan).filter(
       (t) => t.status !== "done" && !t.plannedDate,
     ).length;
+  }, [plan]);
+
+  const scheduledTopicsCount = useMemo(() => {
+    if (!plan) return 0;
+    return flattenTopics(plan).filter((t) => Boolean(t.plannedDate)).length;
   }, [plan]);
 
   async function updatePlanMeta(patch: Record<string, unknown>) {
@@ -2317,6 +2368,46 @@ export default function StudyPlanner({
     return patchTopicsAndRefresh(updates);
   }
 
+  async function clearEntireSyllabus(): Promise<boolean> {
+    if (!plan) {
+      showToast("Plan is not ready yet.", "error");
+      return false;
+    }
+    if (plan.subjects.length === 0) {
+      showToast("Syllabus is already empty.", "info");
+      return false;
+    }
+    try {
+      for (const subject of [...plan.subjects]) {
+        await plannerRequest(`${BASE}/${planId}/subjects/${subject.id}`, {
+          method: "DELETE",
+        });
+      }
+      const [refreshedPlan, calendarData] = await Promise.all([
+        plannerRequest<Plan>(`${BASE}/${planId}`),
+        plannerRequest<Record<string, CalendarItem[]>>(
+          `${BASE}/${planId}/calendar`,
+        ),
+      ]);
+      setPlan(refreshedPlan);
+      setCalendar(calendarData || {});
+      setSelectedSubjectId(null);
+      setSelectedChapterId(null);
+      setSelectedTopicId(null);
+      setExpandedSubjectIds({});
+      setExpandedChapterIds({});
+      setExpandedTopicId(null);
+      setEditingSubjectId(null);
+      setEditingChapterId(null);
+      setEditingTopicId(null);
+      setIsOrgChartEditorOpen(false);
+      return true;
+    } catch (err: any) {
+      showToast(err?.message || "Failed to clear syllabus", "error");
+      return false;
+    }
+  }
+
   function matchesSyllabusFilters(
     topic: Topic,
     subject: Subject,
@@ -2432,7 +2523,7 @@ export default function StudyPlanner({
 
   function resetBulkAdd() {
     setBulkAddOpen(false);
-    setBulkAddMode("manual");
+    setBulkAddMode("txt-file");
     setBulkSubjectId("");
     setBulkSubjectName("");
     setBulkChapterName("");
@@ -2440,6 +2531,15 @@ export default function StudyPlanner({
     setBulkAddError("");
     setBulkImportedFileName("");
     setBulkTxtGuideOpen(false);
+    setBulkSyllabusOverwritePrompt(null);
+    bulkSyllabusImportOverwriteRef.current = false;
+  }
+
+  function openBulkAddDialog() {
+    bulkSyllabusImportOverwriteRef.current = false;
+    setBulkSyllabusOverwritePrompt(null);
+    setBulkAddMode("txt-file");
+    setBulkAddOpen(true);
   }
 
   function switchBulkAddMode(nextMode: BulkAddMode) {
@@ -2551,16 +2651,15 @@ export default function StudyPlanner({
     return nextPlan;
   }
 
-  async function handleBulkFileImport(event: any) {
-    const file = event?.target?.files?.[0] as File | undefined;
-    if (!file) return;
-
+  async function runBulkFileImport(file: File) {
     try {
       const accessToken = getAccessToken();
       const formData = new FormData();
       formData.append("file", file, file.name);
 
-      const response = await fetch(`${API_BASE}/syllabus/import`, {
+      const importUrl = `${API_BASE}/syllabus/import`;
+
+      const response = await fetch(importUrl, {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -2597,15 +2696,58 @@ export default function StudyPlanner({
       setBulkAddError("");
       setBulkImportedFileName(file.name);
       showToast(`Formatted syllabus imported from ${file.name}.`, "success");
-    } catch {
-      const message = "Could not import the syllabus file.";
+    } catch (err: unknown) {
+      const errMsg =
+        err instanceof Error ? err.message : String(err ?? "unknown");
+      const message =
+        errMsg && errMsg !== "unknown"
+          ? errMsg
+          : "Could not import the syllabus file.";
       setBulkAddError(message);
       showToast(message, "error");
     } finally {
-      if (event?.target) {
-        event.target.value = "";
-      }
+      const el = bulkImportInputRef.current;
+      if (el) el.value = "";
     }
+  }
+
+  function cancelBulkSyllabusOverwrite() {
+    setBulkSyllabusOverwritePrompt(null);
+    setBulkAddError(
+      "Import cancelled. Remove existing subjects and chapters from the Syllabus tab (Hierarchy or Chart view), then try your file import again if you want a clean slate.",
+    );
+    showToast("Import cancelled.", "info");
+    const el = bulkImportInputRef.current;
+    if (el) el.value = "";
+  }
+
+  function confirmBulkSyllabusOverwrite() {
+    bulkSyllabusImportOverwriteRef.current = true;
+    const prompt = bulkSyllabusOverwritePrompt;
+    setBulkSyllabusOverwritePrompt(null);
+    if (prompt?.flow === "file") {
+      void runBulkFileImport(prompt.file);
+    } else if (prompt?.flow === "submit") {
+      void handleBulkAdd();
+    }
+  }
+
+  async function handleBulkFileImport(event: any) {
+    const file = event?.target?.files?.[0] as File | undefined;
+    if (!file) return;
+
+    if (
+      plan &&
+      plan.subjects.length > 0 &&
+      !bulkSyllabusImportOverwriteRef.current
+    ) {
+      setBulkSyllabusOverwritePrompt({ flow: "file", file });
+      if (event?.target) event.target.value = "";
+      return;
+    }
+
+    await runBulkFileImport(file);
+    if (event?.target) event.target.value = "";
   }
 
   async function handleBulkAdd() {
@@ -2621,6 +2763,16 @@ export default function StudyPlanner({
       resetBulkAdd();
       return;
     }
+
+    if (
+      bulkAddMode === "txt-file" &&
+      plan.subjects.length > 0 &&
+      !bulkSyllabusImportOverwriteRef.current
+    ) {
+      setBulkSyllabusOverwritePrompt({ flow: "submit" });
+      return;
+    }
+
     try {
       let currentPlan = plan;
       let totalTopicCount = 0;
@@ -3473,7 +3625,8 @@ export default function StudyPlanner({
       summary: {
         completionPercent: summary.percent,
         remainingTopics: remainingTopicCount,
-        daysUntilExam: examDate ? countdown : null,
+        daysUntilExam:
+          examDate && countdown !== null && countdown >= 0 ? countdown : null,
         availableStudyDays,
         requiredTopicsPerStudyDay,
         onTrackStatus,
@@ -3548,7 +3701,7 @@ export default function StudyPlanner({
       title: "Add your syllabus topics",
       description:
         "Start by adding subjects, chapters, and topics. Keep it simple; you can refine later.",
-      actionLabel: "Add Topics",
+      actionLabel: "Open Syllabus",
     },
     build_schedule: {
       step: "Step 3 of 4",
@@ -3679,22 +3832,14 @@ export default function StudyPlanner({
                       Set Exam Date
                     </motion.button>
                   ) : (
-                    <>
-                      <motion.span
-                        layout
-                        className="bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#4b5563] dark:text-[#acabaa] text-[12px] font-semibold uppercase tracking-[0.08em] px-4 py-1.5 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#252626]"
-                      >
-                        {countdownLabel}
-                      </motion.span>
-                      <motion.button
-                        layout
-                        onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
-                        className={`${cleanSecondaryPill} text-[12px] px-4 py-2`}
-                        title="Edit exam date"
-                      >
-                        Update Date
-                      </motion.button>
-                    </>
+                    <motion.button
+                      layout
+                      onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
+                      className={`${cleanSecondaryPill} text-[12px] px-4 py-2`}
+                      title="Edit exam date"
+                    >
+                      Update Date
+                    </motion.button>
                   )}
                 </div>
 
@@ -3719,6 +3864,7 @@ export default function StudyPlanner({
                           value={examDateDraft}
                           onChange={setExamDateDraft}
                           isDarkMode={isDarkMode}
+                          minDate={toIsoDateOnly(new Date())}
                         />
                         <button
                           onClick={() => {
@@ -3751,48 +3897,22 @@ export default function StudyPlanner({
               data-tour="planner-header-actions"
               className="flex flex-wrap gap-3"
             >
-              {beginnerMode &&
-              !showHeaderActions &&
-              !plannerOnboardingState.completed ? (
-                <>
-                  <button
-                    onClick={() => {
-                      if (onboardingResumeVisible) {
-                        resumePlannerOnboarding();
-                        return;
-                      }
-                      void runGuidedAction(activeGuideAction);
-                    }}
-                    className={cleanPrimaryPill}
-                  >
-                    {onboardingResumeVisible
-                      ? "Resume Guide"
-                      : currentGuide.actionLabel}
-                  </button>
-                  {/* BUG-1 FIX: Show "More Actions" only when NOT in resume state — prevents duplicate Resume Guide */}
-                  <button
-                    onClick={() => setShowHeaderActions(true)}
-                    className={cleanSecondaryPill}
-                  >
-                    More Actions
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => handleViewChange("plan")}
-                    className={cleanSecondaryPill}
-                  >
-                    Edit Plan
-                  </button>
-                  <button
-                    onClick={() => handleViewChange("syllabus")}
-                    className={cleanSecondaryPill}
-                  >
-                    Add Topics
-                  </button>
-                </>
-              )}
+              {beginnerMode && !plannerOnboardingState.completed ? (
+                <button
+                  onClick={() => {
+                    if (onboardingResumeVisible) {
+                      resumePlannerOnboarding();
+                      return;
+                    }
+                    void runGuidedAction(activeGuideAction);
+                  }}
+                  className={cleanPrimaryPill}
+                >
+                  {onboardingResumeVisible
+                    ? "Resume Guide"
+                    : currentGuide.actionLabel}
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -3900,26 +4020,12 @@ export default function StudyPlanner({
                 >
                   Build Schedule
                 </button>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button
-                    onClick={() => handleViewChange("syllabus")}
-                    className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md ${PLANNER_PRESSABLE}`}
-                  >
-                    Add Topics
-                  </button>
-                  <button
-                    onClick={() => handleViewChange("plan")}
-                    className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md ${PLANNER_PRESSABLE}`}
-                  >
-                    Edit Plan
-                  </button>
-                  <button
-                    onClick={() => handleViewChange("calendar")}
-                    className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md ${PLANNER_PRESSABLE}`}
-                  >
-                    Open Calendar
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleViewChange("calendar")}
+                  className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md ${PLANNER_PRESSABLE}`}
+                >
+                  Open Calendar
+                </button>
               </div>
             </div>
           )}
@@ -3930,10 +4036,10 @@ export default function StudyPlanner({
               data-tour="planner-metrics"
               className="grid grid-cols-2 lg:grid-cols-5 gap-5 md:gap-8 mb-12"
             >
-              {/* Days Left */}
+              {/* Days to goal */}
               <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
                 <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
-                  Days left
+                  Days to goal
                 </div>
                 <div
                   className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2 drop-shadow-sm"
@@ -3943,17 +4049,25 @@ export default function StudyPlanner({
                     ? "--"
                     : Math.abs(countdown) > 9999
                       ? "???"
-                      : Math.abs(countdown)}
+                      : countdown < 0
+                        ? "—"
+                        : countdown}
                 </div>
-                <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
-                  {countdown === null
-                    ? "Set exam date"
-                    : Math.abs(countdown) > 9999
-                      ? "Invalid date — please reset"
-                      : countdown >= 0
-                        ? "days remaining"
-                        : "days since exam"}
-                </div>
+                {!(
+                  countdown !== null &&
+                  countdown < 0 &&
+                  Math.abs(countdown) <= 9999
+                ) && (
+                  <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
+                    {countdown === null
+                      ? "Set exam date"
+                      : Math.abs(countdown) > 9999
+                        ? "Invalid date — please reset"
+                        : countdown === 0
+                          ? "exam today"
+                          : "days until goal"}
+                  </div>
+                )}
               </div>
 
               {/* Completed */}
@@ -4317,12 +4431,6 @@ export default function StudyPlanner({
                             className="text-[12px] font-black tracking-wide px-4 py-2 rounded-full bg-[#3b82f6] text-white"
                           >
                             Rebuild Plan
-                          </button>
-                          <button
-                            onClick={() => handleViewChange("syllabus")}
-                            className={`text-[12px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
-                          >
-                            Add Topics
                           </button>
                         </div>
                       </div>
@@ -4863,7 +4971,7 @@ export default function StudyPlanner({
                                 : String(insights.summary.availableStudyDays),
                           },
                           {
-                            label: "Days until exam",
+                            label: "Days to goal",
                             value:
                               insights.summary.daysUntilExam === null
                                 ? "--"
@@ -5334,6 +5442,7 @@ export default function StudyPlanner({
                           value={examDateDraft}
                           onChange={setExamDateDraft}
                           isDarkMode={isDarkMode}
+                          minDate={toIsoDateOnly(new Date())}
                         />
                         <button
                           onClick={() => {
@@ -5598,12 +5707,12 @@ export default function StudyPlanner({
                   )}
                 </motion.div>
               )}
-              {unplannedTopicsCount > 0 && (
-                <div
-                  className={`rounded-3xl p-5 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-500 animate-pulse-slow ${isDarkMode ? "bg-[#0e0e0e] shadow-[8px_8px_20px_rgba(0,0,0,0.6),-4px_-4px_10px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]" : "bg-[#f0f0f5] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)]"}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-[#93c5fd] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.1)]">
+              {plan && getTotalTopicCount() > 0 && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+                  <div
+                    className={`flex-1 min-w-0 rounded-3xl p-5 flex flex-row items-center gap-4 transition-colors duration-500 ${isDarkMode ? "bg-[#0e0e0e] shadow-[8px_8px_20px_rgba(0,0,0,0.6),-4px_-4px_10px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]" : "bg-[#f0f0f5] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)]"}`}
+                  >
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-[#93c5fd] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.1)]">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="20"
@@ -5618,24 +5727,31 @@ export default function StudyPlanner({
                         <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                       </svg>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-[#1e293b] dark:text-[#c6c6c6]">
-                        Ready to Schedule!
-                      </h4>
-                      <p className="text-sm font-bold text-[#64748b] dark:text-[#767575] mt-0.5">
-                        You have{" "}
-                        <span className="text-blue-600 dark:text-[#93c5fd] font-black">
-                          {unplannedTopicsCount} unscheduled topics
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-black text-[#1e293b] dark:text-[#e7e5e5] tracking-tight">
+                        <span className="text-blue-600 dark:text-[#93c5fd]">
+                          {scheduledTopicsCount}
                         </span>{" "}
-                        sitting in your syllabus.
+                        topic{scheduledTopicsCount === 1 ? "" : "s"} on schedule
                       </p>
+                      {unplannedTopicsCount > 0 ? (
+                        <p className="text-[13px] font-bold text-[#64748b] dark:text-[#767575] mt-1">
+                          {unplannedTopicsCount} not yet scheduled
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <button
-                    onClick={() => handleViewChange("plan")}
-                    className={`${cleanPrimaryPill} shrink-0 px-6`}
+                    type="button"
+                    onClick={() => {
+                      void autoDistribute();
+                    }}
+                    disabled={isAutoDistributing}
+                    className={`${cleanPrimaryPill} shrink-0 px-8 py-4 text-[14px] font-black shadow-[0_0_20px_rgba(59,130,246,0.35)] sm:self-center whitespace-nowrap`}
                   >
-                    Auto-Schedule Now
+                    {isAutoDistributing
+                      ? "Building Schedule..."
+                      : "Build Schedule"}
                   </button>
                 </div>
               )}
@@ -5703,7 +5819,7 @@ export default function StudyPlanner({
                   <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                     <button
                       data-tour="planner-bulk-add-button"
-                      onClick={() => setBulkAddOpen(true)}
+                      onClick={() => openBulkAddDialog()}
                       className={`${cleanPrimaryPill} rounded-xl px-6`}
                     >
                       Bulk Add
@@ -5773,49 +5889,76 @@ export default function StudyPlanner({
                     </button>
                   </div>
                 </div>
+
+                {plan.subjects.length > 0 ? (
+                  <div className="mt-5 pt-5 border-t border-[#c0c4d1]/70 dark:border-[#2b2c2c]/80 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <p
+                      className={`text-[12px] font-medium leading-relaxed max-w-xl ${isDarkMode ? "text-[#94a3b8]" : "text-[#64748b]"}`}
+                    >
+                      <span className="font-bold text-[#b45309] dark:text-amber-400">
+                        Danger zone.
+                      </span>{" "}
+                      Clear syllabus removes every subject, chapter, and topic from
+                      this plan. Scheduled work tied to those topics is removed from
+                      the planner. Your exam date and daily goal settings are kept.
+                      This cannot be undone unless you restore from a backup outside
+                      the app.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPendingDelete({
+                          type: "topic",
+                          id: "__clear_syllabus__",
+                          parentId: undefined,
+                          label:
+                            "Clear the entire syllabus? Every subject, chapter, and topic on the canvas will be permanently deleted, and calendar planning for those items will be removed. This action cannot be undone from the app.",
+                          confirmLabel: "Clear syllabus",
+                        })
+                      }
+                      className={`shrink-0 self-start sm:self-center text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl border transition-all active:scale-[0.98] ${isDarkMode ? "border-red-900/50 bg-red-950/30 text-red-300 hover:bg-red-950/50" : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"}`}
+                    >
+                      Clear syllabus
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
-              {visibleSubjects.length === 0 ? (
+              {plan.subjects.length > 0 && visibleSubjects.length === 0 ? (
+                <div
+                  className={`mb-4 rounded-2xl border px-4 py-3 text-center text-[13px] font-bold ${isDarkMode ? "border-amber-800/50 bg-amber-950/30 text-amber-100" : "border-amber-200 bg-amber-50 text-amber-950"}`}
+                >
+                  No topics match your filters — Chart and Classic views are still
+                  available below.{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSyllabusQuery("");
+                      setSyllabusStatus("all");
+                      setSyllabusSubject("all");
+                    }}
+                    className="underline font-black hover:opacity-90"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : null}
+
+              {plan.subjects.length === 0 ? (
                 <div
                   className={`rounded-3xl p-10 text-center transition-colors duration-500 ${isDarkMode ? "bg-[#0e0e0e] shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]" : "bg-[#e6e7ee] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)]"}`}
                 >
                   <h3
                     className={`text-xl font-bold mb-2 ${isDarkMode ? "text-[#e7e5e5]" : "text-[#2d333b]"}`}
                   >
-                    {plan.subjects.length === 0
-                      ? "Start your syllabus"
-                      : "No topics match these filters"}
+                    Start your syllabus
                   </h3>
                   <p
                     className={`text-sm mb-6 ${isDarkMode ? "text-[#767575]" : "text-[#8b919e]"}`}
                   >
-                    {plan.subjects.length === 0
-                      ? "Add your first subject and topics to get started."
-                      : "Try clearing filters or searching with different keywords."}
+                    Add your first subject and topics to get started. Use the
+                    Syllabus tab above to build your outline.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    {plan.subjects.length === 0 ? (
-                      <>
-                        <button
-                          onClick={() => handleViewChange("plan")}
-                          className={`text-[13px] font-black uppercase tracking-widest rounded-full px-6 py-3 shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)] dark:shadow-[4px_4px_10px_rgba(0,0,0,0.5),-2px_-2px_6px_rgba(255,255,255,0.02)] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#e6e7ee] text-[#2d333b]"}`}
-                        >
-                          Edit Plan
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setSyllabusQuery("");
-                          setSyllabusStatus("all");
-                          setSyllabusSubject("all");
-                        }}
-                        className="text-[13px] font-black uppercase tracking-widest rounded-full px-6 py-3 bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)]"
-                      >
-                        Clear Filters
-                      </button>
-                    )}
-                  </div>
                 </div>
               ) : syllabusLayoutMode === "hierarchy" ? (
                 <div
@@ -6371,7 +6514,7 @@ export default function StudyPlanner({
                                   e.target.value,
                               }))
                             }
-                            placeholder="Add topics (one per line)"
+                            placeholder="One topic per line"
                             rows={3}
                             className={`w-full text-sm font-bold rounded-xl px-4 py-3 shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors resize-y min-h-[96px] ${isDarkMode ? "bg-[#131416] text-[#e7e5e5] placeholder-[#767575]" : "bg-[#e8ebf3] text-[#2d333b] placeholder-[#8b919e]"}`}
                           />
@@ -6402,7 +6545,7 @@ export default function StudyPlanner({
                               }
                               className="text-[12px] font-black uppercase tracking-widest rounded-xl px-5 py-3 bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
                             >
-                              Add Topics
+                              Apply
                             </button>
                           </div>
                         </div>
@@ -6526,7 +6669,7 @@ export default function StudyPlanner({
                                 activeHierarchySubject.subject.id,
                               );
                               setBulkSubjectName("");
-                              setBulkAddOpen(true);
+                              openBulkAddDialog();
                             }}
                             className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)] transition-transform hover:scale-[1.05]"
                           >
@@ -7383,7 +7526,7 @@ export default function StudyPlanner({
                                 onClick={() => {
                                   setBulkSubjectId(subject.id);
                                   setBulkSubjectName("");
-                                  setBulkAddOpen(true);
+                                  openBulkAddDialog();
                                 }}
                                 className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(59,130,246,0.35)] transition-transform hover:scale-[1.05]"
                               >
@@ -7755,7 +7898,7 @@ export default function StudyPlanner({
                                         [key]: e.target.value,
                                       }))
                                     }
-                                    placeholder="Add topics (one per line)"
+                                    placeholder="One topic per line"
                                     rows={3}
                                     className={`w-full text-sm font-bold rounded-xl px-4 py-3 shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors resize-y min-h-[96px] ${isDarkMode ? "bg-[#131416] text-[#e7e5e5] placeholder-[#767575]" : "bg-[#e8ebf3] text-[#2d333b] placeholder-[#8b919e]"}`}
                                   />
@@ -7778,7 +7921,7 @@ export default function StudyPlanner({
                                       }
                                       className="text-[12px] font-black uppercase tracking-widest rounded-xl px-5 py-3 bg-[#0ea5e9] text-white shadow-[0_4px_10px_rgba(14,165,233,0.35)] transition-transform hover:scale-[1.05]"
                                     >
-                                      Add Topics
+                                      Apply
                                     </button>
                                   </div>
                                 </div>
@@ -8178,7 +8321,7 @@ export default function StudyPlanner({
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="text-2xl font-bold tracking-tight text-[#0f172a] dark:text-white">
-                  Bulk Add Topics
+                  Bulk syllabus import
                 </h3>
                 <p className="text-[14px] font-medium text-slate-500 dark:text-slate-400 mt-1">
                   Add multiple topics to your syllabus at once.
@@ -8207,6 +8350,17 @@ export default function StudyPlanner({
               <div className="flex p-1 bg-slate-100/80 dark:bg-slate-800/40 rounded-2xl w-fit">
                 <button
                   type="button"
+                  onClick={() => switchBulkAddMode("txt-file")}
+                  className={`px-6 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all duration-200 ${
+                    isTxtBulkMode
+                      ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  }`}
+                >
+                  Import a PDF
+                </button>
+                <button
+                  type="button"
                   onClick={() => switchBulkAddMode("manual")}
                   className={`px-6 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all duration-200 ${
                     !isTxtBulkMode
@@ -8215,17 +8369,6 @@ export default function StudyPlanner({
                   }`}
                 >
                   Manual Entry
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchBulkAddMode("txt-file")}
-                  className={`px-6 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all duration-200 ${
-                    isTxtBulkMode
-                      ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                  }`}
-                >
-                  .TXT Import
                 </button>
               </div>
 
@@ -8416,7 +8559,7 @@ export default function StudyPlanner({
                 }}
                 className="px-10 py-3.5 rounded-2xl bg-blue-600 text-white text-[13px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/25 hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2"
               >
-                <span>{isTxtBulkMode ? "Import Syllabus" : "Add Topics"}</span>
+                <span>{isTxtBulkMode ? "Import Syllabus" : "Apply list"}</span>
               </button>
             </div>
           </motion.div>
@@ -8440,6 +8583,67 @@ export default function StudyPlanner({
           >
             {toastType === "success" ? "✓" : toastType === "error" ? "✕" : "ℹ"}{" "}
             {toastMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Bulk syllabus overwrite (PDF / structured import) ── */}
+      <AnimatePresence>
+        {bulkSyllabusOverwritePrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[340] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+            onClick={cancelBulkSyllabusOverwrite}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`w-full max-w-md rounded-[32px] border shadow-[0_32px_64px_-12px_rgba(0,0,0,0.2)] p-8 ${isDarkMode ? "bg-[#111214] border-slate-800" : "bg-white border-slate-200"}`}
+            >
+              <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-4">
+                Syllabus already on this plan
+              </div>
+              <p
+                className={`text-[16px] font-bold mb-3 leading-snug tracking-tight ${isDarkMode ? "text-white" : "text-[#0f172a]"}`}
+              >
+                {bulkSyllabusOverwritePrompt.flow === "file"
+                  ? "This plan already has subjects or chapters. Import this file anyway?"
+                  : "This plan already has subjects or chapters. Run this bulk import anyway?"}
+              </p>
+              <p
+                className={`text-[13px] font-medium mb-8 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}
+              >
+                If you choose <span className="font-bold">Yes</span>, we will
+                continue and merge topics using matching subject and chapter names.
+                If you choose <span className="font-bold">No</span>, nothing is
+                imported—clear subjects and chapters from the Syllabus tab
+                (Hierarchy or Chart) first, or create a separate study plan from{" "}
+                <span className="font-bold">All Plans</span> if you want a clean
+                slate.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={cancelBulkSyllabusOverwrite}
+                  className={`px-6 py-3 rounded-2xl border text-[12px] font-black uppercase tracking-widest transition-all active:scale-95 ${isDarkMode ? "border-slate-800 text-slate-400 hover:bg-slate-800" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}
+                >
+                  No, cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    confirmBulkSyllabusOverwrite();
+                  }}
+                  className={`px-7 py-3 rounded-2xl bg-blue-600 text-white text-[12px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95`}
+                >
+                  Yes, continue
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -8482,7 +8686,7 @@ export default function StudyPlanner({
                   }}
                   className={`px-7 py-3 rounded-2xl bg-red-600 text-white text-[12px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 hover:bg-red-700 transition-all active:scale-95`}
                 >
-                  Delete
+                  {pendingDelete.confirmLabel ?? "Delete"}
                 </button>
               </div>
             </motion.div>

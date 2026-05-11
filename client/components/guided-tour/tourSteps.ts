@@ -301,7 +301,7 @@ export const studyPlannerTour: TourConfig = {
         {
             target: "[data-tour='planner-header-actions']",
             title: "Primary Actions",
-            content: "Edit Plan updates settings, Add Topics builds your syllabus, and Build Schedule assigns dates. Beginner Mode simplifies the flow.",
+            content: "Use the Syllabus tab to build your outline, and Build Schedule assigns dates. Beginner Mode simplifies the flow.",
             placement: "bottom",
             spotlightPadding: 14,
         },
@@ -320,7 +320,7 @@ export const studyPlannerTour: TourConfig = {
         {
             target: "[data-tour='planner-quick-actions']",
             title: "Quick Actions",
-            content: "Fast shortcuts for building the schedule, adding topics, and opening the calendar.",
+            content: "Fast shortcuts for building the schedule and opening the calendar.",
             placement: "bottom",
             spotlightPadding: 12,
         },

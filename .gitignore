@@ -31,6 +31,8 @@ dist-ssr
 !.env.example
 study_planner_agent/.env
 study_planner_agent/.venv/
+study_planner_agent/formatted_syllabus.txt
+study_planner_agent/syllabus.pdf
 __pycache__/
 *.pyc
 

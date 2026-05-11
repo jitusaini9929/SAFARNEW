@@ -90,9 +90,27 @@ router.post(
       );
     } catch (error: any) {
       console.error("[SYLLABUS-IMPORT] Failed to process upload:", error);
-      return res.status(500).json({
+
+      const causeCode = error?.cause?.code ?? error?.cause?.errno;
+      const causeAddr = error?.cause?.address;
+      const causePort = error?.cause?.port;
+      const isConnRefused =
+        causeCode === "ECONNREFUSED" ||
+        /ECONNREFUSED/i.test(String(error?.message ?? ""));
+
+      const friendly =
+        isConnRefused || causeCode === "ENOTFOUND"
+          ? `Syllabus AI agent is not reachable at ${SYLLABUS_AGENT_BASE_URL}. Start the agent (e.g. on port 8000) or set SYLLABUS_AGENT_URL to the correct URL.`
+          : error?.message || "Syllabus import failed";
+
+      return res.status(isConnRefused ? 503 : 500).json({
         success: false,
-        message: error?.message || "Syllabus import failed",
+        message: friendly,
+        ...(process.env.NODE_ENV !== "production" && isConnRefused
+          ? {
+              detail: `Underlying: ${String(error?.cause?.message ?? error?.message)} ${causeAddr != null ? `@ ${causeAddr}:${causePort ?? ""}` : ""}`.trim(),
+            }
+          : {}),
       });
     }
   },
