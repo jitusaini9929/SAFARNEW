@@ -1479,6 +1479,7 @@ export default function StudyPlanner({
     parentId?: string;
     label: string;
     confirmLabel?: string;
+    modalTitle?: string;
   } | null>(null);
 
   // ── Toast Notification state ──
@@ -5891,19 +5892,7 @@ export default function StudyPlanner({
                 </div>
 
                 {plan.subjects.length > 0 ? (
-                  <div className="mt-5 pt-5 border-t border-[#c0c4d1]/70 dark:border-[#2b2c2c]/80 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <p
-                      className={`text-[12px] font-medium leading-relaxed max-w-xl ${isDarkMode ? "text-[#94a3b8]" : "text-[#64748b]"}`}
-                    >
-                      <span className="font-bold text-[#b45309] dark:text-amber-400">
-                        Danger zone.
-                      </span>{" "}
-                      Clear syllabus removes every subject, chapter, and topic from
-                      this plan. Scheduled work tied to those topics is removed from
-                      the planner. Your exam date and daily goal settings are kept.
-                      This cannot be undone unless you restore from a backup outside
-                      the app.
-                    </p>
+                  <div className="mt-5 flex justify-end">
                     <button
                       type="button"
                       onClick={() =>
@@ -5912,11 +5901,12 @@ export default function StudyPlanner({
                           id: "__clear_syllabus__",
                           parentId: undefined,
                           label:
-                            "Clear the entire syllabus? Every subject, chapter, and topic on the canvas will be permanently deleted, and calendar planning for those items will be removed. This action cannot be undone from the app.",
+                            "Removes all syllabus content from this plan and clears related calendar entries. Exam date and daily goal are unchanged.",
+                          modalTitle: "Clear syllabus",
                           confirmLabel: "Clear syllabus",
                         })
                       }
-                      className={`shrink-0 self-start sm:self-center text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl border transition-all active:scale-[0.98] ${isDarkMode ? "border-red-900/50 bg-red-950/30 text-red-300 hover:bg-red-950/50" : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"}`}
+                      className={`text-[12px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl border transition-all active:scale-[0.98] ${isDarkMode ? "border-red-900/50 bg-red-950/30 text-red-300 hover:bg-red-950/50" : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"}`}
                     >
                       Clear syllabus
                     </button>
@@ -8663,16 +8653,33 @@ export default function StudyPlanner({
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-sm rounded-[32px] border shadow-[0_32px_64px_-12px_rgba(0,0,0,0.2)] p-8 ${isDarkMode ? "bg-[#111214] border-slate-800" : "bg-white border-slate-200"}`}
+              className={`w-full max-w-md rounded-[32px] border shadow-[0_32px_64px_-12px_rgba(0,0,0,0.2)] p-8 ${isDarkMode ? "bg-[#111214] border-slate-800" : "bg-white border-slate-200"}`}
             >
               <div className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-4">
-                Confirm Action
+                Confirm action
               </div>
-              <p
-                className={`text-[17px] font-bold mb-8 leading-snug tracking-tight ${isDarkMode ? "text-white" : "text-[#0f172a]"}`}
-              >
-                {pendingDelete.label}
-              </p>
+              {pendingDelete.modalTitle ? (
+                <>
+                  <p
+                    className={`mb-3 text-[22px] font-semibold tracking-tight leading-snug ${isDarkMode ? "text-white" : "text-[#0f172a]"}`}
+                  >
+                    {pendingDelete.modalTitle.endsWith("?")
+                      ? pendingDelete.modalTitle
+                      : `${pendingDelete.modalTitle}?`}
+                  </p>
+                  <p
+                    className={`mb-8 text-[15px] font-normal leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}
+                  >
+                    {pendingDelete.label}
+                  </p>
+                </>
+              ) : (
+                <p
+                  className={`text-[17px] font-semibold mb-8 leading-snug tracking-tight ${isDarkMode ? "text-white" : "text-[#0f172a]"}`}
+                >
+                  {pendingDelete.label}
+                </p>
+              )}
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setPendingDelete(null)}
