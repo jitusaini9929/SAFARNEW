@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/utils/apiFetch';
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
+const SHOW_SUGGESTION_BOX = false;
 
 interface MoodSuggestion {
   title: string;
@@ -115,7 +116,9 @@ export default function Suggestions() {
 
   useEffect(() => {
     fetchSuggestions();
-    fetchSuggestionBox();
+    if (SHOW_SUGGESTION_BOX) {
+      fetchSuggestionBox();
+    }
   }, []);
 
   const fetchSuggestions = async () => {
@@ -330,6 +333,7 @@ export default function Suggestions() {
         )}
 
         {/* Suggestion Box */}
+        {SHOW_SUGGESTION_BOX && (
         <section className="mb-8">
           <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-sm dark:bg-white/[0.03] dark:border-white/10 p-5">
             <div className="flex items-start justify-between gap-4 mb-4">
@@ -418,6 +422,7 @@ export default function Suggestions() {
             </div>
           </div>
         </section>
+        )}
 
         <section className="mb-8">
           <div className="mb-4 flex items-center justify-between gap-3">

@@ -68,6 +68,7 @@ const Landing = () => {
         <HeroSection
           user={user}
           setIsAuthModalOpen={handleOpenAuthModal}
+          showStudyPlanner={false}
         />
 
         {/* Combined Apps & Community Section */}
@@ -108,4 +109,3 @@ const Landing = () => {
 };
 
 export default Landing;
-
