@@ -67,6 +67,8 @@ export const mehfilInteractionRoutes = Router();
 
 mehfilInteractionRoutes.use(requireAuth);
 
+const MIN_REPORTS_TO_EMAIL = 3;
+
 // ═══════════════════════════════════════════════════════════
 // COMMENTS
 // ═══════════════════════════════════════════════════════════
@@ -329,21 +331,23 @@ mehfilInteractionRoutes.post("/report", async (req: any, res: Response) => {
 
         const uniqueReporters = Number(reporterGroups?.[0]?.count || 0);
 
-        // Email notification (best-effort - does not block the response)
-        try {
-            const reportedUser = await collections.users().findOne(
-                { id: thought.user_id },
-                { projection: { email: 1, name: 1 } }
-            );
-            if (reportedUser?.email) {
-                await sendMehfilReportEmail(
-                    String(reportedUser.email),
-                    String(reportedUser.name || 'User'),
-                    uniqueReporters
+        if (uniqueReporters >= MIN_REPORTS_TO_EMAIL) {
+            // Email notification (best-effort - does not block the response)
+            try {
+                const reportedUser = await collections.users().findOne(
+                    { id: thought.user_id },
+                    { projection: { email: 1, name: 1 } }
                 );
+                if (reportedUser?.email) {
+                    await sendMehfilReportEmail(
+                        String(reportedUser.email),
+                        String(reportedUser.name || 'User'),
+                        uniqueReporters
+                    );
+                }
+            } catch (emailErr) {
+                console.error('[MEHFIL] Report email failed (non-fatal):', emailErr);
             }
-        } catch (emailErr) {
-            console.error('[MEHFIL] Report email failed (non-fatal):', emailErr);
         }
 
         res.json({
