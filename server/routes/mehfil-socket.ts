@@ -375,6 +375,19 @@ function buildThoughtQuery(room: MehfilFeedRoom, query?: string, useRegexFallbac
 }
 
 async function applySpamStrike(userId: string): Promise<{ strikeCount: number; isShadowBanned: boolean }> {
+  // AI moderation stays active, but strike escalation and shadow-banning are
+  // intentionally non-functional for now.
+  const currentUser = await collections.users().findOne(
+    { id: userId },
+    { projection: { spam_strike_count: 1 } },
+  );
+
+  return {
+    strikeCount: Number(currentUser?.spam_strike_count || 0),
+    isShadowBanned: false,
+  };
+
+  /*
   // Strike decay: if last strike was older than STRIKE_DECAY_DAYS, reset count before incrementing
   const decayCutoff = new Date(Date.now() - STRIKE_DECAY_DAYS * 24 * 60 * 60 * 1000);
   const existing = await collections.users().findOne(
@@ -414,6 +427,7 @@ async function applySpamStrike(userId: string): Promise<{ strikeCount: number; i
     strikeCount,
     isShadowBanned: Boolean(user?.is_shadow_banned || shouldShadowBan),
   };
+  */
 }
 
 async function storeFlaggedThought(input: {
@@ -450,6 +464,16 @@ async function storeFlaggedThought(input: {
 }
 
 function getActivePostingBan(user: any) {
+  // Temporary and permanent Mehfil posting bans are disabled for now.
+  return {
+    isActive: false,
+    isPermanent: false,
+    bannedUntil: null as Date | null,
+    message: POSTING_BAN_MESSAGE,
+    reason: null,
+  };
+
+  /*
   const reason = user?.mehfil_banned_reason ? String(user.mehfil_banned_reason) : null;
   if (user?.mehfil_banned_forever) {
     return {
@@ -479,6 +503,7 @@ function getActivePostingBan(user: any) {
     message: POSTING_BAN_MESSAGE,
     reason: null,
   };
+  */
 }
 
 function toBanPayload(ban: { isActive: boolean; isPermanent: boolean; bannedUntil: Date | null; message: string; reason?: string | null }) {
@@ -1143,6 +1168,8 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         );
 
         // ── Posting ban guard ────────────────────────────────────────────────
+        // Posting ban guard is intentionally disabled for now.
+        /*
         // Block site-wide banned users from posting
         if (userProfile?.is_banned) {
           socket.emit('thoughtRejected', {
@@ -1150,6 +1177,7 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
           });
           return;
         }
+        */
 
         const postingBan = getActivePostingBan(userProfile);
         if (postingBan.isActive) {
@@ -1209,11 +1237,11 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
             customExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // keep for 7 days for admin
           });
 
-          // Apply an abuse strike (same mechanism as spam, but for abusive content)
-          await applySpamStrike(userId);
+          // Strike/ban escalation is intentionally disabled for now.
+          // await applySpamStrike(userId);
 
           socket.emit('thoughtRejected', {
-            message: 'Your post was not allowed. It may contain abusive, sexual, or harmful content. Repeated violations will result in a ban.',
+            message: 'Your post was not allowed. It may contain abusive, sexual, or harmful content.',
           });
           return;
         }

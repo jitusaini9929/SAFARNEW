@@ -18,11 +18,12 @@ async function run() {
   await connectMongo();
 
   const usersCollection = collections.users();
-  const reportsCollection = collections.mehfilReports();
-
   const affectedUsers = await usersCollection
     .find({
       $or: [
+        { is_banned: true },
+        { banned_reason: { $exists: true } },
+        { banned_at: { $exists: true } },
         { is_shadow_banned: true },
         { spam_strike_count: { $gt: 0 } },
         { mehfil_banned_forever: true },
@@ -38,17 +39,8 @@ async function run() {
 
   const affectedUserIds = affectedUsers.map((user) => user.id).filter(Boolean);
 
-  const relatedReportsCount = affectedUserIds.length
-    ? await reportsCollection.countDocuments({
-        $or: [
-          { reported_user_id: { $in: affectedUserIds } },
-          { reporter_id: { $in: affectedUserIds } },
-        ],
-      })
-    : 0;
-
   console.log(`Affected users found: ${affectedUsers.length}`);
-  console.log(`Related report records found: ${relatedReportsCount}`);
+  console.log("Report records will be preserved.");
 
   if (affectedUsers.length > 0) {
     console.log("Sample affected users:");
@@ -72,12 +64,15 @@ async function run() {
         {
           $set: {
             is_shadow_banned: false,
+            is_banned: false,
             spam_strike_count: 0,
             mehfil_banned_forever: false,
             mehfil_banned_until: null,
             mehfil_ban_level: 0,
           },
           $unset: {
+            banned_reason: "",
+            banned_at: "",
             mehfil_banned_reason: "",
             mehfil_banned_at: "",
             last_spam_strike_at: "",
@@ -86,19 +81,10 @@ async function run() {
       )
     : { matchedCount: 0, modifiedCount: 0 };
 
-  const reportDeleteResult = affectedUserIds.length
-    ? await reportsCollection.deleteMany({
-        $or: [
-          { reported_user_id: { $in: affectedUserIds } },
-          { reporter_id: { $in: affectedUserIds } },
-        ],
-      })
-    : { deletedCount: 0 };
-
   console.log("\nApplied changes");
   console.log(`- users matched: ${userUpdateResult.matchedCount}`);
   console.log(`- users updated: ${userUpdateResult.modifiedCount}`);
-  console.log(`- reports deleted: ${reportDeleteResult.deletedCount || 0}`);
+  console.log("- reports preserved");
 
   await getMongoClient().close();
   console.log("\n[mehfil-clear] complete.");

@@ -3,13 +3,12 @@ import nodemailer from "nodemailer";
 import { collections } from "../db";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middleware/auth";
-import { getMehfilNamespace } from "./mehfil-socket";
 import { validateBlockedWords } from "../utils/contentFilter";
 import { cacheGet, cacheSet, cacheInvalidate } from "../lib/redis-cache";
 import { queueCommunityCommentNotification } from "../services/community-activity-aggregator";
 
 // ─── Email helper ────────────────────────────────────────────────────────────
-async function sendMehfilBanEmail(toEmail: string, userName: string, banState: MehfilBanState) {
+async function sendMehfilReportEmail(toEmail: string, userName: string, reportCount: number) {
     const gmailUser = process.env.GMAIL_USER;
     const gmailPass = process.env.GMAIL_APP_PASSWORD;
     const gmailFrom = process.env.GMAIL_FROM_EMAIL || `SAFAR Support <${gmailUser}>`;
@@ -18,42 +17,29 @@ async function sendMehfilBanEmail(toEmail: string, userName: string, banState: M
     const appUrl = (process.env.APP_BASE_URL || 'https://safar.parmarssc.in').replace(/\/+$/, '');
 
     if (!gmailUser || !gmailPass) {
-        console.warn('[MEHFIL BAN EMAIL] Gmail credentials missing — skipping ban email.');
+        console.warn('[MEHFIL REPORT EMAIL] Gmail credentials missing - skipping report email.');
         return;
     }
 
-    const isPermanent = banState.isPermanent;
-    const bannedUntilText = banState.bannedUntil
-        ? banState.bannedUntil.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long', timeStyle: 'short' })
-        : null;
-
-    const durationLine = isPermanent
-        ? `<strong>This ban is permanent.</strong>`
-        : bannedUntilText
-            ? `Your posting restriction will be lifted on <strong>${bannedUntilText} IST</strong>.`
-            : `A posting restriction has been applied to your account.`;
-
-    const subject = isPermanent
-        ? '⛔ Your SAFAR Mehfil account has been permanently banned'
-        : '⚠️ Your SAFAR Mehfil posting access has been temporarily restricted';
+    const subject = 'SAFAR Mehfil report notice';
+    const reportText = `${reportCount} ${reportCount === 1 ? 'person has' : 'people have'}`;
 
     const html = `
 <div style="font-family: Arial, sans-serif; max-width: 560px; margin: auto; padding: 32px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff;">
   <h2 style="color: #1e293b; margin-bottom: 8px;">Mehfil Community Notice</h2>
   <p style="color: #475569;">Hi <strong>${userName}</strong>,</p>
   <p style="color: #475569;">
-    Your account has been reported by multiple community members for posting content that violates 
-    the <strong>Mehfil Community Guidelines</strong>. As a result, your ability to post in Mehfil 
-    has been restricted.
+    Your Mehfil post has been reported by <strong>${reportText}</strong>. This is a notice only.
+    Your account and posting access have not been restricted.
   </p>
-  <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0;">
-    <p style="margin: 0; color: #991b1b; font-weight: bold;">Action Taken</p>
-    <p style="margin: 8px 0 0; color: #7f1d1d;">${durationLine}</p>
+  <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 20px 0;">
+    <p style="margin: 0; color: #1e40af; font-weight: bold;">Reports Received</p>
+    <p style="margin: 8px 0 0; color: #1e3a8a;">${reportText} reported this post.</p>
   </div>
   <p style="color: #475569;">Our community exists to support students through their journey. Please ensure all posts respect fellow members.</p>
-  <p style="color: #475569;">If you believe this was a mistake, you can reply to this email.</p>
+  <p style="color: #475569;">If you have questions, you can reply to this email.</p>
   <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-  <p style="color: #94a3b8; font-size: 12px;">SAFAR &mdash; <a href="${appUrl}" style="color: #6366f1;">safar.parmarssc.in</a></p>
+  <p style="color: #94a3b8; font-size: 12px;">SAFAR - <a href="${appUrl}" style="color: #6366f1;">safar.parmarssc.in</a></p>
 </div>`;
 
     const transporter = nodemailer.createTransport({
@@ -69,159 +55,17 @@ async function sendMehfilBanEmail(toEmail: string, userName: string, banState: M
             to: toEmail,
             subject,
             html,
-            text: `Hi ${userName},\n\nYour Mehfil posting access has been restricted due to community reports.\n${durationLine.replace(/<[^>]*>/g, '')}\n\nSAFAR Support`,
+            text: `Hi ${userName},\n\nYour Mehfil post has been reported by ${reportText}. This is a notice only; your account and posting access have not been restricted.\n\nSAFAR Support`,
         });
-        console.log('[MEHFIL BAN EMAIL] Sent to', toEmail, '— messageId:', info.messageId);
+        console.log('[MEHFIL REPORT EMAIL] Sent to', toEmail, '- messageId:', info.messageId);
     } catch (err) {
-        console.error('[MEHFIL BAN EMAIL] Failed to send:', err);
+        console.error('[MEHFIL REPORT EMAIL] Failed to send:', err);
     }
 }
 
 export const mehfilInteractionRoutes = Router();
 
 mehfilInteractionRoutes.use(requireAuth);
-
-const MIN_REPORTS_TO_BAN = 3;
-const REPORTS_TO_BAN = Math.max(MIN_REPORTS_TO_BAN, Number(process.env.MEHFIL_REPORTS_TO_BAN || MIN_REPORTS_TO_BAN));
-const BAN_MESSAGE = "you have been banned from posting messages";
-const BAN_2_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
-const BAN_7_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-type MehfilBanState = {
-    isActive: boolean;
-    isPermanent: boolean;
-    banLevel: number;
-    bannedUntil: Date | null;
-    message: string;
-};
-
-async function getOrApplyReportBan(userId: string): Promise<MehfilBanState> {
-    const now = new Date();
-    const user = await collections.users().findOne(
-        { id: userId },
-        {
-            projection: {
-                id: 1,
-                mehfil_ban_level: 1,
-                mehfil_banned_until: 1,
-                mehfil_banned_forever: 1,
-                mehfil_moderation_exempt: 1,
-            },
-        },
-    );
-
-    if (!user) {
-        return {
-            isActive: false,
-            isPermanent: false,
-            banLevel: 0,
-            bannedUntil: null,
-            message: BAN_MESSAGE,
-        };
-    }
-
-    if (user.mehfil_moderation_exempt) {
-        return {
-            isActive: false,
-            isPermanent: false,
-            banLevel: Number(user.mehfil_ban_level || 0),
-            bannedUntil: null,
-            message: BAN_MESSAGE,
-        };
-    }
-
-    const currentLevel = Number(user.mehfil_ban_level || 0);
-    const bannedForever = Boolean(user.mehfil_banned_forever);
-    const bannedUntil = user.mehfil_banned_until ? new Date(user.mehfil_banned_until) : null;
-
-    if (bannedForever) {
-        return {
-            isActive: true,
-            isPermanent: true,
-            banLevel: 3,
-            bannedUntil: null,
-            message: BAN_MESSAGE,
-        };
-    }
-
-    if (bannedUntil && bannedUntil.getTime() > now.getTime()) {
-        return {
-            isActive: true,
-            isPermanent: false,
-            banLevel: Math.max(currentLevel, 1),
-            bannedUntil,
-            message: BAN_MESSAGE,
-        };
-    }
-
-    const nextLevel = Math.min(3, currentLevel + 1);
-    if (nextLevel >= 3) {
-        await collections.users().updateOne(
-            { id: userId },
-            {
-                $set: {
-                    mehfil_ban_level: 3,
-                    mehfil_banned_forever: true,
-                    mehfil_banned_until: null,
-                    mehfil_banned_reason: "report",
-                    mehfil_banned_at: now,
-                },
-            },
-        );
-
-        const banState = {
-            isActive: true,
-            isPermanent: true,
-            banLevel: 3,
-            bannedUntil: null,
-            message: BAN_MESSAGE,
-        };
-
-        const mehfil = getMehfilNamespace();
-        if (mehfil) {
-            mehfil.to(`user:${userId}`).emit('postingBanStatus', {
-                ...banState,
-                bannedUntil: null,
-            });
-        }
-
-        return banState;
-    }
-
-    const durationMs = nextLevel === 1 ? BAN_2_DAYS_MS : BAN_7_DAYS_MS;
-    const nextBannedUntil = new Date(now.getTime() + durationMs);
-
-    await collections.users().updateOne(
-        { id: userId },
-        {
-            $set: {
-                mehfil_ban_level: nextLevel,
-                mehfil_banned_forever: false,
-                mehfil_banned_until: nextBannedUntil,
-                mehfil_banned_reason: "report",
-                mehfil_banned_at: now,
-            },
-        },
-    );
-
-    const banState = {
-        isActive: true,
-        isPermanent: false,
-        banLevel: nextLevel,
-        bannedUntil: nextBannedUntil,
-        message: BAN_MESSAGE,
-    };
-
-    const mehfil = getMehfilNamespace();
-    if (mehfil) {
-        mehfil.to(`user:${userId}`).emit('postingBanStatus', {
-            ...banState,
-            bannedUntil: nextBannedUntil.toISOString(),
-        });
-    }
-
-    return banState;
-}
 
 // ═══════════════════════════════════════════════════════════
 // COMMENTS
@@ -443,27 +287,6 @@ mehfilInteractionRoutes.post("/report", async (req: any, res: Response) => {
             return res.status(400).json({ error: "ThoughtId and reason are required" });
         }
 
-        const reporter = await collections.users().findOne(
-            { id: userId },
-            {
-                projection: {
-                    is_banned: 1,
-                    mehfil_banned_forever: 1,
-                    mehfil_banned_until: 1,
-                },
-            },
-        );
-
-        const reporterBannedUntil = reporter?.mehfil_banned_until ? new Date(reporter.mehfil_banned_until) : null;
-        const isReporterRestricted =
-            Boolean(reporter?.is_banned) ||
-            Boolean(reporter?.mehfil_banned_forever) ||
-            Boolean(reporterBannedUntil && reporterBannedUntil.getTime() > Date.now());
-
-        if (isReporterRestricted) {
-            return res.status(403).json({ error: "Your account is restricted from reporting Mehfil posts" });
-        }
-
         const thought = await collections.mehfilThoughts().findOne(
             { id: thoughtId },
             { projection: { id: 1, user_id: 1 } }
@@ -506,62 +329,28 @@ mehfilInteractionRoutes.post("/report", async (req: any, res: Response) => {
 
         const uniqueReporters = Number(reporterGroups?.[0]?.count || 0);
 
-        // ── Trigger ban once the report threshold is crossed ──────────────────
-        let banApplied = false;
-        let banState: MehfilBanState | null = null;
-
-        if (uniqueReporters >= REPORTS_TO_BAN) {
-            banState = await getOrApplyReportBan(thought.user_id);
-            banApplied = banState.isActive;
-
-            if (banApplied) {
-                // Remove the reported thought from the public feed immediately
-                await collections.mehfilThoughts().updateOne(
-                    { id: thoughtId },
-                    { $set: { status: 'removed', removed_at: new Date(), removed_reason: 'community_reports' } }
+        // Email notification (best-effort - does not block the response)
+        try {
+            const reportedUser = await collections.users().findOne(
+                { id: thought.user_id },
+                { projection: { email: 1, name: 1 } }
+            );
+            if (reportedUser?.email) {
+                await sendMehfilReportEmail(
+                    String(reportedUser.email),
+                    String(reportedUser.name || 'User'),
+                    uniqueReporters
                 );
-
-                // Real-time socket notification to the banned user
-                const mehfil = getMehfilNamespace();
-                if (mehfil) {
-                    mehfil.to(`user:${thought.user_id}`).emit('postingBanStatus', {
-                        isActive: true,
-                        isPermanent: banState.isPermanent,
-                        bannedUntil: banState.bannedUntil ? banState.bannedUntil.toISOString() : null,
-                        message: banState.message,
-                    });
-                    // Also remove the thought from all viewers' feeds
-                    mehfil.emit('thoughtDeleted', { thoughtId });
-                }
-
-                // Email notification (best-effort — does not block the response)
-                try {
-                    const bannedUser = await collections.users().findOne(
-                        { id: thought.user_id },
-                        { projection: { email: 1, name: 1 } }
-                    );
-                    if (bannedUser?.email) {
-                        await sendMehfilBanEmail(
-                            String(bannedUser.email),
-                            String(bannedUser.name || 'User'),
-                            banState
-                        );
-                    }
-                } catch (emailErr) {
-                    console.error('[MEHFIL] Ban email failed (non-fatal):', emailErr);
-                }
             }
+        } catch (emailErr) {
+            console.error('[MEHFIL] Report email failed (non-fatal):', emailErr);
         }
 
         res.json({
             reported: true,
             uniqueReporters,
-            banApplied,
-            ban: banState ? {
-                isActive: banState.isActive,
-                isPermanent: banState.isPermanent,
-                bannedUntil: banState.bannedUntil ? banState.bannedUntil.toISOString() : null,
-            } : null,
+            banApplied: false,
+            ban: null,
         });
     } catch (error) {
         console.error("Error reporting:", error);
