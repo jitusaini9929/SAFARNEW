@@ -9,8 +9,9 @@ const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
 ]);
-const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx"]);
+const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".txt"]);
 const SYLLABUS_AGENT_BASE_URL = (
   process.env.SYLLABUS_AGENT_URL || "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
@@ -38,7 +39,7 @@ router.post(
       if (!ALLOWED_EXTENSIONS.has(extension) || !ALLOWED_MIME_TYPES.has(mimeType)) {
         return res.status(400).json({
           success: false,
-          message: "Only PDF and DOCX files are supported.",
+          message: "Only PDF, DOCX, and TXT files are supported.",
         });
       }
 

@@ -285,7 +285,7 @@ export async function sendPushToTokens(tokens: any[], payload: PushPayload, opti
           notification: {
             title: String(payload.title),
             body: String(payload.body),
-            icon: "/favicon.ico",
+            icon: "/favicon.svg",
           },
           fcmOptions: {
             link: String(payload.deepLink || "/"),
