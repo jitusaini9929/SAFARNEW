@@ -28,6 +28,7 @@ import smile from "../../Extras/emojis/smile.svg";
 import sparkle from "../../Extras/emojis/sparkle.svg";
 import star from "../../Extras/emojis/star.svg";
 import target from "../../Extras/emojis/target.svg";
+import triangleAlert from "../../Extras/emojis/triangle-alert.svg";
 import timer from "../../Extras/emojis/timer.svg";
 import train from "../../Extras/emojis/train.svg";
 import trophy from "../../Extras/emojis/trophy.svg";
@@ -64,6 +65,7 @@ const premiumEmojiAssets = {
   sparkle,
   star,
   target,
+  warning: triangleAlert,
   timer,
   train,
   trophy,

@@ -32,13 +32,16 @@ interface TemplateSummary {
   tags: string[];
 }
 
-type PlannerSection = "today" | "syllabus" | "calendar" | "plan" | "insights";
+type PlannerSection = "syllabus" | "calendar" | "plan" | "insights";
 
 function normalizeSection(section?: string): PlannerSection {
+  if (section === "today") {
+    return "plan";
+  }
   if (section === "syllabus" || section === "calendar" || section === "plan" || section === "insights") {
     return section;
   }
-  return "today";
+  return "plan";
 }
 
 // ── Template card styling ──
@@ -924,7 +927,7 @@ export default function StudyPlannerPage() {
       return (
         <QuickStart
           onCancel={() => setShowQuickStart(false)}
-          onComplete={(id) => navigate(`/study/planner/${id}/today`, { replace: true })}
+          onComplete={(id) => navigate(`/study/planner/${id}/plan`, { replace: true })}
         />
       );
     }
@@ -969,7 +972,7 @@ export default function StudyPlannerPage() {
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.06 }}
-                  onClick={() => navigate(`/study/planner/${plan.id}/today`)}
+                  onClick={() => navigate(`/study/planner/${plan.id}/plan`)}
                   className={`group cursor-pointer rounded-2xl p-6 border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-[#141518] hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-lg hover:scale-[1.01] relative ${PRESSABLE_CARD}`}
                 >
                   {/* Delete button */}

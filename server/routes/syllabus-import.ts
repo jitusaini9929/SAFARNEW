@@ -133,6 +133,7 @@ router.post(
       const agentResponse = await postToSyllabusAgent(file);
 
       const payload = await agentResponse.json().catch(() => null);
+
       if (!agentResponse.ok) {
         const detailMessage =
           payload?.detail || payload?.message || payload?.error || "Syllabus import failed";

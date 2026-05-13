@@ -10,10 +10,17 @@ import { TourPrompt } from "@/components/guided-tour";
 import { studyPlannerTour } from "@/components/guided-tour/tourSteps";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { PremiumEmoji } from "@/components/PremiumEmoji";
+import {
+  InsightsPanel,
+  buildAndroidRecommendationLines,
+  computeAndroidOnTrackStatus,
+  type PlannerInsights,
+} from "./InsightsPanel";
+import MergedPlanTab from "./MergedPlanTab";
 
 type TopicStatus = "todo" | "in_progress" | "done" | "revision_needed";
-type PlannerSection = "today" | "plan" | "syllabus" | "calendar" | "insights";
-type PlannerView = PlannerSection | "kanban";
+type PlannerSection = "plan" | "syllabus" | "calendar" | "insights";
+type PlannerView = PlannerSection;
 type SyllabusLayoutMode = "hierarchy" | "classic" | "org-chart";
 type GuidedActionId =
   | "set_exam_date"
@@ -81,89 +88,11 @@ interface CalendarItem {
   status: TopicStatus;
 }
 
-type InsightTrackStatus = "on_track" | "needs_attention" | "at_risk";
-
-interface PlannerInsightDay {
-  date: string;
-  plannedCount: number;
-  doneCount: number;
-  overdueCount: number;
-  isOffDay: boolean;
-}
-
-interface PlannerInsightRecommendation {
-  id: string;
-  title: string;
-  reason: string;
-  ctaLabel: string;
-  targetView: Exclude<PlannerSection, "insights">;
-}
-
-interface PlannerInsights {
-  summary: {
-    completionPercent: number;
-    remainingTopics: number;
-    daysUntilExam: number | null;
-    availableStudyDays: number | null;
-    requiredTopicsPerStudyDay: number | null;
-    onTrackStatus: InsightTrackStatus;
-    forecastCompletionDate: string | null;
-    daysBuffer: number | null;
-    scheduleCoveragePercent: number | null;
-  };
-  consistency: {
-    studyStreak: number;
-    activeDaysLast14: number;
-    activeDaysLast30: number;
-    bestStudyWeekday: string;
-    heatmap: Array<{ date: string; count: number }>;
-  };
-  workload: {
-    next14Days: PlannerInsightDay[];
-    overloadDays: number;
-    emptyStudyDays: number;
-    busiestDay: PlannerInsightDay | null;
-    busiestSubjectUpcoming: string | null;
-  };
-  coverage: {
-    subjectRows: Array<{
-      subjectId: string;
-      subjectName: string;
-      color: string;
-      completionPercent: number;
-      remainingTopics: number;
-      overdueTopics: number;
-      revisionTopics: number;
-      scheduledTopics: number;
-    }>;
-    laggingChapters: Array<{
-      subjectId: string;
-      subjectName: string;
-      chapterId: string;
-      chapterName: string;
-      remainingTopics: number;
-      completionPercent: number;
-      overdueTopics: number;
-    }>;
-  };
-  backlog: {
-    overdueTotal: number;
-    overdueAgingBuckets: {
-      days1to3: number;
-      days4to7: number;
-      days8Plus: number;
-    };
-    unplannedUnfinishedTopics: number;
-    revisionNeededTopics: number;
-    reviewDueSoon: number;
-    reviewOverdue: number;
-  };
-  recommendations: PlannerInsightRecommendation[];
-}
-
 const BASE = "/api/plans";
 const BEGINNER_MODE_STORAGE_KEY = "study-planner-beginner-mode";
 const SYLLABUS_LAYOUT_MODE_STORAGE_KEY = "study-planner-syllabus-layout-mode";
+/** When false, the Classic view toggle is hidden; classic layout code and branch stay in the file. */
+const SYLLABUS_CLASSIC_LAYOUT_UI_ENABLED = false;
 const PLANNER_ONBOARDING_STORAGE_KEY = "study-planner-onboarding-v2";
 const BULK_IMPORT_SUBJECT_PALETTE = [
   "#0ea5e9",
@@ -174,6 +103,7 @@ const BULK_IMPORT_SUBJECT_PALETTE = [
   "#0f766e",
 ];
 const BULK_IMPORT_REQUEST_TIMEOUT_MS = 180000;
+const BULK_IMPORT_PLACEHOLDER_NAME = "Untitled";
 const BULK_TXT_FORMAT_EXAMPLE = `- Subject Name
 _ Chapter Name
 > Topic one
@@ -204,12 +134,15 @@ const PLANNER_ONBOARDING_REQUIRED_VIEW: Record<GuidedActionId, PlannerSection> =
 const STUDY_PLANNER_TOUR_VIEW_BY_TARGET: Partial<
   Record<string, PlannerSection>
 > = {
-  "[data-tour='planner-quick-actions']": "today",
-  "[data-tour='planner-metrics']": "today",
-  "[data-tour='planner-today-tasks']": "today",
-  "[data-tour='planner-upcoming']": "today",
-  "[data-tour='planner-overdue']": "today",
-  "[data-tour='planner-plan-basics']": "plan",
+  "[data-tour='planner-merged-home']": "plan",
+  "[data-tour='planner-merged-guide']": "plan",
+  "[data-tour='planner-merged-progress']": "plan",
+  "[data-tour='planner-merged-add-topics']": "plan",
+  "[data-tour='planner-merged-basics']": "plan",
+  "[data-tour='planner-merged-capacity']": "plan",
+  "[data-tour='planner-merged-today']": "plan",
+  "[data-tour='planner-merged-upcoming']": "plan",
+  "[data-tour='planner-merged-overdue']": "plan",
   "[data-tour='planner-plan-actions']": "plan",
   "[data-tour='planner-syllabus-setup']": "syllabus",
   "[data-tour='planner-subjects-area']": "syllabus",
@@ -353,6 +286,10 @@ function splitTopicLines(input: string): string[] {
     .filter(Boolean);
 }
 
+function isBulkPlaceholderChapter(chapter: Pick<Chapter, "name">): boolean {
+  return chapter.name.trim().toLowerCase() === BULK_IMPORT_PLACEHOLDER_NAME.toLowerCase();
+}
+
 interface BulkChapterGroup {
   chapterName: string;
   topics: string[];
@@ -485,10 +422,7 @@ function parseBulkSubjectsFromTxt(input: string): BulkSubjectGroup[] {
   const subjects: BulkSubjectGroup[] = [];
 
   const ensureSubject = (name: string, lineNumber: number) => {
-    const normalizedName = name.trim();
-    if (!normalizedName) {
-      throw new Error(`Line ${lineNumber}: subject name is missing after "-".`);
-    }
+    const normalizedName = name.trim() || BULK_IMPORT_PLACEHOLDER_NAME;
 
     const subjectKey = normalizedName.toLowerCase();
     const existing = subjectIndexByKey.get(subjectKey);
@@ -587,9 +521,15 @@ function parseBulkSubjectsFromTxt(input: string): BulkSubjectGroup[] {
 
     const chapterHeading = line.match(/^_\s*(.*)$/);
     if (chapterHeading) {
+      if (activeSubjectIndex === null) {
+        activeSubjectIndex = ensureSubject(
+          BULK_IMPORT_PLACEHOLDER_NAME,
+          lineNumber,
+        );
+      }
       activeChapterIndex = ensureChapter(
         activeSubjectIndex,
-        chapterHeading[1],
+        chapterHeading[1] || BULK_IMPORT_PLACEHOLDER_NAME,
         lineNumber,
       );
       continue;
@@ -597,6 +537,19 @@ function parseBulkSubjectsFromTxt(input: string): BulkSubjectGroup[] {
 
     const topicHeading = line.match(/^>\s*(.*)$/);
     if (topicHeading) {
+      if (activeSubjectIndex === null) {
+        activeSubjectIndex = ensureSubject(
+          BULK_IMPORT_PLACEHOLDER_NAME,
+          lineNumber,
+        );
+      }
+      if (activeChapterIndex === null) {
+        activeChapterIndex = ensureChapter(
+          activeSubjectIndex,
+          BULK_IMPORT_PLACEHOLDER_NAME,
+          lineNumber,
+        );
+      }
       addTopicToChapter(
         activeSubjectIndex,
         activeChapterIndex,
@@ -606,8 +559,24 @@ function parseBulkSubjectsFromTxt(input: string): BulkSubjectGroup[] {
       continue;
     }
 
-    throw new Error(
-      `Line ${lineNumber}: use "-" for subjects, "_" for chapters, and ">" for topics in imported .txt files.`,
+    if (activeSubjectIndex === null) {
+      activeSubjectIndex = ensureSubject(
+        BULK_IMPORT_PLACEHOLDER_NAME,
+        lineNumber,
+      );
+    }
+    if (activeChapterIndex === null) {
+      activeChapterIndex = ensureChapter(
+        activeSubjectIndex,
+        BULK_IMPORT_PLACEHOLDER_NAME,
+        lineNumber,
+      );
+    }
+    addTopicToChapter(
+      activeSubjectIndex,
+      activeChapterIndex,
+      line,
+      lineNumber,
     );
   }
 
@@ -625,11 +594,7 @@ function parseBulkSubjectsFromTxt(input: string): BulkSubjectGroup[] {
     }
 
     for (const chapter of subject.chapters) {
-      if (chapter.topics.length === 0) {
-        throw new Error(
-          `Chapter "${chapter.chapterName}" in subject "${subject.subjectName}" does not contain any topics.`,
-        );
-      }
+      chapter.topics = chapter.topics.filter(Boolean);
     }
   }
 
@@ -1324,7 +1289,7 @@ export default function StudyPlanner({
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
-  const [view, setView] = useState<PlannerView>(initialView ?? "today");
+  const [view, setView] = useState<PlannerView>(initialView ?? "plan");
   const [monthDate, setMonthDate] = useState(new Date());
 
   const [examType, setExamType] = useState("");
@@ -1351,7 +1316,11 @@ export default function StudyPlanner({
       const stored = window.localStorage.getItem(
         SYLLABUS_LAYOUT_MODE_STORAGE_KEY,
       );
-      if (stored === "org-chart" || stored === "classic" || stored === "hierarchy")
+      if (
+        stored === "org-chart" ||
+        stored === "classic" ||
+        stored === "hierarchy"
+      )
         return stored;
       return "org-chart";
     });
@@ -1406,9 +1375,6 @@ export default function StudyPlanner({
   const [expandedChapterIds, setExpandedChapterIds] = useState<
     Record<string, boolean>
   >({});
-  const [expandedTodayTopicId, setExpandedTodayTopicId] = useState<
-    string | null
-  >(null);
   const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
@@ -1422,29 +1388,9 @@ export default function StudyPlanner({
     Record<string, string>
   >({});
   const beginnerMode = false;
-  const [showAdvancedCapacity, setShowAdvancedCapacity] = useState(false);
-  const [showAdvancedPlanActions, setShowAdvancedPlanActions] = useState(false);
   const [isAutoDistributing, setIsAutoDistributing] = useState(false);
   const [plannerOnboardingState, setPlannerOnboardingState] =
     useState<PlannerOnboardingState>(() => readPlannerOnboardingState());
-  // ── Move-date picker state ──
-  const [moveDatePickerTopicId, setMoveDatePickerTopicId] = useState<
-    string | null
-  >(null);
-
-  useEffect(() => {
-    if (!moveDatePickerTopicId) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".move-date-dropdown-container")) {
-        setMoveDatePickerTopicId(null);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [moveDatePickerTopicId]);
   // ── Template picker state ──
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [availableTemplates, setAvailableTemplates] = useState<
@@ -1636,6 +1582,12 @@ export default function StudyPlanner({
       SYLLABUS_LAYOUT_MODE_STORAGE_KEY,
       syllabusLayoutMode,
     );
+  }, [syllabusLayoutMode]);
+
+  useEffect(() => {
+    if (SYLLABUS_CLASSIC_LAYOUT_UI_ENABLED) return;
+    if (syllabusLayoutMode !== "classic") return;
+    setSyllabusLayoutMode("org-chart");
   }, [syllabusLayoutMode]);
 
   const unplannedTopicsCount = useMemo(() => {
@@ -2875,8 +2827,8 @@ export default function StudyPlanner({
         }
       }
 
-      if (totalTopicCount === 0) {
-        setBulkAddError("Add at least one topic");
+      if (totalTopicCount === 0 && totalChapterCount === 0) {
+        setBulkAddError("Add at least one topic or chapter");
         return;
       }
 
@@ -2887,7 +2839,9 @@ export default function StudyPlanner({
 
       const summaryMessage =
         bulkAddMode === "txt-file"
-          ? `Imported ${totalTopicCount} topics across ${totalChapterCount} chapter${totalChapterCount > 1 ? "s" : ""} in ${totalSubjectCount} subject${totalSubjectCount > 1 ? "s" : ""}.`
+          ? totalTopicCount > 0
+            ? `Imported ${totalTopicCount} topics across ${totalChapterCount} chapter${totalChapterCount > 1 ? "s" : ""} in ${totalSubjectCount} subject${totalSubjectCount > 1 ? "s" : ""}.`
+            : `Imported ${totalChapterCount} empty chapter${totalChapterCount > 1 ? "s" : ""} in ${totalSubjectCount} subject${totalSubjectCount > 1 ? "s" : ""}.`
           : `Imported ${totalTopicCount} topics across ${totalChapterCount} chapter${totalChapterCount > 1 ? "s" : ""}.`;
       showToast(summaryMessage, "success");
       resetBulkAdd();
@@ -3240,36 +3194,7 @@ export default function StudyPlanner({
       );
     })
     .sort((a, b) => (a.plannedDate || "").localeCompare(b.plannedDate || ""));
-  const overdueCount = overdueTasks.length;
-  const statusCounts = {
-    todo: topics.filter((topic) => topic.status === "todo").length,
-    in_progress: topics.filter((topic) => topic.status === "in_progress")
-      .length,
-    done: topics.filter((topic) => topic.status === "done").length,
-    revision_needed: topics.filter(
-      (topic) => topic.status === "revision_needed",
-    ).length,
-  };
-  const summaryStatusLabel =
-    overdueCount > 0 ? `Behind by ${overdueCount} topics` : "On track";
-  const nextOffDayLabel = (() => {
-    if (!plan.offDays || plan.offDays.length === 0) return "None";
-    const offDaySet = new Set(plan.offDays);
-    const now = new Date();
-    for (let i = 0; i < 7; i += 1) {
-      const candidate = new Date(now);
-      candidate.setDate(now.getDate() + i);
-      if (offDaySet.has(candidate.getDay())) {
-        return candidate.toLocaleDateString("en-US", { weekday: "long" });
-      }
-    }
-    return "None";
-  })();
-  const kanban = {
-    todo: topics.filter((t) => t.status === "todo"),
-    in_progress: topics.filter((t) => t.status === "in_progress"),
-    done: topics.filter((t) => t.status === "done"),
-  };
+  const upcomingMerged = upcomingTasks.slice(0, 6);
 
   const selectedDayItems = pickedDay ? calendar[pickedDay] || [] : [];
   const selectedDayDone = selectedDayItems.filter(
@@ -3295,52 +3220,20 @@ export default function StudyPlanner({
     const dailyGoal = Math.max(1, plan.dailyGoal || 1);
     const remainingTopics = topics.filter((topic) => topic.status !== "done");
     const remainingTopicCount = remainingTopics.length;
-    const completedByDate = countCompletedTopicsByDate(topics);
-    const activeDaysLast14 = buildPlannerHeatmap(
-      completedByDate,
-      now,
-      14,
-    ).filter((point) => point.count > 0).length;
-    const last30Heatmap = buildPlannerHeatmap(completedByDate, now, 30);
-    const activeDaysLast30 = last30Heatmap.filter(
-      (point) => point.count > 0,
-    ).length;
-    const studyStreak = computeStudyStreak(completedByDate, todayKey);
-    const weekdayCounts = new Map<number, number>();
-
-    for (const point of last30Heatmap) {
-      if (point.count <= 0) continue;
-      const weekday = new Date(point.date).getDay();
-      weekdayCounts.set(
-        weekday,
-        (weekdayCounts.get(weekday) || 0) + point.count,
-      );
-    }
-
-    const bestStudyWeekday =
-      weekdayCounts.size > 0
-        ? [
-            "Sunday",
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-          ][[...weekdayCounts.entries()].sort((a, b) => b[1] - a[1])[0][0]]
-        : "No recent study";
 
     const availableStudyDays = examDate
       ? countStudyDaysBetween(now, examDate, plan.offDays || [])
       : null;
-    const requiredTopicsPerStudyDay =
+    const requiredRaw =
       availableStudyDays === null
         ? null
         : availableStudyDays === 0
           ? remainingTopicCount > 0
             ? remainingTopicCount
             : 0
-          : Number((remainingTopicCount / availableStudyDays).toFixed(1));
+          : remainingTopicCount / availableStudyDays;
+    const requiredTopicsPerStudyDay =
+      requiredRaw === null ? null : Number(requiredRaw.toFixed(1));
     const forecastCompletionDate =
       examDate && remainingTopicCount > 0
         ? simulateForecastCompletionDate(
@@ -3381,305 +3274,81 @@ export default function StudyPlanner({
           )
       : null;
 
-    const next14Days: PlannerInsightDay[] = Array.from(
-      { length: 14 },
-      (_, index) => {
-        const date = addDays(now, index);
-        const key = toIsoDateOnly(date);
-        const items = calendar[key] || [];
-        return {
-          date: key,
-          plannedCount: items.filter((item) => item.status !== "done").length,
-          doneCount: items.filter((item) => item.status === "done").length,
-          overdueCount:
-            key < todayKey
-              ? items.filter((item) => item.status !== "done").length
-              : 0,
-          isOffDay: (plan.offDays || []).includes(date.getDay()),
-        };
-      },
+    let androidOverloadDays = 0;
+    for (let index = 0; index < 14; index += 1) {
+      const date = addDays(now, index);
+      const key = toIsoDateOnly(date);
+      const slotCount = (calendar[key] || []).length;
+      if (slotCount >= 5) androidOverloadDays += 1;
+    }
+
+    const unplannedUnfinishedTopics = topics.filter(
+      (t) => t.status !== "done" && !String(t.plannedDate || "").trim(),
+    ).length;
+
+    const onTrackStatus = computeAndroidOnTrackStatus(
+      requiredRaw,
+      dailyGoal,
+      daysBuffer,
+      remainingTopicCount,
     );
 
-    const overloadDays = next14Days.filter(
-      (day) => !day.isOffDay && day.plannedCount > dailyGoal,
-    ).length;
-    const emptyStudyDays = next14Days.filter(
-      (day) => !day.isOffDay && day.plannedCount === 0,
-    ).length;
-    const busiestDay =
-      [...next14Days]
-        .filter((day) => !day.isOffDay)
-        .sort((a, b) => b.plannedCount - a.plannedCount)[0] || null;
-
-    const upcomingSubjectCounts = new Map<
-      string,
-      { name: string; count: number }
-    >();
-    for (const day of next14Days) {
-      const items = calendar[day.date] || [];
-      for (const item of items) {
-        if (item.status === "done") continue;
-        const current = upcomingSubjectCounts.get(item.subjectName) || {
-          name: item.subjectName,
-          count: 0,
-        };
-        current.count += 1;
-        upcomingSubjectCounts.set(item.subjectName, current);
-      }
-    }
-    const busiestSubjectUpcoming =
-      upcomingSubjectCounts.size > 0
-        ? [...upcomingSubjectCounts.values()].sort(
-            (a, b) => b.count - a.count,
-          )[0].name
-        : null;
-
-    const subjectRows = plan.subjects
-      .map((subject) => {
-        const subjectTopics = subject.chapters.flatMap(
-          (chapter) => chapter.topics,
-        );
-        const remaining = subjectTopics.filter(
-          (topic) => topic.status !== "done",
-        );
-        const overdue = remaining.filter(
-          (topic) =>
-            topic.plannedDate && toIsoDateOnly(topic.plannedDate) < todayKey,
-        ).length;
-        const revision = subjectTopics.filter(
-          (topic) => topic.status === "revision_needed",
-        ).length;
-        const scheduled = remaining.filter((topic) =>
-          Boolean(topic.plannedDate),
-        ).length;
-        return {
-          subjectId: subject.id,
-          subjectName: subject.name,
-          color: subject.color,
-          completionPercent: subjectPercent(subject),
-          remainingTopics: remaining.length,
-          overdueTopics: overdue,
-          revisionTopics: revision,
-          scheduledTopics: scheduled,
-        };
-      })
-      .sort(
-        (a, b) =>
-          a.completionPercent - b.completionPercent ||
-          b.remainingTopics - a.remainingTopics,
+    const subjectRows = plan.subjects.map((subject) => {
+      const subjectTopics = subject.chapters.flatMap(
+        (chapter) => chapter.topics,
       );
+      const remaining = subjectTopics.filter(
+        (topic) => topic.status !== "done",
+      );
+      const overdue = remaining.filter(
+        (topic) =>
+          topic.plannedDate && toIsoDateOnly(topic.plannedDate) < todayKey,
+      ).length;
+      const revision = subjectTopics.filter(
+        (topic) => topic.status === "revision_needed",
+      ).length;
+      const scheduled = remaining.filter((topic) =>
+        Boolean(topic.plannedDate),
+      ).length;
+      return {
+        subjectId: subject.id,
+        subjectName: subject.name,
+        color: subject.color,
+        completionPercent: subjectPercent(subject),
+        remainingTopics: remaining.length,
+        overdueTopics: overdue,
+        revisionTopics: revision,
+        scheduledTopics: scheduled,
+      };
+    });
 
-    const laggingChapters = plan.subjects
-      .flatMap((subject) =>
-        subject.chapters.map((chapter) => {
-          const remaining = chapter.topics.filter(
-            (topic) => topic.status !== "done",
-          );
-          const overdue = remaining.filter(
-            (topic) =>
-              topic.plannedDate && toIsoDateOnly(topic.plannedDate) < todayKey,
-          ).length;
-          return {
-            subjectId: subject.id,
-            subjectName: subject.name,
-            chapterId: chapter.id,
-            chapterName: chapter.name,
-            remainingTopics: remaining.length,
-            completionPercent: chapterPercent(chapter),
-            overdueTopics: overdue,
-          };
-        }),
-      )
-      .filter((chapter) => chapter.remainingTopics > 0)
-      .sort(
-        (a, b) =>
-          b.remainingTopics - a.remainingTopics ||
-          a.completionPercent - b.completionPercent,
-      )
-      .slice(0, 5);
+    const summaryBlock = {
+      completionPercent: summary.percent,
+      remainingTopics: remainingTopicCount,
+      daysUntilExam:
+        examDate && countdown !== null && countdown >= 0 ? countdown : null,
+      availableStudyDays,
+      requiredTopicsPerStudyDay,
+      onTrackStatus,
+      forecastCompletionDate,
+      daysBuffer,
+      scheduleCoveragePercent,
+    };
 
-    const overdueAgingBuckets = overdueTasks.reduce(
-      (acc, topic) => {
-        const age = topic.plannedDate
-          ? daysBetweenDateKeys(toIsoDateOnly(topic.plannedDate), todayKey)
-          : 0;
-        if (age >= 1 && age <= 3) acc.days1to3 += 1;
-        else if (age >= 4 && age <= 7) acc.days4to7 += 1;
-        else if (age >= 8) acc.days8Plus += 1;
-        return acc;
-      },
-      { days1to3: 0, days4to7: 0, days8Plus: 0 },
+    const recommendationLines = buildAndroidRecommendationLines(
+      summaryBlock,
+      androidOverloadDays,
+      overdueTasks.length,
+      unplannedUnfinishedTopics,
+      remainingTopicCount,
     );
-
-    const reviewDueSoon = topics.filter((topic) => {
-      if (topic.status !== "done" || !topic.completedDate) return false;
-      const age = daysBetweenDateKeys(
-        toIsoDateOnly(topic.completedDate),
-        todayKey,
-      );
-      return age >= 3 && age <= 7;
-    }).length;
-    const reviewOverdue = topics.filter((topic) => {
-      if (topic.status !== "done" || !topic.completedDate) return false;
-      const age = daysBetweenDateKeys(
-        toIsoDateOnly(topic.completedDate),
-        todayKey,
-      );
-      return age >= 8;
-    }).length;
-
-    let onTrackStatus: InsightTrackStatus = "on_track";
-    if (!examDate && remainingTopicCount > 0) {
-      onTrackStatus = "needs_attention";
-    } else if (
-      overdueTasks.length > 0 ||
-      (daysBuffer !== null &&
-        forecastCompletionDate !== null &&
-        startOfDay(forecastCompletionDate).getTime() >
-          (examDate?.getTime() || 0)) ||
-      (requiredTopicsPerStudyDay !== null &&
-        requiredTopicsPerStudyDay > dailyGoal)
-    ) {
-      onTrackStatus = "at_risk";
-    } else if (
-      hasPendingUnplannedTopics ||
-      (scheduleCoveragePercent !== null && scheduleCoveragePercent < 85) ||
-      statusCounts.revision_needed > Math.max(5, dailyGoal * 2)
-    ) {
-      onTrackStatus = "needs_attention";
-    }
-
-    const recommendations: PlannerInsightRecommendation[] = [];
-    if (!examDate && remainingTopicCount > 0) {
-      recommendations.push({
-        id: "set-exam-date",
-        title: "Set your exam date",
-        reason:
-          "Forecasts and pacing guidance need a valid exam date to benchmark against.",
-        ctaLabel: "Open Plan",
-        targetView: "plan",
-      });
-    }
-    if (hasPendingUnplannedTopics) {
-      recommendations.push({
-        id: "build-schedule",
-        title: "Build or rebuild schedule",
-        reason: `${Math.max(0, statusCounts.todo + statusCounts.in_progress + statusCounts.revision_needed - unfinishedScheduledBeforeExam)} unfinished topics are still floating without a usable exam-bound schedule.`,
-        ctaLabel: "Open Plan",
-        targetView: "plan",
-      });
-    }
-    if (overdueTasks.length > 0) {
-      recommendations.push({
-        id: "reschedule-overdue",
-        title: "Reschedule overdue topics",
-        reason: `${overdueTasks.length} topic${overdueTasks.length === 1 ? "" : "s"} are already behind schedule and need reassignment.`,
-        ctaLabel: "Open Calendar",
-        targetView: "calendar",
-      });
-    }
-    if (
-      requiredTopicsPerStudyDay !== null &&
-      requiredTopicsPerStudyDay > dailyGoal
-    ) {
-      recommendations.push({
-        id: "increase-capacity",
-        title: "Increase daily goal or reduce scope",
-        reason: `You need ${requiredTopicsPerStudyDay.toFixed(1)} topics/day against a current target of ${dailyGoal}/day.`,
-        ctaLabel: "Open Plan",
-        targetView: "plan",
-      });
-    }
-    if (
-      subjectRows[0] &&
-      subjectRows[0].remainingTopics > Math.max(3, dailyGoal * 2)
-    ) {
-      recommendations.push({
-        id: "prioritize-subject",
-        title: `Prioritize ${subjectRows[0].subjectName}`,
-        reason: `${subjectRows[0].subjectName} carries the heaviest remaining load at ${subjectRows[0].remainingTopics} unfinished topics.`,
-        ctaLabel: "Open Syllabus",
-        targetView: "syllabus",
-      });
-    }
-    if (
-      statusCounts.revision_needed > 0 ||
-      reviewDueSoon > Math.max(3, dailyGoal) ||
-      reviewOverdue > 0
-    ) {
-      recommendations.push({
-        id: "allocate-revision",
-        title: "Allocate a revision block this week",
-        reason: `${statusCounts.revision_needed + reviewDueSoon + reviewOverdue} topics are either flagged for revision or entering a review-risk window.`,
-        ctaLabel: "Open Calendar",
-        targetView: "calendar",
-      });
-    }
 
     return {
-      summary: {
-        completionPercent: summary.percent,
-        remainingTopics: remainingTopicCount,
-        daysUntilExam:
-          examDate && countdown !== null && countdown >= 0 ? countdown : null,
-        availableStudyDays,
-        requiredTopicsPerStudyDay,
-        onTrackStatus,
-        forecastCompletionDate,
-        daysBuffer,
-        scheduleCoveragePercent,
-      },
-      consistency: {
-        studyStreak,
-        activeDaysLast14,
-        activeDaysLast30,
-        bestStudyWeekday,
-        heatmap: last30Heatmap,
-      },
-      workload: {
-        next14Days,
-        overloadDays,
-        emptyStudyDays,
-        busiestDay,
-        busiestSubjectUpcoming,
-      },
-      coverage: {
-        subjectRows,
-        laggingChapters,
-      },
-      backlog: {
-        overdueTotal: overdueTasks.length,
-        overdueAgingBuckets,
-        unplannedUnfinishedTopics: hasPendingUnplannedTopics
-          ? unplannedTopicsCount
-          : 0,
-        revisionNeededTopics: statusCounts.revision_needed,
-        reviewDueSoon,
-        reviewOverdue,
-      },
-      recommendations: recommendations.slice(0, 3),
+      summary: summaryBlock,
+      subjectRows,
+      recommendationLines,
     };
   })();
-  const insightStatusMeta: Record<
-    InsightTrackStatus,
-    { label: string; tone: string; chip: string }
-  > = {
-    on_track: {
-      label: "On Track",
-      tone: "text-emerald-700 dark:text-emerald-300",
-      chip: "bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700/40",
-    },
-    needs_attention: {
-      label: "Needs Attention",
-      tone: "text-amber-700 dark:text-amber-300",
-      chip: "bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/40",
-    },
-    at_risk: {
-      label: "At Risk",
-      tone: "text-rose-700 dark:text-rose-300",
-      chip: "bg-rose-100 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-700/40",
-    },
-  };
   const guidedActionMeta: Record<
     GuidedActionId,
     { step: string; title: string; description: string; actionLabel: string }
@@ -3911,7 +3580,7 @@ export default function StudyPlanner({
             </div>
           </div>
 
-          {!plannerOnboardingState.completed && (
+          {!plannerOnboardingState.completed && view === "plan" && (
             <div
               data-tour="planner-setup-tray"
               className="mb-10 rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]"
@@ -3999,139 +3668,6 @@ export default function StudyPlanner({
             </div>
           )}
 
-          {/* Quick Actions - Moved to top for immediate visibility */}
-          {view === "today" && (
-            <div
-              data-tour="planner-quick-actions"
-              className="mb-8 rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]"
-            >
-              <h3 className="text-[16px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-4">
-                Quick Actions
-              </h3>
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => handleViewChange("plan")}
-                  className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#1e40af] text-white shadow-md hover:shadow-lg ${PLANNER_PRESSABLE}`}
-                >
-                  Build Schedule
-                </button>
-                <button
-                  onClick={() => handleViewChange("calendar")}
-                  className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none bg-white dark:bg-[#202225] border border-[#c0c4d1] dark:border-[#2b2c2c] hover:shadow-md ${PLANNER_PRESSABLE}`}
-                >
-                  Open Calendar
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Metrics Grid */}
-          {view === "today" && (
-            <div
-              data-tour="planner-metrics"
-              className="grid grid-cols-2 lg:grid-cols-5 gap-5 md:gap-8 mb-12"
-            >
-              {/* Days to goal */}
-              <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
-                  Days to goal
-                </div>
-                <div
-                  className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2 drop-shadow-sm"
-                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
-                >
-                  {countdown === null
-                    ? "--"
-                    : Math.abs(countdown) > 9999
-                      ? "???"
-                      : countdown < 0
-                        ? "—"
-                        : countdown}
-                </div>
-                {!(
-                  countdown !== null &&
-                  countdown < 0 &&
-                  Math.abs(countdown) <= 9999
-                ) && (
-                  <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
-                    {countdown === null
-                      ? "Set exam date"
-                      : Math.abs(countdown) > 9999
-                        ? "Invalid date — please reset"
-                        : countdown === 0
-                          ? "exam today"
-                          : "days until goal"}
-                  </div>
-                )}
-              </div>
-
-              {/* Completed */}
-              <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
-                  Completed
-                </div>
-                <div
-                  className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] flex items-baseline gap-2 mt-auto drop-shadow-sm"
-                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
-                >
-                  {summary.done}{" "}
-                  <span className="text-xl text-[#64748b] dark:text-[#9aa2ae] font-study-planner font-bold">
-                    / {summary.total}
-                  </span>
-                </div>
-              </div>
-
-              {/* Today */}
-              <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
-                  Today
-                </div>
-                <div
-                  className="text-5xl font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2 drop-shadow-sm"
-                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
-                >
-                  {todayTasks.length}
-                </div>
-                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
-                  tasks planned
-                </div>
-              </div>
-
-              {/* Status */}
-              <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
-                  Status
-                </div>
-                <div className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2 drop-shadow-sm">
-                  {summaryStatusLabel}
-                </div>
-                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
-                  {overdueCount > 0
-                    ? "Recover overdue tasks"
-                    : "Keep the streak"}
-                </div>
-              </div>
-
-              {/* Next Off Day */}
-              <div className="rounded-3xl p-6 flex flex-col transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-2 uppercase tracking-[0.15em] drop-shadow-sm">
-                  Next off day
-                </div>
-                <div
-                  className="text-3xl font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2 drop-shadow-sm"
-                  style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
-                >
-                  {nextOffDayLabel}
-                </div>
-                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] uppercase tracking-[0.1em]">
-                  {plan.offDays.length > 0
-                    ? "Off days are skipped"
-                    : "No off days set"}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Action Controls */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12">
             <div
@@ -4140,7 +3676,6 @@ export default function StudyPlanner({
             >
               {(
                 [
-                  ["today", "Today"],
                   ["plan", "Plan"],
                   ["syllabus", "Syllabus"],
                   ["calendar", "Calendar"],
@@ -4167,19 +3702,14 @@ export default function StudyPlanner({
                       }}
                     />
                   )}
-                  <span className="inline-flex items-center gap-2">
-                    <span>{label}</span>
-                    {value === "insights" && !isPremium && (
-                      <span className="text-[8px] font-black tracking-[0.2em] px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30">
-                        LOCK
-                      </span>
-                    )}
-                  </span>
+                  <span>{label}</span>
                 </button>
               ))}
             </div>
 
             <button
+              type="button"
+              data-tour="planner-plan-actions"
               onClick={() => {
                 void autoDistribute();
               }}
@@ -4196,1471 +3726,94 @@ export default function StudyPlanner({
             </div>
           )}
 
-          {view === "today" && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-            >
-              <div className="lg:col-span-2 flex flex-col gap-6">
-                <div
-                  data-tour="planner-today-tasks"
-                  className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                      Today&apos;s Study Tasks
-                    </h3>
-                    <span className="text-[13px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
-                      {todayTasks.length} planned
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-4">
-                    {todayTasks.map((topic) => (
-                      <div
-                        key={topic.id}
-                        className={`rounded-2xl p-5 border shadow-sm ${isDarkMode ? "bg-[#232628] border-[#3a3d42] shadow-[0_2px_8px_rgba(0,0,0,0.4)]" : "bg-white border-[#d1d5db]"}`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0 flex-1">
-                            <div
-                              className={`text-[19px] font-bold leading-snug ${isDarkMode ? "text-white" : "text-[#1a202c]"}`}
-                            >
-                              {topic.name}
-                            </div>
-                            <div
-                              className={`text-[14px] font-bold tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
-                            >
-                              <span className="uppercase">{topic.subject.name}</span>
-                              {topic.chapter?.name
-                                ? ` - ${topic.chapter.name}`
-                                : ""}
-                            </div>
-                            {topic.notes && (
-                              <div className="text-[12px] font-extrabold uppercase tracking-widest text-[#64748b] mt-2">
-                                Notes attached
-                              </div>
-                            )}
-                          </div>
-                          <span
-                            className="flex-shrink-0 text-[11px] whitespace-nowrap px-3 py-1.5 rounded-full font-black tracking-widest"
-                            style={{
-                              color: STATUS_UI[topic.status].color,
-                              background: isDarkMode
-                                ? STATUS_UI[topic.status].darkBg ||
-                                  STATUS_UI[topic.status].bg
-                                : STATUS_UI[topic.status].bg,
-                              border: `1px solid ${STATUS_UI[topic.status].color}30`,
-                            }}
-                          >
-                            {STATUS_UI[topic.status].label}
-                          </span>
-                        </div>
-
-                        {/* P1-8: Promoted "Needs Revision" to primary row + P1-7: Move Date picker */}
-                        <div className="flex flex-wrap items-center gap-4 mt-5 border-t border-slate-200/50 dark:border-slate-800 pt-4">
-                          <button
-                            onClick={() =>
-                              patchTopic(topic.id, { status: "in_progress" })
-                            }
-                            className="text-[11px] font-black uppercase tracking-[0.15em] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                          >
-                            Start
-                          </button>
-                          <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
-                          <button
-                            onClick={() =>
-                              patchTopic(topic.id, { status: "done" })
-                            }
-                            className="text-[11px] font-black uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
-                          >
-                            Done
-                          </button>
-                          <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
-                          <button
-                            onClick={() =>
-                              patchTopic(topic.id, {
-                                status: "revision_needed",
-                              })
-                            }
-                            className="text-[11px] font-black uppercase tracking-[0.15em] text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
-                          >
-                            Needs Revision
-                          </button>
-                          <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
-                          <div className="relative move-date-dropdown-container">
-                            <button
-                              onClick={() =>
-                                setMoveDatePickerTopicId((prev) =>
-                                  prev === topic.id ? null : topic.id,
-                                )
-                              }
-                              className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                            >
-                              Move ▾
-                            </button>
-                            {moveDatePickerTopicId === topic.id && (
-                              <div
-                                className={`absolute top-full left-0 mt-2 z-50 rounded-2xl p-3 shadow-xl border min-w-[180px] ${isDarkMode ? "bg-[#1a1c1e] border-[#2b2c2c]" : "bg-white border-[#c0c4d1]"}`}
-                              >
-                                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mb-2">
-                                  Pick a date
-                                </div>
-                                {(() => {
-                                  const offDaysSet = new Set(
-                                    plan?.offDays || [],
-                                  );
-                                  const options: {
-                                    label: string;
-                                    key: string;
-                                  }[] = [];
-                                  let d = new Date();
-                                  d.setDate(d.getDate() + 1);
-                                  let count = 0;
-                                  while (count < 7) {
-                                    const dayOfWeek = d.getDay();
-                                    if (!offDaysSet.has(dayOfWeek)) {
-                                      const key = toIsoDateOnly(d);
-                                      const dayNames = [
-                                        "Sun",
-                                        "Mon",
-                                        "Tue",
-                                        "Wed",
-                                        "Thu",
-                                        "Fri",
-                                        "Sat",
-                                      ];
-                                      const label =
-                                        count === 0 &&
-                                        !offDaysSet.has(
-                                          new Date(
-                                            Date.now() + 86400000,
-                                          ).getDay(),
-                                        )
-                                          ? `Tomorrow (${dayNames[dayOfWeek]})`
-                                          : `${dayNames[dayOfWeek]}, ${d.getDate()}/${d.getMonth() + 1}`;
-                                      options.push({ label, key });
-                                      count++;
-                                    }
-                                    d = new Date(d.getTime() + 86400000);
-                                  }
-                                  return options.map((opt) => (
-                                    <button
-                                      key={opt.key}
-                                      onClick={() => {
-                                        void patchTopic(topic.id, {
-                                          plannedDate: opt.key,
-                                        });
-                                        setMoveDatePickerTopicId(null);
-                                      }}
-                                      className={`block w-full text-left text-[13px] font-bold px-3 py-2 rounded-lg transition-colors ${isDarkMode ? "text-[#e2e8f0] hover:bg-[#343840]" : "text-[#2d333b] hover:bg-[#e6e7ee]"}`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ));
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={() =>
-                              setExpandedTodayTopicId((prev) =>
-                                prev === topic.id ? null : topic.id,
-                              )
-                            }
-                            className={`text-[14px] font-black tracking-wide px-4 py-2.5 rounded-full border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0]" : "bg-white border-[#c0c4d1] text-[#1a202c]"}`}
-                          >
-                            More
-                          </button>
-                        </div>
-
-                        {expandedTodayTopicId === topic.id && (
-                          <div className="flex flex-wrap gap-3 mt-3">
-                            <button
-                              onClick={() =>
-                                patchTopic(topic.id, { plannedDate: "" })
-                              }
-                              className="text-[12px] font-black tracking-wide px-3 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
-                            >
-                              Remove Date
-                            </button>
-                            <button
-                              onClick={() => {
-                                void editTopicNotes(topic);
-                              }}
-                              className={`text-[12px] font-black tracking-wide px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
-                            >
-                              Edit Notes
-                            </button>
-                            <button
-                              onClick={() =>
-                                openTopicInSyllabus(
-                                  topic,
-                                  topic.subject,
-                                  topic.chapter,
-                                )
-                              }
-                              className={`text-[12px] font-black tracking-wide px-3 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
-                            >
-                              Open in Syllabus
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {todayTasks.length === 0 && (
-                      <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-10 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
-                        No tasks planned for today.
-                        <div className="flex flex-wrap gap-2 justify-center mt-4">
-                          <button
-                            onClick={() => handleViewChange("calendar")}
-                            className={`text-[12px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-[#1a202c] border-[#c0c4d1]"}`}
-                          >
-                            View Upcoming
-                          </button>
-                          <button
-                            onClick={() => handleViewChange("plan")}
-                            className="text-[12px] font-black tracking-wide px-4 py-2 rounded-full bg-[#3b82f6] text-white"
-                          >
-                            Rebuild Plan
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  data-tour="planner-upcoming"
-                  className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                      Coming Up
-                    </h3>
-                    <button
-                      onClick={() => handleViewChange("calendar")}
-                      className="text-[12px] font-black tracking-wide text-blue-600 dark:text-blue-400"
-                    >
-                      Open Calendar
-                    </button>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {upcomingTasks.slice(0, 7).map((topic) => (
-                      <div
-                        key={topic.id}
-                        className={`flex flex-col justify-between gap-3 rounded-2xl p-4 border shadow-sm ${isDarkMode ? "bg-[#232628] border-[#3a3d42]" : "bg-white border-[#d1d5db]"}`}
-                      >
-                        <div>
-                          <div
-                            className={`text-[18px] font-bold leading-snug ${isDarkMode ? "text-white" : "text-[#1a202c]"}`}
-                          >
-                            {topic.name}
-                          </div>
-                          <div
-                            className={`text-[14px] font-bold tracking-wider mt-1 ${isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]"}`}
-                          >
-                            <span className="uppercase">{topic.subject.name}</span>
-                            {topic.chapter?.name
-                              ? ` - ${topic.chapter.name}`
-                              : ""}
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="text-[14px] font-black tracking-wide text-[#1e40af] dark:text-[#93c5fd]">
-                            {topic.plannedDate
-                              ? formatDate(topic.plannedDate)
-                              : "Unplanned"}
-                          </div>
-                          <button
-                            onClick={() =>
-                              patchTopic(topic.id, { status: "done" })
-                            }
-                            className="text-[13px] font-black tracking-wide px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
-                          >
-                            Done
-                          </button>
-                          <div className="relative move-date-dropdown-container">
-                            <button
-                              onClick={() =>
-                                setMoveDatePickerTopicId((prev) =>
-                                  prev === topic.id ? null : topic.id,
-                                )
-                              }
-                              className={`text-[13px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
-                            >
-                              Move ▾
-                            </button>
-                            {moveDatePickerTopicId === topic.id && (
-                              <div
-                                className={`absolute top-full left-0 mt-2 z-50 rounded-2xl p-3 shadow-xl border min-w-[180px] ${isDarkMode ? "bg-[#1a1c1e] border-[#2b2c2c]" : "bg-white border-[#c0c4d1]"}`}
-                              >
-                                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mb-2">
-                                  Pick a date
-                                </div>
-                                {(() => {
-                                  const offDaysSet = new Set(
-                                    plan?.offDays || [],
-                                  );
-                                  const options: {
-                                    label: string;
-                                    key: string;
-                                  }[] = [];
-                                  let d = new Date();
-                                  d.setDate(d.getDate() + 1);
-                                  let count = 0;
-                                  while (count < 7) {
-                                    const dow = d.getDay();
-                                    if (!offDaysSet.has(dow)) {
-                                      const key = toIsoDateOnly(d);
-                                      const dn = [
-                                        "Sun",
-                                        "Mon",
-                                        "Tue",
-                                        "Wed",
-                                        "Thu",
-                                        "Fri",
-                                        "Sat",
-                                      ];
-                                      options.push({
-                                        label: `${dn[dow]}, ${d.getDate()}/${d.getMonth() + 1}`,
-                                        key,
-                                      });
-                                      count++;
-                                    }
-                                    d = new Date(d.getTime() + 86400000);
-                                  }
-                                  return options.map((opt) => (
-                                    <button
-                                      key={opt.key}
-                                      onClick={() => {
-                                        void patchTopic(topic.id, {
-                                          plannedDate: opt.key,
-                                        });
-                                        setMoveDatePickerTopicId(null);
-                                      }}
-                                      className={`block w-full text-left text-[13px] font-bold px-3 py-2 rounded-lg transition-colors ${isDarkMode ? "text-[#e2e8f0] hover:bg-[#343840]" : "text-[#2d333b] hover:bg-[#e6e7ee]"}`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ));
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => handleViewChange("calendar")}
-                            className={`text-[13px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#343840] text-[#e2e8f0] border-[#4a4e55]" : "bg-white text-slate-700 border-slate-300"}`}
-                          >
-                            Calendar
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-
-                    {upcomingTasks.length === 0 && (
-                      <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-8 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
-                        No upcoming tasks yet.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-6">
-                <div
-                  data-tour="planner-overdue"
-                  className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                      Overdue
-                    </h3>
-                    <span className="text-[13px] font-bold uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
-                      {overdueCount} items
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {overdueTasks.slice(0, 5).map((topic) => (
-                      <div
-                        key={topic.id}
-                        className="rounded-2xl p-4 bg-[#fee2e2] dark:bg-[#2a1216] border border-[#fecaca] dark:border-[#7f1d1d]"
-                      >
-                        <div className="text-[14px] font-bold text-[#7f1d1d] dark:text-[#fecaca]">
-                          {topic.name}
-                        </div>
-                        <div className="text-[12px] font-extrabold tracking-wide text-[#b91c1c] dark:text-[#fca5a5] mt-1">
-                          <span className="uppercase">{topic.subject.name}</span>
-                          {topic.chapter?.name
-                            ? ` - ${topic.chapter.name}`
-                            : ""}
-                        </div>
-                        {topic.plannedDate && (
-                          <div className="text-[12px] font-black tracking-wide text-[#b91c1c] dark:text-[#fca5a5] mt-2">
-                            {daysBetweenDateKeys(
-                              toIsoDateOnly(topic.plannedDate),
-                              todayKey,
-                            )}{" "}
-                            days overdue
-                          </div>
-                        )}
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          <button
-                            onClick={() =>
-                              patchTopic(topic.id, { status: "done" })
-                            }
-                            className="text-[13px] font-black tracking-wide px-4 py-2 rounded-full bg-emerald-600 text-white shadow-sm"
-                          >
-                            Done
-                          </button>
-                          <div className="relative move-date-dropdown-container">
-                            <button
-                              onClick={() =>
-                                setMoveDatePickerTopicId((prev) =>
-                                  prev === topic.id ? null : topic.id,
-                                )
-                              }
-                              className={`text-[13px] font-black tracking-wide px-4 py-2 rounded-full border ${isDarkMode ? "bg-[#1e3a5f] text-[#93c5fd] border-[#1e40af]" : "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"}`}
-                            >
-                              Move ▾
-                            </button>
-                            {moveDatePickerTopicId === topic.id && (
-                              <div
-                                className={`absolute top-full left-0 mt-2 z-50 rounded-2xl p-3 shadow-xl border min-w-[180px] ${isDarkMode ? "bg-[#1a1c1e] border-[#2b2c2c]" : "bg-white border-[#c0c4d1]"}`}
-                              >
-                                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mb-2">
-                                  Pick a date
-                                </div>
-                                {(() => {
-                                  const offDaysSet = new Set(
-                                    plan?.offDays || [],
-                                  );
-                                  const options: {
-                                    label: string;
-                                    key: string;
-                                  }[] = [];
-                                  let d = new Date();
-                                  d.setDate(d.getDate() + 1);
-                                  let count = 0;
-                                  while (count < 7) {
-                                    const dow = d.getDay();
-                                    if (!offDaysSet.has(dow)) {
-                                      const key = toIsoDateOnly(d);
-                                      const dn = [
-                                        "Sun",
-                                        "Mon",
-                                        "Tue",
-                                        "Wed",
-                                        "Thu",
-                                        "Fri",
-                                        "Sat",
-                                      ];
-                                      options.push({
-                                        label: `${dn[dow]}, ${d.getDate()}/${d.getMonth() + 1}`,
-                                        key,
-                                      });
-                                      count++;
-                                    }
-                                    d = new Date(d.getTime() + 86400000);
-                                  }
-                                  return options.map((opt) => (
-                                    <button
-                                      key={opt.key}
-                                      onClick={() => {
-                                        void patchTopic(topic.id, {
-                                          plannedDate: opt.key,
-                                        });
-                                        setMoveDatePickerTopicId(null);
-                                      }}
-                                      className={`block w-full text-left text-[13px] font-bold px-3 py-2 rounded-lg transition-colors ${isDarkMode ? "text-[#e2e8f0] hover:bg-[#343840]" : "text-[#2d333b] hover:bg-[#e6e7ee]"}`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  ));
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={() =>
-                              patchTopic(topic.id, { plannedDate: "" })
-                            }
-                            className="text-[13px] font-black tracking-wide px-4 py-2 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
-                          >
-                            Skip
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-
-                    {overdueTasks.length === 0 && (
-                      <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-8 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
-                        No overdue topics.
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => handleViewChange("calendar")}
-                    className="mt-5 w-full text-[12px] font-black tracking-wide px-4 py-3 rounded-full bg-[#0ea5e9] text-white"
-                  >
-                    Reschedule Overdue
-                  </button>
-                </div>
-              </div>
-            </motion.div>
+          {view === "insights" && plan && (
+            <InsightsPanel
+              planId={plan.id}
+              plan={plan}
+              insights={insights}
+              rollup={{ doneTopics: summary.done, totalTopics: summary.total }}
+            />
           )}
-
-          {view === "insights" && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="space-y-8"
-            >
-              <div className="rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-                  <div className="space-y-3">
-                    <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
-                      Premium Study Intelligence
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2
-                        className="text-3xl md:text-4xl font-black text-[#2d333b] dark:text-[#e7e5e5]"
-                        style={{
-                          fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em",
-                        }}
-                      >
-                        {
-                          insightStatusMeta[insights.summary.onTrackStatus]
-                            .label
-                        }
-                      </h2>
-                      <span
-                        className={`text-[13px] font-black uppercase tracking-[0.18em] px-3 py-1.5 rounded-full ${insightStatusMeta[insights.summary.onTrackStatus].tone} ${insightStatusMeta[insights.summary.onTrackStatus].chip}`}
-                      >
-                        {insights.summary.remainingTopics} topics left
-                      </span>
-                    </div>
-                    <p className="text-sm md:text-base font-bold text-[#64748b] dark:text-[#9aa2ae] max-w-3xl leading-relaxed">
-                      This view turns your syllabus, schedule, revision load,
-                      and exam timing into pacing guidance. It benchmarks only
-                      against your own plan, daily target, and exam date.
-                    </p>
-                  </div>
-
-                  {!isPremium ? (
-                    <div className="rounded-2xl border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/20 px-5 py-4 min-w-[280px]">
-                      <div className="text-[12px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300 mb-2">
-                        Premium Locked
-                      </div>
-                      <p className="text-sm font-bold text-amber-900 dark:text-amber-100 leading-relaxed mb-4">
-                        Upgrade to unlock workload balance, forecast completion,
-                        revision pressure, and prescriptive next-step
-                        recommendations.
-                      </p>
-                      <button
-                        onClick={() => {
-                          void upgradePlannerPremium();
-                        }}
-                        className="w-full text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white shadow-[0_4px_12px_rgba(59,130,246,0.35)]"
-                      >
-                        Upgrade to Premium
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-emerald-300 dark:border-emerald-700/40 bg-emerald-50 dark:bg-emerald-950/20 px-5 py-4 min-w-[260px]">
-                      <div className="text-[12px] font-black uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300 mb-2">
-                        Premium Active
-                      </div>
-                      <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100 leading-relaxed">
-                        Forecasting, coverage insights, and rule-based
-                        recommendations are active for this plan.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 md:gap-6">
-                {[
-                  {
-                    label: "On-track status",
-                    value:
-                      insightStatusMeta[insights.summary.onTrackStatus].label,
-                    subtext:
-                      insights.summary.daysBuffer === null
-                        ? "Set exam date to unlock pacing forecast"
-                        : insights.summary.daysBuffer >= 0
-                          ? `${insights.summary.daysBuffer} study-day buffer before exam`
-                          : "You are projected to miss the exam window",
-                    tone: insightStatusMeta[insights.summary.onTrackStatus]
-                      .tone,
-                  },
-                  {
-                    label: "Completion",
-                    value: `${insights.summary.completionPercent}%`,
-                    subtext: `${summary.done}/${summary.total} topics completed`,
-                    tone: "text-[#2d333b] dark:text-[#e7e5e5]",
-                  },
-                  {
-                    label: "Study streak",
-                    value: `${insights.consistency.studyStreak}d`,
-                    subtext: `${insights.consistency.activeDaysLast14}/14 active days recently`,
-                    tone: "text-[#2d333b] dark:text-[#e7e5e5]",
-                  },
-                  {
-                    label: "Required / day",
-                    value:
-                      insights.summary.requiredTopicsPerStudyDay === null
-                        ? "--"
-                        : `${insights.summary.requiredTopicsPerStudyDay}`,
-                    subtext: `Current goal ${Math.max(1, plan.dailyGoal || 1)}/day`,
-                    tone:
-                      insights.summary.requiredTopicsPerStudyDay !== null &&
-                      insights.summary.requiredTopicsPerStudyDay >
-                        Math.max(1, plan.dailyGoal || 1)
-                        ? "text-rose-700 dark:text-rose-300"
-                        : "text-[#2d333b] dark:text-[#e7e5e5]",
-                  },
-                ].map((card) => (
-                  <div
-                    key={card.label}
-                    className="rounded-3xl p-6 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]"
-                  >
-                    <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-3">
-                      {card.label}
-                    </div>
-                    <div
-                      className={`text-3xl md:text-4xl font-black mb-2 ${card.tone}`}
-                      style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
-                    >
-                      {card.value}
-                    </div>
-                    <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] leading-relaxed">
-                      {card.subtext}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="relative">
-                <div
-                  className={`${!isPremium ? "pointer-events-none select-none blur-[3px]" : ""} space-y-8`}
-                >
-                  <div className="rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
-                      <div>
-                        <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                          Consistency Pulse
-                        </h3>
-                        <p className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2">
-                          Shows how regularly you are completing topics, so
-                          pacing guidance reflects actual execution and not just
-                          planned dates.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3 text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
-                        <span className="px-3 py-1.5 rounded-full bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          Best day: {insights.consistency.bestStudyWeekday}
-                        </span>
-                        <span className="px-3 py-1.5 rounded-full bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          {insights.consistency.activeDaysLast30}/30 active days
-                        </span>
-                      </div>
-                    </div>
-                    <div className="grid xl:grid-cols-[260px_minmax(0,1fr)] gap-6">
-                      <div className="grid sm:grid-cols-3 xl:grid-cols-1 gap-4">
-                        <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Study streak
-                          </div>
-                          <div className="text-3xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                            {insights.consistency.studyStreak} days
-                          </div>
-                        </div>
-                        <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Last 14 days
-                          </div>
-                          <div className="text-3xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                            {insights.consistency.activeDaysLast14}
-                          </div>
-                        </div>
-                        <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Best weekday
-                          </div>
-                          <div className="text-lg font-black text-[#2d333b] dark:text-[#e7e5e5] leading-snug">
-                            {insights.consistency.bestStudyWeekday}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="rounded-2xl p-5 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
-                            30-day completion heatmap
-                          </div>
-                          <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae]">
-                            Darker cells mean more completed topics
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-10 sm:grid-cols-15 gap-2">
-                          {insights.consistency.heatmap.map((point) => {
-                            const intensity =
-                              point.count >= 4
-                                ? "bg-emerald-600 dark:bg-emerald-400"
-                                : point.count >= 2
-                                  ? "bg-emerald-400 dark:bg-emerald-500"
-                                  : point.count >= 1
-                                    ? "bg-emerald-200 dark:bg-emerald-700/70"
-                                    : "bg-[#d9dbe2] dark:bg-[#111315]";
-                            return (
-                              <div
-                                key={point.date}
-                                className="flex flex-col items-center gap-1"
-                              >
-                                <div
-                                  title={`${formatDate(point.date)}: ${point.count} topic${point.count === 1 ? "" : "s"} completed`}
-                                  className={`w-full aspect-square rounded-lg border border-white/70 dark:border-[#2b2c2c] ${intensity}`}
-                                />
-                                <span className="text-[11px] font-bold text-[#64748b] dark:text-[#767575]">
-                                  {new Date(point.date).getDate()}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                    <div className="xl:col-span-5 rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                          Deadline and Pace
-                        </h3>
-                        <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
-                          Exam-bound forecast
-                        </span>
-                      </div>
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        {[
-                          {
-                            label: "Forecast completion",
-                            value: insights.summary.forecastCompletionDate
-                              ? formatDate(
-                                  insights.summary.forecastCompletionDate,
-                                )
-                              : "Not available",
-                          },
-                          {
-                            label: "Available study days",
-                            value:
-                              insights.summary.availableStudyDays === null
-                                ? "--"
-                                : String(insights.summary.availableStudyDays),
-                          },
-                          {
-                            label: "Days to goal",
-                            value:
-                              insights.summary.daysUntilExam === null
-                                ? "--"
-                                : String(insights.summary.daysUntilExam),
-                          },
-                          {
-                            label: "Schedule coverage",
-                            value:
-                              insights.summary.scheduleCoveragePercent === null
-                                ? "--"
-                                : `${insights.summary.scheduleCoveragePercent}%`,
-                          },
-                        ].map((item) => (
-                          <div
-                            key={item.label}
-                            className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]"
-                          >
-                            <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                              {item.label}
-                            </div>
-                            <div
-                              className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5]"
-                              style={{
-                                fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em",
-                              }}
-                            >
-                              {item.value}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-5 rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                        <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                          Pacing read
-                        </div>
-                        <p className="text-sm font-bold text-[#475569] dark:text-[#c6c6c6] leading-relaxed">
-                          {insights.summary.daysBuffer === null
-                            ? "Set a valid exam date to unlock the pacing forecast."
-                            : insights.summary.daysBuffer >= 0
-                              ? `At the current pace, you are projected to finish with a ${insights.summary.daysBuffer}-study-day buffer.`
-                              : `At the current pace, your plan misses the exam window. You need to increase throughput or reduce load.`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="xl:col-span-7 rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                          Workload Balance
-                        </h3>
-                        <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
-                          Next 14 study days
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-7 gap-3 md:gap-4 items-end min-h-[220px]">
-                        {insights.workload.next14Days.map((day) => {
-                          const barHeight = Math.max(
-                            14,
-                            Math.min(144, day.plannedCount * 18),
-                          );
-                          const isOverloaded =
-                            !day.isOffDay &&
-                            day.plannedCount > Math.max(1, plan.dailyGoal || 1);
-                          return (
-                            <div
-                              key={day.date}
-                              className="flex flex-col items-center gap-3"
-                            >
-                              <div
-                                className={`w-full rounded-2xl flex items-end justify-center transition-all border ${day.isOffDay ? "bg-amber-100 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/40" : isOverloaded ? "bg-rose-100 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/40" : "bg-[#e6e7ee] dark:bg-[#131416] border-[#d9dbe2] dark:border-[#2b2c2c]"}`}
-                                style={{ height: `${barHeight}px` }}
-                              >
-                                <span
-                                  className={`text-[13px] font-black mb-3 ${day.isOffDay ? "text-amber-700 dark:text-amber-300" : isOverloaded ? "text-rose-700 dark:text-rose-300" : "text-[#2d333b] dark:text-[#e7e5e5]"}`}
-                                >
-                                  {day.isOffDay ? "OFF" : day.plannedCount}
-                                </span>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#475569] dark:text-[#9aa2ae]">
-                                  {new Date(day.date).toLocaleDateString(
-                                    "en-US",
-                                    { weekday: "short" },
-                                  )}
-                                </div>
-                                <div className="text-[12px] font-bold text-[#64748b] dark:text-[#767575]">
-                                  {formatDate(day.date)}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
-                        <div className="rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Overloaded days
-                          </div>
-                          <div className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                            {insights.workload.overloadDays}
-                          </div>
-                        </div>
-                        <div className="rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Empty study days
-                          </div>
-                          <div className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                            {insights.workload.emptyStudyDays}
-                          </div>
-                        </div>
-                        <div className="rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Busiest day
-                          </div>
-                          <div className="text-lg font-black text-[#2d333b] dark:text-[#e7e5e5] leading-snug">
-                            {insights.workload.busiestDay
-                              ? formatDate(insights.workload.busiestDay.date)
-                              : "No scheduled load"}
-                          </div>
-                          <div className="text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2">
-                            {insights.workload.busiestDay
-                              ? `${insights.workload.busiestDay.plannedCount} planned topics`
-                              : "Add dates to surface workload peaks"}
-                          </div>
-                        </div>
-                        <div className="rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Busiest subject
-                          </div>
-                          <div className="text-lg font-black text-[#2d333b] dark:text-[#e7e5e5] leading-snug">
-                            {insights.workload.busiestSubjectUpcoming ||
-                              "Balanced load"}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                    <div className="xl:col-span-7 rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-[20px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                          Coverage and Retention
-                        </h3>
-                        <span className="text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#9aa2ae]">
-                          Worst-to-best subjects
-                        </span>
-                      </div>
-                      <div className="space-y-4">
-                        {insights.coverage.subjectRows.map((subject) => (
-                          <div
-                            key={subject.subjectId}
-                            className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]"
-                          >
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
-                              <div>
-                                <div className="text-[16px] font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                                  {subject.subjectName}
-                                </div>
-                                <div className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mt-1">
-                                  {subject.remainingTopics} remaining ·{" "}
-                                  {subject.scheduledTopics} scheduled ·{" "}
-                                  {subject.overdueTopics} overdue
-                                </div>
-                              </div>
-                              <div className="text-[18px] font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                                {subject.completionPercent}%
-                              </div>
-                            </div>
-                            <div className="h-3 rounded-full bg-white dark:bg-[#202225] overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${subject.completionPercent}%`,
-                                  background: subject.color || "#3b82f6",
-                                }}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="xl:col-span-5 space-y-8">
-                      <div className="rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                        <div className="flex items-center justify-between mb-5">
-                          <h3 className="text-[18px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                            Lagging Chapters
-                          </h3>
-                          <span className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
-                            Focus now
-                          </span>
-                        </div>
-                        <div className="space-y-3">
-                          {insights.coverage.laggingChapters.map((chapter) => (
-                            <div
-                              key={chapter.chapterId}
-                              className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]"
-                            >
-                              <div className="text-[14px] font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                                {chapter.chapterName}
-                              </div>
-                              <div className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mt-1">
-                                {chapter.subjectName} ·{" "}
-                                {chapter.remainingTopics} remaining ·{" "}
-                                {chapter.overdueTopics} overdue
-                              </div>
-                            </div>
-                          ))}
-                          {insights.coverage.laggingChapters.length === 0 && (
-                            <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-6 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
-                              No lagging chapters right now.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                        <div className="flex items-center justify-between mb-5">
-                          <h3 className="text-[18px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                            Revision Queue
-                          </h3>
-                          <span className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
-                            Retention pressure
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-3">
-                          {[
-                            {
-                              label: "Needs revision",
-                              value: insights.backlog.revisionNeededTopics,
-                              tone: "text-violet-700 dark:text-violet-300",
-                            },
-                            {
-                              label: "Review due soon",
-                              value: insights.backlog.reviewDueSoon,
-                              tone: "text-amber-700 dark:text-amber-300",
-                            },
-                            {
-                              label: "Review overdue",
-                              value: insights.backlog.reviewOverdue,
-                              tone: "text-rose-700 dark:text-rose-300",
-                            },
-                          ].map((item) => (
-                            <div
-                              key={item.label}
-                              className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c] text-center"
-                            >
-                              <div
-                                className={`text-2xl font-black ${item.tone}`}
-                              >
-                                {item.value}
-                              </div>
-                              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mt-2">
-                                {item.label}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                    <div className="xl:col-span-5 rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="flex items-center justify-between mb-5">
-                        <h3 className="text-[18px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                          Backlog Health
-                        </h3>
-                        <span className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
-                          Current state
-                        </span>
-                      </div>
-                      <div className="grid sm:grid-cols-2 gap-4 mb-5">
-                        <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Unplanned unfinished
-                          </div>
-                          <div className="text-3xl font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                            {insights.backlog.unplannedUnfinishedTopics}
-                          </div>
-                        </div>
-                        <div className="rounded-2xl p-4 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]">
-                          <div className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Overdue total
-                          </div>
-                          <div className="text-3xl font-black text-rose-700 dark:text-rose-300">
-                            {insights.backlog.overdueTotal}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        {[
-                          [
-                            "1-3 days",
-                            insights.backlog.overdueAgingBuckets.days1to3,
-                          ],
-                          [
-                            "4-7 days",
-                            insights.backlog.overdueAgingBuckets.days4to7,
-                          ],
-                          [
-                            "8+ days",
-                            insights.backlog.overdueAgingBuckets.days8Plus,
-                          ],
-                        ].map(([label, value]) => (
-                          <div
-                            key={label}
-                            className="flex items-center justify-between rounded-2xl p-4 bg-white/70 dark:bg-[#202225] border border-[#d9dbe2] dark:border-[#2b2c2c]"
-                          >
-                            <span className="text-[14px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
-                              {label}
-                            </span>
-                            <span className="text-[20px] font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                              {value}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="xl:col-span-7 rounded-3xl p-6 md:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="flex items-center justify-between mb-5">
-                        <h3 className="text-[18px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                          Next Actions
-                        </h3>
-                        <span className="text-[12px] font-black uppercase tracking-[0.18em] text-[#64748b] dark:text-[#9aa2ae]">
-                          Rule-based guidance
-                        </span>
-                      </div>
-                      <div className="space-y-4">
-                        {insights.recommendations.map((item) => (
-                          <div
-                            key={item.id}
-                            className="rounded-2xl p-5 bg-[#e6e7ee] dark:bg-[#131416] border border-[#d9dbe2] dark:border-[#2b2c2c]"
-                          >
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                              <div>
-                                <div className="text-[16px] font-black text-[#2d333b] dark:text-[#e7e5e5]">
-                                  {item.title}
-                                </div>
-                                <div className="text-[13px] font-bold text-[#64748b] dark:text-[#9aa2ae] mt-2 leading-relaxed">
-                                  {item.reason}
-                                </div>
-                              </div>
-                              <button
-                                onClick={() =>
-                                  handleViewChange(item.targetView)
-                                }
-                                className="shrink-0 text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full bg-[#3b82f6] text-white shadow-[0_4px_10px_rgba(37,99,235,0.35)] hover:bg-blue-700 transition-colors"
-                              >
-                                {item.ctaLabel}
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                        {insights.recommendations.length === 0 && (
-                          <div className="text-[14px] font-bold text-[#64748b] dark:text-[#9aa2ae] text-center py-8 bg-[#e6e7ee]/50 dark:bg-[#131416]/50 rounded-2xl border border-dashed border-[#d9dbe2] dark:border-[#2b2c2c]">
-                            No urgent changes recommended right now. Keep
-                            executing the current plan.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {!isPremium && (
-                  <div className="absolute inset-0 flex items-center justify-center px-6">
-                    <div className="pointer-events-auto max-w-xl rounded-3xl border border-amber-300 dark:border-amber-700/50 bg-white/90 dark:bg-[#111214]/90 backdrop-blur-md p-8 text-center shadow-[0_20px_60px_rgba(15,23,42,0.25)]">
-                      <div className="text-[12px] font-black uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300 mb-3">
-                        Premium Preview
-                      </div>
-                      <h3 className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5] mb-3">
-                        Unlock forecasts, workload balance, and revision
-                        intelligence
-                      </h3>
-                      <p className="text-sm font-bold text-[#64748b] dark:text-[#9aa2ae] leading-relaxed mb-6">
-                        The detailed insights layer stays locked on free plans.
-                        Upgrade this planner to see subject risk, upcoming
-                        workload pressure, forecast completion, and rule-based
-                        next actions.
-                      </p>
-                      <button
-                        onClick={() => {
-                          void upgradePlannerPremium();
-                        }}
-                        className="text-[12px] font-black uppercase tracking-widest px-6 py-3 rounded-full bg-[#3b82f6] text-white shadow-[0_4px_12px_rgba(59,130,246,0.35)]"
-                      >
-                        Upgrade to Premium
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
+          {view === "plan" && plan && (
+            <MergedPlanTab
+              isDarkMode={isDarkMode}
+              hasExamDate={hasExamDate}
+              hasTopics={hasTopics}
+              hasScheduledTopics={hasScheduledTopics}
+              onScrollToBasics={() => {
+                document
+                  .querySelector("[data-tour='planner-merged-basics']")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              onOpenSyllabus={() =>
+                handleViewChange("syllabus", { bypassOnboarding: true })
+              }
+              onBuildSchedule={() => {
+                void runGuidedAction("build_schedule");
+              }}
+              onOpenCalendar={() =>
+                handleViewChange("calendar", { bypassOnboarding: true })
+              }
+              progressPercent={summary.percent}
+              progressDone={summary.done}
+              progressTotal={summary.total}
+              requiredPacePerDay={Math.max(1, plan.dailyGoal || 3)}
+              onAddTopics={() =>
+                handleViewChange("syllabus", { bypassOnboarding: true })
+              }
+              planTitleDraft={planTitleDraft}
+              onPlanTitleChange={setPlanTitleDraft}
+              examType={examType}
+              onExamTypeChange={setExamType}
+              examDateField={
+                <CustomDatePicker
+                  value={examDateDraft}
+                  onChange={setExamDateDraft}
+                  isDarkMode={isDarkMode}
+                  minDate={toIsoDateOnly(new Date())}
+                />
+              }
+              onSaveBasics={() => {
+                void saveExamSettings();
+              }}
+              dailyGoalDraft={dailyGoalDraft}
+              onDailyGoalChange={setDailyGoalDraft}
+              offDaysDraft={offDaysDraft}
+              onToggleOffDay={toggleOffDay}
+              onSaveCapacity={() => {
+                void saveCapacitySettings();
+              }}
+              todayTopics={todayTasks}
+              overdueTopics={overdueTasks}
+              upcomingTopics={upcomingMerged}
+              formatPlannedDate={formatDate}
+              daysOverdue={(plannedIso, tk) =>
+                daysBetweenDateKeys(toIsoDateOnly(plannedIso), tk)
+              }
+              todayKey={todayKey}
+              patchTopic={patchTopic}
+              onTopicOpen={(topic) =>
+                openTopicInSyllabus(
+                  topic as unknown as Topic,
+                  topic.subject as Subject,
+                  topic.chapter as Chapter,
+                )
+              }
+              emptySyllabus={plan.subjects.length === 0}
+              onGoSyllabusFromEmpty={() =>
+                handleViewChange("syllabus", { bypassOnboarding: true })
+              }
+              onRequestResetPlan={() =>
+                setPendingDelete({
+                  type: "topic",
+                  id: "__reset_plan__",
+                  parentId: undefined,
+                  label:
+                    "This will reset ALL topics to Not Started. This cannot be undone!",
+                })
+              }
+            />
           )}
-
-          {view === "plan" && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-10"
-            >
-              {plan?.subjects?.length === 0 ? (
-                <div className="lg:col-span-2 rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] flex flex-col items-center text-center gap-6">
-                  <div className="w-20 h-20 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="40"
-                      height="40"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5] mb-3">
-                      Step 1: Build Your Syllabus
-                    </h3>
-                    <p className="text-sm font-bold text-[#4b5563] dark:text-[#9ca3af] max-w-sm mx-auto leading-relaxed">
-                      You don't have any study materials yet! Head over to the
-                      Syllabus tab to add your subjects and topics. Once your
-                      syllabus is ready, come back here to instantly generate
-                      your calendar.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() =>
-                      handleViewChange("syllabus", { bypassOnboarding: true })
-                    }
-                    className="text-[14px] font-black uppercase tracking-widest px-10 py-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_14px_rgba(37,99,235,0.39)] transition-transform hover:scale-105 active:scale-95"
-                  >
-                    Go to Syllabus Builder
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div
-                    data-tour="planner-plan-basics"
-                    className="flex flex-col gap-8"
-                  >
-                    <div className="rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[12px] font-bold tracking-wide text-[#64748b] dark:text-[#9aa2ae] mb-4">
-                        Exam Settings
-                      </div>
-                      <div className="grid gap-6">
-                        <input
-                          value={planTitleDraft}
-                          onChange={(e) => setPlanTitleDraft(e.target.value)}
-                          placeholder="Plan title"
-                          className="w-full bg-[#ffffff] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] rounded-xl px-4 py-3 border border-[#c0c4d1] dark:border-[#2b2c2c] font-bold"
-                        />
-                        <input
-                          value={examType}
-                          onChange={(e) => setExamType(e.target.value)}
-                          placeholder="Exam / goal name"
-                          data-tour="planner-exam-input"
-                          className="w-full bg-[#ffffff] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] rounded-xl px-4 py-3 border border-[#c0c4d1] dark:border-[#2b2c2c] font-bold"
-                        />
-                        <CustomDatePicker
-                          value={examDateDraft}
-                          onChange={setExamDateDraft}
-                          isDarkMode={isDarkMode}
-                          minDate={toIsoDateOnly(new Date())}
-                        />
-                        <button
-                          onClick={() => {
-                            void saveExamSettings();
-                          }}
-                          className="text-[13px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full bg-[#3b82f6] text-white"
-                        >
-                          Save Changes
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[12px] font-bold tracking-wide text-[#64748b] dark:text-[#9aa2ae] mb-4">
-                        Study Capacity
-                      </div>
-                      <div className="grid gap-6">
-                        <div>
-                          <label className="text-[12px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#9aa2ae]">
-                            Daily goal
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            value={dailyGoalDraft}
-                            onChange={(e) =>
-                              setDailyGoalDraft(Number(e.target.value))
-                            }
-                            className="w-full mt-2 bg-[#ffffff] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] rounded-xl px-4 py-3 border border-[#c0c4d1] dark:border-[#2b2c2c] font-bold"
-                          />
-                        </div>
-
-                        <div>
-                          <div className="text-[12px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#9aa2ae] mb-2">
-                            Off days
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {(
-                              [
-                                "Sun",
-                                "Mon",
-                                "Tue",
-                                "Wed",
-                                "Thu",
-                                "Fri",
-                                "Sat",
-                              ] as const
-                            ).map((label, idx) => (
-                              <button
-                                key={label}
-                                onClick={() => toggleOffDay(idx)}
-                                className={`text-[12px] font-black uppercase tracking-widest px-3 py-2 rounded-full border ${
-                                  offDaysDraft.includes(idx)
-                                    ? "bg-[#3b82f6] text-white border-[#2563eb]"
-                                    : "bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5] border-[#c0c4d1] dark:border-[#2b2c2c]"
-                                }`}
-                              >
-                                {label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {beginnerMode && (
-                          <button
-                            onClick={() =>
-                              setShowAdvancedCapacity((prev) => !prev)
-                            }
-                            className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none border border-[#c0c4d1] dark:border-[#2b2c2c] bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5]"
-                          >
-                            {showAdvancedCapacity
-                              ? "Hide Advanced Settings"
-                              : "Show Advanced Settings"}
-                          </button>
-                        )}
-
-                        {(showAdvancedCapacity) && (
-                          <div className="flex flex-col gap-3">
-                            <button
-                              onClick={() =>
-                                setIncludeRevisionNeeded((prev) => !prev)
-                              }
-                              className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none border ${
-                                includeRevisionNeeded
-                                  ? "bg-[#f3e8ff] text-[#6b21a8] border-[#e9d5ff]"
-                                  : "bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5] border-[#c0c4d1] dark:border-[#2b2c2c]"
-                              }`}
-                            >
-                              Include revision topics
-                            </button>
-                            <button
-                              onClick={() =>
-                                setLockExistingDates((prev) => !prev)
-                              }
-                              className={`text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-none border ${
-                                lockExistingDates
-                                  ? "bg-[#dbeafe] text-[#1d4ed8] border-[#bfdbfe]"
-                                  : "bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5] border-[#c0c4d1] dark:border-[#2b2c2c]"
-                              }`}
-                            >
-                              Keep already planned dates
-                            </button>
-                          </div>
-                        )}
-
-                        <button
-                          onClick={() => {
-                            void saveCapacitySettings();
-                          }}
-                          className="text-[13px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full bg-[#3b82f6] text-white"
-                        >
-                          Save Changes
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    data-tour="planner-plan-actions"
-                    className="flex flex-col gap-8"
-                  >
-                    <div className="rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-[18px] font-bold text-[#2d333b] dark:text-[#e7e5e5]">
-                          Schedule Management
-                        </h3>
-                      </div>
-
-                      <button
-                        data-tour="planner-autoplan"
-                        onClick={() => {
-                          void runGuidedAction("build_schedule");
-                        }}
-                        disabled={isAutoDistributing}
-                        className={`${cleanPrimaryPill} w-full py-4 text-[15px] font-bold shadow-lg shadow-blue-500/20`}
-                      >
-                        {isAutoDistributing
-                          ? "Building Planner..."
-                          : "Create Planner Calendar"}
-                      </button>
-
-                      <div className="grid grid-cols-2 gap-3 mt-4">
-                        <button
-                          onClick={() => {
-                            if (!isPremium) {
-                              setPremiumModalReason("reschedule");
-                              return;
-                            }
-                            handleViewChange("calendar");
-                          }}
-                          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-[12px] font-black uppercase tracking-widest border ${isDarkMode ? "bg-[#202225] border-[#2b2c2c] text-[#9aa2ae] hover:text-white" : "bg-white border-[#c0c4d1] text-[#64748b] hover:text-[#1a202c]"} transition-all`}
-                        >
-                          Reschedule{!isPremium ? <PremiumEmoji name="lock" alt="" className="h-3.5 w-3.5" /> : null}
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (!isPremium) {
-                              setPremiumModalReason("reschedule");
-                              return;
-                            }
-                            setPendingDelete({
-                              type: "topic",
-                              id: "__clear_future__",
-                              parentId: undefined,
-                              label:
-                                "This will remove planned dates for future topics. Continue?",
-                            });
-                          }}
-                          className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-[12px] font-black uppercase tracking-widest border border-red-200/50 dark:border-red-900/30 ${isDarkMode ? "bg-red-950/10 text-red-400/80 hover:bg-red-950/20" : "bg-red-50 text-red-600/80 hover:bg-red-100"} transition-all`}
-                        >
-                          Clear Dates{!isPremium ? <PremiumEmoji name="lock" alt="" className="h-3.5 w-3.5" /> : null}
-                        </button>
-                      </div>
-
-                      <button
-                        onClick={() =>
-                          setPendingDelete({
-                            type: "topic",
-                            id: "__reset_plan__",
-                            parentId: undefined,
-                            label:
-                              "This will reset ALL topics to Not Started. This cannot be undone!",
-                          })
-                        }
-                        className={`w-full mt-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] transition-all ${isDarkMode ? "text-red-900/50 hover:text-red-500" : "text-red-300 hover:text-red-600"}`}
-                      >
-                        Reset Entire Plan
-                      </button>
-                    </div>
-
-                    <div className="rounded-3xl p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c]">
-                      <div className="text-[12px] font-bold tracking-wide text-[#64748b] dark:text-[#9aa2ae] mb-4">
-                        Progress Snapshot
-                      </div>
-                      <div className="grid gap-3 text-[14px] font-bold text-[#475569] dark:text-[#9aa2ae]">
-                        <div className="flex justify-between">
-                          <span>Not Started</span>
-                          <span>{statusCounts.todo}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>In Progress</span>
-                          <span>{statusCounts.in_progress}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Done</span>
-                          <span>{statusCounts.done}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Needs Revision</span>
-                          <span>{statusCounts.revision_needed}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Overdue</span>
-                          <span>{overdueCount}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          )}
-
           {view === "syllabus" && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -5858,18 +4011,20 @@ export default function StudyPlanner({
                     <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mr-2">
                       View
                     </span>
-                    <button
-                      onClick={() => setSyllabusLayoutMode("classic")}
-                      className={`text-[12px] font-semibold tracking-[0.02em] whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full transition-[transform,color,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ${
-                        syllabusLayoutMode === "classic"
-                          ? "bg-[#0f766e] text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]"
-                          : isDarkMode
-                            ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_8px_rgba(0,0,0,0.5),-2px_-2px_4px_rgba(255,255,255,0.02)]"
-                            : "bg-[#e6e7ee] text-[#4b5563] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)]"
-                      }`}
-                    >
-                      Classic
-                    </button>
+                    {SYLLABUS_CLASSIC_LAYOUT_UI_ENABLED ? (
+                      <button
+                        onClick={() => setSyllabusLayoutMode("classic")}
+                        className={`text-[12px] font-semibold tracking-[0.02em] whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full transition-[transform,color,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ${
+                          syllabusLayoutMode === "classic"
+                            ? "bg-[#0f766e] text-white shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]"
+                            : isDarkMode
+                              ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_8px_rgba(0,0,0,0.5),-2px_-2px_4px_rgba(255,255,255,0.02)]"
+                              : "bg-[#e6e7ee] text-[#4b5563] shadow-[4px_4px_8px_rgba(166,171,189,0.3),-4px_-4px_8px_rgba(255,255,255,0.8)]"
+                        }`}
+                      >
+                        Classic
+                      </button>
+                    ) : null}
                     <button
                       onClick={() => setSyllabusLayoutMode("org-chart")}
                       className={`text-[12px] font-semibold tracking-[0.02em] whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full transition-[transform,color,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] ${
@@ -6051,6 +4206,8 @@ export default function StudyPlanner({
                                 ) : (
                                   subjectNode.chapters.map((chapterNode) => {
                                     const chapter = chapterNode.chapter;
+                                    const isPlaceholderChapter =
+                                      isBulkPlaceholderChapter(chapter);
                                     const isChapterSelected = selectedChapterId
                                       ? selectedChapterId === chapter.id
                                       : activeHierarchyChapter?.chapter.id ===
@@ -6066,7 +4223,13 @@ export default function StudyPlanner({
                                     return (
                                       <div
                                         key={chapter.id}
-                                        className={`rounded-xl p-3 transition-colors ${
+                                        className={`rounded-xl p-3 border transition-colors ${
+                                          isPlaceholderChapter
+                                            ? isDarkMode
+                                              ? "border-red-800/70 bg-red-950/25"
+                                              : "border-red-300 bg-red-50"
+                                            : "border-transparent"
+                                        } ${
                                           isChapterSelected
                                             ? isDarkMode
                                               ? "bg-[#161a22] shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]"
@@ -6107,9 +4270,18 @@ export default function StudyPlanner({
                                             className="flex-1 text-left"
                                           >
                                             <div
-                                              className={`text-sm font-bold ${isDarkMode ? "text-zinc-100" : "text-slate-800"}`}
+                                              className={`flex items-center gap-2 text-sm font-bold ${isPlaceholderChapter ? "text-red-600 dark:text-red-300" : isDarkMode ? "text-zinc-100" : "text-slate-800"}`}
                                             >
-                                              {chapter.name}
+                                              {isPlaceholderChapter && (
+                                                <PremiumEmoji
+                                                  name="warning"
+                                                  alt=""
+                                                  className="h-4 w-4 dark:invert"
+                                                />
+                                              )}
+                                              <span className="truncate">
+                                                {chapter.name}
+                                              </span>
                                             </div>
                                             <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                                               {chapterNode.doneTopics}/
@@ -6814,6 +4986,8 @@ export default function StudyPlanner({
                                 {subjectNode.chapters.map(
                                   (chapterNode, idx) => {
                                     const chapter = chapterNode.chapter;
+                                    const isPlaceholderChapter =
+                                      isBulkPlaceholderChapter(chapter);
                                     const isChapterSelected =
                                       selectedChapterId === chapter.id ||
                                       activeHierarchyChapter?.chapter.id ===
@@ -6834,7 +5008,11 @@ export default function StudyPlanner({
                                             setSelectedTopicId(null);
                                           }}
                                           className={`z-10 px-8 py-5 rounded-lg min-w-[240px] border transition-all duration-300 hover:shadow-lg ${
-                                            isChapterSelected
+                                            isPlaceholderChapter
+                                              ? isDarkMode
+                                                ? "bg-red-950/30 text-red-200 border-red-800 shadow-lg"
+                                                : "bg-red-50 text-red-700 border-red-300 shadow-lg"
+                                              : isChapterSelected
                                               ? "bg-slate-700 dark:bg-zinc-800 text-white border-blue-400 shadow-lg scale-[1.05]"
                                               : isDarkMode
                                                 ? "bg-[#131416] text-zinc-400 border-zinc-800"
@@ -6844,8 +5022,17 @@ export default function StudyPlanner({
                                           <div className="text-[11px] font-black uppercase tracking-[0.2em] opacity-50 mb-1">
                                             Chapter
                                           </div>
-                                          <div className="text-sm font-bold uppercase truncate">
-                                            {chapter.name}
+                                          <div className="flex items-center justify-center gap-2 text-sm font-bold uppercase">
+                                            {isPlaceholderChapter && (
+                                              <PremiumEmoji
+                                                name="warning"
+                                                alt=""
+                                                className="h-4 w-4 dark:invert"
+                                              />
+                                            )}
+                                            <span className="truncate">
+                                              {chapter.name}
+                                            </span>
                                           </div>
                                         </button>
 
@@ -7559,6 +5746,8 @@ export default function StudyPlanner({
 
                           {subject.chapters.map((chapter) => {
                             const key = `${subject.id}:${chapter.id}`;
+                            const isPlaceholderChapter =
+                              isBulkPlaceholderChapter(chapter);
                             const filteredTopics = chapter.topics.filter(
                               (topic) =>
                                 matchesSyllabusFilters(topic, subject, chapter),
@@ -7576,7 +5765,15 @@ export default function StudyPlanner({
                             return (
                               <div
                                 key={chapter.id}
-                                className={`rounded-3xl p-5 transition-colors duration-500 ${isDarkMode ? "bg-[#121316] shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]" : "bg-[#f0f0f5] shadow-[inset_4px_4px_8px_rgba(166,171,189,0.4),inset_-4px_-4px_8px_rgba(255,255,255,0.8)]"}`}
+                                className={`rounded-3xl p-5 border transition-colors duration-500 ${
+                                  isPlaceholderChapter
+                                    ? isDarkMode
+                                      ? "bg-red-950/25 border-red-800/70 shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]"
+                                      : "bg-red-50 border-red-300 shadow-[inset_4px_4px_8px_rgba(166,171,189,0.28),inset_-4px_-4px_8px_rgba(255,255,255,0.8)]"
+                                    : isDarkMode
+                                      ? "bg-[#121316] border-transparent shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]"
+                                      : "bg-[#f0f0f5] border-transparent shadow-[inset_4px_4px_8px_rgba(166,171,189,0.4),inset_-4px_-4px_8px_rgba(255,255,255,0.8)]"
+                                }`}
                               >
                                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4">
                                   <div className="min-w-0">
@@ -7629,9 +5826,18 @@ export default function StudyPlanner({
                                     ) : (
                                       <>
                                         <div
-                                          className={`text-[20px] font-bold mt-2 ${isDarkMode ? "text-[#e7e5e5]" : "text-[#2d333b]"}`}
+                                          className={`mt-2 flex items-center gap-2 text-[20px] font-bold ${isPlaceholderChapter ? "text-red-600 dark:text-red-300" : isDarkMode ? "text-[#e7e5e5]" : "text-[#2d333b]"}`}
                                         >
-                                          {chapter.name}
+                                          {isPlaceholderChapter && (
+                                            <PremiumEmoji
+                                              name="warning"
+                                              alt=""
+                                              className="h-5 w-5 dark:invert"
+                                            />
+                                          )}
+                                          <span className="truncate">
+                                            {chapter.name}
+                                          </span>
                                         </div>
                                         <div className="text-[12px] font-black uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
                                           {visibleTopics.length} topics
@@ -7921,139 +6127,6 @@ export default function StudyPlanner({
             </motion.div>
           )}
 
-          {view === "kanban" && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-            >
-              {(
-                [
-                  ["todo", "Queue"],
-                  ["in_progress", "Active"],
-                  ["done", "Completed"],
-                ] as Array<["todo" | "in_progress" | "done", string]>
-              ).map(([status, title]) => {
-                const neonClass =
-                  status === "todo"
-                    ? "dark:shadow-[0_0_8px_#3b82f6] border-blue-500"
-                    : status === "in_progress"
-                      ? "dark:shadow-[0_0_8px_#f59e0b] border-amber-500"
-                      : "dark:shadow-[0_0_8px_#10b981] border-emerald-500";
-                const textClass =
-                  status === "todo"
-                    ? "text-blue-600"
-                    : status === "in_progress"
-                      ? "text-amber-600"
-                      : "text-emerald-700";
-
-                return (
-                  <div
-                    key={status}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={async (e) => {
-                      const topicId = e.dataTransfer.getData("topic-id");
-                      if (!topicId) {
-                        showToast("Invalid drag action. Try again.", "error");
-                        return;
-                      }
-                      await patchTopic(topicId, { status });
-                    }}
-                    className="rounded-xl min-h-[700px] p-4 flex flex-col gap-4 transition-colors duration-500
-                bg-[#e6e7ee] dark:bg-[#1a1c1e]
-                shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.7)]
-                dark:shadow-[inset_0_4px_12px_rgba(0,0,0,0.6),inset_0_1px_2px_rgba(0,0,0,0.8)]
-                border border-slate-300 dark:border-transparent relative
-              "
-                  >
-                    <div className="flex justify-between items-center mb-4 px-2 pt-2">
-                      <h3 className="font-study-planner text-[18.2px] font-bold uppercase tracking-widest text-[#2d333b] dark:text-[#fcf9f8]">
-                        {title}
-                      </h3>
-                      <span className="text-[13px] font-bold bg-[#ffffff] dark:bg-[#252626] px-3 py-1 rounded-full text-[#4b5563] dark:text-[#c3c7cd] shadow-sm dark:shadow-none">
-                        {kanban[status].length < 10 && kanban[status].length > 0
-                          ? `0${kanban[status].length}`
-                          : kanban[status].length}
-                      </span>
-                    </div>
-
-                    <div className="space-y-4 flex-1 relative">
-                      <AnimatePresence>
-                        {kanban[status].map((topic) => (
-                          <motion.div
-                            layout
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            key={topic.id}
-                            draggable
-                            onDragStart={(e: any) =>
-                              e.dataTransfer.setData("topic-id", topic.id)
-                            }
-                            className={`rounded-lg p-4 cursor-grab active:cursor-grabbing transform transition-all hover:-translate-y-1 bg-[#fcf9f8] dark:bg-[#1a1c1e] shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_4px_10px_-2px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.8),0_4px_10px_-2px_rgba(0,0,0,0.6)] ${status === "done" ? (isDarkMode ? "grayscale-[0.2] hover:grayscale-0 opacity-80 hover:opacity-100" : "opacity-80 hover:opacity-100") : ""} border-l-[4px] ${neonClass}`}
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="text-[12px] font-bold text-neutral-500 dark:text-slate-500 uppercase tracking-widest truncate max-w-[80%]">
-                                {topic.subject.name}
-                              </span>
-                              <div
-                                className="w-4 h-4 rounded-full border border-neutral-300 flex items-center justify-center -mt-1 -mr-1"
-                                style={{
-                                  backgroundColor: topic.subject.color + "40",
-                                }}
-                              >
-                                <div
-                                  className="w-2 h-2 rounded-full shadow-inner"
-                                  style={{
-                                    backgroundColor: topic.subject.color,
-                                  }}
-                                ></div>
-                              </div>
-                            </div>
-
-                            <h4 className="text-neutral-900 dark:text-slate-50 font-extrabold text-[18.2px] mb-2 leading-snug drop-shadow-sm">
-                              {topic.name}
-                            </h4>
-
-                            <p className="text-[14.5px] text-neutral-600 dark:text-slate-400 mb-4 line-clamp-2 font-black">
-                              {topic.chapter.name}
-                            </p>
-
-                            <div className="flex items-center justify-between mt-auto">
-                              <div className="flex items-center gap-4 text-[12px] text-neutral-500 font-bold">
-                                {topic.plannedDate ? (
-                                  <span className="flex items-center gap-1 bg-neutral-200/60 px-2 py-1 rounded-md text-[13px]">
-                                    <PremiumEmoji name="calendar" alt="" className="h-4 w-4" />
-                                    {formatDate(topic.plannedDate)}
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1 px-2 py-1"></span>
-                                )}
-                              </div>
-                              <span
-                                className={`text-[11px] font-black uppercase tracking-widest ${textClass} px-3 py-1.5 bg-neutral-200/50 rounded-full`}
-                              >
-                                {STATUS_UI[topic.status].label}
-                              </span>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-
-                      {kanban[status].length === 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none p-12">
-                          <div className="text-[15.6px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-300 text-center leading-relaxed max-w-[80%]">
-                            {COLUMN_DESCRIPTIONS[status]}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </motion.div>
-          )}
 
           {view === "calendar" && (
             <motion.div

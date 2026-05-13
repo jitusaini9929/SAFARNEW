@@ -257,6 +257,7 @@ export const dataService = {
 
     // --- NEW LOCAL-FIRST API ---
     async saveEkagraSession(payload: {
+        sourceSessionId?: string;
         mode: string;
         startedAt: string;
         endedAt?: string;

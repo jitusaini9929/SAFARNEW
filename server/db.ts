@@ -176,6 +176,14 @@ export async function initDatabase(): Promise<void> {
 
         // ── Focus sessions ──
         await db.collection('focus_sessions').createIndex({ user_id: 1, completed_at: -1 });
+        await db.collection('focus_sessions').createIndex(
+            { user_id: 1, source_session_id: 1 },
+            {
+                unique: true,
+                partialFilterExpression: { source_session_id: { $type: 'string' } },
+                name: 'focus_sessions_source_session_unique',
+            },
+        );
         // Partial index: most analytics only query completed sessions — smaller & faster
         await db.collection('focus_sessions').createIndex(
             { user_id: 1, completed_at: -1 },

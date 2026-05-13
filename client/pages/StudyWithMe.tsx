@@ -373,6 +373,8 @@ export default function StudyWithMe() {
     const [goalPendingConfirmation, setGoalPendingConfirmation] = useState<Goal | null>(null);
     const [showPomodoroIncrementGlow, setShowPomodoroIncrementGlow] = useState(false);
     const ekagraOpeningTimerMinutesRef = useRef<number | null>(null);
+    const savingEndedSessionRef = useRef(false);
+    const [isSavingEndedSession, setIsSavingEndedSession] = useState(false);
     const [pendingEndedSession, setPendingEndedSession] = useState<{
         sessionId: string;
         elapsedSeconds: number;
@@ -1008,12 +1010,16 @@ export default function StudyWithMe() {
         markGoalComplete?: boolean;
     }) => {
         if (!pendingEndedSession || status !== "authenticated" || !user?.id) return;
+        if (savingEndedSessionRef.current) return;
 
+        savingEndedSessionRef.current = true;
+        setIsSavingEndedSession(true);
         try {
             let linkedGoal = options?.goal || null;
             const durationMinutes = Math.max(1, Math.round(pendingEndedSession.elapsedSeconds / 60));
 
             await dataService.saveEkagraSession({
+                sourceSessionId: pendingEndedSession.sessionId,
                 mode: "Timer",
                 startedAt: pendingEndedSession.sessionStartedAt || new Date(Date.now() - pendingEndedSession.elapsedSeconds * 1000).toISOString(),
                 endedAt: pendingEndedSession.endedAt || new Date().toISOString(),
@@ -1042,6 +1048,9 @@ export default function StudyWithMe() {
             await refreshTodayFocusMinutes({ forceFresh: true });
         } catch (error) {
             console.error("Complete free focus session error:", error);
+        } finally {
+            savingEndedSessionRef.current = false;
+            setIsSavingEndedSession(false);
         }
     }, [
         pendingEndedSession,
@@ -1575,13 +1584,13 @@ export default function StudyWithMe() {
                                     Add {Math.max(1, Math.round((pendingEndedSession?.elapsedSeconds || 0) / 60))} min to {getGoalTitle(goalPendingConfirmation)}?
                                 </p>
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                    <Button size="sm" onClick={() => completePendingFreeFocus({ goal: goalPendingConfirmation })}>
-                                        Save to Goal
+                                    <Button size="sm" disabled={isSavingEndedSession} onClick={() => completePendingFreeFocus({ goal: goalPendingConfirmation })}>
+                                        {isSavingEndedSession ? "Saving..." : "Save to Goal"}
                                     </Button>
-                                    <Button size="sm" variant="outline" onClick={() => completePendingFreeFocus({ goal: goalPendingConfirmation, markGoalComplete: true })}>
+                                    <Button size="sm" variant="outline" disabled={isSavingEndedSession} onClick={() => completePendingFreeFocus({ goal: goalPendingConfirmation, markGoalComplete: true })}>
                                         Save & Complete Goal
                                     </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => setGoalPendingConfirmation(null)}>
+                                    <Button size="sm" variant="ghost" disabled={isSavingEndedSession} onClick={() => setGoalPendingConfirmation(null)}>
                                         Cancel
                                     </Button>
                                 </div>
@@ -1604,8 +1613,8 @@ export default function StudyWithMe() {
                                     <Button variant="ghost" onClick={() => setOrganizeStep("choice")}>
                                         Back
                                     </Button>
-                                    <Button onClick={() => completePendingFreeFocus()}>
-                                        Save Free Focus
+                                    <Button disabled={isSavingEndedSession} onClick={() => completePendingFreeFocus()}>
+                                        {isSavingEndedSession ? "Saving..." : "Save Free Focus"}
                                     </Button>
                                 </div>
                             </div>

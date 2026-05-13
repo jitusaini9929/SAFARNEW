@@ -598,6 +598,12 @@ router.post("/save", requireAuth, async (req: Request, res) => {
         const goalId = String(req.body?.goalId || "").trim() || null;
         const goalTitle = String(req.body?.goalTitle || "").trim() || null;
         const taskTitle = String(req.body?.taskTitle || "").trim() || goalTitle || null;
+        const sourceSessionIdRaw = String(
+            req.body?.sourceSessionId || req.body?.clientSessionId || req.body?.sessionId || "",
+        ).trim();
+        const sourceSessionId = sourceSessionIdRaw.length > 0 && sourceSessionIdRaw.length <= 160
+            ? sourceSessionIdRaw
+            : null;
 
         if (actualDurationMinutes <= 0 && !completed) {
             return res.status(400).json({ message: "Session has no recorded duration" });
@@ -610,6 +616,32 @@ router.post("/save", requireAuth, async (req: Request, res) => {
         const breakMinutes = sessionType === "focus" ? 0 : actualDurationMinutes;
         const logId = uuidv4();
         const dateKey = toLocalDayKey(now);
+
+        if (sourceSessionId) {
+            const existingSession = await collections.focusSessions().findOne(
+                { user_id: userId, source_session_id: sourceSessionId },
+                { projection: { _id: 0, id: 1 } },
+            );
+            if (existingSession?.id) {
+                return res.json({
+                    session: {
+                        id: existingSession.id,
+                        userId,
+                        mode,
+                        startedAt: startedAt.toISOString(),
+                        completedAt: now.toISOString(),
+                        plannedDurationMinutes,
+                        actualDurationMinutes,
+                        completed,
+                        goalId,
+                        goalTitle,
+                        taskTitle,
+                        sessionType,
+                        duplicate: true,
+                    },
+                });
+            }
+        }
 
         await collections.focusSessions().insertOne({
             id: logId,
@@ -627,7 +659,7 @@ router.post("/save", requireAuth, async (req: Request, res) => {
             task_title: taskTitle,
             session_type: sessionType,
             timer_mode: normalizeMode(mode === "focus" ? "Timer" : mode),
-            source_session_id: null,
+            source_session_id: sourceSessionId,
             session_domain: "ekagra",
             created_at: now,
         });
@@ -646,7 +678,7 @@ router.post("/save", requireAuth, async (req: Request, res) => {
             task_title: taskTitle,
             session_type: sessionType,
             timer_mode: normalizeMode(mode === "focus" ? "Timer" : mode),
-            source_session_id: null,
+            source_session_id: sourceSessionId,
             session_domain: "ekagra",
         });
 
@@ -715,7 +747,22 @@ router.post("/save", requireAuth, async (req: Request, res) => {
                 sessionType,
             },
         });
-    } catch (error) {
+    } catch (error: any) {
+        if (error?.code === 11000) {
+            const userId = req.session.userId!;
+            const duplicateSourceSessionId = String(
+                req.body?.sourceSessionId || req.body?.clientSessionId || req.body?.sessionId || "",
+            ).trim();
+            if (duplicateSourceSessionId) {
+                const existingSession = await collections.focusSessions().findOne(
+                    { user_id: userId, source_session_id: duplicateSourceSessionId },
+                    { projection: { _id: 0, id: 1 } },
+                );
+                if (existingSession?.id) {
+                    return res.json({ session: { id: existingSession.id, duplicate: true } });
+                }
+            }
+        }
         console.error("Save Ekagra session error:", error);
         return res.status(500).json({ message: "Failed to save Ekagra session" });
     }
@@ -727,6 +774,10 @@ router.delete("/:id", requireAuth, async (req: Request, res) => {
         const { id } = req.params;
 
         // Try deleting from focusSessions (analytics log) since that's where /save writes
+        const focusSession = await collections.focusSessions().findOne(
+            { id, user_id: userId },
+            { projection: { _id: 0, source_session_id: 1 } },
+        );
         const focusResult = await collections.focusSessions().deleteOne({ id, user_id: userId });
         if (focusResult.deletedCount === 0) {
             // Fall back to legacy ekagraModeSessions collection
@@ -737,7 +788,14 @@ router.delete("/:id", requireAuth, async (req: Request, res) => {
         }
 
         // Also clean up any matching focusSessionLogs entry
-        await collections.focusSessionLogs().deleteMany({ source_session_id: id, user_id: userId }).catch(() => {});
+        const sourceSessionId = String(focusSession?.source_session_id || "").trim();
+        await collections.focusSessionLogs().deleteMany({
+            user_id: userId,
+            $or: [
+                { source_session_id: id },
+                ...(sourceSessionId ? [{ source_session_id: sourceSessionId }] : []),
+            ],
+        }).catch(() => {});
 
         return res.json({ ok: true, deletedId: id });
     } catch (error) {
