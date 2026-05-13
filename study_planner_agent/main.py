@@ -87,7 +87,11 @@ def sanitize_syllabus_output(raw: str) -> str:
         if not stripped:
             continue
         if any(stripped.startswith(prefix) for prefix in VALID_PREFIXES):
-            cleaned_lines.append(stripped)
+            # Drop lines that have a valid prefix but no content after it
+            # (e.g. just ">" or "_ " with nothing following).
+            content_after_prefix = stripped[1:].strip()
+            if content_after_prefix:
+                cleaned_lines.append(stripped)
         # Everything else (preamble, commentary, code fences) is silently dropped.
     return "\n".join(cleaned_lines)
 

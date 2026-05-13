@@ -60,8 +60,6 @@ def validate_syllabus_code(code: str) -> Tuple[bool, List[str]]:
             topic_name = line[1:].strip()
             if current_subject is None:
                 errors.append(f"Line {idx}: Topic specified before any subject.")
-            if current_chapter is None:
-                errors.append(f"Line {idx}: Topic specified before any chapter.")
             if not topic_name:
                 errors.append(f"Line {idx}: Topic name missing after '>'.")
         else:
