@@ -160,11 +160,14 @@ router.post(
       const causeAddr = error?.cause?.address;
       const causePort = error?.cause?.port;
       const isAgentFetchFailure = isSyllabusAgentConnectivityError(error);
+      const isDnsFailure = (error?.cause?.code ?? error?.cause?.errno) === "ENOTFOUND";
 
       const friendly =
-        isAgentFetchFailure
-          ? `Syllabus AI agent is not reachable at ${SYLLABUS_AGENT_BASE_URL}. Start the agent (e.g. on port 8000) or set SYLLABUS_AGENT_URL to the correct URL.`
-          : error?.message || "Syllabus import failed";
+        isDnsFailure
+          ? `Syllabus AI agent hostname could not be resolved: ${SYLLABUS_AGENT_BASE_URL}. Update SYLLABUS_AGENT_URL to the current public Railway domain.`
+          : isAgentFetchFailure
+            ? `Syllabus AI agent is not reachable at ${SYLLABUS_AGENT_BASE_URL}. Start the agent (e.g. on port 8000) or set SYLLABUS_AGENT_URL to the correct URL.`
+            : error?.message || "Syllabus import failed";
 
       return res.status(isAgentFetchFailure ? 503 : 500).json({
         success: false,

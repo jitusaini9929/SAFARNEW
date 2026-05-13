@@ -45,8 +45,22 @@ async def import_syllabus(file: UploadFile = File(...)):
             temp_path = temp_file.name
 
         extracted_text = extract_text(temp_path)
+        if not extracted_text.strip():
+            raise HTTPException(status_code=422, detail="Could not extract any text from the uploaded file. The PDF may be scanned/image-based.")
+
         messages = build_prompt(extracted_text)
         syllabus_code = call_groq_api(messages)
+
+        if not syllabus_code.strip():
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "success": False,
+                    "message": "The AI model returned an empty response. The document may not contain recognizable syllabus content.",
+                    "errors": ["Model returned empty or unparseable output."],
+                    "syllabusCode": "",
+                },
+            )
 
         is_valid, errors = validate_syllabus_code(syllabus_code)
         if not is_valid:

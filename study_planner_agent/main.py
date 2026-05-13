@@ -61,6 +61,37 @@ except ImportError:
     from validator import validate_syllabus_code
 
 
+VALID_PREFIXES = ("-", "_", ">")
+
+
+def sanitize_syllabus_output(raw: str) -> str:
+    """
+    Strip any non-syllabus lines from a model response before validation.
+
+    The model sometimes wraps its output in markdown code fences (```),
+    adds a preamble like "Here is the formatted syllabus:", or includes
+    trailing commentary. This function discards every line that does not
+    start with the three valid syllabus markers (-, _, >) so that only
+    well-formed lines reach the validator.
+
+    Args:
+        raw: The raw string returned by the AI model.
+
+    Returns:
+        A cleaned string containing only valid syllabus lines.
+    """
+    cleaned_lines = []
+    for line in raw.splitlines():
+        stripped = line.strip()
+        # Skip blank lines, markdown fences, and any non-syllabus prose.
+        if not stripped:
+            continue
+        if any(stripped.startswith(prefix) for prefix in VALID_PREFIXES):
+            cleaned_lines.append(stripped)
+        # Everything else (preamble, commentary, code fences) is silently dropped.
+    return "\n".join(cleaned_lines)
+
+
 def extract_text(file_path: str) -> str:
     """
     Extract raw text from supported file types.
@@ -238,8 +269,9 @@ def call_groq_api(messages: List[dict], model: str = "meta-llama/llama-4-scout-1
     except Exception as e:
         # rewrap the exception to provide more context
         raise RuntimeError(f"Groq API call failed: {e}") from e
-    # Extract the content from the first choice; there should be exactly one
-    return response.choices[0].message.content.strip()
+    # Extract the content from the first choice; there should be exactly one.
+    raw = response.choices[0].message.content.strip()
+    return sanitize_syllabus_output(raw)
 
 
 def main() -> None:
