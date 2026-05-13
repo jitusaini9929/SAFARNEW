@@ -74,7 +74,7 @@ const CATEGORY_BADGES: Record<string, { label: string; color: string }> = {
   medical: { label: "MEDICAL", color: "text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40" },
 };
 
-const PRESSABLE_EASE = "motion-safe:ease-[cubic-bezier(0.23,1,0.32,1)]";
+const PRESSABLE_EASE = "motion-safe:ease-\\[cubic-bezier(0.23,1,0.32,1)\\]";
 const PRESSABLE_BUTTON = `motion-safe:transition-[transform,box-shadow,background-color,border-color,color,opacity] motion-safe:duration-150 ${PRESSABLE_EASE} motion-reduce:transition-colors active:scale-[0.97] active:translate-y-[1px] disabled:active:scale-100 disabled:active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
 const PRESSABLE_CARD = `motion-safe:transition-[transform,box-shadow,border-color,background-color,opacity] motion-safe:duration-200 ${PRESSABLE_EASE} motion-reduce:transition-colors active:scale-[0.985] active:translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
 const PRESSABLE_TEXT = `motion-safe:transition-[transform,color,opacity] motion-safe:duration-150 ${PRESSABLE_EASE} active:scale-[0.97] active:translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30`;

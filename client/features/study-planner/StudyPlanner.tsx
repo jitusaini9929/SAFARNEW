@@ -324,7 +324,7 @@ const COLUMN_DESCRIPTIONS: Record<string, string> = {
   done: "Study Archive. Successfully completed topics. Great progress! Your achievements are logged here.",
 };
 
-const PLANNER_PRESS_EASE = "motion-safe:ease-[cubic-bezier(0.23,1,0.32,1)]";
+const PLANNER_PRESS_EASE = "motion-safe:ease-\\[cubic-bezier(0.23,1,0.32,1)\\]";
 const PLANNER_PRESSABLE =
   `motion-safe:transition-[transform,box-shadow,background-color,border-color,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} motion-reduce:transition-colors active:scale-[0.97] active:translate-y-[1px] disabled:active:scale-100 disabled:active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
 const PLANNER_TEXT_PRESSABLE =
