@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { API_BASE, apiFetch, getAccessToken, type ApiFetchOptions } from "@/utils/apiFetch";
+import { API_BASE, apiFetch, type ApiFetchOptions } from "@/utils/apiFetch";
 import PlannerSidebar from "@/components/PlannerSidebar";
 import LanguageToggle from "@/components/LanguageToggle";
 import ThemeToggle from "@/components/ui/theme-toggle";
@@ -173,7 +173,7 @@ const BULK_IMPORT_SUBJECT_PALETTE = [
   "#f59e0b",
   "#0f766e",
 ];
-const BULK_IMPORT_REQUEST_TIMEOUT_MS = 20000;
+const BULK_IMPORT_REQUEST_TIMEOUT_MS = 180000;
 const BULK_TXT_FORMAT_EXAMPLE = `- Subject Name
 _ Chapter Name
 > Topic one
@@ -2654,21 +2654,15 @@ export default function StudyPlanner({
 
   async function runBulkFileImport(file: File) {
     try {
-      const accessToken = getAccessToken();
       const formData = new FormData();
       formData.append("file", file, file.name);
 
       const importUrl = `${API_BASE}/syllabus/import`;
 
-      const response = await fetch(importUrl, {
+      const response = await apiFetch(importUrl, {
         method: "POST",
         body: formData,
-        credentials: "include",
-        headers: accessToken
-          ? {
-              Authorization: `Bearer ${accessToken}`,
-            }
-          : undefined,
+        timeoutMs: BULK_IMPORT_REQUEST_TIMEOUT_MS,
       });
 
       const payload = await response.json().catch(() => null);

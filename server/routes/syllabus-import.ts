@@ -15,6 +15,86 @@ const ALLOWED_EXTENSIONS = new Set([".pdf", ".docx", ".txt"]);
 const SYLLABUS_AGENT_BASE_URL = (
   process.env.SYLLABUS_AGENT_URL || "http://127.0.0.1:8000"
 ).replace(/\/+$/, "");
+const SYLLABUS_AGENT_TIMEOUT_MS = Number.parseInt(
+  process.env.SYLLABUS_AGENT_TIMEOUT_MS || "170000",
+  10,
+);
+const SYLLABUS_AGENT_MAX_ATTEMPTS = Math.max(
+  1,
+  Number.parseInt(process.env.SYLLABUS_AGENT_MAX_ATTEMPTS || "3", 10),
+);
+
+function isSyllabusAgentConnectivityError(error: any): boolean {
+  const causeCode = error?.cause?.code ?? error?.cause?.errno;
+  return (
+    causeCode === "ECONNREFUSED" ||
+    causeCode === "ENOTFOUND" ||
+    causeCode === "UND_ERR_CONNECT_TIMEOUT" ||
+    causeCode === "UND_ERR_SOCKET" ||
+    error?.name === "AbortError" ||
+    /ECONNREFUSED|fetch failed|Connect Timeout Error/i.test(
+      String(error?.message ?? ""),
+    )
+  );
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildAgentFormData(file: Express.Multer.File): FormData {
+  const formData = new FormData();
+  formData.append(
+    "file",
+    new Blob([new Uint8Array(file.buffer)], {
+      type: file.mimetype || "application/octet-stream",
+    }),
+    file.originalname,
+  );
+  return formData;
+}
+
+async function postToSyllabusAgent(
+  file: Express.Multer.File,
+): Promise<globalThis.Response> {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= SYLLABUS_AGENT_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      Number.isFinite(SYLLABUS_AGENT_TIMEOUT_MS)
+        ? SYLLABUS_AGENT_TIMEOUT_MS
+        : 170000,
+    );
+
+    try {
+      return await fetch(`${SYLLABUS_AGENT_BASE_URL}/api/syllabus/import`, {
+        method: "POST",
+        body: buildAgentFormData(file),
+        signal: controller.signal,
+      });
+    } catch (error: any) {
+      lastError = error;
+      if (
+        attempt >= SYLLABUS_AGENT_MAX_ATTEMPTS ||
+        !isSyllabusAgentConnectivityError(error)
+      ) {
+        throw error;
+      }
+
+      console.warn(
+        `[SYLLABUS-IMPORT] Agent connection failed on attempt ${attempt}/${SYLLABUS_AGENT_MAX_ATTEMPTS}; retrying...`,
+        error?.cause?.message || error?.message || error,
+      );
+      await wait(1000 * attempt);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw lastError || new Error("Syllabus agent request failed");
+}
 
 router.use(requireAuth);
 
@@ -50,22 +130,7 @@ router.post(
         });
       }
 
-      const formData = new FormData();
-      formData.append(
-        "file",
-        new Blob([new Uint8Array(file.buffer)], {
-          type: file.mimetype || "application/octet-stream",
-        }),
-        file.originalname,
-      );
-
-      const agentResponse = await fetch(
-        `${SYLLABUS_AGENT_BASE_URL}/api/syllabus/import`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const agentResponse = await postToSyllabusAgent(file);
 
       const payload = await agentResponse.json().catch(() => null);
       if (!agentResponse.ok) {
@@ -92,22 +157,19 @@ router.post(
     } catch (error: any) {
       console.error("[SYLLABUS-IMPORT] Failed to process upload:", error);
 
-      const causeCode = error?.cause?.code ?? error?.cause?.errno;
       const causeAddr = error?.cause?.address;
       const causePort = error?.cause?.port;
-      const isConnRefused =
-        causeCode === "ECONNREFUSED" ||
-        /ECONNREFUSED/i.test(String(error?.message ?? ""));
+      const isAgentFetchFailure = isSyllabusAgentConnectivityError(error);
 
       const friendly =
-        isConnRefused || causeCode === "ENOTFOUND"
+        isAgentFetchFailure
           ? `Syllabus AI agent is not reachable at ${SYLLABUS_AGENT_BASE_URL}. Start the agent (e.g. on port 8000) or set SYLLABUS_AGENT_URL to the correct URL.`
           : error?.message || "Syllabus import failed";
 
-      return res.status(isConnRefused ? 503 : 500).json({
+      return res.status(isAgentFetchFailure ? 503 : 500).json({
         success: false,
         message: friendly,
-        ...(process.env.NODE_ENV !== "production" && isConnRefused
+        ...(process.env.NODE_ENV !== "production" && isAgentFetchFailure
           ? {
               detail: `Underlying: ${String(error?.cause?.message ?? error?.message)} ${causeAddr != null ? `@ ${causeAddr}:${causePort ?? ""}` : ""}`.trim(),
             }

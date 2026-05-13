@@ -105,7 +105,7 @@ function TemplateCard({
       `}
     >
       <div className="flex items-start justify-between mb-4">
-        <PremiumEmoji name={TEMPLATE_ICONS[template.id] ? TEMPLATE_ICONS[template.id].name : "bookmarks"} fallback={TEMPLATE_ICONS[template.id]?.fallback || "📋"} alt="" className="h-8 w-8" />
+        <PremiumEmoji name={TEMPLATE_ICONS[template.id] ? TEMPLATE_ICONS[template.id].name : "bookmarks"} fallback={TEMPLATE_ICONS[template.id]?.fallback || "📋"} alt="" className="h-8 w-8 dark:invert" />
         {CATEGORY_BADGES[template.category] && (
           <span className={`text-[11px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full ${CATEGORY_BADGES[template.category].color}`}>
             {CATEGORY_BADGES[template.category].label}
@@ -397,7 +397,7 @@ function QuickStart({
                 onClick={() => setShowCustom(true)}
                 className={`group flex flex-col h-full text-left rounded-2xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:scale-[1.02] bg-white/50 dark:bg-[#141518]/50 ${PRESSABLE_CARD}`}
               >
-                <PremiumEmoji name="pencil" alt="" className="h-8 w-8 mb-4" />
+                <PremiumEmoji name="pencil" alt="" className="h-8 w-8 mb-4 dark:invert" />
                 <h3 className="text-xl font-bold text-[#0f172a] dark:text-white mb-2">
                   Custom Plan
                 </h3>
@@ -604,7 +604,7 @@ function QuickStart({
 
         {/* Selected template badge */}
         <div className="flex items-center gap-3 mb-6 mt-4">
-          <PremiumEmoji name={TEMPLATE_ICONS[selectedTemplate!.id] ? TEMPLATE_ICONS[selectedTemplate!.id].name : "bookmarks"} fallback={TEMPLATE_ICONS[selectedTemplate!.id]?.fallback || "📋"} alt="" className="h-7 w-7" />
+          <PremiumEmoji name={TEMPLATE_ICONS[selectedTemplate!.id] ? TEMPLATE_ICONS[selectedTemplate!.id].name : "bookmarks"} fallback={TEMPLATE_ICONS[selectedTemplate!.id]?.fallback || "📋"} alt="" className="h-7 w-7 dark:invert" />
           <div>
             <h2 className="text-2xl font-bold text-[#0f172a] dark:text-white" style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}>
               {selectedTemplate!.name}

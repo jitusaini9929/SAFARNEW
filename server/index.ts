@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import { createServer as createHttpServer } from "http";
@@ -138,13 +138,35 @@ export async function createServer() {
     app.set("trust proxy", 1);
   }
 
-  // ── Rate Limiting (100 requests per minute per IP) ──
+  // ── Rate Limiting ──────────────────────────────────────────────────────────
+  // Key by the access token (hashed) for authenticated requests so users behind
+  // shared carrier-grade NAT (mobile networks) don't share a single 400/min
+  // budget. Falls back to req.ip for unauthenticated traffic. This was the root
+  // cause of "Too many requests" toasts on the Android Study Planner: opening a
+  // freshly-created plan fires getPlan + calendar + analytics back-to-back, and
+  // on a 5G/CGN IP every Safar user on the same gateway was sharing one bucket.
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000,        // 1 minute window
-    max: 100,                   // max 100 requests per window
+    max: 400,                   // max requests per window per user (or per IP for anon)
     standardHeaders: true,      // Return rate limit info in `RateLimit-*` headers
     legacyHeaders: false,       // Disable `X-RateLimit-*` headers
     message: { message: "Too many requests, please try again later." },
+    keyGenerator: (req) => {
+      const auth = req.headers.authorization;
+      if (typeof auth === "string" && auth.startsWith("Bearer ")) {
+        const token = auth.slice(7).trim();
+        if (token) {
+          // Hash the token so we don't keep raw access tokens in the limiter's
+          // in-memory map. Truncated SHA-256 is plenty unique for bucketing.
+          return "u:" + crypto.createHash("sha256").update(token).digest("hex").slice(0, 32);
+        }
+      }
+      return ipKeyGenerator(req.ip || "unknown");
+    },
+    // Authenticated plan creation from template is one intentional action; skipping avoids 429 UX when global IP budget is tight.
+    skip: (req) =>
+      req.method === "POST" &&
+      (req.path === "/api/plans/from-template" || req.originalUrl.startsWith("/api/plans/from-template")),
   });
   app.use("/api/", apiLimiter);
 

@@ -41,5 +41,8 @@ safar_dump/
 safar_dump_final/
 safar_dump_resync/
 
+# Local extras — never commit (entire tree ignored)
+Extras/
+
 # If `misc/` could not be fully moved into Extras (file locks), ignore root leftovers
 /misc/

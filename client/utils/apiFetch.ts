@@ -127,16 +127,28 @@ export async function apiFetch(
   options: ApiFetchOptions = {},
 ): Promise<Response> {
   const { timeoutMs, ...requestOptions } = options;
+  const buildHeaders = (token: string | null): Headers => {
+    const headers = new Headers(requestOptions.headers);
+    const isFormDataBody =
+      typeof FormData !== "undefined" && requestOptions.body instanceof FormData;
+
+    if (!isFormDataBody && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    return headers;
+  };
+
   const makeRequest = (token: string | null) =>
     fetchWithTimeout(
       url,
       {
         ...requestOptions,
-        headers: {
-          "Content-Type": "application/json",
-          ...(requestOptions.headers ?? {}),
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: buildHeaders(token),
         credentials: "include",
       },
       timeoutMs,

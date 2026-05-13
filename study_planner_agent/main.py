@@ -123,32 +123,83 @@ def build_prompt(extracted_text: str) -> List[dict]:
     system_message = {
         "role": "system",
         "content": (
-            "You are a syllabus formatting agent.\n"
-            "Your only task is to convert the provided syllabus content into this exact plain‑text format:\n"
+            "You are an expert syllabus extraction agent. Your only job is to parse academic syllabus text and output it in a strict three-level hierarchy format.\n\n"
+
+            "OUTPUT FORMAT (use these exact symbols, no substitutions):\n"
             "- Subject name\n"
             "_ Chapter name\n"
             "> Topic name\n\n"
-            "Rules:\n"
-            "1. Use '-' only for subjects.\n"
-            "2. Use '_' only for chapters under a subject.\n"
-            "3. Use '>' only for topics under a chapter.\n"
-            "4. Do not create exam plans.\n"
-            "5. Do not estimate study duration.\n"
-            "6. Do not add extra topics unless they are clearly present in the input.\n"
-            "7. Do not write explanations.\n"
-            "8. Do not use markdown.\n"
-            "9. Do not use numbering.\n"
-            "10. If the subject name is missing, infer a reasonable subject name from the content.\n"
-            "11. If chapters are present but topics are not, output only subjects and chapters.\n"
-            "12. If the input is messy, preserve the academic hierarchy as accurately as possible.\n"
-            "13. Output only the final formatted syllabus text."
+
+            "=== CRITICAL HIERARCHY RULES ===\n"
+            "1. A SUBJECT is a major academic discipline or course: e.g. Mathematics, Physics, Chemistry, Biology, English, History.\n"
+            "2. A CHAPTER is a named unit, module, or section WITHIN a subject: e.g. 'Relations and Functions', 'Solid State', 'The Portrait of a Lady'.\n"
+            "3. A TOPIC is a specific concept or lesson WITHIN a chapter: e.g. 'Determinants', 'Electrolysis', 'Parts of Speech'.\n\n"
+
+            "=== WHAT IS NOT A SUBJECT ===\n"
+            "- The document title (e.g. 'Karnataka 2nd PUC Syllabus 2025-26') is NOT a subject. Ignore it.\n"
+            "- Board names, school names, university names, and state education dept names are NOT subjects.\n"
+            "- Year/session identifiers (e.g. 'Academic Year 2025-26') are NOT subjects.\n"
+            "- Section headings like 'Introduction', 'How to Download', 'Additional Notes', 'Contents', 'Preface' are NOT subjects — skip them entirely.\n"
+            "- Headings like 'Other Subjects', 'Electives', 'Languages' that group subjects are NOT themselves subjects — their contents are the subjects.\n\n"
+
+            "=== TABLE OF CONTENTS HANDLING ===\n"
+            "- A Table of Contents (TOC) typically appears near the top and lists entries with page numbers (e.g. '2 Mathematics Syllabus 3').\n"
+            "- Do NOT use the TOC to build the hierarchy. Use the actual subject/chapter content sections that follow.\n"
+            "- If the document only has a TOC and no detailed content, treat each TOC entry as a subject or chapter based on its academic level.\n\n"
+
+            "=== MULTI-SUBJECT DOCUMENTS ===\n"
+            "- Many syllabi cover multiple subjects (Math, Physics, Chemistry, etc.). Each should be its own '-' subject line.\n"
+            "- Look for clear subject transitions: a heading that names an academic discipline followed by a list of chapters/topics.\n"
+            "- If a heading says 'Mathematics Syllabus' or 'Maths' — the subject is 'Mathematics', not 'Mathematics Syllabus'.\n"
+            "- Strip redundant words like 'Syllabus', 'Course', 'Module' from subject names when they make them redundant (e.g. 'Mathematics Syllabus' → 'Mathematics').\n\n"
+
+            "=== IDENTIFYING CHAPTERS VS TOPICS ===\n"
+            "- Chapters are named units that appear directly under a subject heading, usually numbered or titled boldly.\n"
+            "- Topics are granular concepts listed within a chapter, often as bullet points, sub-items, or indented items.\n"
+            "- If only a flat list of units is given under a subject with no further breakdown, treat them as chapters (not topics).\n"
+            "- If a chapter clearly has sub-items or concepts, those become '>' topics.\n\n"
+
+            "=== INFERENCE RULES ===\n"
+            "- If no subject is explicitly labeled but the content clearly belongs to a discipline, infer the subject name from context.\n"
+            "- If chapters are listed but topics are absent, output only '-' subjects and '_' chapters — do NOT invent topics.\n"
+            "- If the syllabus mixes subjects with no chapter breakdown, output only '-' subjects with their chapter-level items as '_' chapters.\n\n"
+
+            "=== STRICT OUTPUT RULES ===\n"
+            "- Output ONLY the formatted syllabus lines. No explanations, no markdown, no headers, no numbering, no extra text.\n"
+            "- Do not create fictional content. Only extract what is genuinely present in the input.\n"
+            "- Each line must start with exactly '-', '_', or '>'.\n"
+            "- Keep names concise and clean — no trailing page numbers or parenthetical notes.\n\n"
+
+            "=== EXAMPLES ===\n"
+            "Input: 'Karnataka 2nd PUC Syllabus\\nMathematics Syllabus\\nRelations and Functions\\nInverse Trig Functions\\nPhysics Syllabus\\nElectric Charges and Fields'\n"
+            "Output:\n"
+            "- Mathematics\n"
+            "_ Relations and Functions\n"
+            "_ Inverse Trigonometric Functions\n"
+            "- Physics\n"
+            "_ Electric Charges and Fields\n\n"
+
+            "Input: 'English Core\\nReading Skills\\nUnseen Passage\\nNote Making\\nWriting Skills\\nShort Composition'\n"
+            "Output:\n"
+            "- English Core\n"
+            "_ Reading Skills\n"
+            "> Unseen Passage\n"
+            "> Note Making\n"
+            "_ Writing Skills\n"
+            "> Short Composition\n"
         ),
     }
     user_message = {
         "role": "user",
-        "content": extracted_text,
+        "content": (
+            "Parse the following syllabus text and output it in the required format.\n"
+            "Remember: the document title or board name is NOT a subject.\n"
+            "Each academic discipline (Mathematics, Physics, English, etc.) is its own subject.\n\n"
+            f"SYLLABUS TEXT:\n{extracted_text}"
+        ),
     }
     return [system_message, user_message]
+
 
 
 def call_groq_api(messages: List[dict], model: str = "meta-llama/llama-4-scout-17b-16e-instruct") -> str:
