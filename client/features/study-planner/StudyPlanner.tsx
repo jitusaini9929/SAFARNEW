@@ -17,9 +17,19 @@ import {
   type PlannerInsights,
 } from "./InsightsPanel";
 import MergedPlanTab from "./MergedPlanTab";
+import { QuickStart } from "./StudyPlannerQuickStart";
+import {
+  YourExamsPlansPanel,
+  type StudyPlannerPlanSummary,
+} from "./YourExamsPlansPanel";
 
 type TopicStatus = "todo" | "in_progress" | "done" | "revision_needed";
-type PlannerSection = "plan" | "syllabus" | "calendar" | "insights";
+type PlannerSection =
+  | "your-exams"
+  | "syllabus"
+  | "calendar"
+  | "plan"
+  | "insights";
 type PlannerView = PlannerSection;
 type SyllabusLayoutMode = "hierarchy" | "classic" | "org-chart";
 type GuidedActionId =
@@ -1290,6 +1300,14 @@ export default function StudyPlanner({
   }, []);
 
   const [view, setView] = useState<PlannerView>(initialView ?? "plan");
+  const [allPlans, setAllPlans] = useState<StudyPlannerPlanSummary[]>([]);
+  const [plansListLoading, setPlansListLoading] = useState(false);
+  const [showYourExamsQuickStart, setShowYourExamsQuickStart] =
+    useState(false);
+  const [yourExamsPlanToDelete, setYourExamsPlanToDelete] =
+    useState<StudyPlannerPlanSummary | null>(null);
+  const [isDeletingYourExamsPlan, setIsDeletingYourExamsPlan] =
+    useState(false);
   const [monthDate, setMonthDate] = useState(new Date());
 
   const [examType, setExamType] = useState("");
@@ -1518,6 +1536,24 @@ export default function StudyPlanner({
   useEffect(() => {
     void fetchPlan();
   }, [planId]);
+
+  async function refreshAllPlans() {
+    setPlansListLoading(true);
+    try {
+      const listRes = await apiFetch(`${API_BASE}/plans`, { method: "GET" });
+      if (listRes.ok) {
+        const list = (await listRes.json()) as StudyPlannerPlanSummary[];
+        setAllPlans(list);
+      }
+    } finally {
+      setPlansListLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (view !== "your-exams") return;
+    void refreshAllPlans();
+  }, [view]);
 
   useEffect(() => {
     if (!plan) return;
@@ -3459,6 +3495,20 @@ export default function StudyPlanner({
 
         <div className="max-w-7xl mx-auto p-4 md:p-8 relative z-10">
           {/* Header Section */}
+          {view === "your-exams" ? (
+            <div
+              data-tour="planner-header"
+              className="mb-6 flex flex-col gap-4 relative"
+            >
+              <button
+                type="button"
+                onClick={() => navigate("/study/planner")}
+                className={`text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] inline-block ${PLANNER_TEXT_PRESSABLE}`}
+              >
+                ← All Plans
+              </button>
+            </div>
+          ) : (
           <div
             data-tour="planner-header"
             className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 relative"
@@ -3579,6 +3629,7 @@ export default function StudyPlanner({
               ) : null}
             </div>
           </div>
+          )}
 
           {!plannerOnboardingState.completed && view === "plan" && (
             <div
@@ -3676,16 +3727,23 @@ export default function StudyPlanner({
             >
               {(
                 [
-                  ["plan", "Plan"],
+                  ["your-exams", "Your Exams"],
                   ["syllabus", "Syllabus"],
                   ["calendar", "Calendar"],
-                  ["insights" as PlannerSection, "Insights"],
+                  ["plan", "Plan"],
+                  ["insights", "Insights"],
                 ] as Array<[PlannerSection, string]>
               ).map(([value, label]) => (
                 <button
                   key={value}
                   onClick={() => handleViewChange(value)}
-                  className={`relative px-6 py-2.5 rounded-full ${value === "plan" || value === "syllabus" ? "text-[13px] md:text-[15px]" : "text-[14px] md:text-[14px]"} font-semibold tracking-[0.01em] z-10 flex-1 md:flex-none ${PLANNER_PRESSABLE} ${
+                  className={`relative px-4 sm:px-5 md:px-6 py-2.5 rounded-full ${
+                    value === "plan" ||
+                    value === "syllabus" ||
+                    value === "your-exams"
+                      ? "text-[12px] sm:text-[13px] md:text-[15px]"
+                      : "text-[13px] md:text-[14px]"
+                  } font-semibold tracking-[0.01em] z-10 flex-1 md:flex-none ${PLANNER_PRESSABLE} ${
                     view === value
                       ? "text-[#2d333b] dark:text-[#e7e5e5]"
                       : "text-[#8b919e] dark:text-[#767575] hover:text-[#4b5563] dark:hover:text-[#acabaa]"
@@ -3707,6 +3765,7 @@ export default function StudyPlanner({
               ))}
             </div>
 
+            {view !== "your-exams" && view !== "insights" ? (
             <button
               type="button"
               data-tour="planner-plan-actions"
@@ -3718,12 +3777,65 @@ export default function StudyPlanner({
             >
               {isAutoDistributing ? "Building Schedule..." : "Build Schedule"}
             </button>
+            ) : null}
           </div>
 
           {error && (
             <div className="mb-6 rounded-2xl p-4 bg-red-100/50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 font-bold shadow-[inset_1px_1px_2px_rgba(255,255,255,0.5)] dark:shadow-[inset_1px_1px_3px_rgba(0,0,0,0.8)]">
               {error}
             </div>
+          )}
+
+          {view === "your-exams" && (
+            <>
+              {plansListLoading && allPlans.length === 0 ? (
+                <div className="flex justify-center py-16 mb-8">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 2,
+                      ease: "linear",
+                    }}
+                    className="w-12 h-12 rounded-full border-[4px] border-[#d9dbe2] dark:border-[#1a1c1e] border-t-blue-500"
+                  />
+                </div>
+              ) : null}
+              <YourExamsPlansPanel
+                plans={allPlans}
+                variant="embedded"
+                onOpenPlan={(id) =>
+                  navigate(`/study/planner/${id}/plan`, { replace: true })
+                }
+                onNewPlan={() => setShowYourExamsQuickStart(true)}
+                onRequestDelete={setYourExamsPlanToDelete}
+                onRefresh={() => void refreshAllPlans()}
+                planToDelete={yourExamsPlanToDelete}
+                onDismissDelete={() => setYourExamsPlanToDelete(null)}
+                onConfirmDelete={async () => {
+                  if (!yourExamsPlanToDelete) return;
+                  setIsDeletingYourExamsPlan(true);
+                  try {
+                    const res = await apiFetch(
+                      `${API_BASE}/plans/${yourExamsPlanToDelete.id}`,
+                      { method: "DELETE" },
+                    );
+                    if (!res.ok) throw new Error("Failed to delete plan");
+                    const deletedId = yourExamsPlanToDelete.id;
+                    setAllPlans((prev) => prev.filter((p) => p.id !== deletedId));
+                    setYourExamsPlanToDelete(null);
+                    if (deletedId === planId) {
+                      navigate("/study/planner", { replace: true });
+                    }
+                  } catch {
+                    // keep modal open
+                  } finally {
+                    setIsDeletingYourExamsPlan(false);
+                  }
+                }}
+                isDeletingPlan={isDeletingYourExamsPlan}
+              />
+            </>
           )}
 
           {view === "insights" && plan && (
@@ -3856,51 +3968,37 @@ export default function StudyPlanner({
                 </motion.div>
               )}
               {plan && getTotalTopicCount() > 0 && (
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
-                  <div
-                    className={`flex-1 min-w-0 rounded-3xl p-5 flex flex-row items-center gap-4 transition-colors duration-500 ${isDarkMode ? "bg-[#0e0e0e] shadow-[8px_8px_20px_rgba(0,0,0,0.6),-4px_-4px_10px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]" : "bg-[#f0f0f5] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)]"}`}
-                  >
-                    <div className="w-10 h-10 shrink-0 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-[#93c5fd] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.1)]">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[15px] font-black text-[#1e293b] dark:text-[#e7e5e5] tracking-tight">
-                        <span className="text-blue-600 dark:text-[#93c5fd]">
-                          {scheduledTopicsCount}
-                        </span>{" "}
-                        topic{scheduledTopicsCount === 1 ? "" : "s"} on schedule
-                      </p>
-                      {unplannedTopicsCount > 0 ? (
-                        <p className="text-[13px] font-bold text-[#64748b] dark:text-[#767575] mt-1">
-                          {unplannedTopicsCount} not yet scheduled
-                        </p>
-                      ) : null}
-                    </div>
+                <div
+                  className={`rounded-3xl p-5 flex flex-row items-center gap-4 transition-colors duration-500 ${isDarkMode ? "bg-[#0e0e0e] shadow-[8px_8px_20px_rgba(0,0,0,0.6),-4px_-4px_10px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]" : "bg-[#f0f0f5] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)]"}`}
+                >
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-[#93c5fd] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.1)]">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void autoDistribute();
-                    }}
-                    disabled={isAutoDistributing}
-                    className={`${cleanPrimaryPill} shrink-0 px-8 py-4 text-[14px] font-black shadow-[0_0_20px_rgba(59,130,246,0.35)] sm:self-center whitespace-nowrap`}
-                  >
-                    {isAutoDistributing
-                      ? "Building Schedule..."
-                      : "Build Schedule"}
-                  </button>
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-black text-[#1e293b] dark:text-[#e7e5e5] tracking-tight">
+                      <span className="text-blue-600 dark:text-[#93c5fd]">
+                        {scheduledTopicsCount}
+                      </span>{" "}
+                      topic{scheduledTopicsCount === 1 ? "" : "s"} on schedule
+                    </p>
+                    {unplannedTopicsCount > 0 ? (
+                      <p className="text-[13px] font-bold text-[#64748b] dark:text-[#767575] mt-1">
+                        {unplannedTopicsCount} not yet scheduled
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               )}
 
@@ -7062,6 +7160,17 @@ export default function StudyPlanner({
         )}
       </AnimatePresence>
       <TourPrompt tour={studyPlannerTour} featureName="Syllabus Planner" />
+      {showYourExamsQuickStart ? (
+        <div className="fixed inset-0 z-[300] overflow-y-auto bg-white dark:bg-[#131416]">
+          <QuickStart
+            onCancel={() => setShowYourExamsQuickStart(false)}
+            onComplete={(id) => {
+              setShowYourExamsQuickStart(false);
+              navigate(`/study/planner/${id}/plan`, { replace: true });
+            }}
+          />
+        </div>
+      ) : null}
     </>
   );
 }

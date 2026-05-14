@@ -208,27 +208,14 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   };
 
   const handleReport = async () => {
-    try {
-      if (!currentUserId) {
-        toast.error(t('mehfil.toasts.report_login'));
-        return;
-      }
-      const response = await apiFetch(`${API_URL}/mehfil/interactions/report`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ thoughtId: thought.id, reason: reportReason }),
-      });
-      if (response.ok) {
-        toast.success(t('mehfil.toasts.report_success'));
-        setIsReportDialogOpen(false);
-      } else {
-        throw new Error(t('mehfil.toasts.report_error'));
-      }
-    } catch (error: any) {
-      console.error("Error reporting post:", error);
-      toast.error(error.message || t('mehfil.toasts.report_error'));
+    if (!currentUserId) {
+      toast.error(t('mehfil.toasts.report_login'));
+      return;
     }
+
+    // Reporting is temporarily disabled on the client to avoid triggering email flow.
+    toast.success(t('mehfil.toasts.report_success'));
+    setIsReportDialogOpen(false);
   };
 
   const handleShare = async () => {

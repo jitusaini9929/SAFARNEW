@@ -331,7 +331,8 @@ mehfilInteractionRoutes.post("/report", async (req: any, res: Response) => {
 
         const uniqueReporters = Number(reporterGroups?.[0]?.count || 0);
 
-        if (uniqueReporters >= MIN_REPORTS_TO_EMAIL) {
+        const isReportEmailEnabled = false;
+        if (isReportEmailEnabled && uniqueReporters >= MIN_REPORTS_TO_EMAIL) {
             // Email notification (best-effort - does not block the response)
             try {
                 const reportedUser = await collections.users().findOne(
