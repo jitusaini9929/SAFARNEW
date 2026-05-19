@@ -294,7 +294,7 @@ export const studyPlannerTour: TourConfig = {
         {
             target: "[data-tour='planner-header']",
             title: "Planner Home",
-            content: "This is your command center for planning, execution, and progress tracking. We will walk every feature, step by step.",
+            content: "This is your Goals hub for planning, execution, and progress tracking. We will walk every feature, step by step.",
             placement: "bottom",
             spotlightPadding: 16,
         },

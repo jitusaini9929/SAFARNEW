@@ -443,7 +443,7 @@
         }
     },
     "goals": {
-        "title": "Command Center",
+        "title": "Goals",
         "subtitle": "Manage your goals and track progress efficiently.",
         "add_goal": "Add Goal",
         "tab_goals": "Goals",
@@ -530,7 +530,7 @@
         "consequences": "Consequences",
         "report_bans": "Reports",
         "shadow_banning": "AI Review",
-        "report_desc": "Reports are saved for review and the reported user is notified by email.",
+        "report_desc": "Reports are saved for moderation review. Reported users are not notified by email.",
         "spam_desc": "AI still reviews posts and keeps unsafe submissions out of the public feed.",
         "no_thoughts": "No thoughts in {{room}} yet. Start the conversation.",
         "loading_more": "Loading more posts...",

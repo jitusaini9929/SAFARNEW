@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { jsPDF } from "jspdf";
+
 import { motion, AnimatePresence } from "framer-motion";
 import { API_BASE, apiFetch, type ApiFetchOptions } from "@/utils/apiFetch";
 import PlannerSidebar from "@/components/PlannerSidebar";
@@ -268,10 +270,8 @@ const COLUMN_DESCRIPTIONS: Record<string, string> = {
 };
 
 const PLANNER_PRESS_EASE = "motion-safe:ease-\\[cubic-bezier(0.23,1,0.32,1)\\]";
-const PLANNER_PRESSABLE =
-  `motion-safe:transition-[transform,box-shadow,background-color,border-color,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} motion-reduce:transition-colors active:scale-[0.97] active:translate-y-[1px] disabled:active:scale-100 disabled:active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
-const PLANNER_TEXT_PRESSABLE =
-  `motion-safe:transition-[transform,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} active:scale-[0.97] active:translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30`;
+const PLANNER_PRESSABLE = `motion-safe:transition-[transform,box-shadow,background-color,border-color,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} motion-reduce:transition-colors active:scale-[0.97] active:translate-y-[1px] disabled:active:scale-100 disabled:active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
+const PLANNER_TEXT_PRESSABLE = `motion-safe:transition-[transform,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} active:scale-[0.97] active:translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30`;
 
 function toIsoDateOnly(input: Date | string): string {
   const d = new Date(input);
@@ -289,6 +289,134 @@ function formatDate(input?: string): string {
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }
 
+function exportSyllabusPDF(plan: Plan): void {
+  if (!plan.subjects.length) return;
+
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const PAGE_W = 210;
+  const PAGE_H = 297;
+  const M = 20;
+  const ROW_H = 6;
+  const DATE_W = 36;
+
+  let y = M;
+
+  function checkPage() {
+    if (y + ROW_H > PAGE_H - M) {
+      doc.addPage();
+      y = M;
+    }
+  }
+
+  function drawPrefixed(
+    prefix: string,
+    text: string,
+    dateStr?: string,
+    dot?: { r: number; g: number; b: number; radius: number },
+  ) {
+    checkPage();
+
+    if (dot) {
+      doc.setFillColor(dot.r, dot.g, dot.b);
+      doc.circle(M + doc.getTextWidth(prefix) - 0.5, y - 2, dot.radius, "F");
+    }
+
+    const fullLine = prefix + text;
+    const availW = PAGE_W - M - M - DATE_W - 2;
+    const textW = doc.getTextWidth(fullLine);
+    const display = textW > availW ? fullLine.slice(0, 70) + "..." : fullLine;
+    doc.text(display, M, y);
+    if (dateStr) {
+      doc.setFontSize(8);
+      doc.text(dateStr, PAGE_W - M, y, { align: "right" });
+    }
+    y += ROW_H;
+  }
+
+  // ---- Header ----
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(30, 30, 30);
+  doc.text(`Study Plan: ${plan.title}`, M, y);
+  y += 9;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  const meta: string[] = [];
+  if (plan.examDate) {
+    meta.push(
+      `Exam: ${new Date(plan.examDate).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}`,
+    );
+  }
+  if (plan.dailyGoal) meta.push(`Goal: ${plan.dailyGoal}/day`);
+  if (meta.length) {
+    doc.text(meta.join("  |  "), M, y);
+    y += 6;
+  }
+  y += 2;
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.4);
+  doc.line(M, y, PAGE_W - M, y);
+  y += 7;
+
+  // ---- Tree ----
+  function drawSubjects(subjects: Subject[]) {
+    subjects.forEach((subj, si) => {
+      drawSubject(subj, "", si === subjects.length - 1);
+    });
+  }
+
+  function drawSubject(subj: Subject, prefix: string, last: boolean) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(190, 40, 40);
+    drawPrefixed(prefix, " " + subj.name.toUpperCase(), undefined, { r: 190, g: 40, b: 40, radius: 1.1 });
+
+    const childPrefix = prefix + (last ? "    " : "|   ");
+
+    subj.chapters.forEach((ch, ci) => {
+      drawChapter(ch, childPrefix, ci === subj.chapters.length - 1);
+    });
+  }
+
+  function drawChapter(ch: Chapter, prefix: string, last: boolean) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 30, 30);
+    drawPrefixed(prefix, " " + ch.name, undefined, { r: 30, g: 30, b: 30, radius: 0.9 });
+
+    const childPrefix = prefix + (last ? "    " : "|   ");
+
+    ch.topics.forEach((topic, ti) => {
+      drawTopic(topic, childPrefix, ti === ch.topics.length - 1);
+    });
+  }
+
+  function drawTopic(topic: Topic, prefix: string, last: boolean) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(50, 100, 200);
+
+    let dateStr = "";
+    if (topic.plannedDate) {
+      const d = new Date(topic.plannedDate + "T00:00:00");
+      if (!Number.isNaN(d.getTime())) {
+        dateStr = d.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      }
+    }
+
+    drawPrefixed(prefix, " " + topic.name, dateStr, { r: 50, g: 100, b: 200, radius: 0.75 });
+  }
+
+  drawSubjects(plan.subjects);
+  doc.save(`${plan.title} - Study Plan.pdf`);
+}
+
 function splitTopicLines(input: string): string[] {
   return input
     .split(/\r?\n/)
@@ -297,7 +425,10 @@ function splitTopicLines(input: string): string[] {
 }
 
 function isBulkPlaceholderChapter(chapter: Pick<Chapter, "name">): boolean {
-  return chapter.name.trim().toLowerCase() === BULK_IMPORT_PLACEHOLDER_NAME.toLowerCase();
+  return (
+    chapter.name.trim().toLowerCase() ===
+    BULK_IMPORT_PLACEHOLDER_NAME.toLowerCase()
+  );
 }
 
 interface BulkChapterGroup {
@@ -458,9 +589,7 @@ function parseBulkSubjectsFromTxt(input: string): BulkSubjectGroup[] {
 
     const normalizedName = name.trim();
     if (!normalizedName) {
-      throw new Error(
-        `Line ${lineNumber}: chapter name is missing after "_".`,
-      );
+      throw new Error(`Line ${lineNumber}: chapter name is missing after "_".`);
     }
 
     const subject = subjects[subjectIndex];
@@ -582,12 +711,7 @@ function parseBulkSubjectsFromTxt(input: string): BulkSubjectGroup[] {
         lineNumber,
       );
     }
-    addTopicToChapter(
-      activeSubjectIndex,
-      activeChapterIndex,
-      line,
-      lineNumber,
-    );
+    addTopicToChapter(activeSubjectIndex, activeChapterIndex, line, lineNumber);
   }
 
   if (subjects.length === 0) {
@@ -920,10 +1044,7 @@ function CustomDatePicker({
       if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
         const [minY, minMo1] = parts;
         const minMonth0 = minMo1 - 1;
-        if (
-          viewYear < minY ||
-          (viewYear === minY && viewMonth <= minMonth0)
-        ) {
+        if (viewYear < minY || (viewYear === minY && viewMonth <= minMonth0)) {
           return;
         }
       }
@@ -1302,12 +1423,10 @@ export default function StudyPlanner({
   const [view, setView] = useState<PlannerView>(initialView ?? "plan");
   const [allPlans, setAllPlans] = useState<StudyPlannerPlanSummary[]>([]);
   const [plansListLoading, setPlansListLoading] = useState(false);
-  const [showYourExamsQuickStart, setShowYourExamsQuickStart] =
-    useState(false);
+  const [showYourExamsQuickStart, setShowYourExamsQuickStart] = useState(false);
   const [yourExamsPlanToDelete, setYourExamsPlanToDelete] =
     useState<StudyPlannerPlanSummary | null>(null);
-  const [isDeletingYourExamsPlan, setIsDeletingYourExamsPlan] =
-    useState(false);
+  const [isDeletingYourExamsPlan, setIsDeletingYourExamsPlan] = useState(false);
   const [monthDate, setMonthDate] = useState(new Date());
 
   const [examType, setExamType] = useState("");
@@ -2655,7 +2774,8 @@ export default function StudyPlanner({
 
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        const details = payload?.detail || payload?.message || payload?.error || "";
+        const details =
+          payload?.detail || payload?.message || payload?.error || "";
         const message = details || "Could not import syllabus file.";
         setBulkAddError(message);
         showToast(message, "error");
@@ -3015,14 +3135,20 @@ export default function StudyPlanner({
               </button>
 
               <div className="text-center">
-                <div className="text-6xl mb-6 transform hover:scale-110 transition-transform duration-300">{meta.icon}</div>
+                <div className="text-6xl mb-6 transform hover:scale-110 transition-transform duration-300">
+                  {meta.icon}
+                </div>
                 <div className="text-[11px] font-black uppercase tracking-[0.3em] text-amber-500 mb-4">
                   Premium Feature
                 </div>
-                <h3 className={`text-2xl font-bold tracking-tight mb-4 ${isDarkMode ? "text-white" : "text-slate-900"}`}>
+                <h3
+                  className={`text-2xl font-bold tracking-tight mb-4 ${isDarkMode ? "text-white" : "text-slate-900"}`}
+                >
                   {meta.title}
                 </h3>
-                <p className={`text-[15px] font-medium leading-relaxed mb-10 max-w-sm mx-auto ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                <p
+                  className={`text-[15px] font-medium leading-relaxed mb-10 max-w-sm mx-auto ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}
+                >
                   {meta.description}
                 </p>
 
@@ -3438,8 +3564,7 @@ export default function StudyPlanner({
     plannerOnboardingState.skipped &&
     !plannerOnboardingState.completed;
 
-  const cleanPillBase =
-    `inline-flex items-center justify-center rounded-full px-4 py-2.5 text-[13px] font-semibold tracking-[0.01em] leading-none ${PLANNER_PRESSABLE} disabled:opacity-60 disabled:cursor-not-allowed`;
+  const cleanPillBase = `inline-flex items-center justify-center rounded-full px-4 py-2.5 text-[13px] font-semibold tracking-[0.01em] leading-none ${PLANNER_PRESSABLE} disabled:opacity-60 disabled:cursor-not-allowed`;
   const cleanPrimaryPill = `${cleanPillBase} bg-[#3b82f6] text-white shadow-[0_8px_18px_rgba(37,99,235,0.32)] hover:bg-[#2563eb]`;
   const cleanSecondaryPill = `${cleanPillBase} border ${isDarkMode ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0] hover:bg-[#3b4048]" : "bg-white/95 border-[#cfd6e2] text-[#1f2937] hover:bg-white"} shadow-[0_4px_10px_rgba(15,23,42,0.14)]`;
   const cleanHeaderLabelClass =
@@ -3509,126 +3634,132 @@ export default function StudyPlanner({
               </button>
             </div>
           ) : (
-          <div
-            data-tour="planner-header"
-            className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 relative"
-          >
-            <div>
-              <button
-                onClick={() => navigate("/study/planner")}
-                className={`text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] mb-3 inline-block ${PLANNER_TEXT_PRESSABLE}`}
-              >
-                ← All Plans
-              </button>
-              <h1
-                className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
-                style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}
-              >
-                {plan.title}.
-              </h1>
-              {plan.examType && (
-                <div className="text-[14px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] mb-4">
-                  {plan.examType}
-                </div>
-              )}
-              <motion.div layout className="flex flex-wrap items-center gap-6">
-                <div
-                  data-tour="planner-countdown"
-                  className="inline-flex gap-3"
-                >
-                  {countdown === null ? (
-                    <motion.button
-                      layout
-                      onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
-                      className={`bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] text-[20px] md:text-[22px] font-black uppercase tracking-[0.1em] px-8 py-3 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.12)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05),0_10px_20px_rgba(0,0,0,0.4)] border border-[#c0c4d1] dark:border-[#252626] hover:scale-[1.03] ${PLANNER_PRESSABLE}`}
-                      title="Set your exam date"
-                    >
-                      Set Exam Date
-                    </motion.button>
-                  ) : (
-                    <motion.button
-                      layout
-                      onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
-                      className={`${cleanSecondaryPill} text-[12px] px-4 py-2`}
-                      title="Edit exam date"
-                    >
-                      Update Date
-                    </motion.button>
-                  )}
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {isExamDateEditorOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: -20, scale: 0.95 }}
-                      transition={{
-                        type: "spring",
-                        stiffness: 300,
-                        damping: 25,
-                      }}
-                      className="inline-flex flex-col gap-3 rounded-2xl bg-[#f0f0f5] dark:bg-[#1a1c1e] px-5 py-4 border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]"
-                    >
-                      <div className="text-[13px] font-bold text-[#334155] dark:text-[#e2e8f0] uppercase tracking-[0.2em] px-1">
-                        Select Exam
-                      </div>
-                      <div className="flex flex-wrap items-center gap-4">
-                        <CustomDatePicker
-                          value={examDateDraft}
-                          onChange={setExamDateDraft}
-                          isDarkMode={isDarkMode}
-                          minDate={toIsoDateOnly(new Date())}
-                        />
-                        <button
-                          onClick={() => {
-                            void saveExamDate();
-                          }}
-                          className={`bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white text-[12px] font-extrabold uppercase tracking-[0.15em] px-5 py-2.5 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.35)] ${PLANNER_PRESSABLE}`}
-                        >
-                          Save Date
-                        </button>
-                        <button
-                          onClick={() => {
-                            setExamDateDraft(
-                              plan?.examDate
-                                ? toIsoDateOnly(plan.examDate)
-                                : "",
-                            );
-                            setIsExamDateEditorOpen(false);
-                          }}
-                          className={`bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[12px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-xl border border-[#c0c4d1] dark:border-[#2b2c2c] ${PLANNER_PRESSABLE}`}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            </div>
             <div
-              data-tour="planner-header-actions"
-              className="flex flex-wrap gap-3"
+              data-tour="planner-header"
+              className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 relative"
             >
-              {beginnerMode && !plannerOnboardingState.completed ? (
+              <div>
                 <button
-                  onClick={() => {
-                    if (onboardingResumeVisible) {
-                      resumePlannerOnboarding();
-                      return;
-                    }
-                    void runGuidedAction(activeGuideAction);
-                  }}
-                  className={cleanPrimaryPill}
+                  onClick={() => navigate("/study/planner")}
+                  className={`text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] mb-3 inline-block ${PLANNER_TEXT_PRESSABLE}`}
                 >
-                  {onboardingResumeVisible
-                    ? "Resume Guide"
-                    : currentGuide.actionLabel}
+                  ← All Plans
                 </button>
-              ) : null}
+                <h1
+                  className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                  style={{
+                    fontFamily: "'Inter', sans-serif",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  {plan.title}.
+                </h1>
+                {plan.examType && (
+                  <div className="text-[14px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] mb-4">
+                    {plan.examType}
+                  </div>
+                )}
+                <motion.div
+                  layout
+                  className="flex flex-wrap items-center gap-6"
+                >
+                  <div
+                    data-tour="planner-countdown"
+                    className="inline-flex gap-3"
+                  >
+                    {countdown === null ? (
+                      <motion.button
+                        layout
+                        onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
+                        className={`bg-[#d9dbe2] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] text-[20px] md:text-[22px] font-black uppercase tracking-[0.1em] px-8 py-3 rounded-full shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8),0_6px_14px_rgba(0,0,0,0.12)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05),0_10px_20px_rgba(0,0,0,0.4)] border border-[#c0c4d1] dark:border-[#252626] hover:scale-[1.03] ${PLANNER_PRESSABLE}`}
+                        title="Set your exam date"
+                      >
+                        Set Exam Date
+                      </motion.button>
+                    ) : (
+                      <motion.button
+                        layout
+                        onClick={() => setIsExamDateEditorOpen((prev) => !prev)}
+                        className={`${cleanSecondaryPill} text-[12px] px-4 py-2`}
+                        title="Edit exam date"
+                      >
+                        Update Date
+                      </motion.button>
+                    )}
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                    {isExamDateEditorOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 300,
+                          damping: 25,
+                        }}
+                        className="inline-flex flex-col gap-3 rounded-2xl bg-[#f0f0f5] dark:bg-[#1a1c1e] px-5 py-4 border border-[#c0c4d1] dark:border-[#2b2c2c] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)]"
+                      >
+                        <div className="text-[13px] font-bold text-[#334155] dark:text-[#e2e8f0] uppercase tracking-[0.2em] px-1">
+                          Select Exam
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <CustomDatePicker
+                            value={examDateDraft}
+                            onChange={setExamDateDraft}
+                            isDarkMode={isDarkMode}
+                            minDate={toIsoDateOnly(new Date())}
+                          />
+                          <button
+                            onClick={() => {
+                              void saveExamDate();
+                            }}
+                            className={`bg-gradient-to-b from-[#3b82f6] to-[#2563eb] text-white text-[12px] font-extrabold uppercase tracking-[0.15em] px-5 py-2.5 rounded-xl shadow-[0_4px_10px_rgba(37,99,235,0.35)] ${PLANNER_PRESSABLE}`}
+                          >
+                            Save Date
+                          </button>
+                          <button
+                            onClick={() => {
+                              setExamDateDraft(
+                                plan?.examDate
+                                  ? toIsoDateOnly(plan.examDate)
+                                  : "",
+                              );
+                              setIsExamDateEditorOpen(false);
+                            }}
+                            className={`bg-[#e6e7ee] dark:bg-[#202225] text-[#2d333b] dark:text-[#e7e5e5] text-[12px] font-extrabold uppercase tracking-[0.15em] px-4 py-2 rounded-xl border border-[#c0c4d1] dark:border-[#2b2c2c] ${PLANNER_PRESSABLE}`}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </div>
+              <div
+                data-tour="planner-header-actions"
+                className="flex flex-wrap gap-3"
+              >
+                {beginnerMode && !plannerOnboardingState.completed ? (
+                  <button
+                    onClick={() => {
+                      if (onboardingResumeVisible) {
+                        resumePlannerOnboarding();
+                        return;
+                      }
+                      void runGuidedAction(activeGuideAction);
+                    }}
+                    className={cleanPrimaryPill}
+                  >
+                    {onboardingResumeVisible
+                      ? "Resume Guide"
+                      : currentGuide.actionLabel}
+                  </button>
+                ) : null}
+              </div>
             </div>
-          </div>
           )}
 
           {!plannerOnboardingState.completed && view === "plan" && (
@@ -3766,17 +3897,17 @@ export default function StudyPlanner({
             </div>
 
             {view !== "your-exams" && view !== "insights" ? (
-            <button
-              type="button"
-              data-tour="planner-plan-actions"
-              onClick={() => {
-                void autoDistribute();
-              }}
-              disabled={isAutoDistributing}
-              className={`${cleanPrimaryPill} py-4 px-10 text-[15px] font-black shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] transition-all hover:scale-[1.03] active:scale-[0.97] whitespace-nowrap flex-shrink-0`}
-            >
-              {isAutoDistributing ? "Building Schedule..." : "Build Schedule"}
-            </button>
+              <button
+                type="button"
+                data-tour="planner-plan-actions"
+                onClick={() => {
+                  void autoDistribute();
+                }}
+                disabled={isAutoDistributing}
+                className={`${cleanPrimaryPill} py-4 px-10 text-[15px] font-black shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] transition-all hover:scale-[1.03] active:scale-[0.97] whitespace-nowrap flex-shrink-0`}
+              >
+                {isAutoDistributing ? "Building Schedule..." : "Build Schedule"}
+              </button>
             ) : null}
           </div>
 
@@ -3822,7 +3953,9 @@ export default function StudyPlanner({
                     );
                     if (!res.ok) throw new Error("Failed to delete plan");
                     const deletedId = yourExamsPlanToDelete.id;
-                    setAllPlans((prev) => prev.filter((p) => p.id !== deletedId));
+                    setAllPlans((prev) =>
+                      prev.filter((p) => p.id !== deletedId),
+                    );
                     setYourExamsPlanToDelete(null);
                     if (deletedId === planId) {
                       navigate("/study/planner", { replace: true });
@@ -3924,6 +4057,7 @@ export default function StudyPlanner({
                     "This will reset ALL topics to Not Started. This cannot be undone!",
                 })
               }
+              onExport={() => exportSyllabusPDF(plan)}
             />
           )}
           {view === "syllabus" && (
@@ -4089,13 +4223,20 @@ export default function StudyPlanner({
                             >(`${BASE}/templates`);
                             setAvailableTemplates(templates);
                           } catch {
-                            showToast("Failed to load exam templates.", "error");
+                            showToast(
+                              "Failed to load exam templates.",
+                              "error",
+                            );
                           }
                         }
                       }}
                       className={`${cleanSecondaryPill} rounded-xl px-6 ${isDarkMode ? "bg-[#1a3a52] border-[#0ea5e9] text-[#0ea5e9] hover:bg-[#214864]" : "bg-[#dbeafe] border-[#0ea5e9] text-[#0c4a6e] hover:bg-[#d1e8ff]"}`}
                     >
-                      <PremiumEmoji name="bookmarks" alt="" className="h-4 w-4" />
+                      <PremiumEmoji
+                        name="bookmarks"
+                        alt=""
+                        className="h-4 w-4"
+                      />
                       Template
                     </button>
                   </div>
@@ -4103,7 +4244,8 @@ export default function StudyPlanner({
 
                 <div className="flex flex-wrap items-center justify-between gap-4 mt-6 mb-2">
                   <div className="text-[13px] font-medium text-[#8b919e] dark:text-[#767575]">
-                    Use bulk add for fast entry, or load a full exam template (JEE, NEET, SSC, etc.).
+                    Use bulk add for fast entry, or load a full exam template
+                    (JEE, NEET, SSC, etc.).
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mr-2">
@@ -4165,8 +4307,8 @@ export default function StudyPlanner({
                 <div
                   className={`mb-4 rounded-2xl border px-4 py-3 text-center text-[13px] font-bold ${isDarkMode ? "border-amber-800/50 bg-amber-950/30 text-amber-100" : "border-amber-200 bg-amber-50 text-amber-950"}`}
                 >
-                  No topics match your filters — Chart and Classic views are still
-                  available below.{" "}
+                  No topics match your filters — Chart and Classic views are
+                  still available below.{" "}
                   <button
                     type="button"
                     onClick={() => {
@@ -5009,707 +5151,734 @@ export default function StudyPlanner({
                   <div
                     className={`grid gap-4 ${isOrgChartEditorOpen ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-1"}`}
                   >
-                  <div
-                    className={`rounded-[2rem] p-8 sm:p-10 overflow-auto min-h-[800px] transition-colors duration-500 ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_15px_rgba(0,0,0,0.9)]" : "bg-[#f4f7fa] shadow-[inset_4px_4px_12px_rgba(166,171,189,0.4)]"}`}
-                  >
                     <div
-                      className="flex flex-col items-center min-w-[max-content] pb-32 transition-transform duration-200"
-                      style={{
-                        transform: `scale(${orgChartZoom})`,
-                        transformOrigin: "top center",
-                      }}
+                      className={`rounded-[2rem] p-8 sm:p-10 overflow-auto min-h-[800px] transition-colors duration-500 ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_15px_rgba(0,0,0,0.9)]" : "bg-[#f4f7fa] shadow-[inset_4px_4px_12px_rgba(166,171,189,0.4)]"}`}
                     >
-                      {hierarchySubjects.map((subjectNode) => {
-                        const subject = subjectNode.subject;
-                        return (
-                          <div
-                            key={subject.id}
-                            className="flex flex-col items-center mb-24 last:mb-0 w-full"
-                          >
-                            {/* Level 1: Subject Node (Centered Header) */}
-                            <div className="flex flex-col items-center relative gap-6">
-                              <button
-                                onClick={() => {
-                                  setSelectedSubjectId(subject.id);
-                                  setSelectedChapterId(null);
-                                  setSelectedTopicId(null);
-                                }}
-                                className={`relative group z-30 px-12 py-6 rounded-xl min-w-[320px] border-2 transition-all duration-300 ${
-                                  selectedSubjectId === subject.id ||
-                                  activeHierarchySubject?.subject.id ===
-                                    subject.id
-                                    ? "bg-slate-800 dark:bg-zinc-100 text-white dark:text-zinc-900 border-blue-500 shadow-2xl scale-[1.02]"
-                                    : isDarkMode
-                                      ? "bg-[#181a1d] text-zinc-300 border-zinc-800 hover:border-zinc-700 shadow-xl"
-                                      : "bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-xl"
-                                }`}
-                              >
-                                <div className="flex flex-col items-center gap-2">
-                                  <div className="text-[12px] font-black uppercase tracking-[0.3em] opacity-50 mb-1">
-                                    Subject
+                      <div
+                        className="flex flex-col items-center min-w-[max-content] pb-32 transition-transform duration-200"
+                        style={{
+                          transform: `scale(${orgChartZoom})`,
+                          transformOrigin: "top center",
+                        }}
+                      >
+                        {hierarchySubjects.map((subjectNode) => {
+                          const subject = subjectNode.subject;
+                          return (
+                            <div
+                              key={subject.id}
+                              className="flex flex-col items-center mb-24 last:mb-0 w-full"
+                            >
+                              {/* Level 1: Subject Node (Centered Header) */}
+                              <div className="flex flex-col items-center relative gap-6">
+                                <button
+                                  onClick={() => {
+                                    setSelectedSubjectId(subject.id);
+                                    setSelectedChapterId(null);
+                                    setSelectedTopicId(null);
+                                  }}
+                                  className={`relative group z-30 px-12 py-6 rounded-xl min-w-[320px] border-2 transition-all duration-300 ${
+                                    selectedSubjectId === subject.id ||
+                                    activeHierarchySubject?.subject.id ===
+                                      subject.id
+                                      ? "bg-slate-800 dark:bg-zinc-100 text-white dark:text-zinc-900 border-blue-500 shadow-2xl scale-[1.02]"
+                                      : isDarkMode
+                                        ? "bg-[#181a1d] text-zinc-300 border-zinc-800 hover:border-zinc-700 shadow-xl"
+                                        : "bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-xl"
+                                  }`}
+                                >
+                                  <div className="flex flex-col items-center gap-2">
+                                    <div className="text-[12px] font-black uppercase tracking-[0.3em] opacity-50 mb-1">
+                                      Subject
+                                    </div>
+                                    <div className="text-xl font-black tracking-tight uppercase">
+                                      {subject.name}
+                                    </div>
+                                    <div
+                                      className="mt-2 h-1 w-12 rounded-full"
+                                      style={{ backgroundColor: subject.color }}
+                                    />
                                   </div>
-                                  <div className="text-xl font-black tracking-tight uppercase">
-                                    {subject.name}
+                                </button>
+
+                                {/* Vertical connector down to branches */}
+                                {(subjectNode.chapters.length > 0 ||
+                                  subject.id === bulkSubjectId) && (
+                                  <div className="w-[2px] h-12 bg-slate-300 dark:bg-zinc-800" />
+                                )}
+                              </div>
+
+                              {/* Level 2: Chapters (Horizontal Branches) */}
+                              <div className="relative pt-0">
+                                {/* Horizontal Crossbar (Spine) */}
+                                {subjectNode.chapters.length > 1 && (
+                                  <div className="absolute top-0 left-0 right-0 flex justify-center h-[2px]">
+                                    <div
+                                      className="h-full bg-slate-300 dark:bg-zinc-800"
+                                      style={{
+                                        width: `calc(100% - ${100 / subjectNode.chapters.length}%)`,
+                                        transition: "width 0.3s ease",
+                                      }}
+                                    />
                                   </div>
-                                  <div
-                                    className="mt-2 h-1 w-12 rounded-full"
-                                    style={{ backgroundColor: subject.color }}
-                                  />
-                                </div>
-                              </button>
-
-                              {/* Vertical connector down to branches */}
-                              {(subjectNode.chapters.length > 0 ||
-                                subject.id === bulkSubjectId) && (
-                                <div className="w-[2px] h-12 bg-slate-300 dark:bg-zinc-800" />
-                              )}
-                            </div>
-
-                            {/* Level 2: Chapters (Horizontal Branches) */}
-                            <div className="relative pt-0">
-                              {/* Horizontal Crossbar (Spine) */}
-                              {subjectNode.chapters.length > 1 && (
-                                <div className="absolute top-0 left-0 right-0 flex justify-center h-[2px]">
-                                  <div
-                                    className="h-full bg-slate-300 dark:bg-zinc-800"
-                                    style={{
-                                      width: `calc(100% - ${100 / subjectNode.chapters.length}%)`,
-                                      transition: "width 0.3s ease",
-                                    }}
-                                  />
-                                </div>
-                              )}
-
-                              <div className="flex gap-x-16 items-start justify-center">
-                                {subjectNode.chapters.map(
-                                  (chapterNode, idx) => {
-                                    const chapter = chapterNode.chapter;
-                                    const isPlaceholderChapter =
-                                      isBulkPlaceholderChapter(chapter);
-                                    const isChapterSelected =
-                                      selectedChapterId === chapter.id ||
-                                      activeHierarchyChapter?.chapter.id ===
-                                        chapter.id;
-
-                                    return (
-                                      <div
-                                        key={chapter.id}
-                                        className="flex flex-col items-center relative group/node"
-                                      >
-                                        {/* Vertical drop line from crossbar */}
-                                        <div className="w-[2px] h-10 bg-slate-300 dark:bg-zinc-800" />
-
-                                        <button
-                                          onClick={() => {
-                                            setSelectedSubjectId(subject.id);
-                                            setSelectedChapterId(chapter.id);
-                                            setSelectedTopicId(null);
-                                          }}
-                                          className={`z-10 px-8 py-5 rounded-lg min-w-[240px] border transition-all duration-300 hover:shadow-lg ${
-                                            isPlaceholderChapter
-                                              ? isDarkMode
-                                                ? "bg-red-950/30 text-red-200 border-red-800 shadow-lg"
-                                                : "bg-red-50 text-red-700 border-red-300 shadow-lg"
-                                              : isChapterSelected
-                                              ? "bg-slate-700 dark:bg-zinc-800 text-white border-blue-400 shadow-lg scale-[1.05]"
-                                              : isDarkMode
-                                                ? "bg-[#131416] text-zinc-400 border-zinc-800"
-                                                : "bg-[#f8fafc] text-slate-700 border-slate-200"
-                                          }`}
-                                        >
-                                          <div className="text-[11px] font-black uppercase tracking-[0.2em] opacity-50 mb-1">
-                                            Chapter
-                                          </div>
-                                          <div className="flex items-center justify-center gap-2 text-sm font-bold uppercase">
-                                            {isPlaceholderChapter && (
-                                              <PremiumEmoji
-                                                name="warning"
-                                                alt=""
-                                                className="h-4 w-4 dark:invert"
-                                              />
-                                            )}
-                                            <span className="truncate">
-                                              {chapter.name}
-                                            </span>
-                                          </div>
-                                        </button>
-
-                                        {/* Vertical line to topics */}
-                                        <div className="w-[2px] h-8 bg-slate-200/50 dark:bg-zinc-800/50" />
-
-                                        {/* Level 3: Topics (Vertical List) */}
-                                        <div className="flex flex-col gap-3">
-                                          {chapterNode.visibleTopics.map(
-                                            (topic) => {
-                                              const isTopicSelected =
-                                                selectedTopicId === topic.id;
-                                              return (
-                                                <div
-                                                  key={topic.id}
-                                                  className="flex flex-col items-center"
-                                                >
-                                                  <button
-                                                    onClick={() => {
-                                                      setSelectedSubjectId(
-                                                        subject.id,
-                                                      );
-                                                      setSelectedChapterId(
-                                                        chapter.id,
-                                                      );
-                                                      setSelectedTopicId(
-                                                        topic.id,
-                                                      );
-                                                    }}
-                                                    className={`group flex items-center justify-between gap-4 px-6 py-4 rounded-xl min-w-[220px] border transition-all duration-300 ${
-                                                      isTopicSelected
-                                                        ? "bg-white dark:bg-zinc-900 border-blue-500 shadow-xl -translate-y-1"
-                                                        : isDarkMode
-                                                          ? "bg-[#0b0c0e] hover:bg-[#111214] text-zinc-500 border-zinc-800"
-                                                          : "bg-white hover:bg-slate-50 text-slate-500 border-slate-100"
-                                                    }`}
-                                                  >
-                                                    <div className="text-[13px] font-black uppercase tracking-tight truncate text-left flex-1">
-                                                      {topic.name}
-                                                    </div>
-                                                    <div
-                                                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                                                      style={{
-                                                        backgroundColor:
-                                                          STATUS_UI[
-                                                            topic.status
-                                                          ].color,
-                                                      }}
-                                                    />
-                                                  </button>
-                                                </div>
-                                              );
-                                            },
-                                          )}
-
-                                          {/* Inline Add Topic Button */}
-                                          {isAddingTopicForChapter ===
-                                          chapter.id ? (
-                                            <div className="mt-2 flex flex-col items-center gap-2">
-                                              <input
-                                                autoFocus
-                                                value={visualAddDraft}
-                                                onChange={(e) =>
-                                                  setVisualAddDraft(
-                                                    e.target.value,
-                                                  )
-                                                }
-                                                onKeyDown={(e) => {
-                                                  if (e.key === "Enter")
-                                                    void submitVisualTopic(
-                                                      subject.id,
-                                                      chapter.id,
-                                                    );
-                                                  if (e.key === "Escape") {
-                                                    setIsAddingTopicForChapter(
-                                                      null,
-                                                    );
-                                                    setVisualAddDraft("");
-                                                  }
-                                                }}
-                                                onBlur={() => {
-                                                  if (!visualAddDraft.trim())
-                                                    setIsAddingTopicForChapter(
-                                                      null,
-                                                    );
-                                                }}
-                                                placeholder="Topic name..."
-                                                className={`w-full px-4 py-3 rounded-xl text-[13px] font-bold border focus:outline-none focus:border-blue-500 ${isDarkMode ? "bg-[#111214] border-zinc-800 text-zinc-300" : "bg-white border-slate-200 text-slate-700"}`}
-                                              />
-                                            </div>
-                                          ) : (
-                                            <button
-                                              onClick={() => {
-                                                setIsAddingTopicForChapter(
-                                                  chapter.id,
-                                                );
-                                                setIsAddingChapterForSubject(
-                                                  null,
-                                                );
-                                                setVisualAddDraft("");
-                                              }}
-                                              className={`mt-2 flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed transition-all active:scale-95 group/add ${
-                                                isDarkMode
-                                                  ? "border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-400"
-                                                  : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
-                                              }`}
-                                            >
-                                              <svg
-                                                className="transition-transform group-hover/add:scale-110"
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                width="14"
-                                                height="14"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="3"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                              >
-                                                <path d="M5 12h14m-7-7v14" />
-                                              </svg>
-                                              <span className="text-[11px] font-black uppercase tracking-widest">
-                                                Add Topic
-                                              </span>
-                                            </button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  },
                                 )}
 
-                                {/* Inline Add Chapter Button */}
-                                <div className="flex flex-col items-center relative pt-10">
-                                  {isAddingChapterForSubject === subject.id ? (
-                                    <div className="flex flex-col items-center gap-2">
-                                      <input
-                                        autoFocus
-                                        value={visualAddDraft}
-                                        onChange={(e) =>
-                                          setVisualAddDraft(e.target.value)
-                                        }
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter")
-                                            void submitVisualChapter(
-                                              subject.id,
-                                            );
-                                          if (e.key === "Escape") {
-                                            setIsAddingChapterForSubject(null);
-                                            setVisualAddDraft("");
-                                          }
-                                        }}
-                                        onBlur={() => {
-                                          if (!visualAddDraft.trim())
-                                            setIsAddingChapterForSubject(null);
-                                        }}
-                                        placeholder="Chapter name..."
-                                        className={`px-8 py-5 rounded-lg min-w-[240px] border-2 focus:outline-none focus:border-blue-500 text-sm font-bold ${isDarkMode ? "bg-[#111214] border-zinc-800 text-zinc-300" : "bg-white border-slate-200 text-slate-700"}`}
-                                      />
-                                    </div>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        setIsAddingChapterForSubject(
-                                          subject.id,
-                                        );
-                                        setIsAddingTopicForChapter(null);
-                                        setVisualAddDraft("");
-                                      }}
-                                      className={`px-8 py-5 rounded-lg min-w-[240px] border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 group/add ${
-                                        isDarkMode
-                                          ? "bg-[#0e0e0e]/50 border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-400"
-                                          : "bg-slate-100/30 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
-                                      }`}
-                                    >
-                                      <svg
-                                        className="transition-transform group-hover/add:scale-110"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="20"
-                                        height="20"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2.5"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      >
-                                        <path d="M5 12h14m-7-7v14" />
-                                      </svg>
-                                      <span className="text-[12px] font-black uppercase tracking-widest">
-                                        New Chapter
-                                      </span>
-                                    </button>
+                                <div className="flex gap-x-16 items-start justify-center">
+                                  {subjectNode.chapters.map(
+                                    (chapterNode, idx) => {
+                                      const chapter = chapterNode.chapter;
+                                      const isPlaceholderChapter =
+                                        isBulkPlaceholderChapter(chapter);
+                                      const isChapterSelected =
+                                        selectedChapterId === chapter.id ||
+                                        activeHierarchyChapter?.chapter.id ===
+                                          chapter.id;
+
+                                      return (
+                                        <div
+                                          key={chapter.id}
+                                          className="flex flex-col items-center relative group/node"
+                                        >
+                                          {/* Vertical drop line from crossbar */}
+                                          <div className="w-[2px] h-10 bg-slate-300 dark:bg-zinc-800" />
+
+                                          <button
+                                            onClick={() => {
+                                              setSelectedSubjectId(subject.id);
+                                              setSelectedChapterId(chapter.id);
+                                              setSelectedTopicId(null);
+                                            }}
+                                            className={`z-10 px-8 py-5 rounded-lg min-w-[240px] border transition-all duration-300 hover:shadow-lg ${
+                                              isPlaceholderChapter
+                                                ? isDarkMode
+                                                  ? "bg-red-950/30 text-red-200 border-red-800 shadow-lg"
+                                                  : "bg-red-50 text-red-700 border-red-300 shadow-lg"
+                                                : isChapterSelected
+                                                  ? "bg-slate-700 dark:bg-zinc-800 text-white border-blue-400 shadow-lg scale-[1.05]"
+                                                  : isDarkMode
+                                                    ? "bg-[#131416] text-zinc-400 border-zinc-800"
+                                                    : "bg-[#f8fafc] text-slate-700 border-slate-200"
+                                            }`}
+                                          >
+                                            <div className="text-[11px] font-black uppercase tracking-[0.2em] opacity-50 mb-1">
+                                              Chapter
+                                            </div>
+                                            <div className="flex items-center justify-center gap-2 text-sm font-bold uppercase">
+                                              {isPlaceholderChapter && (
+                                                <PremiumEmoji
+                                                  name="warning"
+                                                  alt=""
+                                                  className="h-4 w-4 dark:invert"
+                                                />
+                                              )}
+                                              <span className="truncate">
+                                                {chapter.name}
+                                              </span>
+                                            </div>
+                                          </button>
+
+                                          {/* Vertical line to topics */}
+                                          <div className="w-[2px] h-8 bg-slate-200/50 dark:bg-zinc-800/50" />
+
+                                          {/* Level 3: Topics (Vertical List) */}
+                                          <div className="flex flex-col gap-3">
+                                            {chapterNode.visibleTopics.map(
+                                              (topic) => {
+                                                const isTopicSelected =
+                                                  selectedTopicId === topic.id;
+                                                return (
+                                                  <div
+                                                    key={topic.id}
+                                                    className="flex flex-col items-center"
+                                                  >
+                                                    <button
+                                                      onClick={() => {
+                                                        setSelectedSubjectId(
+                                                          subject.id,
+                                                        );
+                                                        setSelectedChapterId(
+                                                          chapter.id,
+                                                        );
+                                                        setSelectedTopicId(
+                                                          topic.id,
+                                                        );
+                                                      }}
+                                                      className={`group flex items-center justify-between gap-4 px-6 py-4 rounded-xl min-w-[220px] border transition-all duration-300 ${
+                                                        isTopicSelected
+                                                          ? "bg-white dark:bg-zinc-900 border-blue-500 shadow-xl -translate-y-1"
+                                                          : isDarkMode
+                                                            ? "bg-[#0b0c0e] hover:bg-[#111214] text-zinc-500 border-zinc-800"
+                                                            : "bg-white hover:bg-slate-50 text-slate-500 border-slate-100"
+                                                      }`}
+                                                    >
+                                                      <div className="text-[13px] font-black uppercase tracking-tight truncate text-left flex-1">
+                                                        {topic.name}
+                                                      </div>
+                                                      <div
+                                                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                                        style={{
+                                                          backgroundColor:
+                                                            STATUS_UI[
+                                                              topic.status
+                                                            ].color,
+                                                        }}
+                                                      />
+                                                    </button>
+                                                  </div>
+                                                );
+                                              },
+                                            )}
+
+                                            {/* Inline Add Topic Button */}
+                                            {isAddingTopicForChapter ===
+                                            chapter.id ? (
+                                              <div className="mt-2 flex flex-col items-center gap-2">
+                                                <input
+                                                  autoFocus
+                                                  value={visualAddDraft}
+                                                  onChange={(e) =>
+                                                    setVisualAddDraft(
+                                                      e.target.value,
+                                                    )
+                                                  }
+                                                  onKeyDown={(e) => {
+                                                    if (e.key === "Enter")
+                                                      void submitVisualTopic(
+                                                        subject.id,
+                                                        chapter.id,
+                                                      );
+                                                    if (e.key === "Escape") {
+                                                      setIsAddingTopicForChapter(
+                                                        null,
+                                                      );
+                                                      setVisualAddDraft("");
+                                                    }
+                                                  }}
+                                                  onBlur={() => {
+                                                    if (!visualAddDraft.trim())
+                                                      setIsAddingTopicForChapter(
+                                                        null,
+                                                      );
+                                                  }}
+                                                  placeholder="Topic name..."
+                                                  className={`w-full px-4 py-3 rounded-xl text-[13px] font-bold border focus:outline-none focus:border-blue-500 ${isDarkMode ? "bg-[#111214] border-zinc-800 text-zinc-300" : "bg-white border-slate-200 text-slate-700"}`}
+                                                />
+                                              </div>
+                                            ) : (
+                                              <button
+                                                onClick={() => {
+                                                  setIsAddingTopicForChapter(
+                                                    chapter.id,
+                                                  );
+                                                  setIsAddingChapterForSubject(
+                                                    null,
+                                                  );
+                                                  setVisualAddDraft("");
+                                                }}
+                                                className={`mt-2 flex items-center justify-center gap-2 p-3 rounded-xl border border-dashed transition-all active:scale-95 group/add ${
+                                                  isDarkMode
+                                                    ? "border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-400"
+                                                    : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
+                                                }`}
+                                              >
+                                                <svg
+                                                  className="transition-transform group-hover/add:scale-110"
+                                                  xmlns="http://www.w3.org/2000/svg"
+                                                  width="14"
+                                                  height="14"
+                                                  viewBox="0 0 24 24"
+                                                  fill="none"
+                                                  stroke="currentColor"
+                                                  strokeWidth="3"
+                                                  strokeLinecap="round"
+                                                  strokeLinejoin="round"
+                                                >
+                                                  <path d="M5 12h14m-7-7v14" />
+                                                </svg>
+                                                <span className="text-[11px] font-black uppercase tracking-widest">
+                                                  Add Topic
+                                                </span>
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    },
                                   )}
+
+                                  {/* Inline Add Chapter Button */}
+                                  <div className="flex flex-col items-center relative pt-10">
+                                    {isAddingChapterForSubject ===
+                                    subject.id ? (
+                                      <div className="flex flex-col items-center gap-2">
+                                        <input
+                                          autoFocus
+                                          value={visualAddDraft}
+                                          onChange={(e) =>
+                                            setVisualAddDraft(e.target.value)
+                                          }
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter")
+                                              void submitVisualChapter(
+                                                subject.id,
+                                              );
+                                            if (e.key === "Escape") {
+                                              setIsAddingChapterForSubject(
+                                                null,
+                                              );
+                                              setVisualAddDraft("");
+                                            }
+                                          }}
+                                          onBlur={() => {
+                                            if (!visualAddDraft.trim())
+                                              setIsAddingChapterForSubject(
+                                                null,
+                                              );
+                                          }}
+                                          placeholder="Chapter name..."
+                                          className={`px-8 py-5 rounded-lg min-w-[240px] border-2 focus:outline-none focus:border-blue-500 text-sm font-bold ${isDarkMode ? "bg-[#111214] border-zinc-800 text-zinc-300" : "bg-white border-slate-200 text-slate-700"}`}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          setIsAddingChapterForSubject(
+                                            subject.id,
+                                          );
+                                          setIsAddingTopicForChapter(null);
+                                          setVisualAddDraft("");
+                                        }}
+                                        className={`px-8 py-5 rounded-lg min-w-[240px] border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 group/add ${
+                                          isDarkMode
+                                            ? "bg-[#0e0e0e]/50 border-zinc-800 text-zinc-600 hover:border-zinc-700 hover:text-zinc-400"
+                                            : "bg-slate-100/30 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
+                                        }`}
+                                      >
+                                        <svg
+                                          className="transition-transform group-hover/add:scale-110"
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          width="20"
+                                          height="20"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2.5"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                        >
+                                          <path d="M5 12h14m-7-7v14" />
+                                        </svg>
+                                        <span className="text-[12px] font-black uppercase tracking-widest">
+                                          New Chapter
+                                        </span>
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
 
-                      {/* Add Subject Placeholder at bottom */}
-                      {isAddingChapterForSubject === "NEW_SUBJECT" ? (
-                        <div className="mt-12 flex flex-col items-center gap-4">
-                          <input
-                            autoFocus
-                            value={visualAddDraft}
-                            onChange={(e) => setVisualAddDraft(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") void submitVisualSubject();
-                              if (e.key === "Escape") {
-                                setIsAddingChapterForSubject(null);
-                                setVisualAddDraft("");
+                        {/* Add Subject Placeholder at bottom */}
+                        {isAddingChapterForSubject === "NEW_SUBJECT" ? (
+                          <div className="mt-12 flex flex-col items-center gap-4">
+                            <input
+                              autoFocus
+                              value={visualAddDraft}
+                              onChange={(e) =>
+                                setVisualAddDraft(e.target.value)
                               }
-                            }}
-                            placeholder="New Subject name..."
-                            className={`px-12 py-8 rounded-2xl border-4 text-center focus:outline-none focus:border-blue-500 text-xl font-black uppercase tracking-tight ${isDarkMode ? "bg-[#0b0c0e] border-zinc-800 text-zinc-300" : "bg-white border-slate-200 text-slate-700"}`}
-                          />
-                          <div className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">
-                            Press Enter to Create
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setIsAddingChapterForSubject("NEW_SUBJECT");
-                            setIsAddingTopicForChapter(null);
-                            setVisualAddDraft("");
-                          }}
-                          className={`mt-12 px-12 py-8 rounded-2xl border-4 border-dashed flex flex-col items-center justify-center gap-4 transition-all hover:scale-[1.05] active:scale-95 group/add ${
-                            isDarkMode
-                              ? "bg-[#181a1d]/30 border-zinc-900 text-zinc-700 hover:border-zinc-800 hover:text-zinc-500"
-                              : "bg-slate-100/50 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
-                          }`}
-                        >
-                          <svg
-                            className="transition-transform group-hover/add:scale-110"
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="32"
-                            height="32"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M5 12h14m-7-7v14" />
-                          </svg>
-                          <div className="text-sm font-black uppercase tracking-[0.4em]">
-                            Initialize Project
-                          </div>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Shared Focused Editor for Org Chart View */}
-                  {isOrgChartEditorOpen && (
-                    <div
-                      className={`rounded-3xl p-5 sm:p-6 transition-colors duration-500 h-fit self-start xl:sticky xl:top-24 xl:max-h-[calc(100vh-140px)] xl:overflow-y-auto ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_10px_rgba(0,0,0,0.8),inset_-1px_-1px_4px_rgba(255,255,255,0.03)] border border-[#1f232b]" : "bg-[#e8ebf3] shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.9)] border border-[#d0d6e3]"}`}
-                    >
-                    <div className="text-[12px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
-                      Selection Details
-                    </div>
-                    <div
-                      className={`mb-5 rounded-2xl border px-4 py-3 ${isDarkMode ? "bg-[#121418] border-[#262b34]" : "bg-[#f6f8fc] border-[#d6dce8]"}`}
-                    >
-                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
-                        Currently Selected
-                      </div>
-                      <div
-                        className={`mt-1 text-[11px] font-black uppercase tracking-[0.18em] ${isDarkMode ? "text-[#94a3b8]" : "text-[#475569]"}`}
-                      >
-                        {selectedTopicContext
-                          ? "Topic"
-                          : selectedChapterContext
-                            ? "Chapter"
-                            : activeHierarchySubject
-                              ? "Subject"
-                              : "No Node"}
-                      </div>
-                      <div
-                        className={`mt-1 text-[15px] font-bold leading-snug ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
-                      >
-                        {selectedTopicContext
-                          ? selectedTopicContext.topic.name
-                          : selectedChapterContext
-                            ? selectedChapterContext.chapterNode.chapter.name
-                            : activeHierarchySubject
-                              ? activeHierarchySubject.subject.name
-                              : "Pick a node from the chart"}
-                      </div>
-                      {(selectedTopicContext || selectedChapterContext) && (
-                        <div className="mt-1 text-[11px] font-bold text-[#8b919e] dark:text-[#767575]">
-                          {selectedTopicContext
-                            ? `${selectedTopicContext.subjectNode.subject.name} / ${selectedTopicContext.chapterNode.chapter.name}`
-                            : selectedChapterContext
-                              ? selectedChapterContext.subjectNode.subject.name
-                              : ""}
-                        </div>
-                      )}
-                    </div>
-                    {selectedTopicContext ? (
-                      <div className="space-y-4">
-                        <div>
-                          <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
-                            {selectedTopicContext.subjectNode.subject.name} ·{" "}
-                            {selectedTopicContext.chapterNode.chapter.name}
-                          </div>
-                          {editingTopicId === selectedTopicContext.topic.id ? (
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <input
-                                value={
-                                  topicRenameDraft[
-                                    selectedTopicContext.topic.id
-                                  ] || ""
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter")
+                                  void submitVisualSubject();
+                                if (e.key === "Escape") {
+                                  setIsAddingChapterForSubject(null);
+                                  setVisualAddDraft("");
                                 }
-                                onChange={(e) =>
-                                  setTopicRenameDraft((prev) => ({
-                                    ...prev,
-                                    [selectedTopicContext.topic.id]:
-                                      e.target.value,
-                                  }))
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    void submitTopicRename(
-                                      selectedTopicContext.topic,
-                                    );
-                                  }
-                                  if (e.key === "Escape")
-                                    setEditingTopicId(null);
-                                }}
-                                autoFocus
-                                className={`min-w-[220px] flex-1 rounded-xl px-4 py-3 text-sm font-bold shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors ${isDarkMode ? "bg-[#131416] text-[#e7e5e5]" : "bg-[#e8ebf3] text-[#2d333b]"}`}
-                              />
-                              <button
-                                onClick={() => {
-                                  void submitTopicRename(
-                                    selectedTopicContext.topic,
-                                  );
-                                }}
-                                className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
-                              >
-                                Save
-                              </button>
+                              }}
+                              placeholder="New Subject name..."
+                              className={`px-12 py-8 rounded-2xl border-4 text-center focus:outline-none focus:border-blue-500 text-xl font-black uppercase tracking-tight ${isDarkMode ? "bg-[#0b0c0e] border-zinc-800 text-zinc-300" : "bg-white border-slate-200 text-slate-700"}`}
+                            />
+                            <div className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">
+                              Press Enter to Create
                             </div>
-                          ) : (
-                            <div className="mt-2 flex items-center justify-between gap-2">
-                              <h4
-                                className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
-                              >
-                                {selectedTopicContext.topic.name}
-                              </h4>
-                              <button
-                                onClick={() =>
-                                  startTopicRename(selectedTopicContext.topic)
-                                }
-                                className={`text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
-                              >
-                                Edit
-                              </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setIsAddingChapterForSubject("NEW_SUBJECT");
+                              setIsAddingTopicForChapter(null);
+                              setVisualAddDraft("");
+                            }}
+                            className={`mt-12 px-12 py-8 rounded-2xl border-4 border-dashed flex flex-col items-center justify-center gap-4 transition-all hover:scale-[1.05] active:scale-95 group/add ${
+                              isDarkMode
+                                ? "bg-[#181a1d]/30 border-zinc-900 text-zinc-700 hover:border-zinc-800 hover:text-zinc-500"
+                                : "bg-slate-100/50 border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
+                            }`}
+                          >
+                            <svg
+                              className="transition-transform group-hover/add:scale-110"
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="32"
+                              height="32"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M5 12h14m-7-7v14" />
+                            </svg>
+                            <div className="text-sm font-black uppercase tracking-[0.4em]">
+                              Initialize Project
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Shared Focused Editor for Org Chart View */}
+                    {isOrgChartEditorOpen && (
+                      <div
+                        className={`rounded-3xl p-5 sm:p-6 transition-colors duration-500 h-fit self-start xl:sticky xl:top-24 xl:max-h-[calc(100vh-140px)] xl:overflow-y-auto ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_10px_rgba(0,0,0,0.8),inset_-1px_-1px_4px_rgba(255,255,255,0.03)] border border-[#1f232b]" : "bg-[#e8ebf3] shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.9)] border border-[#d0d6e3]"}`}
+                      >
+                        <div className="text-[12px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
+                          Selection Details
+                        </div>
+                        <div
+                          className={`mb-5 rounded-2xl border px-4 py-3 ${isDarkMode ? "bg-[#121418] border-[#262b34]" : "bg-[#f6f8fc] border-[#d6dce8]"}`}
+                        >
+                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575]">
+                            Currently Selected
+                          </div>
+                          <div
+                            className={`mt-1 text-[11px] font-black uppercase tracking-[0.18em] ${isDarkMode ? "text-[#94a3b8]" : "text-[#475569]"}`}
+                          >
+                            {selectedTopicContext
+                              ? "Topic"
+                              : selectedChapterContext
+                                ? "Chapter"
+                                : activeHierarchySubject
+                                  ? "Subject"
+                                  : "No Node"}
+                          </div>
+                          <div
+                            className={`mt-1 text-[15px] font-bold leading-snug ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                          >
+                            {selectedTopicContext
+                              ? selectedTopicContext.topic.name
+                              : selectedChapterContext
+                                ? selectedChapterContext.chapterNode.chapter
+                                    .name
+                                : activeHierarchySubject
+                                  ? activeHierarchySubject.subject.name
+                                  : "Pick a node from the chart"}
+                          </div>
+                          {(selectedTopicContext || selectedChapterContext) && (
+                            <div className="mt-1 text-[11px] font-bold text-[#8b919e] dark:text-[#767575]">
+                              {selectedTopicContext
+                                ? `${selectedTopicContext.subjectNode.subject.name} / ${selectedTopicContext.chapterNode.chapter.name}`
+                                : selectedChapterContext
+                                  ? selectedChapterContext.subjectNode.subject
+                                      .name
+                                  : ""}
                             </div>
                           )}
                         </div>
-                        <div className="flex flex-wrap gap-3">
-                          <button
-                            onClick={() =>
-                              patchTopic(selectedTopicContext.topic.id, {
-                                status: "todo",
-                              })
-                            }
-                            className={`text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225]" : "bg-[#f0f0f5]"}`}
-                          >
-                            Todo
-                          </button>
-                          <button
-                            onClick={() =>
-                              patchTopic(selectedTopicContext.topic.id, {
-                                status: "in_progress",
-                              })
-                            }
-                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white"
-                          >
-                            Start
-                          </button>
-                          <button
-                            onClick={() =>
-                              patchTopic(selectedTopicContext.topic.id, {
-                                status: "done",
-                              })
-                            }
-                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#16a34a] text-white"
-                          >
-                            Done
-                          </button>
-                        </div>
-                        <CustomDatePicker
-                          value={
-                            selectedTopicContext.topic.plannedDate
-                              ? toIsoDateOnly(
-                                  selectedTopicContext.topic.plannedDate,
-                                )
-                              : ""
-                          }
-                          onChange={(val) =>
-                            patchTopic(selectedTopicContext.topic.id, {
-                              plannedDate: val || "",
-                            })
-                          }
-                          isDarkMode={isDarkMode}
-                          align="bottom"
-                          offDays={plan?.offDays || []}
-                        />
-                      </div>
-                    ) : selectedChapterContext ? (
-                      <div className="space-y-4">
-                        <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
-                          {selectedChapterContext.subjectNode.subject.name}
-                        </div>
-
-                        {editingChapterId ===
-                        selectedChapterContext.chapterNode.chapter.id ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <input
-                              value={
-                                chapterRenameDraft[
-                                  selectedChapterContext.chapterNode.chapter.id
-                                ] || ""
-                              }
-                              onChange={(e) =>
-                                setChapterRenameDraft((prev) => ({
-                                  ...prev,
-                                  [selectedChapterContext.chapterNode.chapter
-                                    .id]: e.target.value,
-                                }))
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  void submitChapterRename(
-                                    selectedChapterContext.subjectNode.subject
-                                      .id,
-                                    selectedChapterContext.chapterNode.chapter,
-                                  );
+                        {selectedTopicContext ? (
+                          <div className="space-y-4">
+                            <div>
+                              <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                                {selectedTopicContext.subjectNode.subject.name}{" "}
+                                ·{" "}
+                                {selectedTopicContext.chapterNode.chapter.name}
+                              </div>
+                              {editingTopicId ===
+                              selectedTopicContext.topic.id ? (
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <input
+                                    value={
+                                      topicRenameDraft[
+                                        selectedTopicContext.topic.id
+                                      ] || ""
+                                    }
+                                    onChange={(e) =>
+                                      setTopicRenameDraft((prev) => ({
+                                        ...prev,
+                                        [selectedTopicContext.topic.id]:
+                                          e.target.value,
+                                      }))
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        void submitTopicRename(
+                                          selectedTopicContext.topic,
+                                        );
+                                      }
+                                      if (e.key === "Escape")
+                                        setEditingTopicId(null);
+                                    }}
+                                    autoFocus
+                                    className={`min-w-[220px] flex-1 rounded-xl px-4 py-3 text-sm font-bold shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors ${isDarkMode ? "bg-[#131416] text-[#e7e5e5]" : "bg-[#e8ebf3] text-[#2d333b]"}`}
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      void submitTopicRename(
+                                        selectedTopicContext.topic,
+                                      );
+                                    }}
+                                    className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
+                                  >
+                                    Save
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="mt-2 flex items-center justify-between gap-2">
+                                  <h4
+                                    className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                                  >
+                                    {selectedTopicContext.topic.name}
+                                  </h4>
+                                  <button
+                                    onClick={() =>
+                                      startTopicRename(
+                                        selectedTopicContext.topic,
+                                      )
+                                    }
+                                    className={`text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                                  >
+                                    Edit
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                              <button
+                                onClick={() =>
+                                  patchTopic(selectedTopicContext.topic.id, {
+                                    status: "todo",
+                                  })
                                 }
-                                if (e.key === "Escape")
-                                  setEditingChapterId(null);
-                              }}
-                              autoFocus
-                              className={`min-w-[220px] flex-1 rounded-xl px-4 py-3 text-sm font-bold shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors ${isDarkMode ? "bg-[#131416] text-[#e7e5e5]" : "bg-[#e8ebf3] text-[#2d333b]"}`}
+                                className={`text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225]" : "bg-[#f0f0f5]"}`}
+                              >
+                                Todo
+                              </button>
+                              <button
+                                onClick={() =>
+                                  patchTopic(selectedTopicContext.topic.id, {
+                                    status: "in_progress",
+                                  })
+                                }
+                                className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white"
+                              >
+                                Start
+                              </button>
+                              <button
+                                onClick={() =>
+                                  patchTopic(selectedTopicContext.topic.id, {
+                                    status: "done",
+                                  })
+                                }
+                                className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#16a34a] text-white"
+                              >
+                                Done
+                              </button>
+                            </div>
+                            <CustomDatePicker
+                              value={
+                                selectedTopicContext.topic.plannedDate
+                                  ? toIsoDateOnly(
+                                      selectedTopicContext.topic.plannedDate,
+                                    )
+                                  : ""
+                              }
+                              onChange={(val) =>
+                                patchTopic(selectedTopicContext.topic.id, {
+                                  plannedDate: val || "",
+                                })
+                              }
+                              isDarkMode={isDarkMode}
+                              align="bottom"
+                              offDays={plan?.offDays || []}
                             />
-                            <button
-                              onClick={() => {
-                                void submitChapterRename(
-                                  selectedChapterContext.subjectNode.subject.id,
-                                  selectedChapterContext.chapterNode.chapter,
-                                );
-                              }}
-                              className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setEditingChapterId(null)}
-                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
-                            >
-                              Cancel
-                            </button>
+                          </div>
+                        ) : selectedChapterContext ? (
+                          <div className="space-y-4">
+                            <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                              {selectedChapterContext.subjectNode.subject.name}
+                            </div>
+
+                            {editingChapterId ===
+                            selectedChapterContext.chapterNode.chapter.id ? (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                  value={
+                                    chapterRenameDraft[
+                                      selectedChapterContext.chapterNode.chapter
+                                        .id
+                                    ] || ""
+                                  }
+                                  onChange={(e) =>
+                                    setChapterRenameDraft((prev) => ({
+                                      ...prev,
+                                      [selectedChapterContext.chapterNode
+                                        .chapter.id]: e.target.value,
+                                    }))
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      void submitChapterRename(
+                                        selectedChapterContext.subjectNode
+                                          .subject.id,
+                                        selectedChapterContext.chapterNode
+                                          .chapter,
+                                      );
+                                    }
+                                    if (e.key === "Escape")
+                                      setEditingChapterId(null);
+                                  }}
+                                  autoFocus
+                                  className={`min-w-[220px] flex-1 rounded-xl px-4 py-3 text-sm font-bold shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors ${isDarkMode ? "bg-[#131416] text-[#e7e5e5]" : "bg-[#e8ebf3] text-[#2d333b]"}`}
+                                />
+                                <button
+                                  onClick={() => {
+                                    void submitChapterRename(
+                                      selectedChapterContext.subjectNode.subject
+                                        .id,
+                                      selectedChapterContext.chapterNode
+                                        .chapter,
+                                    );
+                                  }}
+                                  className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => setEditingChapterId(null)}
+                                  className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <h4
+                                  className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                                >
+                                  {
+                                    selectedChapterContext.chapterNode.chapter
+                                      .name
+                                  }
+                                </h4>
+                                <button
+                                  onClick={() =>
+                                    startChapterRename(
+                                      selectedChapterContext.chapterNode
+                                        .chapter,
+                                    )
+                                  }
+                                  className={`text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                                >
+                                  Edit Name
+                                </button>
+                              </div>
+                            )}
+
+                            <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                              {selectedChapterContext.chapterNode.doneTopics}/
+                              {selectedChapterContext.chapterNode.totalTopics}{" "}
+                              Done
+                            </div>
+                          </div>
+                        ) : activeHierarchySubject ? (
+                          <div className="space-y-4">
+                            <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                              Subject
+                            </div>
+
+                            {editingSubjectId ===
+                            activeHierarchySubject.subject.id ? (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <input
+                                  value={
+                                    subjectRenameDraft[
+                                      activeHierarchySubject.subject.id
+                                    ] || ""
+                                  }
+                                  onChange={(e) =>
+                                    setSubjectRenameDraft((prev) => ({
+                                      ...prev,
+                                      [activeHierarchySubject.subject.id]:
+                                        e.target.value,
+                                    }))
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      void submitSubjectRename(
+                                        activeHierarchySubject.subject,
+                                      );
+                                    }
+                                    if (e.key === "Escape")
+                                      setEditingSubjectId(null);
+                                  }}
+                                  autoFocus
+                                  className={`min-w-[220px] flex-1 rounded-xl px-4 py-3 text-sm font-bold shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors ${isDarkMode ? "bg-[#131416] text-[#e7e5e5]" : "bg-[#e8ebf3] text-[#2d333b]"}`}
+                                />
+                                <button
+                                  onClick={() => {
+                                    void submitSubjectRename(
+                                      activeHierarchySubject.subject,
+                                    );
+                                  }}
+                                  className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => setEditingSubjectId(null)}
+                                  className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between gap-2">
+                                <h4
+                                  className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                                >
+                                  {activeHierarchySubject.subject.name}
+                                </h4>
+                                <button
+                                  onClick={() =>
+                                    startSubjectRename(
+                                      activeHierarchySubject.subject,
+                                    )
+                                  }
+                                  className={`text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                                >
+                                  Edit Name
+                                </button>
+                              </div>
+                            )}
+
+                            <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
+                              {activeHierarchySubject.doneTopics}/
+                              {activeHierarchySubject.totalTopics} Done ·{" "}
+                              {activeHierarchySubject.chapters.length} Chapters
+                            </div>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-between gap-2">
-                            <h4
-                              className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
-                            >
-                              {selectedChapterContext.chapterNode.chapter.name}
-                            </h4>
-                            <button
-                              onClick={() =>
-                                startChapterRename(
-                                  selectedChapterContext.chapterNode.chapter,
-                                )
-                              }
-                              className={`text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
-                            >
-                              Edit Name
-                            </button>
+                          <div className="text-[14px] font-bold text-[#8b919e] dark:text-[#767575]">
+                            Select a node in the chart to view details.
                           </div>
                         )}
-
-                        <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
-                          {selectedChapterContext.chapterNode.doneTopics}/
-                          {selectedChapterContext.chapterNode.totalTopics} Done
-                        </div>
-                      </div>
-                    ) : activeHierarchySubject ? (
-                      <div className="space-y-4">
-                        <div className="text-[12px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
-                          Subject
-                        </div>
-
-                        {editingSubjectId === activeHierarchySubject.subject.id ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <input
-                              value={
-                                subjectRenameDraft[
-                                  activeHierarchySubject.subject.id
-                                ] || ""
-                              }
-                              onChange={(e) =>
-                                setSubjectRenameDraft((prev) => ({
-                                  ...prev,
-                                  [activeHierarchySubject.subject.id]:
-                                    e.target.value,
-                                }))
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  void submitSubjectRename(
-                                    activeHierarchySubject.subject,
-                                  );
-                                }
-                                if (e.key === "Escape") setEditingSubjectId(null);
-                              }}
-                              autoFocus
-                              className={`min-w-[220px] flex-1 rounded-xl px-4 py-3 text-sm font-bold shadow-[inset_2px_2px_4px_rgba(166,171,189,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.7),inset_-1px_-1px_2px_rgba(255,255,255,0.04)] focus:outline-none transition-colors ${isDarkMode ? "bg-[#131416] text-[#e7e5e5]" : "bg-[#e8ebf3] text-[#2d333b]"}`}
-                            />
-                            <button
-                              onClick={() => {
-                                void submitSubjectRename(
-                                  activeHierarchySubject.subject,
-                                );
-                              }}
-                              className="text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#2563eb] text-white"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setEditingSubjectId(null)}
-                              className={`text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between gap-2">
-                            <h4
-                              className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
-                            >
-                              {activeHierarchySubject.subject.name}
-                            </h4>
-                            <button
-                              onClick={() =>
-                                startSubjectRename(activeHierarchySubject.subject)
-                              }
-                              className={`text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
-                            >
-                              Edit Name
-                            </button>
-                          </div>
-                        )}
-
-                        <div className="text-[13px] font-bold uppercase tracking-widest text-[#8b919e] dark:text-[#767575]">
-                          {activeHierarchySubject.doneTopics}/
-                          {activeHierarchySubject.totalTopics} Done ·{" "}
-                          {activeHierarchySubject.chapters.length} Chapters
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-[14px] font-bold text-[#8b919e] dark:text-[#767575]">
-                        Select a node in the chart to view details.
                       </div>
                     )}
-                    </div>
-                  )}
-                </div>
+                  </div>
                 </div>
               ) : (
                 <div
@@ -6067,7 +6236,11 @@ export default function StudyPlanner({
                                               Edit
                                             </button>
                                           )}
-                                          {editingTopicId !== topic.id && <span className="text-slate-300 dark:text-slate-700 text-[10px] mx-1">|</span>}
+                                          {editingTopicId !== topic.id && (
+                                            <span className="text-slate-300 dark:text-slate-700 text-[10px] mx-1">
+                                              |
+                                            </span>
+                                          )}
                                           <button
                                             onClick={() =>
                                               setExpandedTopicId((prev) =>
@@ -6096,7 +6269,9 @@ export default function StudyPlanner({
                                         >
                                           Start
                                         </button>
-                                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
+                                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
+                                          |
+                                        </span>
                                         <button
                                           onClick={() =>
                                             patchTopic(topic.id, {
@@ -6107,7 +6282,9 @@ export default function StudyPlanner({
                                         >
                                           Mark Done
                                         </button>
-                                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
+                                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
+                                          |
+                                        </span>
                                         <button
                                           onClick={() =>
                                             patchTopic(topic.id, {
@@ -6225,7 +6402,6 @@ export default function StudyPlanner({
             </motion.div>
           )}
 
-
           {view === "calendar" && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -6251,7 +6427,11 @@ export default function StudyPlanner({
 
                   <strong
                     className="text-[31px] font-bold text-[#2d333b] dark:text-[#fcf9f8] tracking-widest uppercase drop-shadow-sm"
-                    style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.03em", wordSpacing: "0.1em" }}
+                    style={{
+                      fontFamily: "'Inter', sans-serif",
+                      letterSpacing: "-0.03em",
+                      wordSpacing: "0.1em",
+                    }}
                   >
                     {monthDate.toLocaleDateString("en-IN", {
                       month: "long",
@@ -6272,6 +6452,29 @@ export default function StudyPlanner({
                   >
                     ▶
                   </motion.button>
+
+                  <button
+                    type="button"
+                    onClick={() => plan && exportSyllabusPDF(plan)}
+                    className={`text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border whitespace-nowrap flex items-center gap-2 transition-all active:scale-[0.97] ${isDarkMode ? "bg-[#202225] border-[#2f3440] text-[#c6c6c6] hover:bg-[#2a2d33]" : "bg-white border-[#c0c4d1] text-[#334155] hover:bg-gray-50"}`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Export
+                  </button>
                 </div>
 
                 <div data-tour="planner-calendar-grid">
@@ -6367,7 +6570,9 @@ export default function StudyPlanner({
                         >
                           Mark Done
                         </button>
-                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
+                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
+                          |
+                        </span>
                         <button
                           onClick={() =>
                             patchTopic(item.topicId, {
@@ -6378,7 +6583,9 @@ export default function StudyPlanner({
                         >
                           Needs Revision
                         </button>
-                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
+                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
+                          |
+                        </span>
                         <button
                           onClick={() => {
                             if (!pickedDay) {
@@ -6399,7 +6606,9 @@ export default function StudyPlanner({
                         >
                           Move Date
                         </button>
-                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">|</span>
+                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
+                          |
+                        </span>
                         <button
                           onClick={() =>
                             patchTopic(item.topicId, { plannedDate: "" })
@@ -6496,7 +6705,9 @@ export default function StudyPlanner({
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-6 rounded-2xl border border-red-200/50 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 px-5 py-4 text-[13px] text-red-600 dark:text-red-400 font-bold flex items-center gap-3"
               >
-                <span className="shrink-0 w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center text-[10px]">✕</span>
+                <span className="shrink-0 w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center text-[10px]">
+                  ✕
+                </span>
                 {bulkAddError}
               </motion.div>
             )}
@@ -6553,7 +6764,9 @@ export default function StudyPlanner({
                   <div className="grid gap-4">
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">Subject</label>
+                        <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
+                          Subject
+                        </label>
                         <select
                           value={bulkSubjectId}
                           onChange={(e) => {
@@ -6571,7 +6784,9 @@ export default function StudyPlanner({
                         </select>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">New Subject</label>
+                        <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
+                          New Subject
+                        </label>
                         <input
                           value={bulkSubjectName}
                           onChange={(e) => {
@@ -6585,7 +6800,9 @@ export default function StudyPlanner({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">Chapter Name (Optional)</label>
+                      <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
+                        Chapter Name (Optional)
+                      </label>
                       <input
                         value={bulkChapterName}
                         onChange={(e) => setBulkChapterName(e.target.value)}
@@ -6600,7 +6817,7 @@ export default function StudyPlanner({
               {isTxtBulkMode ? (
                 <div className="space-y-4">
                   <div className="px-1">
-                    <div 
+                    <div
                       onClick={() => bulkImportInputRef.current?.click()}
                       className={`relative overflow-hidden w-full border-2 border-dashed rounded-[24px] p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${isDarkMode ? "border-slate-700 hover:border-blue-500/50 hover:bg-blue-500/5" : "border-slate-300 hover:border-blue-500/50 hover:bg-blue-50"}`}
                     >
@@ -6613,29 +6830,57 @@ export default function StudyPlanner({
                           void handleBulkFileImport(event);
                         }}
                       />
-                      
+
                       {!bulkImportedFileName ? (
                         <>
-                          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-transform duration-500 transform group-hover:scale-110 ${isDarkMode ? "bg-slate-800 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
-                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          <div
+                            className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-transform duration-500 transform group-hover:scale-110 ${isDarkMode ? "bg-slate-800 text-blue-400" : "bg-blue-50 text-blue-600"}`}
+                          >
+                            <svg
+                              className="w-8 h-8"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                              />
                             </svg>
                           </div>
-                          <div className={`text-[15px] font-bold mb-2 text-center ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                          <div
+                            className={`text-[15px] font-bold mb-2 text-center ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}
+                          >
                             Click to upload or drag and drop
                           </div>
-                          <div className={`text-[11px] font-black uppercase tracking-widest text-center ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                          <div
+                            className={`text-[11px] font-black uppercase tracking-widest text-center ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
+                          >
                             PDF, DOCX ONLY
                           </div>
                         </>
                       ) : (
                         <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-300">
                           <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 text-emerald-500">
-                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <svg
+                              className="w-8 h-8"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
                             </svg>
                           </div>
-                          <div className={`text-[15px] font-bold mb-2 text-center ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}>
+                          <div
+                            className={`text-[15px] font-bold mb-2 text-center ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}
+                          >
                             {bulkImportedFileName}
                           </div>
                           <div className="text-[11px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 transition-colors">
@@ -6661,13 +6906,22 @@ export default function StudyPlanner({
                             </div>
                             <div className="space-y-3 text-[13px] font-bold text-slate-700 dark:text-slate-300">
                               <div className="flex items-center gap-2">
-                                <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">-</code> Subject
+                                <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
+                                  -
+                                </code>{" "}
+                                Subject
                               </div>
                               <div className="flex items-center gap-2">
-                                <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">_</code> Chapter
+                                <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
+                                  _
+                                </code>{" "}
+                                Chapter
                               </div>
                               <div className="flex items-center gap-2">
-                                <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">&gt;</code> Topic
+                                <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
+                                  &gt;
+                                </code>{" "}
+                                Topic
                               </div>
                             </div>
                           </div>
@@ -6687,7 +6941,9 @@ export default function StudyPlanner({
               )}
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">Topics List</label>
+                <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
+                  Topics List
+                </label>
                 <textarea
                   value={bulkTopicsText}
                   onChange={(e) => setBulkTopicsText(e.target.value)}
@@ -6773,12 +7029,12 @@ export default function StudyPlanner({
                 className={`text-[13px] font-medium mb-8 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}
               >
                 If you choose <span className="font-bold">Yes</span>, we will
-                continue and merge topics using matching subject and chapter names.
-                If you choose <span className="font-bold">No</span>, nothing is
-                imported—clear subjects and chapters from the Syllabus tab
-                (Hierarchy or Chart) first, or create a separate study plan from{" "}
-                <span className="font-bold">All Plans</span> if you want a clean
-                slate.
+                continue and merge topics using matching subject and chapter
+                names. If you choose <span className="font-bold">No</span>,
+                nothing is imported—clear subjects and chapters from the
+                Syllabus tab (Hierarchy or Chart) first, or create a separate
+                study plan from <span className="font-bold">All Plans</span> if
+                you want a clean slate.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-end">
                 <button
@@ -6886,10 +7142,14 @@ export default function StudyPlanner({
             >
               <div className="flex items-start justify-between mb-8 shrink-0">
                 <div>
-                  <h3 className={`text-2xl font-bold tracking-tight ${isDarkMode ? "text-white" : "text-[#0f172a]"}`}>
+                  <h3
+                    className={`text-2xl font-bold tracking-tight ${isDarkMode ? "text-white" : "text-[#0f172a]"}`}
+                  >
                     Exam Templates
                   </h3>
-                  <p className={`text-[14px] font-medium mt-1.5 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  <p
+                    className={`text-[14px] font-medium mt-1.5 ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}
+                  >
                     Select a curated template to auto-populate your syllabus.
                   </p>
                 </div>
@@ -6903,8 +7163,12 @@ export default function StudyPlanner({
 
               <div className="overflow-y-auto pr-2 custom-scrollbar space-y-4">
                 {availableTemplates.length === 0 ? (
-                  <div className={`text-center py-16 text-sm font-bold ${isDarkMode ? "text-slate-600" : "text-slate-400"}`}>
-                    <div className="animate-pulse mb-2">Loading templates...</div>
+                  <div
+                    className={`text-center py-16 text-sm font-bold ${isDarkMode ? "text-slate-600" : "text-slate-400"}`}
+                  >
+                    <div className="animate-pulse mb-2">
+                      Loading templates...
+                    </div>
                   </div>
                 ) : (
                   availableTemplates.map((t) => (
@@ -6914,26 +7178,40 @@ export default function StudyPlanner({
                     >
                       <div className="flex items-start justify-between gap-6">
                         <div className="flex-1">
-                          <div className={`text-[17px] font-bold tracking-tight ${isDarkMode ? "text-slate-100" : "text-slate-900"}`}>
+                          <div
+                            className={`text-[17px] font-bold tracking-tight ${isDarkMode ? "text-slate-100" : "text-slate-900"}`}
+                          >
                             {t.name}
                           </div>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${isDarkMode ? "bg-slate-800 text-slate-400" : "bg-slate-200 text-slate-600"}`}>
+                            <span
+                              className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${isDarkMode ? "bg-slate-800 text-slate-400" : "bg-slate-200 text-slate-600"}`}
+                            >
                               {t.examBody}
                             </span>
-                            <span className="text-slate-300 dark:text-slate-700">·</span>
-                            <span className={`text-[11px] font-bold ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}>
+                            <span className="text-slate-300 dark:text-slate-700">
+                              ·
+                            </span>
+                            <span
+                              className={`text-[11px] font-bold ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
+                            >
                               {t.category}
                             </span>
                           </div>
-                          <p className={`text-[14px] font-medium mt-3 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}>
+                          <p
+                            className={`text-[14px] font-medium mt-3 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}
+                          >
                             {t.description}
                           </p>
                           <div className="flex flex-wrap gap-2 mt-4">
-                            <span className={`text-[11px] font-bold px-3 py-1 rounded-full border ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-slate-400" : "bg-white border-slate-200 text-slate-500"}`}>
+                            <span
+                              className={`text-[11px] font-bold px-3 py-1 rounded-full border ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-slate-400" : "bg-white border-slate-200 text-slate-500"}`}
+                            >
                               {t.estimatedTopics} topics
                             </span>
-                            <span className={`text-[11px] font-bold px-3 py-1 rounded-full border ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-slate-400" : "bg-white border-slate-200 text-slate-500"}`}>
+                            <span
+                              className={`text-[11px] font-bold px-3 py-1 rounded-full border ${isDarkMode ? "bg-slate-900/50 border-slate-800 text-slate-400" : "bg-white border-slate-200 text-slate-500"}`}
+                            >
                               {t.recommendedDailyGoal}/day target
                             </span>
                           </div>
@@ -6947,7 +7225,10 @@ export default function StudyPlanner({
                                 subjects: {
                                   name: string;
                                   color: string;
-                                  chapters: { name: string; topics: string[] }[];
+                                  chapters: {
+                                    name: string;
+                                    topics: string[];
+                                  }[];
                                 }[];
                               }>(`${BASE}/templates/${t.id}`);
 
@@ -6967,44 +7248,51 @@ export default function StudyPlanner({
                                 );
                                 setPlan(updatedPlan);
 
-                                const createdSubject = updatedPlan.subjects.find(
-                                  (s: any) => s.name === subject.name,
-                                );
+                                const createdSubject =
+                                  updatedPlan.subjects.find(
+                                    (s: any) => s.name === subject.name,
+                                  );
                                 if (!createdSubject) continue;
 
                                 for (const chapter of subject.chapters) {
-                                  const afterChapter = await plannerRequest<Plan>(
-                                    `${BASE}/${planId}/subjects/${createdSubject.id}/chapters`,
-                                    {
-                                      method: "POST",
-                                      headers: {
-                                        "Content-Type": "application/json",
+                                  const afterChapter =
+                                    await plannerRequest<Plan>(
+                                      `${BASE}/${planId}/subjects/${createdSubject.id}/chapters`,
+                                      {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          name: chapter.name,
+                                        }),
                                       },
-                                      body: JSON.stringify({
-                                        name: chapter.name,
-                                      }),
-                                    },
-                                  );
+                                    );
                                   setPlan(afterChapter);
 
                                   const createdChapter = afterChapter.subjects
-                                    .find((s: any) => s.id === createdSubject.id)
+                                    .find(
+                                      (s: any) => s.id === createdSubject.id,
+                                    )
                                     ?.chapters.find(
                                       (c: any) => c.name === chapter.name,
                                     );
                                   if (!createdChapter) continue;
 
                                   for (const topicName of chapter.topics) {
-                                    const afterTopic = await plannerRequest<Plan>(
-                                      `${BASE}/${planId}/subjects/${createdSubject.id}/chapters/${createdChapter.id}/topics`,
-                                      {
-                                        method: "POST",
-                                        headers: {
-                                          "Content-Type": "application/json",
+                                    const afterTopic =
+                                      await plannerRequest<Plan>(
+                                        `${BASE}/${planId}/subjects/${createdSubject.id}/chapters/${createdChapter.id}/topics`,
+                                        {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                            name: topicName,
+                                          }),
                                         },
-                                        body: JSON.stringify({ name: topicName }),
-                                      },
-                                    );
+                                      );
                                     setPlan(afterTopic);
                                   }
                                 }
@@ -7120,7 +7408,8 @@ export default function StudyPlanner({
               <p
                 className={`text-[14px] font-medium mb-8 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}
               >
-                You changed the exam type to <strong>{pendingExamType}</strong>. Would you like to clear the existing syllabus and start fresh?
+                You changed the exam type to <strong>{pendingExamType}</strong>.
+                Would you like to clear the existing syllabus and start fresh?
               </p>
               <div className="flex flex-wrap gap-3 justify-end">
                 <button

@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 
-const PLANNER_PRESS_EASE =
-  "motion-safe:ease-\\[cubic-bezier(0.23,1,0.32,1)\\]";
+const PLANNER_PRESS_EASE = "motion-safe:ease-\\[cubic-bezier(0.23,1,0.32,1)\\]";
 const PLANNER_PRESSABLE = `motion-safe:transition-[transform,box-shadow,background-color,border-color,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} motion-reduce:transition-colors active:scale-[0.97] active:translate-y-[1px] disabled:active:scale-100 disabled:active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
 
 export type MergedPlanTopicStatus =
@@ -98,6 +97,7 @@ export type MergedPlanTabProps = {
   emptySyllabus: boolean;
   onGoSyllabusFromEmpty: () => void;
   onRequestResetPlan: () => void;
+  onExport?: () => void;
 };
 
 const OFF_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -140,6 +140,7 @@ export default function MergedPlanTab({
   emptySyllabus,
   onGoSyllabusFromEmpty,
   onRequestResetPlan,
+  onExport,
 }: MergedPlanTabProps) {
   const overdueShown = overdueTopics.slice(0, 8);
   const [taskTab, setTaskTab] = useState<TaskTab>("today");
@@ -284,19 +285,31 @@ export default function MergedPlanTab({
             Setup Guide
           </div>
           <div className="grid grid-cols-2 gap-1">
-            <button type="button" onClick={onScrollToBasics} className={guideBtn}>
-              <span className={hasExamDate ? "text-emerald-600" : "text-slate-400"}>
+            <button
+              type="button"
+              onClick={onScrollToBasics}
+              className={guideBtn}
+            >
+              <span
+                className={hasExamDate ? "text-emerald-600" : "text-slate-400"}
+              >
                 {hasExamDate ? "✓" : "→"}
               </span>
               <span className="min-w-0">Exam date</span>
             </button>
             <button type="button" onClick={onOpenSyllabus} className={guideBtn}>
-              <span className={hasTopics ? "text-emerald-600" : "text-slate-400"}>
+              <span
+                className={hasTopics ? "text-emerald-600" : "text-slate-400"}
+              >
                 {hasTopics ? "✓" : "→"}
               </span>
               <span className="min-w-0">Topics</span>
             </button>
-            <button type="button" onClick={onBuildSchedule} className={guideBtn}>
+            <button
+              type="button"
+              onClick={onBuildSchedule}
+              className={guideBtn}
+            >
               <span
                 className={
                   hasScheduledTopics ? "text-emerald-600" : "text-slate-400"
@@ -342,7 +355,7 @@ export default function MergedPlanTab({
                 Pace: {requiredPacePerDay} topics/day
               </p>
             </div>
-            <div className="flex sm:flex-col justify-stretch sm:justify-center shrink-0">
+            <div className="flex sm:flex-col justify-stretch sm:justify-center shrink-0 gap-2">
               <button
                 type="button"
                 data-tour="planner-merged-add-topics"
@@ -364,6 +377,30 @@ export default function MergedPlanTab({
                 </svg>
                 Add Topics
               </button>
+              {onExport && (
+                <button
+                  type="button"
+                  onClick={onExport}
+                  className={`${cleanSecondaryPill} w-full sm:w-auto py-2.5 px-4 text-[11px] sm:text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Export
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -457,9 +494,7 @@ export default function MergedPlanTab({
       </div>
 
       {/* Tasks: tabs replace three stacked sections — same content, less height */}
-      <div
-        className={`${surfaceCard(isDarkMode)} flex flex-col min-h-0`}
-      >
+      <div className={`${surfaceCard(isDarkMode)} flex flex-col min-h-0`}>
         <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-[#e6e7ee] dark:bg-[#131416] border border-[#c0c4d1]/60 dark:border-[#2b2c2c]">
           <button
             type="button"
@@ -544,7 +579,8 @@ export default function MergedPlanTab({
                       </div>
                       {topic.plannedDate ? (
                         <div className="text-[10px] font-black tracking-wide text-[#b91c1c] dark:text-[#fca5a5] mt-1">
-                          {daysOverdue(topic.plannedDate, todayKey)} days overdue
+                          {daysOverdue(topic.plannedDate, todayKey)} days
+                          overdue
                         </div>
                       ) : null}
                     </button>

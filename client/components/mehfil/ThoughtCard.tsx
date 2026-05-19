@@ -81,6 +81,8 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const [isSaved, setIsSaved] = useState(Boolean(thought.isSaved));
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState("spam");
+  const [reportDetails, setReportDetails] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   useEffect(() => {
     setEditText(thought.content);
@@ -212,10 +214,42 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       toast.error(t('mehfil.toasts.report_login'));
       return;
     }
+    if (reportReason === "other" && !reportDetails.trim()) {
+      toast.error("Please add a short reason for this report.");
+      return;
+    }
 
-    // Reporting is temporarily disabled on the client to avoid triggering email flow.
-    toast.success(t('mehfil.toasts.report_success'));
-    setIsReportDialogOpen(false);
+    const reasonText =
+      reportReason === "other"
+        ? `other: ${reportDetails.trim()}`
+        : reportReason;
+
+    setIsSubmittingReport(true);
+    try {
+      const response = await apiFetch(`${API_URL}/mehfil/interactions/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          thoughtId: thought.id,
+          reason: reasonText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(t('mehfil.toasts.report_error'));
+      }
+
+      toast.success(t('mehfil.toasts.report_success'));
+      setIsReportDialogOpen(false);
+      setReportReason("spam");
+      setReportDetails("");
+    } catch (error: any) {
+      console.error("Error reporting post:", error);
+      toast.error(error?.message || t('mehfil.toasts.report_error'));
+    } finally {
+      setIsSubmittingReport(false);
+    }
   };
 
   const handleShare = async () => {
@@ -554,7 +588,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
           <DialogHeader>
             <DialogTitle>{t('mehfil.card.report_post')}</DialogTitle>
             <DialogDescription>
-              Select the reason for reporting this post so the moderation flow has the right context.
+              What behavior are you reporting? Select the closest reason.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -576,16 +610,33 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
                 <Label htmlFor="other">{t('mehfil.card.report_other')}</Label>
               </div>
             </RadioGroup>
+            {reportReason === "other" && (
+              <div className="mt-4">
+                <Label htmlFor="report-details">Describe the behavior</Label>
+                <textarea
+                  id="report-details"
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value.slice(0, 300))}
+                  placeholder="Add a short description..."
+                  className="mt-2 w-full min-h-[96px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                />
+                <div className="mt-1 text-right text-[11px] text-slate-400">
+                  {reportDetails.length} / 300
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setIsReportDialogOpen(false)}
+              disabled={isSubmittingReport}
             >
               {t('mehfil.card.cancel')}
             </Button>
             <Button
               onClick={handleReport}
+              disabled={isSubmittingReport}
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
               {t('mehfil.card.submit_report')}

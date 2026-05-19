@@ -1,5 +1,4 @@
 import { Router, Request, Response } from "express";
-import nodemailer from "nodemailer";
 import { collections } from "../db";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth } from "../middleware/auth";
@@ -8,66 +7,10 @@ import { cacheGet, cacheSet, cacheInvalidate } from "../lib/redis-cache";
 import { queueCommunityCommentNotification } from "../services/community-activity-aggregator";
 
 // ─── Email helper ────────────────────────────────────────────────────────────
-async function sendMehfilReportEmail(toEmail: string, userName: string, reportCount: number) {
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
-    const gmailFrom = process.env.GMAIL_FROM_EMAIL || `SAFAR Support <${gmailUser}>`;
-    const smtpHost = process.env.GMAIL_SMTP_HOST || 'smtp.gmail.com';
-    const smtpPort = Number(process.env.GMAIL_SMTP_PORT || 465);
-    const appUrl = (process.env.APP_BASE_URL || 'https://safar.parmarssc.in').replace(/\/+$/, '');
-
-    if (!gmailUser || !gmailPass) {
-        console.warn('[MEHFIL REPORT EMAIL] Gmail credentials missing - skipping report email.');
-        return;
-    }
-
-    const subject = 'SAFAR Mehfil report notice';
-    const reportText = `${reportCount} ${reportCount === 1 ? 'person has' : 'people have'}`;
-
-    const html = `
-<div style="font-family: Arial, sans-serif; max-width: 560px; margin: auto; padding: 32px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff;">
-  <h2 style="color: #1e293b; margin-bottom: 8px;">Mehfil Community Notice</h2>
-  <p style="color: #475569;">Hi <strong>${userName}</strong>,</p>
-  <p style="color: #475569;">
-    Your Mehfil post has been reported by <strong>${reportText}</strong>. This is a notice only.
-    Your account and posting access have not been restricted.
-  </p>
-  <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 20px 0;">
-    <p style="margin: 0; color: #1e40af; font-weight: bold;">Reports Received</p>
-    <p style="margin: 8px 0 0; color: #1e3a8a;">${reportText} reported this post.</p>
-  </div>
-  <p style="color: #475569;">Our community exists to support students through their journey. Please ensure all posts respect fellow members.</p>
-  <p style="color: #475569;">If you have questions, you can reply to this email.</p>
-  <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-  <p style="color: #94a3b8; font-size: 12px;">SAFAR - <a href="${appUrl}" style="color: #6366f1;">safar.parmarssc.in</a></p>
-</div>`;
-
-    const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: { user: gmailUser, pass: gmailPass },
-    });
-
-    try {
-        const info = await transporter.sendMail({
-            from: gmailFrom,
-            to: toEmail,
-            subject,
-            html,
-            text: `Hi ${userName},\n\nYour Mehfil post has been reported by ${reportText}. This is a notice only; your account and posting access have not been restricted.\n\nSAFAR Support`,
-        });
-        console.log('[MEHFIL REPORT EMAIL] Sent to', toEmail, '- messageId:', info.messageId);
-    } catch (err) {
-        console.error('[MEHFIL REPORT EMAIL] Failed to send:', err);
-    }
-}
-
 export const mehfilInteractionRoutes = Router();
 
 mehfilInteractionRoutes.use(requireAuth);
 
-const MIN_REPORTS_TO_EMAIL = 3;
 
 // ═══════════════════════════════════════════════════════════
 // COMMENTS
@@ -321,42 +264,7 @@ mehfilInteractionRoutes.post("/report", async (req: any, res: Response) => {
             created_at: new Date(),
         });
 
-        const reporterGroups = await collections.mehfilReports()
-            .aggregate([
-                { $match: { thought_id: thoughtId, status: "pending" } },
-                { $group: { _id: "$reporter_id" } },
-                { $count: "count" },
-            ])
-            .toArray();
-
-        const uniqueReporters = Number(reporterGroups?.[0]?.count || 0);
-
-        const isReportEmailEnabled = false;
-        if (isReportEmailEnabled && uniqueReporters >= MIN_REPORTS_TO_EMAIL) {
-            // Email notification (best-effort - does not block the response)
-            try {
-                const reportedUser = await collections.users().findOne(
-                    { id: thought.user_id },
-                    { projection: { email: 1, name: 1 } }
-                );
-                if (reportedUser?.email) {
-                    await sendMehfilReportEmail(
-                        String(reportedUser.email),
-                        String(reportedUser.name || 'User'),
-                        uniqueReporters
-                    );
-                }
-            } catch (emailErr) {
-                console.error('[MEHFIL] Report email failed (non-fatal):', emailErr);
-            }
-        }
-
-        res.json({
-            reported: true,
-            uniqueReporters,
-            banApplied: false,
-            ban: null,
-        });
+        res.json({ reported: true });
     } catch (error) {
         console.error("Error reporting:", error);
         res.status(500).json({ error: "Failed to submit report" });

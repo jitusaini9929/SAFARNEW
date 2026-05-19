@@ -530,7 +530,7 @@
         "consequences": "नतीजे",
         "report_bans": "Reports",
         "shadow_banning": "AI Review",
-        "report_desc": "Reports review ke liye save hoti hain aur reported user ko email notice jata hai.",
+        "report_desc": "Reports moderation review ke liye save hoti hain. Reported user ko email notice nahi bheja jata.",
         "spam_desc": "AI posts review karta rahega aur unsafe submissions public feed me nahi dikhengi.",
         "no_thoughts": "{{room}} में अभी कोई पोस्ट नहीं है। बातें शुरू करें!",
         "loading_more": "और पोस्ट्स लोड हो रही हैं...",

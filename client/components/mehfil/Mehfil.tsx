@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { useMehfilStore, MehfilRoom } from '@/store/mehfilStore';
-import { useDMStore } from '@/store/dmStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/utils/authService';
 import LanguageToggle from '../LanguageToggle';
@@ -10,14 +9,13 @@ import Composer from './Composer';
 import MehfilSidebar from './MehfilSidebar';
 import type { MehfilSidebarView } from './MehfilSidebar';
 import SandeshCard from './SandeshCard';
-import { DMLayer } from './dm/DMLayer';
 import { toast } from 'sonner';
 import ThemeToggle from '@/components/ui/theme-toggle';
 import GlobalSidebar from '@/components/GlobalSidebar';
 import { closeMehfilSocket, getMehfilSocket } from '@/lib/socket';
 import { useTranslation } from 'react-i18next';
 
-import { Search, Settings, LogOut, Menu, Info, ShieldAlert, AlertCircle, ChevronDown, ChevronUp, Clock, Ban, Ghost, Bell, MessageCircle } from 'lucide-react';
+import { Search, Settings, LogOut, Menu, Info, ShieldAlert, AlertCircle, ChevronDown, ChevronUp, Clock, Ban, Ghost, MessageCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -126,11 +124,6 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     updateRelatableCount,
     setUserReaction,
   } = useMehfilStore();
-  const initializeDM = useDMStore((state) => state.initialize);
-  const loadSavedHandles = useDMStore((state) => state.loadSavedHandles);
-  const dmRequestError = useDMStore((state) => state.requestError);
-  const incomingRequestsCount = useDMStore((state) => state.incomingRequests.length);
-
   const handleLogout = async () => {
     try {
       await authService.logout();
@@ -147,12 +140,6 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
   useEffect(() => {
     userIdRef.current = user?.id;
   }, [user?.id]);
-
-  useEffect(() => {
-    if (dmRequestError) {
-      toast.error(dmRequestError);
-    }
-  }, [dmRequestError]);
 
   const isPaused = import.meta.env.VITE_MEHFIL_PAUSED === 'true';
 
@@ -373,8 +360,6 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
           name: user.name || 'User',
           avatar: user.avatar || '',
         });
-        initializeDM(socket, user.id, user.name || 'You');
-        loadSavedHandles();
         socket.emit('checkPostingBan');
       }
 
@@ -395,7 +380,7 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
     return () => {
       socket.off('connect', syncSocketState);
     };
-  }, [socket, user?.id, user?.name, user?.avatar, initializeDM, loadSavedHandles]);
+  }, [socket, user?.id, user?.name, user?.avatar]);
 
   useEffect(() => {
     if (!socket) return;
@@ -579,26 +564,6 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             <LanguageToggle />
             <ThemeToggle />
           </div>
-
-          <button
-            onClick={() => {
-              setMehfilSidebarInitialView('connections');
-              setIsSidebarOpen(true);
-            }}
-            className={`relative p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${hasUnreadSandesh ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}
-            title={t('mehfil.connection_requests')}
-            aria-label="Open connections"
-          >
-            <Bell className={`w-4 h-4 sm:w-5 sm:h-5 ${hasUnreadSandesh ? 'animate-swing' : ''}`} />
-            {incomingRequestsCount > 0 && (
-              <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-4 sm:h-5 sm:min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 sm:px-1.5 text-[9px] sm:text-[10px] font-bold text-white">
-                {incomingRequestsCount}
-              </span>
-            )}
-            {incomingRequestsCount === 0 && hasUnreadSandesh && (
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-rose-500" />
-            )}
-          </button>
 
             <div className="hidden sm:flex items-center gap-2 md:gap-5 md:pr-6 border-l border-slate-200 dark:border-slate-800 ml-1 sm:ml-2 pl-2">
             <DropdownMenu>
@@ -819,11 +784,10 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
         isOpen={isGlobalSidebarOpen}
         onClose={() => setIsGlobalSidebarOpen(false)}
         onOpenMehfilSidebar={(view) => {
-          setMehfilSidebarInitialView(view ?? 'saved');
+          setMehfilSidebarInitialView(view === 'connections' ? 'saved' : (view ?? 'saved'));
           setIsSidebarOpen(true);
         }}
       />
-      <DMLayer />
 
       {postingBan?.isActive && (
         <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
