@@ -76,7 +76,8 @@ export const collections = {
     notificationDeliveryLog: () => getDb().collection('notification_delivery_log'),
     suggestionBoxSubmissions: () => getDb().collection('suggestion_box_submissions'),
     suggestionBoxVotes: () => getDb().collection('suggestion_box_votes'),
-    
+    liveSessions: () => getDb().collection('live_sessions'),
+
     // ── Mission Mode ──
     missionProfiles: () => getDb().collection('mission_profiles'),
     missionPlans: () => getDb().collection('mission_plans'),
@@ -301,6 +302,11 @@ export async function initDatabase(): Promise<void> {
         await db.collection('suggestion_box_submissions').createIndex({ user_id: 1, created_at: -1 });
         await db.collection('suggestion_box_votes').createIndex({ submission_id: 1, user_id: 1 }, { unique: true });
         await db.collection('suggestion_box_votes').createIndex({ user_id: 1, created_at: -1 });
+
+        // Live sessions
+        await db.collection('live_sessions').createIndex({ id: 1 }, { unique: true });
+        await db.collection('live_sessions').createIndex({ course_id: 1, status: 1, scheduled_start_at: -1 });
+        await db.collection('live_sessions').createIndex({ teacher_id: 1, updated_at: -1 });
 
         // ── Mission Mode ──
         await db.collection('mission_profiles').createIndex({ user_id: 1 }, { unique: true });

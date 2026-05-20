@@ -35,6 +35,7 @@ const Mehfil = React.lazy(() => import("./pages/Mehfil"));
 const Meditation = React.lazy(() => import("./pages/Meditation"));
 const StudyPlannerPage = React.lazy(() => import("./pages/StudyPlannerPage"));
 const Courses = React.lazy(() => import("./pages/Courses"));
+const LiveSessions = React.lazy(() => import("./pages/LiveSessions"));
 const Updates = React.lazy(() => import("./pages/Updates"));
 const SafarVictoryModeToday = React.lazy(() => import("./pages/mission/today"));
 
@@ -259,6 +260,14 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <Courses />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/live-sessions"
+                  element={
+                    <ProtectedRoute>
+                      <LiveSessions />
                     </ProtectedRoute>
                   }
                 />

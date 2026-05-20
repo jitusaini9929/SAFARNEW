@@ -30,6 +30,7 @@ import { dmRoutes } from "./routes/dm";
 import { getRedisClient } from "./lib/redis.client";
 import { missionRouter } from "./routes/mission";
 import { notificationRoutes } from "./routes/notifications";
+import { liveSessionRoutes } from "./routes/live-sessions";
 import { suggestionBoxRoutes } from "./routes/suggestion-box";
 import { wishboxRoutes } from "./temporaryFeatures/birthdayWishBox/wishbox.routes";
 import { wishboxAdminRoutes } from "./temporaryFeatures/birthdayWishBox/wishbox.admin.routes";
@@ -224,6 +225,7 @@ export async function createServer() {
   app.use("/api/suggestion-box", suggestionBoxRoutes);
   app.use("/api/mission", missionRouter);
   app.use("/api", notificationRoutes);
+  app.use("/api/live-sessions", liveSessionRoutes);
   app.use("/api/wishbox", wishboxRoutes);
   app.use("/api/admin/wishbox", wishboxAdminRoutes);
 

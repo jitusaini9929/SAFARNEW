@@ -64,6 +64,7 @@ const TYPE_TO_PREF: Record<string, string> = {
   study_reminders: "daily_study_enabled",
   streak: "streak_enabled",
   weekly_summary: "weekly_summary_enabled",
+  live_session: "course_updates_enabled",
 };
 
 const DEDUPE_WINDOW_MS = Number(process.env.PUSH_DEDUPE_WINDOW_MS || 10 * 60 * 1000);
@@ -351,4 +352,20 @@ export async function sendAnnouncementToActiveTokens(payload: PushPayload, flavo
 
   const tokens = await collections.deviceTokens().find(query).toArray();
   return sendPushToTokens(tokens, payload);
+}
+
+export async function notifyLiveSessionStarted(params: {
+  sessionId: string;
+  sessionTitle: string;
+  hostName: string;
+}) {
+  const deepLink = `safar://live/session/${encodeURIComponent(params.sessionId)}`;
+  return sendAnnouncementToActiveTokens({
+    type: "live_session",
+    title: `${params.hostName} is live`,
+    body: `Join now: ${params.sessionTitle}`,
+    channel: "course_updates",
+    deepLink,
+    priority: "high",
+  });
 }
