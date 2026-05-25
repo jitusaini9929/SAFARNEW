@@ -14,7 +14,6 @@ import {
     Quote,
     Activity,
     ArrowRight,
-    Menu,
     ExternalLink,
     Play,
     History,
@@ -32,9 +31,16 @@ import {
 } from "lucide-react";
 import youtubeImg from "@/assets/youtube-thumbnail.webp";
 import courseImg from "@/assets/course-thumbnail.webp";
-import GlobalSidebar from "@/components/GlobalSidebar";
 import { PremiumEmoji, type PremiumEmojiName } from "@/components/PremiumEmoji";
 import { useTranslation } from "react-i18next";
+
+import "@/styles/mehfil-m3.css";
+import {
+    MdFilledButtonReact,
+    MdOutlinedButtonReact,
+    MdCheckboxReact,
+    MdTextButtonReact,
+} from "@/components/mehfil/material/MdComponents";
 
 import ChartErrorBoundary from "@/components/charts/ChartErrorBoundary";
 const DashboardMoodChart = lazy(() => import("@/components/charts/DashboardMoodChart"));
@@ -111,7 +117,6 @@ export default function Dashboard() {
     const [showAchievementModal, setShowAchievementModal] = useState(false);
     const [selectedAchievement, setSelectedAchievement] = useState<any | null>(null);
     const [monthlySummary, setMonthlySummary] = useState<{ month: string; consistencyScore: number; completionRate: number; focusDepth: number } | null>(null);
-    const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
     const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
@@ -269,7 +274,7 @@ export default function Dashboard() {
 
     return (
         <MainLayout userName={user.name} userAvatar={user.avatar} hideSidebar={true}>
-            <div className="flex-1 bg-background/95 font-['Plus_Jakarta_Sans'] transition-colors duration-300">
+            <div className="flex-1 mehfil-m3 bg-background/95 font-['Plus_Jakarta_Sans'] transition-colors duration-300">
                 {/* Background Gradient */}
                 <div
                     className="fixed inset-0 pointer-events-none z-0"
@@ -297,14 +302,6 @@ export default function Dashboard() {
                         <div className="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,360px)] gap-6 md:gap-8 items-stretch">
                             <div className="min-w-0 flex flex-col justify-center text-center md:text-left gap-8 h-full py-4 z-10 relative">
                                 <div className="space-y-3">
-                                    <button
-                                        onClick={() => setIsGlobalSidebarOpen(true)}
-                                        className="ui-pressable group inline-flex items-center gap-2.5 mb-4 w-fit bg-slate-200/60 dark:bg-white/5 border border-slate-800 dark:border-white/10 px-5 py-2.5 hover:bg-slate-300/60 dark:hover:bg-white/10 transition-colors"
-                                        style={{ borderRadius: '3px' }}
-                                    >
-                                        <Menu className="w-[21px] h-[21px] text-slate-700 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
-                                        <span className="text-[14px] font-bold tracking-[0.2em] text-slate-700 dark:text-slate-300 uppercase group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{t('nav.menu') || "MENU"}</span>
-                                    </button>
                                     <h1 className="text-5xl md:text-6xl tracking-tighter font-semibold text-slate-900 dark:text-white leading-[1.1]">
                                         {t('dashboard.welcome_back')}, <span className="capitalize">{user.name}</span>.
                                     </h1>
@@ -333,10 +330,10 @@ export default function Dashboard() {
                                             setShowAchievementModal(true);
                                         }
                                     }}
-                                    className="glass-high-contrast rounded-2xl p-6 flex flex-col items-center justify-center text-center relative overflow-hidden cursor-pointer group/title"
+                                    className="mehfil-m3-card p-6 flex flex-col items-center justify-center text-center relative overflow-hidden cursor-pointer group/title"
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50 group-hover/title:opacity-100 transition-opacity"></div>
-                                    <p className="text-xs font-bold uppercase tracking-widest text-primary mb-4 relative z-10">{t('dashboard.current_title')}</p>
+                                    <p className="text-xs font-bold uppercase tracking-widest text-slate-900/60 dark:text-white/60 mb-4 relative z-10">{t('dashboard.current_title')}</p>
                                     {activeTitleId && achievementImages[activeTitleId] ? (
                                         <img
                                             src={achievementImages[activeTitleId]}
@@ -345,12 +342,12 @@ export default function Dashboard() {
                                         />
                                     ) : (
                                         <div className="w-48 h-24 flex items-center justify-center mb-4 relative z-10">
-                                            <p className="text-lg font-semibold">{activeTitle}</p>
+                                            <p className="text-lg font-semibold text-slate-900 dark:text-white">{activeTitle}</p>
                                         </div>
                                     )}
                                     <div className="relative z-10">
-                                        <p className="font-bold text-lg text-foreground">{activeTitle}</p>
-                                        <p className="text-sm text-muted-foreground mt-1 opacity-0 group-hover/title:opacity-100 transition-opacity duration-300">{t('dashboard.tap_achievement_details')}</p>
+                                        <p className="font-bold text-lg text-slate-900 dark:text-white">{activeTitle}</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 opacity-0 group-hover/title:opacity-100 transition-opacity duration-300">{t('dashboard.tap_achievement_details')}</p>
                                     </div>
                                 </div>
                             ) : null}
@@ -360,7 +357,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 md:gap-6">
 
                         {/* Today's Mood */}
-                        <div className="lg:col-span-7 glass-high rounded-2xl p-6 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
+                        <div className="lg:col-span-7 mehfil-m3-card p-6 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                             <div className="relative z-10 h-full flex flex-col">
                                 <div className="flex items-center gap-2 mb-4">
@@ -378,19 +375,20 @@ export default function Dashboard() {
                                 ) : (
                                     <div className="m-auto text-center flex flex-col items-center justify-center h-full">
                                         <p className="text-muted-foreground mb-4">{t('dashboard.no_checkin')}</p>
-                                        <button
+                                        <MdFilledButtonReact
                                             onClick={() => navigate('/nishtha/check-in')}
-                                            className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2 group"
+                                            className="mt-2"
                                         >
-                                            {t('dashboard.checkin_now')} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                        </button>
+                                            {t('dashboard.checkin_now')}
+                                            <span slot="icon"><ArrowRight className="w-4 h-4" /></span>
+                                        </MdFilledButtonReact>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {/* Current Streaks */}
-                        <div className="lg:col-span-5 glass-high rounded-2xl p-6 relative overflow-hidden">
+                        <div className="lg:col-span-5 mehfil-m3-card p-6 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div>
                             <div className="flex items-center gap-2 mb-6 relative z-10">
                                 <RotateCw className="text-primary w-5 h-5" />
@@ -410,7 +408,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* Achievements Card - Enhanced Glow */}
-                        <div className="lg:col-span-4 rounded-2xl p-6 relative overflow-hidden min-h-[280px] bg-gradient-to-br from-white via-yellow-50/30 to-white dark:from-[#121a16] dark:via-[#1a1e1a] dark:to-[#0a0f0d] border-2 border-yellow-400/30 dark:border-yellow-500/20 shadow-xl dark:shadow-yellow-500/10">
+                        <div className="lg:col-span-4 mehfil-m3-card p-6 relative overflow-hidden min-h-[280px] bg-gradient-to-br from-white via-yellow-50/30 to-white dark:from-[#121a16] dark:via-[#1a1e1a] dark:to-[#0a0f0d] border-2 border-yellow-400/30 dark:border-yellow-500/20 shadow-xl dark:shadow-yellow-500/10 hover:shadow-lg transition-all duration-300">
                             {/* Glow effects */}
                             <div className="absolute top-0 right-0 w-40 h-40 bg-yellow-400/30 dark:bg-yellow-400/20 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
                             <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-amber-300/20 dark:bg-amber-500/15 rounded-full blur-2xl pointer-events-none"></div>
@@ -421,7 +419,9 @@ export default function Dashboard() {
                                     <Award className="text-yellow-500 w-5 h-5" />
                                     <h3 className="text-lg font-semibold text-foreground">{t('dashboard.achievements')}</h3>
                                 </div>
-                                <button onClick={() => navigate('/nishtha/achievements')} className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline">{t('dashboard.view_all')}</button>
+                                <MdTextButtonReact onClick={() => navigate('/nishtha/achievements')}>
+                                    {t('dashboard.view_all')}
+                                </MdTextButtonReact>
                             </div>
 
                             <div className="relative z-10 text-center">
@@ -452,7 +452,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* Today's Goals */}
-                        <div className="lg:col-span-4 glass-high rounded-2xl p-6 flex flex-col relative">
+                        <div className="lg:col-span-4 mehfil-m3-card p-6 flex flex-col relative group hover:shadow-lg transition-all duration-300">
                             <div className="flex justify-between items-start mb-6">
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
@@ -482,10 +482,12 @@ export default function Dashboard() {
                                             const isDone = isGoalCompleted(goal as UIGoal);
                                             const title = goal.title || goal.text;
                                             return (
-                                                <div key={goal.id} className={`flex items-center gap-3 p-2 rounded-lg ${isDone ? 'bg-green-500/10' : 'bg-muted/50'}`}>
-                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isDone ? 'bg-green-500' : 'border-2 border-muted-foreground'}`}>
-                                                        {isDone && <Check className="w-3 h-3 text-white" />}
-                                                    </div>
+                                                <div key={goal.id} className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 ${isDone ? 'bg-green-500/5 dark:bg-green-500/10' : 'bg-muted/30 dark:bg-muted/10'}`}>
+                                                    <MdCheckboxReact
+                                                        checked={isDone}
+                                                        disabled={true}
+                                                        className="shrink-0"
+                                                    />
                                                     <span className={`flex-1 text-sm ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{title}</span>
                                                 </div>
                                             )
@@ -498,18 +500,18 @@ export default function Dashboard() {
                                 </div>
                             )}
 
-                            <button
+                            <MdOutlinedButtonReact
                                 onClick={() => navigate('/nishtha/goals')}
                                 aria-label={goals.total > 0 ? t('dashboard.view_goals') : t('dashboard.set_goals')}
-                                className="w-full mt-auto bg-muted hover:bg-muted/80 text-blue-600 border border-blue-500/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group action-btn-nowrap"
+                                className="w-full mt-auto"
                             >
                                 {goals.total > 0 ? t('dashboard.manage_goals') : t('dashboard.set_todays_goals')}
-                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </button>
+                                <span slot="icon"><ArrowRight className="w-4 h-4" /></span>
+                            </MdOutlinedButtonReact>
                         </div>
 
                         {/* Monthly Analytics Snapshot */}
-                        <div className="lg:col-span-4 glass-high rounded-2xl p-6 flex flex-col relative">
+                        <div className="lg:col-span-4 mehfil-m3-card p-6 flex flex-col relative group hover:shadow-lg transition-all duration-300">
                             <div className="flex items-center gap-2 mb-4">
                                 <BarChart3 className="text-primary w-5 h-5" />
                                 <h3 className="text-lg font-semibold text-foreground">{t('dashboard.monthly_snapshot')}</h3>
@@ -533,18 +535,18 @@ export default function Dashboard() {
                                 </div>
                             )}
 
-                            <button
+                            <MdOutlinedButtonReact
                                 onClick={() => navigate('/nishtha/analytics?tab=overview')}
                                 aria-label={t('dashboard.open_analytics')}
-                                className="w-full mt-auto bg-muted hover:bg-muted/80 text-primary border border-primary/20 py-3 rounded-xl text-sm font-medium transition-colors flex justify-center items-center gap-2 group action-btn-nowrap"
+                                className="w-full mt-auto"
                             >
                                 {t('dashboard.view_full_report')}
-                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                            </button>
+                                <span slot="icon"><ArrowRight className="w-4 h-4" /></span>
+                            </MdOutlinedButtonReact>
                         </div>
 
                         {/* Weekly Mood Trend */}
-                        <div className="lg:col-span-12 glass-high rounded-2xl p-6 relative">
+                        <div className="lg:col-span-12 mehfil-m3-card p-6 relative group hover:shadow-lg transition-all duration-300">
                             <div className="flex items-center gap-2 mb-2">
                                 <Activity className="text-primary w-5 h-5" />
                                 <h3 className="text-lg font-semibold text-foreground">{t('dashboard.weekly_mood')}</h3>
@@ -572,12 +574,11 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <GlobalSidebar isOpen={isGlobalSidebarOpen} onClose={() => setIsGlobalSidebarOpen(false)} />
 
             {/* Achievement Detail Modal */}
             {showAchievementModal && selectedAchievement && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-md rounded-3xl shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-white/10">
+                    <div className="bg-white dark:bg-card w-full max-w-md rounded-3xl shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-border">
                         <button
                             onClick={() => setShowAchievementModal(false)}
                             className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors"
@@ -640,12 +641,12 @@ export default function Dashboard() {
                             )}
                         </div>
 
-                        <button
+                        <MdFilledButtonReact
                             onClick={() => setShowAchievementModal(false)}
-                            className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-semibold shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 hover:scale-[1.02] transition-all"
+                            className="w-full"
                         >
                             {t('achievements.close')}
-                        </button>
+                        </MdFilledButtonReact>
                     </div>
                 </div>
             )}

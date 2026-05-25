@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import BreathingVisualizer from "@/components/meditation/BreathingVisualizer";
 import meditationBg from "@/assets/meditation-bg.webp";
-import safarLogo from "@/assets/safar-logo.png.webp";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import ThemeToggle from "@/components/ui/theme-toggle";
+import M3TopNavbar from "@/components/M3TopNavbar";
+import "@/styles/mehfil-m3.css";
+import { MdSwitchReact, MdIconButtonReact, MdFilledButtonReact, MdOutlinedButtonReact } from "@/components/mehfil/material/MdComponents";
 
 import {
     ArrowLeft,
@@ -29,6 +30,7 @@ import {
     ExternalLink,
     Menu,
     X,
+    Square,
 } from "lucide-react";
 import { meditationTour } from "@/components/guided-tour/tourSteps";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
@@ -65,18 +67,16 @@ const BreathingModalCloseButton: React.FC<BreathingModalCloseButtonProps> = ({
     ariaLabel,
     className = "",
 }) => (
-    <button
-        type="button"
-        aria-label={ariaLabel}
-        onClick={onClick}
-        className={cn(
-            "inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-transparent bg-card/95 text-muted-foreground shadow-sm transition-all duration-200 hover:border-border hover:bg-muted hover:text-foreground hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 cursor-pointer",
-            className
-        )}
-    >
-        <span className="sr-only">{ariaLabel}</span>
-        <X className="pointer-events-none h-5 w-5" />
-    </button>
+    <div className={cn("pointer-events-auto", className)}>
+        <MdIconButtonReact
+            type="button"
+            aria-label={ariaLabel}
+            onClick={onClick}
+            style={{"--md-icon-button-container-shape": "16px", "--md-icon-button-icon-size": "24px", "--md-icon-button-container-width": "48px", "--md-icon-button-container-height": "48px", "background": "var(--mehfil-surface-low)", "border": "1px solid var(--mehfil-outline-variant)", "border-radius": "16px"} as React.CSSProperties}
+        >
+            <X className="h-5 w-5 text-muted-foreground" />
+        </MdIconButtonReact>
+    </div>
 );
 
 const sessions: Session[] = [
@@ -479,9 +479,9 @@ export default function Meditation() {
     };
 
     const renderMeditationVideoCard = (inputId: string, extraClassName = "") => (
-        <section className={`rounded-lg border border-border bg-card shadow-lg shadow-black/5 overflow-hidden ${extraClassName}`}>
-            <div className="px-4 pt-4">
-                <h3 className="text-sm font-semibold text-foreground">Latest Dhyan Video</h3>
+        <section className={`mehfil-m3-card p-5 space-y-4 ${extraClassName}`}>
+            <div>
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Latest Dhyan Video</h3>
             </div>
 
             <a
@@ -489,13 +489,13 @@ export default function Meditation() {
                 target="_blank"
                 rel="noreferrer"
                 aria-label="Open latest Dhyan video"
-                className="mt-3 block w-full overflow-hidden rounded-xl transition hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
+                className="mt-3 block w-full overflow-hidden rounded-xl transition hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-purple-300"
             >
                 <img
                     loading="lazy"
                     src={videoThumbnailSrc}
                     alt="Latest Dhyan YouTube video thumbnail"
-                    className="w-full h-48 object-cover"
+                    className="w-full h-40 object-cover"
                     onError={() => {
                         if (videoThumbnailSrc !== fallbackVideoThumbnail) {
                             setVideoThumbnailSrc(fallbackVideoThumbnail);
@@ -506,11 +506,9 @@ export default function Meditation() {
                 />
             </a>
 
-            <p className="px-4 py-3 text-xs text-muted-foreground">Latest Dhyan video preview</p>
-
             {isMeditationAdmin && (
-                <div className="px-4 pb-4 space-y-2">
-                    <label htmlFor={inputId} className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="space-y-2">
+                    <label htmlFor={inputId} className="text-[11px] font-semibold uppercase tracking-wide text-slate-450 dark:text-slate-500">
                         Admin video link
                     </label>
                     <input
@@ -519,17 +517,15 @@ export default function Meditation() {
                         value={videoDraftUrl}
                         onChange={(event) => setVideoDraftUrl(event.target.value)}
                         placeholder="Paste YouTube video URL"
-                        className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-slate-250 focus:outline-none focus:ring-2 focus:ring-[#6D5DAE]/30"
                     />
-                    <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleSaveMeditationVideo}
+                    <MdFilledButtonReact
                         disabled={isSavingVideo}
-                        className="w-full"
+                        onClick={handleSaveMeditationVideo}
+                        style={{"--md-filled-button-container-height": "36px", "width": "100%"} as React.CSSProperties}
                     >
                         {isSavingVideo ? "Saving..." : "Update Video"}
-                    </Button>
+                    </MdFilledButtonReact>
                     {videoSettingsError && (
                         <p className="text-xs text-red-500">{videoSettingsError}</p>
                     )}
@@ -596,208 +592,225 @@ export default function Meditation() {
     // We will inject the slider into that center piece.
 
     return (
-        <div className="min-h-[100dvh] bg-background text-foreground font-['Manrope',sans-serif] overflow-x-hidden transition-colors duration-300">
+        <div className="min-h-[100dvh] mehfil-m3 bg-[#F3F1F8] dark:bg-background text-foreground font-['Inter',sans-serif] overflow-x-hidden transition-colors duration-300">
             <audio ref={audioRef} loop preload="none" />
 
             <GlobalSidebar isOpen={isGlobalSidebarOpen} onClose={() => setIsGlobalSidebarOpen(false)} homeRoute="/home" />
 
-            {/* Top App Bar */}
-            <header className="fixed top-0 right-0 left-0 z-50 h-16 md:h-20 px-4 md:px-10 flex items-center justify-between bg-background/80 backdrop-blur-xl border-b border-border/50">
-                <div className="flex items-center gap-3">
-                    <button onClick={() => setIsGlobalSidebarOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:bg-muted/50 transition-colors">
-                        <Menu className="w-5 h-5" />
-                    </button>
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-border shadow-sm">
-                            <img src={safarLogo} alt="SAFAR" className="w-full h-full object-cover" />
-                        </div>
-                        <span className="text-lg font-serif font-bold text-foreground tracking-tight hidden sm:block">SAFAR</span>
-                    </div>
-                </div>
-                <div className="flex items-center gap-3 md:gap-5">
-                    <button onClick={() => setShowResources(true)} className="hidden md:inline-flex text-muted-foreground hover:text-foreground transition-colors">
-                        <ExternalLink className="w-5 h-5" />
-                    </button>
-                    <button
-                        onClick={() => startTour(meditationTour)}
-                        className="hidden md:inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-4 py-2 text-sm font-semibold text-muted-foreground shadow-sm transition-colors hover:text-foreground hover:bg-card"
-                    >
-                        <HelpCircle className="w-4 h-4" />
-                        Guided Tour
-                    </button>
-                    <ThemeToggle />
-                    <button onClick={() => navigate("/profile")} className="w-10 h-10 rounded-full overflow-hidden border border-[#303133]">
-                        <img src={user?.avatar || "https://lh3.googleusercontent.com/aida-public/AB6AXuB5npty6FP7gsC2CXzNJGKrH5SVc4SAtVS17uc2x1SMxgl0g8_yXJ4DMEdh6jd-w6_sKyxVuKlKCjySSbksyfvsVf9MIO2bjXrQcCYGXxN6YoXvO2E5NlKdU_OpeIbAMb_MFdl3P8AOv-YKGFB2-Ecu1WDVk6EuxYoWrBITQMg3PjZEH1CWrdJHanEP6JynR7l3NYxUq9Lp4mDLGRzKXVOJunPsnLE2pzzRJC3904zD34jCL-PPCrxRH-M12_EvYLrHmPwMj5v9oIw"} alt="User profile avatar" className="w-full h-full object-cover" />
-                    </button>
-                </div>
-            </header>
+            <M3TopNavbar
+                moduleName="MEDITATION"
+                onSidebarToggle={() => setIsGlobalSidebarOpen(true)}
+                extraActions={
+                    <>
+                        <button
+                            onClick={() => setShowResources(true)}
+                            className="hidden md:inline-flex items-center justify-center p-2 rounded-full text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            title="Resources"
+                        >
+                            <ExternalLink className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => startTour(meditationTour)}
+                            className="hidden md:inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-4 py-2 text-sm font-semibold text-muted-foreground shadow-sm transition-colors hover:text-slate-800 hover:bg-card"
+                        >
+                            <HelpCircle className="w-4 h-4" />
+                            Guided Tour
+                        </button>
+                    </>
+                }
+            />
 
-            <main className="pt-20 md:pt-24 pb-28 lg:pb-32 px-3 sm:px-6 md:px-8 min-h-screen">
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 xl:gap-10">
-                    {/* Left Column */}
-                    <section className="xl:col-span-3 space-y-4">
-                        <div className="rounded-lg bg-card border border-border p-4 md:p-5 shadow-sm">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold">Daily Practice</h3>
-                                <span className="text-[10px] text-primary uppercase tracking-widest">Live</span>
-                            </div>
-                            <div data-tour="session-cards" className="space-y-3">
-                                {sessions.slice(0, 5).map((session) => (
-                                    <button
-                                        key={session.id}
-                                        onClick={() => handleCardClick(session)}
-                                        className={`w-full text-left rounded-lg p-4 border transition-all ${selectedSession.id === session.id ? "bg-primary/10 border-primary/40" : "bg-muted/30 border-transparent hover:border-border"}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-2">
-                                            <Wind className={`w-4 h-4 ${selectedSession.id === session.id ? "text-primary" : "text-muted-foreground"}`} />
-                                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{session.duration} min</span>
+            <main className="pt-24 pb-32 px-4 sm:px-8 lg:px-12 min-h-screen max-w-[1400px] mx-auto">
+                <div className="flex flex-col lg:flex-row justify-center gap-8 lg:gap-16 pt-4">
+                    {/* Left Column: Practices & Atmosphere */}
+                    <section className="w-full lg:w-80 flex flex-col gap-8 pt-4">
+                        {/* Daily Practice List */}
+                        <div>
+                            <h2 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Daily Practice</h2>
+                            <div className="space-y-4">
+                                {sessions.slice(0, 5).map((session) => {
+                                    const isSelected = selectedSession.id === session.id;
+                                    return (
+                                        <div
+                                            key={session.id}
+                                            onClick={() => handleCardClick(session)}
+                                            className={cn(
+                                                "flex items-center p-3 rounded-2xl border transition-all cursor-pointer mehfil-m3-card shadow-sm",
+                                                isSelected
+                                                    ? "border-[#6D5DAE] dark:border-[#a594ff] ring-1 ring-[#6D5DAE] dark:ring-[#a594ff]"
+                                                    : "border-transparent hover:border-[#6D5DAE]/40"
+                                            )}
+                                        >
+                                            <div className="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center mr-3 text-[#6D5DAE] dark:text-[#a594ff]">
+                                                {session.id === "1" ? (
+                                                    <Heart className="w-5 h-5 fill-current" />
+                                                ) : session.id === "2" ? (
+                                                    <Wind className="w-5 h-5" />
+                                                ) : session.id === "3" ? (
+                                                    <Square className="w-4.5 h-4.5" />
+                                                ) : session.id === "4" ? (
+                                                    <Moon className="w-5 h-5 fill-current" />
+                                                ) : (
+                                                    <Sparkles className="w-5 h-5" />
+                                                )}
+                                            </div>
+                                            <div>
+                                                <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{session.title}</div>
+                                                <div className="text-xs text-slate-400 dark:text-slate-500">{session.duration} min</div>
+                                            </div>
                                         </div>
-                                        <p className="font-semibold text-sm text-foreground">{session.title}</p>
-                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{session.description}</p>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Atmosphere Settings */}
+                        <div className="space-y-6">
+                            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Atmosphere</h2>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-slate-800 dark:text-slate-200">White Noise</span>
+                                <MdSwitchReact
+                                    selected={!isMuted}
+                                    onChange={() => setIsMuted(!isMuted)}
+                                    aria-label="Toggle White Noise"
+                                />
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Center Column: Main Meditation View */}
+                    <section className="flex-initial w-full max-w-4xl">
+                        <div className="h-full mehfil-m3-card p-8 sm:p-10 flex flex-col items-center justify-between text-center min-h-[500px]" style={{ borderRadius: '24px' }}>
+                            <div className="mt-4">
+                                <h1 className="text-5xl sm:text-6xl font-extrabold mb-3 text-slate-900 dark:text-white tracking-tight">Dhyan</h1>
+                                <p className="text-lg sm:text-xl font-medium text-slate-700 dark:text-slate-300">"Silence is the language of God."</p>
+                            </div>
+
+                            {/* Play/Progress Circle Container */}
+                            <div className="relative flex items-center justify-center my-6">
+                                <div className="w-48 h-48 rounded-full bg-[#F3F0FA] dark:bg-[#201d2c] flex items-center justify-center shadow-inner relative overflow-hidden">
+                                    <img src={meditationBg} alt="Meditation focus" className="absolute inset-0 w-full h-full object-cover" />
+                                    <button
+                                        onClick={() => setIsActive(!isActive)}
+                                        className="relative z-10 w-20 h-20 bg-[#E8E2F6]/95 dark:bg-[#2c283f]/95 hover:bg-[#D1C9E7] dark:hover:bg-[#342f4c] text-slate-800 dark:text-slate-200 rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-transform"
+                                    >
+                                        {isActive ? (
+                                            <Pause className="w-8 h-8 fill-current" />
+                                        ) : (
+                                            <Play className="w-8 h-8 fill-current ml-1" />
+                                        )}
                                     </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="rounded-lg bg-card border border-border p-4 md:p-5 space-y-3 shadow-sm">
-                            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold">Atmosphere</p>
-                            <button onClick={() => setIsMuted(!isMuted)} className="w-full flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3 hover:bg-muted/70 transition-colors">
-                                <div className="flex items-center gap-3 text-sm">
-                                    {isMuted ? <VolumeX className="w-4 h-4 text-primary" /> : <Volume2 className="w-4 h-4 text-primary" />}
-                                    <span>{isMuted ? "Sound Muted" : "White Noise"}</span>
                                 </div>
-                                <span className="text-muted-foreground text-xs uppercase tracking-widest">{isMuted ? "Off" : "On"}</span>
-                            </button>
-                            <button
-                                onClick={() => window.open(VISUAL_GUIDANCE_PLAYLIST_URL, "_blank", "noopener,noreferrer")}
-                                className="w-full flex items-center justify-between rounded-xl bg-muted px-4 py-3 hover:bg-muted/80 transition-colors"
-                            >
-                                <div className="flex items-center gap-3 text-sm">
-                                    <Image className="w-4 h-4 text-primary" />
-                                    <span>Visual Guidance</span>
-                                </div>
-                                <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                            </button>
-                        </div>
-                    </section>
-
-                    {/* Center Column */}
-                    <section className="xl:col-span-6 flex flex-col items-center text-center">
-                        <div className="mt-2 md:mt-4 space-y-2">
-                            <p className="text-primary font-bold text-xs uppercase tracking-[0.4em]">Current Journey</p>
-                            <h2 className="text-4xl sm:text-5xl md:text-7xl font-serif font-black tracking-tight">Dhyan</h2>
-                            <p className="text-muted-foreground italic text-sm md:text-lg">"Silence is the language of God."</p>
-                        </div>
-
-                        <div className="relative mt-6 md:mt-8 w-[220px] h-[220px] sm:w-[280px] sm:h-[280px] md:w-[380px] md:h-[380px] flex items-center justify-center">
-                            <div className="absolute inset-0 rounded-full bg-primary/5 blur-[80px]" />
-                            <div className="absolute inset-4 rounded-full border border-border overflow-hidden">
-                                <img src={meditationBg} alt="Meditation focus" className="w-full h-full object-cover opacity-60" />
                             </div>
 
-                            <button
-                                data-tour="play-button"
-                                onClick={() => setIsActive(!isActive)}
-                                className="absolute z-20 w-24 h-24 rounded-full bg-gradient-to-br from-[#94aaff] to-[#9c8fff] flex items-center justify-center shadow-[0_0_40px_rgba(148,170,255,0.45)] hover:scale-105 active:scale-95 transition-transform"
-                            >
-                                {isActive ? <Pause className="w-10 h-10 text-black" /> : <Play className="w-10 h-10 text-black ml-1" />}
-                            </button>
-                        </div>
-
-                        <div data-tour="timer-display" className="mt-6 md:mt-8 space-y-3 w-full max-w-lg">
-                            <div className="text-5xl sm:text-6xl md:text-8xl font-light font-mono tracking-wider tabular-nums">{formatTime(safeRemainingSeconds)}</div>
-                            <p className="text-muted-foreground text-[11px] uppercase tracking-[0.2em]">{breathPhase === "inhale" ? "Inhale" : breathPhase === "exhale" ? "Exhale" : "Hold"}</p>
-
-                            {selectedSession.id === "dhyan-custom" && (
-                                <div className="rounded-lg border border-border bg-muted/50 p-4 mx-auto max-w-sm">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Session Length</span>
-                                        <span className="text-xs font-bold text-primary">{sliderValue} min</span>
+                            <div className="w-full max-w-sm">
+                                <div className="text-[64px] sm:text-[80px] font-bold mb-6 tabular-nums text-slate-900 dark:text-white tracking-tight leading-none">
+                                    {formatTime(safeRemainingSeconds)}
+                                </div>
+                                
+                                {selectedSession.id === "dhyan-custom" ? (
+                                    <div className="space-y-4 mb-8">
+                                        <div className="flex justify-between text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">
+                                            <span>Session Length</span>
+                                            <span>{sliderValue} min</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="60"
+                                            step="1"
+                                            value={sliderValue}
+                                            onChange={handleSliderChange}
+                                            className="w-full appearance-none cursor-pointer bg-transparent focus:outline-none [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:bg-[#D1C9E7] dark:[&::-webkit-slider-runnable-track]:bg-slate-800 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#9B89D9] [&::-webkit-slider-thumb]:-mt-1.5 [&::-webkit-slider-thumb]:shadow-md"
+                                        />
                                     </div>
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="60"
-                                        step="1"
-                                        value={sliderValue}
-                                        onChange={handleSliderChange}
-                                        className="w-full accent-[#94aaff]"
-                                    />
+                                ) : (
+                                    <div className="space-y-4 mb-8">
+                                        <div className="flex justify-between text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">
+                                            <span>Session Length</span>
+                                            <span>{selectedSession.duration} min</span>
+                                        </div>
+                                        <div className="h-1 bg-[#D1C9E7] dark:bg-slate-800 rounded-full" />
+                                    </div>
+                                )}
+
+                                {/* Action Buttons */}
+                                <div className="flex justify-center gap-10">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <MdIconButtonReact onClick={handleReset} title="Reset">
+                                            <RotateCcw className="w-5 h-5" />
+                                        </MdIconButtonReact>
+                                        <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Reset</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <MdIconButtonReact onClick={() => setIsMuted(!isMuted)} title="Sound">
+                                            {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                                        </MdIconButtonReact>
+                                        <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Sound</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <MdIconButtonReact onClick={() => setShowInstructions(true)} title="Help">
+                                            <HelpCircle className="w-5 h-5" />
+                                        </MdIconButtonReact>
+                                        <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">Help</span>
+                                    </div>
                                 </div>
-                            )}
-
-                            <div className="h-1.5 bg-muted rounded-full overflow-hidden max-w-sm mx-auto">
-                                <div className="h-full bg-gradient-to-r from-primary to-primary/60" style={{ width: `${progress}%` }} />
-                            </div>
-
-                            <div className="flex items-center justify-center gap-4 md:gap-6 pt-2">
-                                <button data-tour="reset-button" onClick={handleReset} className="p-3 md:p-4 rounded-full bg-card hover:bg-muted transition-colors border border-border shadow-sm">
-                                    <RotateCcw className="w-5 h-5 text-muted-foreground" />
-                                </button>
-                                <button onClick={() => setIsMuted(!isMuted)} className="p-3 md:p-4 rounded-full bg-card hover:bg-muted transition-colors border border-border shadow-sm">
-                                    {isMuted ? <VolumeX className="w-5 h-5 text-muted-foreground" /> : <Volume2 className="w-5 h-5 text-muted-foreground" />}
-                                </button>
-                                <button onClick={() => setShowInstructions(true)} className="p-3 md:p-4 rounded-full bg-card hover:bg-muted transition-colors border border-border shadow-sm">
-                                    <HelpCircle className="w-5 h-5 text-muted-foreground" />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 md:mt-10 grid grid-cols-3 gap-4 md:gap-8 text-center">
-                            <div>
-                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Elapsed</p>
-                                <p className="text-xl md:text-2xl font-serif">{formatTime(elapsedSeconds)}</p>
-                            </div>
-                            <div>
-                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Planned</p>
-                                <p className="text-xl md:text-2xl font-serif">{Math.round(totalSessionSeconds / 60)}m</p>
-                            </div>
-                            <div>
-                                <p className="text-muted-foreground text-[10px] uppercase tracking-widest">Breath Pace</p>
-                                <p className="text-xl md:text-2xl font-serif">{breathPaceLabel}</p>
                             </div>
                         </div>
                     </section>
 
-                    {/* Right Column */}
-                    <section className="xl:col-span-3 space-y-4">
-                        <div className="rounded-lg bg-card border border-border p-4 shadow-sm">
-                            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-bold mb-3">Resources</p>
-                            <button
-                                onClick={() => setShowResources(true)}
-                                className="w-full py-3 rounded-xl bg-primary/10 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/15 transition-colors border border-primary/20"
-                            >
-                                Open Resources
-                            </button>
-                        </div>
-                    </section>
+
                 </div>
             </main>
 
             {/* Desktop Mini Player */}
-            <footer className="hidden lg:flex fixed bottom-0 left-0 right-0 z-40 h-20 px-10 items-center justify-between bg-background/90 backdrop-blur-xl border-t border-border shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-                <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl overflow-hidden border border-border">
-                        <img src={meditationBg} alt="Track cover" className="w-full h-full object-cover" />
+            <footer className="hidden lg:flex fixed bottom-0 left-0 right-0 z-40 h-24 px-8 items-center justify-between rounded-t-[24px] border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1a1924] shadow-[0_-4px_20px_rgba(0,0,0,0.03)] mehfil-m3-card" data-purpose="audio-player">
+                {/* Track Info */}
+                <div className="flex items-center w-1/4">
+                    <div className="w-14 h-14 rounded-lg overflow-hidden mr-4 shadow-sm border border-slate-100 dark:border-slate-800">
+                        <img alt="Track Cover" className="w-full h-full object-cover" src={meditationBg} />
                     </div>
                     <div>
-                        <p className="text-sm font-bold text-foreground">Transcendental States</p>
-                        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Safar Soundscapes</p>
+                        <h3 className="font-bold text-sm text-slate-800 dark:text-slate-200">Transcendental States</h3>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">Safar Soundscapes</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-6">
-                    <button onClick={handleReset} className="text-muted-foreground hover:text-foreground transition-colors"><RotateCcw className="w-5 h-5" /></button>
-                    <button onClick={() => setIsActive(!isActive)} className="w-10 h-10 rounded-full bg-foreground text-background flex items-center justify-center shadow-md">
-                        {isActive ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+
+                {/* Controls & Progress */}
+                <div className="flex flex-col items-center flex-1 max-w-2xl px-10">
+                    <div className="flex items-center gap-6 mb-2">
+                        <button onClick={handleReset} className="text-slate-400 hover:text-[#6D5DAE] transition-colors" title="Reset">
+                            <RotateCcw className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => setIsActive(!isActive)}
+                            className="w-10 h-10 bg-[#E9E4F5] dark:bg-[#2c283f] text-[#6D5DAE] dark:text-[#a594ff] rounded-full flex items-center justify-center hover:bg-[#e2daf3] dark:hover:bg-[#342f4c] transition-colors"
+                        >
+                            {isActive ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+                        </button>
+                        <button onClick={() => setShowInstructions(true)} className="text-slate-400 hover:text-[#6D5DAE] transition-colors" title="Help">
+                            <HelpCircle className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <div className="w-full flex items-center gap-3">
+                        <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">{formatTime(elapsedSeconds)}</span>
+                        <div className="flex-1 h-[2px] bg-[#E2DDF0] dark:bg-slate-800 rounded-full relative">
+                            <div className="absolute left-0 top-0 h-full bg-[#9B89D9]" style={{ width: `${progress}%` }}></div>
+                            <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-[#9B89D9] rounded-full shadow-sm" style={{ left: `${progress}%`, transform: `translate(-50%, -50%)` }}></div>
+                        </div>
+                        <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">{formatTime(totalSessionSeconds)}</span>
+                    </div>
+                </div>
+
+                {/* Volume & Misc */}
+                <div className="flex items-center justify-end w-1/4 gap-4">
+                    <button onClick={() => setIsMuted(!isMuted)} className="text-slate-400 hover:text-[#6D5DAE] transition-colors">
+                        {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                     </button>
-                    <button onClick={() => setIsMuted(!isMuted)} className="text-muted-foreground hover:text-foreground transition-colors">{isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}</button>
-                </div>
-                <div className="flex items-center gap-3 w-64">
-                    <span className="text-[10px] font-bold text-muted-foreground">{formatTime(elapsedSeconds)}</span>
-                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-primary to-primary/60" style={{ width: `${progress}%` }} />
+                    <div className="w-24 h-1 bg-[#E2DDF0] dark:bg-slate-800 rounded-full relative cursor-pointer" onClick={() => setIsMuted(!isMuted)}>
+                        <div className="absolute left-0 top-0 h-full bg-[#6D5DAE] dark:bg-[#8269e8] rounded-full" style={{ width: isMuted ? "0%" : "66%" }}></div>
+                        <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-[#6D5DAE] dark:bg-[#8269e8] rounded-full border-2 border-white dark:border-slate-900 shadow-sm" style={{ left: isMuted ? "0%" : "66%", transform: `translate(-50%, -50%)` }}></div>
                     </div>
-                    <span className="text-[10px] font-bold text-muted-foreground">{formatTime(totalSessionSeconds)}</span>
                 </div>
             </footer>
 

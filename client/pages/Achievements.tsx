@@ -278,7 +278,7 @@ export default function Achievements() {
                                         : tab === 'consistency'
                                             ? 'bg-amber-500 text-white'
                                             : tab === 'productivity'
-                                                ? 'bg-teal-500 text-white'
+                                                ? 'bg-primary text-primary-foreground'
                                                 : 'bg-primary text-primary-foreground'
                                     : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                                     }`}
@@ -387,7 +387,7 @@ export default function Achievements() {
                                                 disabled={selecting}
                                                 className="mt-4 px-4 py-1.5 rounded-full bg-slate-200/50 dark:bg-white/10 text-xs font-medium 
                                                     opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300
-                                                    hover:bg-teal-500 hover:text-white"
+                                                    hover:bg-primary hover:text-primary-foreground"
                                             >
                                                 {achievement.type === 'title' ? t('achievements.equip_title') : t('achievements.equip_badge')}
                                             </button>
@@ -418,7 +418,7 @@ export default function Achievements() {
             {/* Detail Modal */}
             {showDetailModal && detailAchievement && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-[#1A1A1A] w-full max-w-md rounded-3xl shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-white/10">
+                    <div className="bg-white dark:bg-card w-full max-w-md rounded-3xl shadow-2xl p-8 relative animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-border">
                         <button
                             onClick={() => setShowDetailModal(false)}
                             className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors"
@@ -475,7 +475,7 @@ export default function Achievements() {
 
                         <button
                             onClick={() => setShowDetailModal(false)}
-                            className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-semibold shadow-lg shadow-teal-500/30 hover:shadow-teal-500/50 hover:scale-[1.02] transition-all"
+                            className="w-full py-3 rounded-xl safar-btn-primary font-semibold hover:scale-[1.02] transition-all"
                         >
                             {t('achievements.close')}
                         </button>

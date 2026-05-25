@@ -259,5 +259,4 @@ export interface MonthlyReport {
     };
   };
   radar: Array<{ subject: string; score: number; fullMark: number }>;
-  heatmap: Array<{ date: string; dayOfWeek: string; value: number; intensity: number }>;
 }

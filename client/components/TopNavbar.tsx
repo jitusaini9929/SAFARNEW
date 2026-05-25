@@ -13,7 +13,7 @@ import { HelpCircle, LogOut, Settings, Sun, Moon, Home, Menu, X } from "lucide-r
 import { useTheme } from "@/contexts/ThemeContext";
 import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { useAuth } from "@/contexts/AuthContext";
-import safarLogo from "@/assets/safar-logo.png.webp";
+import SafarLogo from "@/components/landing/SafarLogo";
 import { useEffect, useState } from "react";
 import ThemeToggle from "@/components/ui/theme-toggle";
 import GlobalSidebar from "./GlobalSidebar";
@@ -83,18 +83,23 @@ export default function TopNavbar({
         <div className="mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
           {/* Left side - Hamburger (mobile) + Logo and Portal Name */}
           <div className="flex items-center gap-3">
-            {/* Removed internal Hamburger Menu Button per user request (accessed via sidebar instead) */}
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="ui-pressable inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Toggle Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
 
             <Link to={homeRoute} className="ui-pressable flex items-center gap-3 rounded-2xl pr-2 hover:opacity-90">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border/70 bg-muted shadow-sm">
-                <img
-                  src={safarLogo}
-                  alt="Safar Logo"
-                  className="w-full h-full object-cover"
+              <div className="flex h-10 w-10 items-center justify-center overflow-visible">
+                <SafarLogo
+                  className="h-10 w-10 origin-center scale-[1.3] text-[#042854] dark:text-white"
+                  title="Safar Logo"
                 />
               </div>
 
-              <h1 className="text-xl font-serif font-bold text-slate-900 dark:text-white tracking-tight sm:text-[2rem]">
+              <h1 className="text-xl font-playfair font-bold text-[#042854] dark:text-white tracking-tight sm:text-[2rem]">
                 SAFAR
               </h1>
             </Link>

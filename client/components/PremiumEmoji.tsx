@@ -1,5 +1,7 @@
 import type { ImgHTMLAttributes } from "react";
 
+import { cn } from "@/lib/utils";
+
 import bookOpenUser from "../../Extras/emojis/book-open-user.svg";
 import bookmarksSimple from "../../Extras/emojis/bookmarks-simple.svg";
 import bank from "../../Extras/emojis/bank.svg";
@@ -155,7 +157,12 @@ export function PremiumEmoji({
       src={src}
       alt={alt ?? ""}
       aria-hidden={alt ? undefined : true}
-      className={`inline-block object-contain align-[-0.125em] ${className}`}
+      className={cn(
+        "inline-block object-contain align-[-0.125em]",
+        /* SVGs use currentColor strokes; as <img> they render black — invert in dark mode */
+        "dark:brightness-0 dark:invert",
+        className,
+      )}
       draggable={false}
       {...props}
     />

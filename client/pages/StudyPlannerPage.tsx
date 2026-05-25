@@ -105,7 +105,7 @@ export default function StudyPlannerPage() {
       return (
         <QuickStart
           onCancel={() => setShowQuickStart(false)}
-          onComplete={(id) => navigate(`/study/planner/${id}/plan`, { replace: true })}
+          onComplete={(id) => navigate(`/study/planner/${id}/syllabus`, { replace: true })}
         />
       );
     }

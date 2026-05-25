@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { collections } from '../db';
 import type { RequestHandler } from 'express';
 import { markDmUserOffline, markDmUserOnline } from './dm-presence';
+import { liveSessionChats } from './live-sessions';
 import { validateBlockedWords } from '../utils/contentFilter';
 import { sendNotificationToUser } from '../services/push-notifications';
 import { queueCommunityLikeNotification } from '../services/community-activity-aggregator';
@@ -1471,6 +1472,42 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         console.error('[MEHFIL] Edit thought error:', err);
         socket.emit('error', { message: 'Failed to edit thought' });
       }
+    });
+
+    socket.on('live:join', (payload: { sessionId: string; name: string }) => {
+      const sessionId = String(payload?.sessionId || '').trim();
+      if (!sessionId) return;
+      const room = `live:${sessionId}`;
+      socket.join(room);
+      if (!liveSessionChats.has(sessionId)) {
+        liveSessionChats.set(sessionId, []);
+      }
+      const history = liveSessionChats.get(sessionId) || [];
+      socket.emit('live:history', history);
+    });
+
+    socket.on('live:message', (payload: { sessionId: string; name: string; text: string }) => {
+      const sessionId = String(payload?.sessionId || '').trim();
+      const name = String(payload?.name || 'Anonymous').trim();
+      const text = String(payload?.text || '').trim();
+      if (!sessionId || !text) return;
+
+      const chatMsg = { name, text, timestamp: Date.now() };
+      if (!liveSessionChats.has(sessionId)) {
+        liveSessionChats.set(sessionId, []);
+      }
+      const history = liveSessionChats.get(sessionId) || [];
+      history.push(chatMsg);
+      if (history.length > 200) {
+        history.shift();
+      }
+      mehfil.to(`live:${sessionId}`).emit('live:message', chatMsg);
+    });
+
+    socket.on('live:leave', (payload: { sessionId: string }) => {
+      const sessionId = String(payload?.sessionId || '').trim();
+      if (!sessionId) return;
+      socket.leave(`live:${sessionId}`);
     });
 
     socket.on('disconnect', async () => {

@@ -70,8 +70,6 @@ export function EmojiPicker({ open, onClose, onSelect, position = 'top', align =
         setQuery('');
     }, [open]);
 
-    if (!open) return null;
-
     const positionClass =
         position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2';
 
@@ -90,6 +88,8 @@ export function EmojiPicker({ open, onClose, onSelect, position = 'top', align =
 
         return ALL_EMOJIS.filter((emoji) => emoji.includes(normalizedQuery));
     }, [activeGroup.emojis, query]);
+
+    if (!open) return null;
 
     return (
         <div

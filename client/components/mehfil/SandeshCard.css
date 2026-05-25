@@ -164,9 +164,10 @@
 }
 
 /* ── AVATAR GRADIENTS ── */
-.sandesh-avatar-indigo {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    box-shadow: 0 0 12px rgba(99, 102, 241, 0.35);
+.mehfil-m3 .sandesh-avatar-indigo,
+.mehfil-m3 .sandesh-avatar-faculty {
+    background: linear-gradient(135deg, var(--mehfil-faculty-muted), var(--mehfil-faculty));
+    box-shadow: 0 0 12px color-mix(in srgb, var(--mehfil-faculty-muted) 35%, transparent);
 }
 
 .sandesh-avatar-teal {
@@ -175,16 +176,16 @@
 }
 
 /* ── BELL ICON BOX ── */
-.sandesh-bell-box {
+.mehfil-m3 .sandesh-bell-box {
     width: 34px;
     height: 34px;
     border-radius: 10px;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
-    border: 1px solid rgba(99, 102, 241, 0.25);
+    background: var(--mehfil-info-container);
+    border: 1px solid color-mix(in srgb, var(--mehfil-ui-primary-container) 35%, var(--mehfil-outline-variant));
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0 12px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--mehfil-ui-primary) 12%, transparent);
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
@@ -210,10 +211,11 @@
     border-radius: 9999px;
 }
 
-.sandesh-badge-indigo {
-    background: rgba(99, 102, 241, 0.15);
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.25);
+.mehfil-m3 .sandesh-badge-indigo,
+.mehfil-m3 .sandesh-faculty-badge {
+    background: var(--mehfil-faculty-container);
+    color: var(--mehfil-faculty-on-container);
+    border: 1px solid color-mix(in srgb, var(--mehfil-faculty-muted) 28%, transparent);
 }
 
 .sandesh-badge-teal {
@@ -267,7 +269,7 @@
 }
 
 /* ── ADD BUTTON (+ new announcement) ── */
-.sandesh-add-btn {
+.mehfil-m3 .sandesh-add-btn {
     position: relative;
     overflow: hidden;
     display: flex;
@@ -276,15 +278,15 @@
     width: 28px;
     height: 28px;
     border-radius: 8px;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.2));
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    color: #a5b4fc;
+    background: color-mix(in srgb, var(--mehfil-ui-primary) 18%, var(--mehfil-surface-low));
+    border: 1px solid color-mix(in srgb, var(--mehfil-ui-primary) 35%, var(--mehfil-outline-variant));
+    color: var(--mehfil-ui-primary-container);
     cursor: pointer;
     transition: all 0.2s;
-    box-shadow: 0 0 10px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--mehfil-ui-primary) 12%, transparent);
 }
 
-.sandesh-add-btn::after {
+.mehfil-m3 .sandesh-add-btn::after {
     content: '';
     position: absolute;
     top: 0;
@@ -295,31 +297,35 @@
     pointer-events: none;
 }
 
-.sandesh-add-btn:hover {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(139, 92, 246, 0.3));
-    box-shadow: 0 0 16px rgba(99, 102, 241, 0.3);
+.mehfil-m3 .sandesh-add-btn:hover {
+    background: color-mix(in srgb, var(--mehfil-ui-primary) 28%, var(--mehfil-surface-low));
+    box-shadow: 0 0 16px color-mix(in srgb, var(--mehfil-ui-primary) 22%, transparent);
 }
 
-/* ── POST BUTTON ── */
-.sandesh-post-btn {
+/* ── POST BUTTON (Live Classroom UIButton) ── */
+.mehfil-m3 .sandesh-post-btn {
     position: relative;
     overflow: hidden;
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 8px 18px;
-    border-radius: 9px;
-    background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+    border-radius: 9999px;
+    background: linear-gradient(to right, var(--mehfil-ui-gradient-from), var(--mehfil-ui-gradient-to));
     border: none;
-    color: #fff;
+    color: var(--mehfil-ui-on-primary);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 0 18px rgba(99, 102, 241, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--mehfil-ui-primary) 28%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
 
-.sandesh-post-btn::after {
+.dark .mehfil-m3 .sandesh-post-btn {
+    background: var(--mehfil-ui-primary);
+}
+
+.mehfil-m3 .sandesh-post-btn::after {
     content: '';
     position: absolute;
     top: 0;
@@ -330,16 +336,16 @@
     pointer-events: none;
 }
 
-.sandesh-post-btn:hover {
+.mehfil-m3 .sandesh-post-btn:hover {
     transform: scale(1.02);
-    box-shadow: 0 0 26px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--mehfil-ui-primary) 38%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-.sandesh-post-btn:active {
+.mehfil-m3 .sandesh-post-btn:active {
     transform: scale(0.97);
 }
 
-.sandesh-post-btn:disabled {
+.mehfil-m3 .sandesh-post-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
     transform: none;

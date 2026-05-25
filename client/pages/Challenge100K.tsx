@@ -56,14 +56,14 @@ const Challenge100K = () => {
   const challengeDone = completedCount === 7;
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-b from-[#f9fafb] via-[#eff6ff] to-[#fff7ed] dark:from-[#0f1115] dark:via-[#131929] dark:to-[#1a1322] text-slate-900 dark:text-slate-100">
+    <div className="min-h-[100dvh] bg-gradient-to-b from-[#f9fafb] via-[#eff6ff] to-[#fff7ed] dark:bg-background text-slate-900 dark:text-foreground">
       <main className="max-w-5xl mx-auto px-4 md:px-8 py-8 md:py-12">
         <Link to="/" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-300 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Back to homepage
         </Link>
 
-        <section className="mt-6 rounded-3xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-[#161824]/90 backdrop-blur-md shadow-xl p-6 md:p-8">
+        <section className="mt-6 rounded-3xl border border-slate-200 dark:border-border bg-white/80 dark:bg-card/90 backdrop-blur-md shadow-xl p-6 md:p-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <p className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-400/15 text-amber-800 dark:text-amber-300 text-xs font-bold uppercase tracking-wider">
@@ -97,7 +97,7 @@ const Challenge100K = () => {
                 className={`rounded-2xl border p-4 md:p-5 transition-all ${
                   isDone
                     ? 'border-emerald-300/80 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-400/10'
-                    : 'border-slate-200 dark:border-white/10 bg-white dark:bg-[#161824]/90'
+                    : 'border-slate-200 dark:border-border bg-white dark:bg-card/90'
                 }`}
               >
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -111,7 +111,7 @@ const Challenge100K = () => {
                     onClick={() => toggleDay(item.day)}
                     className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                       isDone
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                         : 'bg-slate-900 dark:bg-cyan-600 text-white hover:bg-slate-800 dark:hover:bg-cyan-500'
                     }`}
                   >
@@ -124,7 +124,7 @@ const Challenge100K = () => {
           })}
         </section>
 
-        <section className="mt-6 rounded-3xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#161824]/90 p-6 md:p-8 shadow-xl">
+        <section className="mt-6 rounded-3xl border border-slate-200 dark:border-border bg-white dark:bg-card/90 p-6 md:p-8 shadow-xl">
           <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
             <Trophy className="w-6 h-6 text-amber-500" />
             Rewards

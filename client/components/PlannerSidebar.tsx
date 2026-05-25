@@ -98,13 +98,6 @@ export default function PlannerSidebar() {
                   );
                 })}
               </div>
-
-              <div className="mt-auto pt-8">
-                <div className="rounded-2xl p-4 bg-[#d9dbe2] dark:bg-[#0e0e0e] shadow-[inset_2px_2px_4px_rgba(166,171,189,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8),inset_-1px_-1px_2px_rgba(255,255,255,0.05)] border border-[#ffffff] dark:border-[#252626]">
-                  <h4 style={{ fontFamily: "'Satoshi', sans-serif" }} className="text-[10px] font-black uppercase tracking-widest text-[#6b7280] dark:text-[#767575] mb-2">Session Uplink</h4>
-                  <p className="text-xs font-bold text-[#8b919e] dark:text-[#acabaa]">Tactile Environment Active.</p>
-                </div>
-              </div>
             </motion.div>
           </div>
         )}

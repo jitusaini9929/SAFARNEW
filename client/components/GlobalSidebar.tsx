@@ -64,7 +64,7 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
                             </div>
                         </button>
                         <button
-                            onClick={() => handleNavigation("/nishtha/check-in")}
+                            onClick={() => handleNavigation("/check-in")}
                             className="ui-pressable w-full rounded-2xl px-4 py-3 text-left text-slate-950 font-semibold transition-[transform,background-color,color] duration-150 hover:bg-slate-100/85 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
                         >
                             <div className="flex items-center gap-3">

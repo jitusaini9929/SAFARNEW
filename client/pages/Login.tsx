@@ -4,6 +4,8 @@ import { authService } from "@/utils/authService";
 import nishthaLogo from "@/assets/nishtha-logo.webp";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import "@/styles/mehfil-m3.css";
+import { MdFilledButtonReact, MdOutlinedTextFieldReact, MdCheckboxReact } from "@/components/mehfil/material/MdComponents";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -93,7 +95,7 @@ export default function Login() {
         }
       `}</style>
 
-      <div className="mesh-gradient min-h-[100dvh] flex items-center justify-center p-4 antialiased text-gray-800 dark:text-gray-100 font-sans transition-colors duration-500">
+      <div className="mesh-gradient min-h-[100dvh] mehfil-m3 flex items-center justify-center p-4 antialiased text-gray-800 dark:text-gray-100 font-sans transition-colors duration-500">
         {/* Floating decorative blobs */}
         <div
           className="fixed top-20 left-20 w-32 h-32 bg-teal-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 hidden lg:block dark:bg-teal-900"
@@ -106,7 +108,7 @@ export default function Login() {
         <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white rounded-full mix-blend-overlay filter blur-3xl opacity-10 pointer-events-none dark:bg-black dark:opacity-20"></div>
 
         <main className="relative z-10 w-full max-w-md">
-          <div className="glass-surface border border-white/40 dark:border-white/10 rounded-3xl shadow-lg p-8 md:p-10 transition-all duration-300">
+          <div className="mehfil-m3-card p-8 md:p-10 transition-all duration-300">
 
             {/* Logo and Title */}
             <div className="flex flex-col items-center mb-8">
@@ -128,52 +130,38 @@ export default function Login() {
 
             {/* Form */}
             <form onSubmit={handleLogin} className="space-y-6">
-              <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1" htmlFor="email">
-                  {t('auth.email')}
-                </label>
-                <input
-                  className="block w-full px-4 py-3 rounded-xl border-transparent bg-white/50 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:bg-white/80 dark:focus:bg-black/50 transition-all duration-200 shadow-sm"
+              <div className="w-full flex flex-col gap-2">
+                <MdOutlinedTextFieldReact
                   id="email"
-                  name="email"
-                  placeholder={t('auth.email_placeholder')}
-                  required
+                  label={t('auth.email')}
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value.toLowerCase())}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
+                  onInput={(e: any) => setEmail(e.target.value.toLowerCase())}
+                  required
                   disabled={isLoading}
+                  style={{ width: "100%" }}
                 />
               </div>
 
-              <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 ml-1" htmlFor="password">
-                  {t('auth.password')}
-                </label>
-                <input
-                  className="block w-full px-4 py-3 rounded-xl border-transparent bg-white/50 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:bg-white/80 dark:focus:bg-black/50 transition-all duration-200 shadow-sm"
+              <div className="w-full flex flex-col gap-2">
+                <MdOutlinedTextFieldReact
                   id="password"
-                  name="password"
-                  placeholder={t('auth.password_placeholder')}
-                  required
+                  label={t('auth.password')}
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onInput={(e: any) => setPassword(e.target.value)}
+                  required
                   disabled={isLoading}
+                  style={{ width: "100%" }}
                 />
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center">
-                    <input
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => !isLoading && setRememberMe(prev => !prev)}>
+                    <MdCheckboxReact
                       id="remember-me"
-                      name="remember-me"
-                      type="checkbox"
                       checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded cursor-pointer transition-colors"
+                      disabled={isLoading}
                     />
-                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300 font-medium cursor-pointer select-none">
+                    <label htmlFor="remember-me" className="text-sm text-gray-700 dark:text-gray-300 font-medium cursor-pointer">
                       {t('auth.remember_me')}
                     </label>
                   </div>
@@ -192,14 +180,20 @@ export default function Login() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn-gradient w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white tracking-wider focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 dark:focus:ring-offset-gray-800 relative overflow-hidden group disabled:opacity-50"
-              >
-                <span className="relative z-10">{isLoading ? t('auth.signin_loading') : t('auth.signin')}</span>
-                <div className="absolute inset-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
-              </button>
+              <div className="w-full">
+                <MdFilledButtonReact
+                  type="submit"
+                  disabled={isLoading}
+                  style={{
+                    width: "100%",
+                    "--md-filled-button-container-height": "48px",
+                    "--md-filled-button-container-shape": "12px",
+                    "--md-filled-button-container-color": "var(--md-sys-color-primary)",
+                  } as React.CSSProperties}
+                >
+                  <span>{isLoading ? t('auth.signin_loading') : t('auth.signin')}</span>
+                </MdFilledButtonReact>
+              </div>
             </form>
 
             <div className="mt-8 text-center">

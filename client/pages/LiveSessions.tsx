@@ -1,36 +1,29 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { getMehfilSocket } from "@/lib/socket";
 import {
-  Radio,
-  Search,
-  RefreshCw,
-  AlertCircle,
   Calendar,
-  Users,
-  Share2,
   Play,
   Square,
-  MessageSquare,
   StickyNote,
-  Send,
-  Plus,
-  Video,
+  Share2,
 } from "lucide-react";
 import { toast } from "sonner";
-import TopNavbar from "@/components/TopNavbar";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { apiFetch, API_BASE } from "@/utils/apiFetch";
+import M3TopNavbar from "@/components/M3TopNavbar";
+import GlobalSidebar from "@/components/GlobalSidebar";
+import "@/styles/live-sessions.css";
 
 const FILTER_MAP = {
-  upcoming: "scheduled",
-  live: "live",
+  live: "active",
   completed: "ended",
 } as const;
 
 type FilterTab = keyof typeof FILTER_MAP;
 type ApiStatus = (typeof FILTER_MAP)[FilterTab];
-type SidebarTab = "chat" | "notes";
+type SidebarNav = "live-sessions" | "completed" | "resources";
 
 type LiveSessionResource = {
   label: string;
@@ -51,11 +44,21 @@ type LiveSession = {
   isChatEnabled?: boolean;
 };
 
-const MOCK_CHAT_MESSAGES = [
-  { name: "Marcus L.", text: "Could you clarify the second step? It was a bit fast." },
-  { name: "You", text: "I think it is the standard substitution method. Check the notes." },
-  { name: "Elena S.", text: "The visualization on this section is helpful." },
-];
+function MaterialIcon({
+  name,
+  className,
+  filled,
+}: {
+  name: string;
+  className?: string;
+  filled?: boolean;
+}) {
+  return (
+    <span className={cn("material-symbols-outlined", filled && "filled", className)}>
+      {name}
+    </span>
+  );
+}
 
 async function parseErrorResponse(res: Response, fallback: string): Promise<string> {
   return res
@@ -85,53 +88,127 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold",
+        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold lc-label",
         isLive
-          ? "bg-[#ba1a1a] text-white"
+          ? "bg-[var(--lc-error)] text-[var(--lc-on-error)]"
           : status === "ended"
-            ? "bg-[#e1dfdc] text-[#636360]"
-            : "bg-[#dee0ff] text-[#10268f]",
+            ? "bg-[var(--lc-surface-container-high)] text-[var(--lc-on-surface-variant)] border border-[var(--lc-outline-variant)]"
+            : "bg-[var(--lc-primary)]/15 text-[var(--lc-primary)]",
       )}
     >
-      {isLive && <span className="h-2 w-2 animate-pulse rounded-full bg-white" />}
+      {isLive && <span className="h-2 w-2 animate-pulse rounded-full bg-current" />}
       {formatStatusLabel(status)}
     </span>
   );
 }
 
 export default function LiveSessions() {
-  const [searchParams] = useSearchParams();
-  const courseId = searchParams.get("courseId")?.trim() || "";
-
+  const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [filterTab, setFilterTab] = useState<FilterTab>("live");
+  const [sidebarNav, setSidebarNav] = useState<SidebarNav>("live-sessions");
+  const [searchQuery, setSearchQuery] = useState("");
   const [sessions, setSessions] = useState<LiveSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("chat");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
+
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ name: string; text: string; timestamp?: number }>
+  >([]);
+  const [typedMessage, setTypedMessage] = useState("");
+  const [socket, setSocket] = useState<ReturnType<typeof getMehfilSocket> | null>(null);
 
   const apiStatus: ApiStatus = FILTER_MAP[filterTab];
 
+  const filteredSessions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return sessions;
+    return sessions.filter((s) => (s.title || "").toLowerCase().includes(q));
+  }, [sessions, searchQuery]);
+
   const selectedSession = useMemo(
-    () => sessions.find((s) => s.id === selectedSessionId) || sessions[0] || null,
-    [selectedSessionId, sessions],
+    () =>
+      filteredSessions.find((s) => s.id === selectedSessionId) ||
+      filteredSessions[0] ||
+      null,
+    [selectedSessionId, filteredSessions],
   );
 
-  const manageableSession = useMemo(
-    () => sessions.find((s) => s.canManage && s.status === apiStatus) || null,
-    [apiStatus, sessions],
-  );
+  const isSteve = currentUser?.email === "steve123@example.com";
+
+  const manageableSession = useMemo(() => {
+    if (!isSteve || apiStatus !== "active") return null;
+    return (
+      sessions.find(
+        (s) => s.canManage && (s.status === "live" || s.status === "scheduled"),
+      ) || null
+    );
+  }, [apiStatus, sessions, isSteve]);
+
+  const showNewSessionButton = isSteve;
+
+  useEffect(() => {
+    if (
+      !selectedSession?.id ||
+      selectedSession.status === "ended" ||
+      selectedSession.status === "cancelled"
+    ) {
+      setChatMessages([]);
+      return;
+    }
+
+    const newSocket = getMehfilSocket();
+
+    const handleHistory = (history: Array<{ name: string; text: string }>) => {
+      setChatMessages(history);
+    };
+
+    const handleMessage = (msg: { name: string; text: string }) => {
+      setChatMessages((prev) => [...prev, msg]);
+    };
+
+    newSocket.on("live:history", handleHistory);
+    newSocket.on("live:message", handleMessage);
+
+    newSocket.emit("live:join", {
+      sessionId: selectedSession.id,
+      name: currentUser?.name || "User",
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.emit("live:leave", { sessionId: selectedSession.id });
+      newSocket.off("live:history", handleHistory);
+      newSocket.off("live:message", handleMessage);
+    };
+  }, [selectedSession?.id, selectedSession?.status, currentUser?.name]);
+
+  const handleSendMessage = () => {
+    const text = typedMessage.trim();
+    if (!text || !socket || !selectedSession?.id) return;
+
+    socket.emit("live:message", {
+      sessionId: selectedSession.id,
+      name: currentUser?.name || "User",
+      text,
+    });
+    setTypedMessage("");
+  };
 
   const loadSessions = useCallback(async () => {
-    if (!courseId) return;
-
     setIsLoading(true);
     setError(null);
 
     try {
-      const params = new URLSearchParams({ courseId, status: apiStatus });
+      const params = new URLSearchParams({ status: apiStatus });
       const res = await apiFetch(`${API_BASE}/live-sessions?${params.toString()}`);
 
       if (!res.ok) {
@@ -151,11 +228,35 @@ export default function LiveSessions() {
     } finally {
       setIsLoading(false);
     }
-  }, [apiStatus, courseId]);
+  }, [apiStatus]);
 
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
+
+  const handleSidebarNav = (nav: SidebarNav) => {
+    setSidebarNav(nav);
+    if (nav === "live-sessions") setFilterTab("live");
+    if (nav === "completed") setFilterTab("completed");
+  };
+
+  const handleViewLive = () => {
+    const live = sessions.find((s) => s.status === "live");
+    if (live) {
+      setFilterTab("live");
+      setSidebarNav("live-sessions");
+      setSelectedSessionId(live.id);
+      return;
+    }
+    setFilterTab("live");
+    setSidebarNav("live-sessions");
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilterTab("live");
+    setSidebarNav("live-sessions");
+  };
 
   async function startLive(sessionId: string) {
     const url = youtubeUrl.trim();
@@ -186,6 +287,34 @@ export default function LiveSessions() {
     }
   }
 
+  async function createSession() {
+    const title = newTitle.trim();
+    if (!title) {
+      toast.error("Please enter a session title.");
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const body: Record<string, unknown> = { title, status: "scheduled" };
+      const res = await apiFetch(`${API_BASE}/live-sessions`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        throw new Error(await parseErrorResponse(res, "Failed to create session"));
+      }
+      toast.success("Session created!");
+      setNewTitle("");
+      setShowCreateForm(false);
+      setFilterTab("live");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create session");
+    } finally {
+      setIsCreating(false);
+      loadSessions();
+    }
+  }
+
   async function endLive(sessionId: string) {
     setIsActionLoading(true);
     try {
@@ -200,6 +329,7 @@ export default function LiveSessions() {
 
       toast.success("Live class ended");
       setFilterTab("completed");
+      setSidebarNav("completed");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to end live class");
     } finally {
@@ -208,166 +338,356 @@ export default function LiveSessions() {
     }
   }
 
-  if (!courseId) {
-    return (
-      <div className="min-h-screen bg-[#f9f9fc] text-[#1a1c1e]">
-        <TopNavbar />
-        <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-3xl items-center px-6 py-12">
-          <div className="rounded-[2rem] border border-[#c5c5d5] bg-white p-8 shadow-sm">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#dee0ff] text-[#10268f]">
-              <AlertCircle className="h-6 w-6" />
-            </div>
-            <h1 className="font-['Plus_Jakarta_Sans'] text-3xl font-bold text-[#1a1c1e]">
-              Open live classes from a course
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-[#454652]">
-              This screen needs a course id in the URL, for example{" "}
-              <span className="font-semibold text-[#10268f]">
-                /live-sessions?courseId=COURSE_ID
-              </span>
-              .
-            </p>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  const chatDisabled =
+    !selectedSession ||
+    selectedSession.status === "ended" ||
+    selectedSession.status === "cancelled";
+
+  const showEmptyCanvas =
+    !isLoading && !error && filteredSessions.length === 0;
+
+  const showSessionContent = filteredSessions.length > 0 && selectedSession;
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#f9f9fc] text-[#1a1c1e]">
-      <TopNavbar />
+    <div className="live-classroom min-h-[100dvh] flex flex-col overflow-hidden">
+      <M3TopNavbar
+        moduleName="PORTAL"
+        onSidebarToggle={() => setIsGlobalSidebarOpen(true)}
+        homeRoute="/home"
+      />
 
-      <main className="flex h-[calc(100vh-4rem)] overflow-hidden">
-        <section className="flex-1 overflow-y-auto">
-          <div className="mx-auto flex max-w-[1040px] flex-col gap-6 p-4 lg:p-6">
-            <div className="flex flex-col gap-4 rounded-[2rem] border border-[#c5c5d5] bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.25em] text-[#10268f]">
-                  <Radio className="h-4 w-4" />
-                  Live Classes
-                </p>
-                <h1 className="mt-2 font-['Plus_Jakarta_Sans'] text-3xl font-bold tracking-tight">
-                  Course live classroom
-                </h1>
+      <GlobalSidebar
+        isOpen={isGlobalSidebarOpen}
+        onClose={() => setIsGlobalSidebarOpen(false)}
+        homeRoute="/home"
+      />
+
+      <div className="flex flex-1 w-full min-h-0 overflow-hidden">
+        <LiveClassroomSidebar
+          activeNav={sidebarNav}
+          onNav={handleSidebarNav}
+          onViewLive={handleViewLive}
+          onSettings={() => navigate("/settings")}
+        />
+
+        <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
+          <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 lg:p-8">
+            <div className="flex flex-col gap-6 lg:gap-8 w-full max-w-none">
+            <div className="rounded-2xl p-6 md:p-8 flex flex-col gap-6 shadow-sm border lc-ghost-border bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)]">
+              <div className="flex items-center gap-2 text-[var(--lc-primary)] text-sm lc-label uppercase tracking-wider font-semibold">
+                <MaterialIcon name="podcasts" className="text-[18px]" />
+                Live Classes
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#757684]" />
-                  <input
-                    className="w-full rounded-full border border-[#c5c5d5] bg-[#f3f3f6] py-2 pl-10 pr-4 text-sm outline-none ring-[#10268f] focus:ring-2 sm:w-64"
-                    placeholder="Search sessions..."
-                    readOnly
-                  />
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-1 items-center gap-3 max-w-full">
+                  <div className="relative flex-1 min-w-0">
+                    <MaterialIcon
+                      name="search"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--lc-on-surface-variant)] text-[20px] pointer-events-none"
+                    />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search sessions..."
+                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-[var(--lc-surface-container-low)] dark:bg-[var(--lc-surface-container-lowest)] border border-[var(--lc-outline-variant)] focus:border-[var(--lc-primary)] focus:ring-1 focus:ring-[var(--lc-primary)] text-sm outline-none transition-all placeholder:text-[var(--lc-on-surface-variant)]/60 text-[var(--lc-on-surface)]"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loadSessions()}
+                    className="p-2 rounded-xl border border-[var(--lc-outline-variant)] text-[var(--lc-on-surface-variant)] hover:bg-[var(--lc-surface-container-high)] hover:text-[var(--lc-on-surface)] transition-colors flex items-center justify-center shrink-0"
+                    aria-label="Refresh sessions"
+                  >
+                    <MaterialIcon name="refresh" className="text-[20px]" />
+                  </button>
+                  {showNewSessionButton && (
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateForm((v) => !v)}
+                      className="lc-btn-primary px-4 py-2 rounded-xl lc-label text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity flex items-center gap-2 whitespace-nowrap shrink-0"
+                    >
+                      <MaterialIcon name="add" className="text-[20px]" />
+                      New Session
+                    </button>
+                  )}
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => loadSessions()}
-                  className="rounded-full border-[#757684] text-[#10268f]"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh
-                </Button>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 rounded-full bg-[#eeeef0] p-1">
-              {(
-                [
-                  ["upcoming", "Upcoming"],
-                  ["live", "Live"],
-                  ["completed", "Completed"],
-                ] as const
-              ).map(([tab, label]) => (
+            {showCreateForm && (
+              <div className="rounded-2xl p-6 border lc-ghost-border bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)] shadow-sm">
+                <p className="text-sm lc-label uppercase tracking-wider font-semibold text-[var(--lc-primary)] mb-4">
+                  Create New Session
+                </p>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <input
+                    type="text"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="Session title (e.g. Maths Live Class – Chapter 5)"
+                    className="flex-1 w-full px-4 py-3 rounded-xl border border-[var(--lc-outline-variant)] bg-[var(--lc-surface-container-low)] text-sm text-[var(--lc-on-surface)] outline-none focus:border-[var(--lc-primary)] focus:ring-1 focus:ring-[var(--lc-primary)]"
+                  />
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={createSession}
+                      disabled={isCreating}
+                      className="lc-btn-primary px-5 py-2.5 rounded-xl lc-label text-sm font-semibold disabled:opacity-60"
+                    >
+                      {isCreating ? "Creating..." : "Create"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCreateForm(false);
+                        setNewTitle("");
+                      }}
+                      className="px-5 py-2.5 rounded-xl border border-[var(--lc-outline-variant)] text-[var(--lc-on-surface-variant)] hover:bg-[var(--lc-surface-container-high)] text-sm font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center gap-2">
                 <button
-                  key={tab}
                   type="button"
-                  onClick={() => setFilterTab(tab)}
+                  onClick={() => {
+                    setFilterTab("live");
+                    setSidebarNav("live-sessions");
+                  }}
                   className={cn(
-                    "rounded-full px-5 py-2 text-sm font-bold transition",
-                    filterTab === tab
-                      ? "bg-[#10268f] text-white shadow-sm"
-                      : "text-[#454652] hover:bg-[#e1dfdc]",
+                    "px-5 py-2 rounded-full lc-label text-sm font-medium flex items-center gap-2 transition-all shadow-sm",
+                    filterTab === "live"
+                      ? "bg-[var(--lc-primary)] text-[var(--lc-on-primary)]"
+                      : "bg-[var(--lc-surface-container-low)] text-[var(--lc-on-surface-variant)] hover:bg-[var(--lc-surface-container-high)] border border-[var(--lc-outline-variant)]",
                   )}
                 >
-                  {label}
+                  {filterTab === "live" && (
+                    <MaterialIcon name="check" className="text-[18px]" />
+                  )}
+                  Live
                 </button>
-              ))}
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterTab("completed");
+                    setSidebarNav("completed");
+                  }}
+                  className={cn(
+                    "px-5 py-2 rounded-full lc-label text-sm font-medium transition-all",
+                    filterTab === "completed"
+                      ? "bg-[var(--lc-primary)] text-[var(--lc-on-primary)] flex items-center gap-2 shadow-sm"
+                      : "bg-[var(--lc-surface-container-low)] text-[var(--lc-on-surface-variant)] hover:bg-[var(--lc-surface-container-high)] border border-[var(--lc-outline-variant)]",
+                  )}
+                >
+                  {filterTab === "completed" && (
+                    <MaterialIcon name="check" className="text-[18px]" />
+                  )}
+                  Completed
+                </button>
+              </div>
 
-            {manageableSession && (
-              <div className="rounded-[2rem] border border-[#c5c5d5] bg-[#f3f3f6] p-4 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                  <div className="flex-1">
-                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#10268f]">
-                      Teacher controls
-                    </p>
-                    <h2 className="mt-1 font-['Plus_Jakarta_Sans'] text-xl font-bold">
-                      {manageableSession.title}
-                    </h2>
-                    {apiStatus === "scheduled" && (
-                      <input
-                        value={youtubeUrl}
-                        onChange={(e) => setYoutubeUrl(e.target.value)}
-                        placeholder="Paste today's YouTube Live URL"
-                        className="mt-3 w-full rounded-full border border-[#c5c5d5] bg-white px-4 py-3 text-sm outline-none ring-[#10268f] focus:ring-2"
-                      />
+              {manageableSession && (
+                <div className="rounded-2xl p-5 border lc-ghost-border bg-[var(--lc-surface-container-low)] shadow-sm">
+                  <p className="text-xs lc-label uppercase tracking-wider font-semibold text-[var(--lc-primary)] mb-2">
+                    Teacher controls
+                  </p>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h2 className="lc-headline text-xl font-semibold text-[var(--lc-on-surface)]">
+                        {manageableSession.title}
+                      </h2>
+                      {manageableSession.status === "scheduled" && (
+                        <input
+                          type="url"
+                          value={youtubeUrl}
+                          onChange={(e) => setYoutubeUrl(e.target.value)}
+                          placeholder="Paste today's YouTube Live URL"
+                          className="mt-3 w-full px-4 py-3 rounded-xl border border-[var(--lc-outline-variant)] bg-[var(--lc-surface-container-lowest)] text-sm outline-none focus:border-[var(--lc-primary)]"
+                        />
+                      )}
+                    </div>
+                    {manageableSession.status === "live" ? (
+                      <button
+                        type="button"
+                        onClick={() => endLive(manageableSession.id)}
+                        disabled={isActionLoading}
+                        className="px-5 py-2.5 rounded-xl bg-[var(--lc-error)] text-[var(--lc-on-error)] lc-label text-sm font-semibold flex items-center gap-2 disabled:opacity-60 shrink-0"
+                      >
+                        <Square className="h-4 w-4" />
+                        End Live
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startLive(manageableSession.id)}
+                        disabled={isActionLoading}
+                        className="lc-btn-primary px-5 py-2.5 rounded-xl lc-label text-sm font-semibold flex items-center gap-2 disabled:opacity-60 shrink-0"
+                      >
+                        <MaterialIcon name="sensors" className="text-[18px]" />
+                        Start Live
+                      </button>
                     )}
                   </div>
-
-                  {apiStatus === "live" ? (
-                    <Button
-                      type="button"
-                      onClick={() => endLive(manageableSession.id)}
-                      disabled={isActionLoading}
-                      className="rounded-full bg-[#ba1a1a] px-6 text-white hover:bg-[#93000a]"
-                    >
-                      <Square className="mr-2 h-4 w-4" />
-                      End Live
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      onClick={() => startLive(manageableSession.id)}
-                      disabled={isActionLoading}
-                      className="rounded-full bg-[#10268f] px-6 text-white hover:bg-[#293ba2]"
-                    >
-                      <Radio className="mr-2 h-4 w-4" />
-                      Start Live
-                    </Button>
-                  )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {selectedSession ? (
-              <LiveSessionPlayer session={selectedSession} />
-            ) : (
-              <SessionsEmptyState
-                isLoading={isLoading}
-                error={error}
-                onRetry={loadSessions}
-              />
-            )}
+              {isLoading && (
+                <EmptyStateCanvas>
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--lc-surface-container-high)] border-t-[var(--lc-primary)] mb-2 z-10" />
+                  <p className="text-[var(--lc-on-surface-variant)] z-10">Loading live sessions...</p>
+                </EmptyStateCanvas>
+              )}
 
-            <SessionGrid
-              sessions={sessions}
-              selectedSessionId={selectedSession?.id || ""}
-              isLoading={isLoading}
-              error={error}
-              onRetry={loadSessions}
-              onSelect={setSelectedSessionId}
-            />
-          </div>
-        </section>
+              {error && !isLoading && (
+                <EmptyStateCanvas>
+                  <MaterialIcon
+                    name="error"
+                    className="text-4xl text-[var(--lc-error)] mb-2 z-10"
+                  />
+                  <h3 className="lc-headline text-xl font-semibold text-[var(--lc-on-surface)] z-10">
+                    Could not load sessions
+                  </h3>
+                  <p className="text-[var(--lc-on-surface-variant)] text-center max-w-sm z-10">{error}</p>
+                  <button
+                    type="button"
+                    onClick={() => loadSessions()}
+                    className="mt-4 px-6 py-2 rounded-full bg-[var(--lc-surface-container-high)] text-[var(--lc-primary)] lc-label text-sm font-semibold hover:bg-[var(--lc-surface-container-highest)] transition-colors z-10 border border-[var(--lc-primary)]/20"
+                  >
+                    Try again
+                  </button>
+                </EmptyStateCanvas>
+              )}
 
-        <ClassActivitySidebar
-          activeTab={sidebarTab}
-          onTabChange={setSidebarTab}
-          session={selectedSession}
-        />
-      </main>
+              {showEmptyCanvas && (
+                <EmptyStateCanvas>
+                  <div className="w-20 h-20 rounded-full bg-[var(--lc-surface-container-high)] flex items-center justify-center mb-2 z-10">
+                    <MaterialIcon
+                      name="videocam_off"
+                      filled
+                      className="text-4xl text-[var(--lc-primary)]/60 dark:text-[var(--lc-primary)]/60"
+                    />
+                  </div>
+                  <h3 className="lc-headline text-xl font-semibold text-[var(--lc-on-surface)] z-10">
+                    No active sessions found
+                  </h3>
+                  <p className="text-[var(--lc-on-surface-variant)] text-center max-w-sm z-10 text-sm">
+                    There are currently no live sessions matching this filter. You can start a new
+                    session or check completed ones.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-4 px-6 py-2 rounded-full bg-[var(--lc-surface-container-high)] text-[var(--lc-primary)] lc-label text-sm font-semibold hover:bg-[var(--lc-surface-container-highest)] transition-colors z-10 border border-[var(--lc-primary)]/20"
+                  >
+                    Clear Filters
+                  </button>
+                </EmptyStateCanvas>
+              )}
+
+              {showSessionContent && (
+                <>
+                  <LiveSessionPlayer session={selectedSession} />
+                  {filteredSessions.length > 1 && (
+                    <SessionGrid
+                      sessions={filteredSessions}
+                      selectedSessionId={selectedSession.id}
+                      onSelect={setSelectedSessionId}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+            </div>
+          </main>
+
+          <DiscussionsPanel
+            chatMessages={chatMessages}
+            typedMessage={typedMessage}
+            setTypedMessage={setTypedMessage}
+            onSendMessage={handleSendMessage}
+            currentUser={currentUser}
+            chatDisabled={chatDisabled}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LiveClassroomSidebar({
+  activeNav,
+  onNav,
+  onViewLive,
+  onSettings,
+}: {
+  activeNav: SidebarNav;
+  onNav: (nav: SidebarNav) => void;
+  onViewLive: () => void;
+  onSettings: () => void;
+}) {
+  const navItem = (nav: SidebarNav, icon: string, label: string) => (
+    <button
+      type="button"
+      onClick={() => onNav(nav)}
+      className={cn(
+        "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left",
+        activeNav === nav
+          ? "text-[var(--lc-primary)] font-bold bg-[var(--lc-surface-container-highest)] scale-[0.99]"
+          : "text-[var(--lc-on-surface-variant)] hover:text-[var(--lc-primary)] hover:bg-[var(--lc-surface-container-high)]",
+      )}
+    >
+      <MaterialIcon name={icon} className="text-[22px]" />
+      <span>{label}</span>
+    </button>
+  );
+
+  return (
+    <aside className="hidden lg:flex flex-col w-72 shrink-0 min-h-0 bg-[var(--lc-surface-container-low)] dark:bg-[var(--lc-surface-container-low)] p-6 border-r border-[var(--lc-outline-variant)]">
+      <div className="mb-6 shrink-0">
+        <h2 className="lc-headline text-lg font-semibold text-[var(--lc-on-surface)]">
+          Live Classroom
+        </h2>
+        <p className="text-sm text-[var(--lc-on-surface-variant)]">All teacher sessions</p>
+      </div>
+      <nav className="flex-1 space-y-2 min-h-0 overflow-y-auto">
+        {navItem("live-sessions", "sensors", "Live Sessions")}
+        {navItem("completed", "task_alt", "Completed")}
+        {navItem("resources", "folder_open", "Resources")}
+      </nav>
+      <button
+        type="button"
+        onClick={onViewLive}
+        className="w-full py-3 px-4 lc-btn-primary rounded-xl lc-label font-semibold shadow-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 mt-4 shrink-0"
+      >
+        <MaterialIcon name="play_arrow" className="text-sm" />
+        View Live
+      </button>
+      <div className="mt-4 pt-4 border-t border-[var(--lc-outline-variant)] shrink-0">
+        <button
+          type="button"
+          onClick={onSettings}
+          className="w-full flex items-center gap-3 px-4 py-2 rounded-xl text-[var(--lc-on-surface-variant)] hover:text-[var(--lc-primary)] hover:bg-[var(--lc-surface-container-high)] transition-all text-sm"
+        >
+          <MaterialIcon name="settings" className="text-[20px]" />
+          <span>Settings</span>
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function EmptyStateCanvas({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border lc-ghost-border h-96 flex flex-col items-center justify-center gap-4 shadow-sm relative overflow-hidden bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)]">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-[var(--lc-primary)]/10 via-transparent to-transparent opacity-50" />
+      {children}
     </div>
   );
 }
@@ -379,7 +699,7 @@ function LiveSessionPlayer({ session }: { session: LiveSession }) {
   );
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-[#c5c5d5] bg-white shadow-sm">
+    <section className="rounded-2xl overflow-hidden border lc-ghost-border bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)] shadow-sm">
       <div className="relative aspect-video bg-black">
         {showEmbed && session.youtubeEmbedUrl ? (
           <iframe
@@ -388,6 +708,7 @@ function LiveSessionPlayer({ session }: { session: LiveSession }) {
             className="h-full w-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
           />
         ) : session.thumbnailUrl ? (
           <img
@@ -397,46 +718,42 @@ function LiveSessionPlayer({ session }: { session: LiveSession }) {
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-[#1a1c1e]">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#dee0ff] text-[#10268f]">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--lc-primary)]/20 text-[var(--lc-primary)]">
               <Play className="h-10 w-10 fill-current" />
             </div>
           </div>
         )}
-
         <div className="absolute left-4 top-4">
           <StatusBadge status={session.status} />
         </div>
       </div>
 
-      <div className="space-y-5 p-5">
+      <div className="space-y-5 p-5 md:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold tracking-tight lg:text-3xl">
+            <h2 className="lc-headline text-2xl font-semibold tracking-tight text-[var(--lc-on-surface)]">
               {session.title || "Untitled live class"}
             </h2>
-            <div className="mt-3 flex flex-wrap gap-3 text-sm font-semibold text-[#454652]">
+            <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium text-[var(--lc-on-surface-variant)]">
               <span className="flex items-center gap-1.5">
                 <Calendar className="h-4 w-4" />
                 {formatScheduledDate(session.scheduledStartAt)}
               </span>
-              <span className="flex items-center gap-1.5">
-                <Users className="h-4 w-4" />
-                Course session
-              </span>
             </div>
           </div>
-
-          <Button
-            variant="outline"
-            className="rounded-full border-[#757684] text-[#10268f]"
+          <button
+            type="button"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--lc-outline-variant)] text-[var(--lc-primary)] text-sm font-medium hover:bg-[var(--lc-surface-container-high)] transition-colors shrink-0"
           >
-            <Share2 className="mr-2 h-4 w-4" />
+            <Share2 className="h-4 w-4" />
             Share
-          </Button>
+          </button>
         </div>
 
         {session.description && (
-          <p className="max-w-3xl text-sm leading-6 text-[#454652]">{session.description}</p>
+          <p className="max-w-3xl text-sm leading-6 text-[var(--lc-on-surface-variant)]">
+            {session.description}
+          </p>
         )}
 
         <div className="grid gap-3 md:grid-cols-2">
@@ -446,15 +763,14 @@ function LiveSessionPlayer({ session }: { session: LiveSession }) {
               href={resource.url}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-3 rounded-[1.25rem] border border-[#c5c5d5] bg-[#f9f9fc] p-4 text-sm font-semibold text-[#10268f] hover:bg-[#dee0ff]"
+              className="flex items-center gap-3 rounded-xl border border-[var(--lc-outline-variant)] bg-[var(--lc-surface-container-low)] p-4 text-sm font-semibold text-[var(--lc-primary)] hover:bg-[var(--lc-surface-container-high)] transition-colors"
             >
               <StickyNote className="h-5 w-5" />
               {resource.label}
             </a>
           ))}
-
           {(!session.resources || session.resources.length === 0) && (
-            <div className="rounded-[1.25rem] border border-dashed border-[#c5c5d5] bg-[#f9f9fc] p-4 text-sm text-[#757684]">
+            <div className="rounded-xl border border-dashed border-[var(--lc-outline-variant)] bg-[var(--lc-surface-container-low)] p-4 text-sm text-[var(--lc-on-surface-variant)] md:col-span-2">
               No resources added for this session.
             </div>
           )}
@@ -467,24 +783,12 @@ function LiveSessionPlayer({ session }: { session: LiveSession }) {
 function SessionGrid({
   sessions,
   selectedSessionId,
-  isLoading,
-  error,
-  onRetry,
   onSelect,
 }: {
   sessions: LiveSession[];
   selectedSessionId: string;
-  isLoading: boolean;
-  error: string | null;
-  onRetry: () => void;
   onSelect: (id: string) => void;
 }) {
-  if (!sessions.length) {
-    return (
-      <SessionsEmptyState isLoading={isLoading} error={error} onRetry={onRetry} />
-    );
-  }
-
   return (
     <section className="grid gap-3 md:grid-cols-2">
       {sessions.map((session) => (
@@ -493,25 +797,23 @@ function SessionGrid({
           type="button"
           onClick={() => onSelect(session.id)}
           className={cn(
-            "rounded-[1.5rem] border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
+            "rounded-2xl p-5 text-left transition hover:-translate-y-0.5 border shadow-sm bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)]",
             selectedSessionId === session.id
-              ? "border-[#10268f]"
-              : "border-[#c5c5d5]",
+              ? "border-[var(--lc-primary)] ring-1 ring-[var(--lc-primary)]"
+              : "border-[var(--lc-outline-variant)]",
           )}
         >
           <div className="flex items-start justify-between gap-3">
-            <h3 className="line-clamp-2 font-['Plus_Jakarta_Sans'] text-lg font-bold">
+            <h3 className="line-clamp-2 lc-headline text-lg font-semibold text-[var(--lc-on-surface)]">
               {session.title}
             </h3>
             <StatusBadge status={session.status} />
           </div>
-
-          <p className="mt-3 flex items-center gap-2 text-sm text-[#454652]">
+          <p className="mt-3 flex items-center gap-2 text-sm text-[var(--lc-on-surface-variant)]">
             <Calendar className="h-4 w-4" />
             {formatScheduledDate(session.scheduledStartAt)}
           </p>
-
-          <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#dee0ff] px-3 py-1 text-xs font-bold text-[#10268f]">
+          <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--lc-primary)]/15 px-3 py-1 text-xs font-semibold text-[var(--lc-primary)] lc-label">
             {session.status === "live"
               ? "Join Live"
               : session.status === "ended"
@@ -524,158 +826,113 @@ function SessionGrid({
   );
 }
 
-function SessionsEmptyState({
-  isLoading,
-  error,
-  onRetry,
+function DiscussionsPanel({
+  chatMessages,
+  typedMessage,
+  setTypedMessage,
+  onSendMessage,
+  currentUser,
+  chatDisabled,
 }: {
-  isLoading: boolean;
-  error: string | null;
-  onRetry: () => void;
+  chatMessages: Array<{ name: string; text: string; timestamp?: number }>;
+  typedMessage: string;
+  setTypedMessage: (v: string) => void;
+  onSendMessage: () => void;
+  currentUser: { name?: string } | null;
+  chatDisabled: boolean;
 }) {
-  return (
-    <div className="rounded-[2rem] border border-[#c5c5d5] bg-white p-8 text-center shadow-sm">
-      {isLoading ? (
-        <>
-          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#dee0ff] border-t-[#10268f]" />
-          <p className="font-semibold text-[#454652]">Loading live sessions...</p>
-        </>
-      ) : error ? (
-        <>
-          <AlertCircle className="mx-auto mb-3 h-10 w-10 text-[#ba1a1a]" />
-          <p className="font-semibold text-[#93000a]">{error}</p>
-          <Button onClick={() => onRetry()} className="mt-4 rounded-full bg-[#10268f] text-white">
-            Try again
-          </Button>
-        </>
-      ) : (
-        <>
-          <Video className="mx-auto mb-3 h-10 w-10 text-[#10268f]" />
-          <p className="font-semibold text-[#454652]">No sessions found for this filter.</p>
-        </>
-      )}
-    </div>
-  );
-}
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-function ClassActivitySidebar({
-  activeTab,
-  onTabChange,
-  session,
-}: {
-  activeTab: SidebarTab;
-  onTabChange: (tab: SidebarTab) => void;
-  session: LiveSession | null;
-}) {
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
   return (
-    <aside className="hidden w-[380px] flex-col border-l border-[#c5c5d5] bg-[#f3f3f6] xl:flex">
-      <div className="border-b border-[#c5c5d5] bg-white p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-['Plus_Jakarta_Sans'] text-xl font-bold text-[#10268f]">
-            Class Activity
-          </h2>
-          <Button className="rounded-full bg-[#10268f] text-white hover:bg-[#293ba2]">
-            Ask a Question
-          </Button>
+    <aside className="hidden lg:flex w-[320px] xl:w-[380px] shrink-0 flex-col min-h-0 border-l border-[var(--lc-outline-variant)] bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)]">
+      <div className="flex flex-col flex-1 min-h-0 p-6">
+        <h2 className="lc-headline text-xl font-bold text-[var(--lc-primary)] mb-4 pb-4 border-b border-[var(--lc-outline-variant)] shrink-0">
+          Discussions
+        </h2>
+
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {chatMessages.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-2">
+              <MaterialIcon
+                name="forum"
+                className="text-4xl text-[var(--lc-on-surface-variant)]/30 mb-2"
+              />
+              <p className="text-[var(--lc-on-surface-variant)] text-sm">
+                No messages yet. Be the first to start the conversation.
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 space-y-4 overflow-y-auto pr-1 min-h-0">
+              {chatMessages.map((message, index) => {
+                const isCurrentUser =
+                  message.name === (currentUser?.name || "User") || message.name === "You";
+                return (
+                  <div
+                    key={`${message.name}-${message.text}-${index}`}
+                    className={cn("flex gap-3", isCurrentUser && "flex-row-reverse")}
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--lc-primary)]/20 text-xs font-bold text-[var(--lc-primary)]">
+                      {message.name.charAt(0)}
+                    </div>
+                    <div
+                      className={cn(
+                        "max-w-[85%] rounded-2xl border p-3 text-sm shadow-sm",
+                        isCurrentUser
+                          ? "bg-[var(--lc-primary)] text-[var(--lc-on-primary)] border-transparent"
+                          : "bg-[var(--lc-surface-container-low)] text-[var(--lc-on-surface)] border-[var(--lc-outline-variant)]",
+                      )}
+                    >
+                      {!isCurrentUser && (
+                        <p className="mb-1 font-bold text-[var(--lc-primary)] text-xs">
+                          {message.name}
+                        </p>
+                      )}
+                      <p className="break-words">{message.text}</p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={chatEndRef} />
+            </div>
+          )}
         </div>
 
-        <div className="mt-4 flex gap-2 rounded-full bg-[#eeeef0] p-1">
-          {(
-            [
-              ["chat", MessageSquare, "Chat"],
-              ["notes", StickyNote, "Notes"],
-            ] as const
-          ).map(([tab, Icon, label]) => (
+        <div className="mt-4 pt-4 border-t border-[var(--lc-outline-variant)] shrink-0">
+          <div className="relative">
+            <input
+              type="text"
+              value={typedMessage}
+              onChange={(e) => setTypedMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  onSendMessage();
+                }
+              }}
+              disabled={chatDisabled}
+              placeholder={
+                chatDisabled
+                  ? "Chat disabled for completed classes"
+                  : "Send a message to class..."
+              }
+              className="w-full bg-[var(--lc-surface-container-low)] dark:bg-[var(--lc-surface-container-lowest)] border border-[var(--lc-outline-variant)] rounded-xl pl-4 pr-12 py-3 text-sm outline-none transition-all placeholder:text-[var(--lc-on-surface-variant)]/60 text-[var(--lc-on-surface)] focus:border-[var(--lc-primary)] focus:ring-1 focus:ring-[var(--lc-primary)] disabled:opacity-50"
+            />
             <button
-              key={tab}
               type="button"
-              onClick={() => onTabChange(tab)}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-full py-2 text-sm font-bold transition",
-                activeTab === tab
-                  ? "bg-[#10268f] text-white shadow-sm"
-                  : "text-[#454652] hover:bg-[#e1dfdc]",
-              )}
+              onClick={onSendMessage}
+              disabled={chatDisabled}
+              className="absolute right-3 inset-y-0 flex items-center text-[var(--lc-primary)] hover:opacity-80 transition-colors disabled:opacity-40"
+              aria-label="Send message"
             >
-              <Icon className="h-4 w-4" />
-              {label}
+              <MaterialIcon name="send" className="text-[20px]" />
             </button>
-          ))}
+          </div>
         </div>
       </div>
-
-      {activeTab === "chat" ? (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 space-y-4 overflow-y-auto p-4">
-            {MOCK_CHAT_MESSAGES.map((message, index) => (
-              <div
-                key={`${message.name}-${message.text}`}
-                className={cn(
-                  "flex gap-3",
-                  message.name === "You" && "flex-row-reverse",
-                )}
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#dee0ff] text-xs font-bold text-[#10268f]">
-                  {message.name.charAt(0)}
-                </div>
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-[1rem] border border-[#c5c5d5] p-3 text-sm shadow-sm",
-                    index === 1
-                      ? "bg-[#2e40a6] text-white"
-                      : "bg-white text-[#1a1c1e]",
-                  )}
-                >
-                  {message.name !== "You" && (
-                    <p className="mb-1 font-bold text-[#10268f]">{message.name}</p>
-                  )}
-                  <p>{message.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-[#c5c5d5] bg-white p-4">
-            <div className="relative">
-              <textarea
-                rows={1}
-                placeholder={
-                  session?.isChatEnabled === false
-                    ? "Chat disabled for this class"
-                    : "Send a message..."
-                }
-                disabled={session?.isChatEnabled === false}
-                className="w-full resize-none rounded-[1rem] border border-[#c5c5d5] bg-[#f3f3f6] py-3 pl-4 pr-12 text-sm outline-none ring-[#10268f] focus:ring-2 disabled:opacity-60"
-              />
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-[#10268f] hover:bg-[#dee0ff]"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          <div className="rounded-[1.25rem] border border-[#c5c5d5] bg-white p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#757684]">
-              Timestamp: 12:45
-            </p>
-            <p className="mt-2 text-sm leading-6">
-              Review the key derivation after class and add course notes here.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="flex w-full flex-col items-center justify-center rounded-[1.25rem] border-2 border-dashed border-[#c5c5d5] p-6 text-[#757684] hover:border-[#10268f] hover:text-[#10268f]"
-          >
-            <Plus className="mb-2 h-6 w-6" />
-            Add a new note
-          </button>
-        </div>
-      )}
     </aside>
   );
 }

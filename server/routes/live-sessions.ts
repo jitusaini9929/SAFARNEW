@@ -10,6 +10,8 @@ type LiveSessionStatus = 'scheduled' | 'live' | 'ended' | 'cancelled';
 const router = Router();
 const ALLOWED_STATUS: Set<LiveSessionStatus> = new Set(['scheduled', 'live', 'ended', 'cancelled']);
 
+export const liveSessionChats = new Map<string, Array<{ name: string; text: string }>>();
+
 export function isValidStatusTransition(from: LiveSessionStatus, to: LiveSessionStatus): boolean {
   if (from === to) return true;
   if (from === 'cancelled') return false;
@@ -34,7 +36,7 @@ function normalizeStatus(value: unknown): LiveSessionStatus | null {
 
 export function canManageSession(
   user: { userId: string; isAdmin: boolean },
-  session: { teacher_id?: string; created_by?: string },
+  session: any,
 ): boolean {
   if (user.isAdmin) return true;
   const teacherId = String(session.teacher_id || session.created_by || '');
@@ -104,6 +106,8 @@ async function userCanAccessSession(
 ): Promise<boolean> {
   if (user.isAdmin) return true;
   if (canManageSession(user, session)) return true;
+  const status = String(session.status || '').toLowerCase();
+  if (status === 'live' || status === 'scheduled') return true;
   if (session.course_id) {
     return isUserEnrolledInCourse(user.userId, session.course_id);
   }
@@ -121,8 +125,8 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const status = normalizeStatus(req.body?.status) || 'scheduled';
     const youtubeInput = req.body?.youtubeUrl || req.body?.youtube_video_id || req.body?.youtubeVideoId;
 
-    if (!title || !courseId) {
-      return res.status(400).json({ message: 'title and courseId are required' });
+    if (!title) {
+      return res.status(400).json({ message: 'title is required' });
     }
 
     let youtubeVideoId: string | null = null;
@@ -148,7 +152,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       id: uuidv4(),
       title,
       description,
-      course_id: courseId,
+      course_id: courseId || null,
       teacher_id: teacherId,
       scheduled_start_at: scheduledStartAt ? new Date(scheduledStartAt) : null,
       scheduled_end_at: scheduledEndAt ? new Date(scheduledEndAt) : null,
@@ -188,13 +192,9 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user!;
     const courseId = String(req.query.courseId || '').trim();
-    const status = normalizeStatus(req.query.status);
+    const statusQuery = typeof req.query.status === 'string' ? req.query.status.trim().toLowerCase() : null;
 
-    if (!courseId) {
-      return res.status(400).json({ message: 'courseId is required' });
-    }
-
-    if (!user.isAdmin) {
+    if (courseId && !user.isAdmin) {
       const enrolled = await isUserEnrolledInCourse(user.userId, courseId);
       if (!enrolled) {
         return res.status(403).json({ message: 'Not enrolled in this course' });
@@ -202,13 +202,25 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     }
 
     const query: Record<string, unknown> = {
-      course_id: courseId,
       is_deleted: { $ne: true },
     };
-    if (status) query.status = status;
+    if (courseId) {
+      query.course_id = courseId;
+    }
+    if (statusQuery === 'active') {
+      query.status = { $in: ['scheduled', 'live'] };
+    } else if (statusQuery && ALLOWED_STATUS.has(statusQuery as LiveSessionStatus)) {
+      query.status = statusQuery;
+    }
 
     const rows = await collections.liveSessions().find(query).sort({ scheduled_start_at: -1 }).toArray();
-    return res.json({ liveSessions: rows.map((row) => toApiModel(row, user)) });
+    const accessible: typeof rows = [];
+    for (const row of rows) {
+      if (await userCanAccessSession(user, row)) {
+        accessible.push(row);
+      }
+    }
+    return res.json({ liveSessions: accessible.map((row) => toApiModel(row, user)) });
   } catch (error) {
     console.error('List live sessions error:', error);
     return res.status(500).json({ message: 'Failed to list live sessions' });
@@ -324,6 +336,7 @@ router.patch('/:id/end', requireAuth, async (req: Request, res: Response) => {
     }
 
     await collections.liveSessions().updateOne({ id: session.id }, { $set: patch });
+    liveSessionChats.delete(session.id);
     const updated = await collections.liveSessions().findOne({ id: session.id });
     return res.json({ liveSession: toApiModel(updated, user) });
   } catch (error) {
@@ -352,6 +365,10 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
       { $set: { status, updated_at: new Date() } },
     );
 
+    if (status === 'ended' || status === 'cancelled') {
+      liveSessionChats.delete(session.id);
+    }
+
     if (shouldNotifyLiveSessionStart(previousStatus, status)) {
       scheduleLiveSessionNotification({
         sessionId: session.id,
@@ -379,6 +396,7 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
       { id: session.id },
       { $set: { is_deleted: true, status: 'cancelled', updated_at: new Date() } },
     );
+    liveSessionChats.delete(session.id);
 
     return res.json({ ok: true });
   } catch (error) {

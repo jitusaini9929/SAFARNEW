@@ -118,10 +118,10 @@
     --popover: 220 15% 11%;
     --popover-foreground: 210 20% 92%;
 
-    /* Primary - Teal */
-    --primary: 168 76% 50%;
-    /* #2dd4bf */
-    --primary-foreground: 220 15% 7%;
+    /* Primary — Live Classroom blue (dark) */
+    --primary: 220 100% 65%;
+    /* #4d8aff */
+    --primary-foreground: 0 0% 100%;
 
     /* Secondary - Maroon */
     --secondary: 335 80% 42%;
@@ -132,28 +132,36 @@
     --muted: 220 15% 18%;
     --muted-foreground: 215 16% 60%;
 
-    /* Accent */
-    --accent: 168 76% 50%;
-    --accent-foreground: 220 15% 7%;
+    /* Accent — same as primary */
+    --accent: 220 100% 65%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 220 15% 18%;
     --input: 220 15% 18%;
-    --ring: 168 76% 50%;
+    --ring: 220 100% 65%;
+
+    /* Global UI button palette (Mehfil / Live Sessions) */
+    --safar-ui-primary: #4d8aff;
+    --safar-ui-primary-container: #4d8aff;
+    --safar-ui-on-primary: #ffffff;
+    --safar-ui-gradient-from: #4d8aff;
+    --safar-ui-gradient-to: #0058cb;
+    --safar-ui-focus-ring: color-mix(in srgb, var(--safar-ui-primary) 28%, transparent);
 
     --radius: 0.75rem;
 
     /* Sidebar - Dark */
     --sidebar-background: 220 15% 5%;
     --sidebar-foreground: 210 20% 85%;
-    --sidebar-primary: 168 76% 50%;
-    --sidebar-primary-foreground: 220 15% 7%;
+    --sidebar-primary: 220 100% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 335 80% 42%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 220 15% 15%;
-    --sidebar-ring: 168 76% 50%;
+    --sidebar-ring: 220 100% 65%;
 
     /* Glass - High Intensity (Dark) - 30% more blur */
     --glass-bg: rgba(20, 22, 27, 0.9);
@@ -194,10 +202,17 @@
     --popover: 40 40% 99%;
     --popover-foreground: 220 25% 14%;
 
-    /* Primary — Indigo / Navy Blue (matches branding) */
-    --primary: 231 55% 40%;
-    /* #3040a0 — deep indigo */
+    /* Primary — Live Classroom blue (light) */
+    --primary: 216 91% 37%;
+    /* #094cb2 */
     --primary-foreground: 0 0% 100%;
+
+    --safar-ui-primary: #094cb2;
+    --safar-ui-primary-container: #3366cc;
+    --safar-ui-on-primary: #ffffff;
+    --safar-ui-gradient-from: #094cb2;
+    --safar-ui-gradient-to: #3366cc;
+    --safar-ui-focus-ring: color-mix(in srgb, var(--safar-ui-primary) 22%, transparent);
 
     /* Secondary — Muted warm slate */
     --secondary: 220 15% 55%;
@@ -210,7 +225,7 @@
     /* Darkened readable secondary text */
 
     /* Accent — same as primary for consistency */
-    --accent: 231 55% 40%;
+    --accent: 216 91% 37%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 60% 44%;
@@ -220,17 +235,17 @@
     --border: 40 12% 82%;
     /* #d9d4ca */
     --input: 40 25% 93%;
-    --ring: 231 55% 40%;
+    --ring: 216 91% 37%;
 
     /* Sidebar — warm white, same as card */
     --sidebar-background: 40 40% 99%;
     --sidebar-foreground: 220 25% 14%;
-    --sidebar-primary: 231 55% 40%;
+    --sidebar-primary: 216 91% 37%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 15% 55%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 40 12% 82%;
-    --sidebar-ring: 231 55% 40%;
+    --sidebar-ring: 216 91% 37%;
 
     /* Glass — Warm white with soft shadow */
     --glass-bg: rgba(255, 254, 251, 0.94);
@@ -915,16 +930,57 @@
     border: none;
   }
 
-  .bg-safar-green {
-    background-color: hsl(150 70% 45%);
-    color: white;
+  .bg-safar-green,
+  .bg-safar-blue {
+    background: linear-gradient(
+      to right,
+      var(--safar-ui-gradient-from),
+      var(--safar-ui-gradient-to)
+    );
+    color: var(--safar-ui-on-primary);
     border: none;
   }
 
-  .bg-safar-blue {
-    background-color: hsl(210 90% 60%);
-    color: white;
+  .dark .bg-safar-green,
+  .dark .bg-safar-blue {
+    background: var(--safar-ui-primary);
+  }
+
+  /* Primary CTA — matches Mehfil / Live Sessions */
+  .safar-btn-primary {
+    background: linear-gradient(
+      to right,
+      var(--safar-ui-gradient-from),
+      var(--safar-ui-gradient-to)
+    );
+    color: var(--safar-ui-on-primary);
     border: none;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--safar-ui-primary) 28%, transparent);
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .safar-btn-primary:hover:not(:disabled) {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--safar-ui-primary) 38%, transparent);
+  }
+
+  .safar-btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .safar-btn-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .dark .safar-btn-primary {
+    background: var(--safar-ui-primary);
   }
 
   .bg-safar-navy {

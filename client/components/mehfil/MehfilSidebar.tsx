@@ -144,7 +144,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
       />
 
       {/* Sidebar */}
-      <aside className="fixed right-0 top-0 bottom-0 w-full sm:w-[420px] md:w-[520px] bg-white dark:bg-slate-900 shadow-2xl z-50 overflow-hidden flex flex-col border-l border-slate-200 dark:border-slate-800">
+      <aside className="fixed right-0 top-0 bottom-0 w-full sm:w-[420px] md:w-[520px] bg-white dark:bg-card shadow-2xl z-50 overflow-hidden flex flex-col border-l border-slate-200 dark:border-border">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/30 dark:to-emerald-950/30">
           <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">{t('sidebar.hub_title')}</h2>
@@ -157,7 +157,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 sm:gap-2 p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-1.5 sm:gap-2 p-3 sm:p-4 border-b border-slate-200 dark:border-border bg-slate-50 dark:bg-background/50 overflow-x-auto scrollbar-hide">
           <Button
             variant={activeView === 'connections' ? 'default' : 'ghost'}
             size="sm"
@@ -212,7 +212,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
               <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
             </div>
           ) : !isAuthenticated && activeView !== 'privacy' ? (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600 dark:border-border dark:bg-muted/40 dark:text-muted-foreground">
               {t('mehfil.toasts.comment_login')}
             </div>
           ) : loading ? (
@@ -274,7 +274,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
                             <button
                               type="button"
                               onClick={() => acceptRequest(request.requestId)}
-                              className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white"
+                              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
                             >
                               {t('sidebar.connections.accept')}
                             </button>
@@ -382,7 +382,7 @@ const MehfilSidebar: React.FC<MehfilSidebarProps> = ({ isOpen, onClose, initialV
                               )}
 
                               {item.thought && (
-                                <div className="mt-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 p-3">
+                                <div className="mt-3 rounded-xl bg-slate-50 dark:bg-muted/40 border border-slate-200 dark:border-border p-3">
                                   <div className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                     {item.thought.category} • {item.thought.authorName}
                                   </div>

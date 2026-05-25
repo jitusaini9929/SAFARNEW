@@ -5,8 +5,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { User } from "@shared/api";
 import { toast } from "sonner";
 import GlobalPageFooter from "@/components/GlobalPageFooter";
-import ThemeToggle from "@/components/ui/theme-toggle";
+import { MdOutlinedTextFieldReact, MdFilledButtonReact } from "@/components/mehfil/material/MdComponents";
+import "@/styles/mehfil-m3.css";
 import { useTranslation } from "react-i18next";
+import M3TopNavbar from "@/components/M3TopNavbar";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -136,32 +138,12 @@ export default function Profile() {
         }
       `}</style>
 
-      <div className="font-sans bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-[100dvh] transition-colors duration-300">
+      <div className="mehfil-m3 font-sans bg-slate-50 dark:bg-background text-slate-900 dark:text-foreground min-h-[100dvh] transition-colors duration-300">
         {/* Navbar */}
-        <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
-          <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img loading="lazy"
-                src="/safar-logo.png.webp"
-                alt="Safar Logo"
-                className="w-10 h-10 rounded-full border border-emerald-500 object-cover shadow-sm"
-              />
-              <span className="text-xl font-bold tracking-tight">Safar</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/home')}
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-400"
-                title="Go to Home"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-              </button>
-              <ThemeToggle />
-            </div>
-          </div>
-        </nav>
+        <M3TopNavbar
+          moduleName="PROFILE"
+          homeRoute="/home"
+        />
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-6 py-10">
@@ -186,7 +168,7 @@ export default function Profile() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Profile Card - Left Side */}
             <div className="lg:col-span-4 space-y-8">
-              <div className="bento-card bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-sm text-center relative overflow-hidden">
+              <div className="mehfil-m3-card bento-card rounded-3xl p-8 text-center relative overflow-hidden">
                 <div className="relative inline-block mb-6">
                   <div className="profile-ring">
                     <img loading="lazy"
@@ -204,7 +186,7 @@ export default function Profile() {
                   />
                   <label
                     htmlFor="avatar-upload"
-                    className="absolute bottom-1 right-1 w-9 h-9 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform border-2 border-white dark:border-slate-900 cursor-pointer"
+                    className="absolute bottom-1 right-1 w-9 h-9 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg hover:scale-105 transition-transform border-2 border-white dark:border-slate-900 cursor-pointer"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -224,7 +206,7 @@ export default function Profile() {
             {/* Forms Section - Right Side */}
             <div className="lg:col-span-8 space-y-6">
               {/* Personal Information */}
-              <div className="bento-card bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+              <div className="mehfil-m3-card bento-card rounded-3xl overflow-hidden">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -235,23 +217,23 @@ export default function Profile() {
                 </div>
                 <div className="p-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-2">
-                      <label className="text-[11px] uppercase tracking-widest font-bold text-slate-400 dark:text-slate-500">{t('profile.full_name')}</label>
-                      <input
-                        className="w-full bg-transparent border-0 border-b border-slate-200 dark:border-slate-600 px-0 pb-2 focus:ring-0 focus:border-emerald-500 transition-colors font-medium text-slate-900 dark:text-white"
+                    <div className="w-full flex flex-col gap-2">
+                      <MdOutlinedTextFieldReact
+                        label={t('profile.full_name')}
                         type="text"
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onInput={(e: any) => setFormData({ ...formData, name: e.target.value })}
+                        style={{ width: "100%" }}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[11px] uppercase tracking-widest font-bold text-slate-400 dark:text-slate-500">{t('profile.email_address')}</label>
+                    <div className="w-full flex flex-col gap-2">
                       <div className="flex flex-col">
-                        <input
-                          className="w-full bg-transparent border-0 border-b border-slate-200 dark:border-slate-600 px-0 pb-2 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                        <MdOutlinedTextFieldReact
+                          label={t('profile.email_address')}
                           disabled
                           type="email"
                           value={formData.email}
+                          style={{ width: "100%" }}
                         />
                         <span className="text-[10px] text-slate-400 mt-2 italic">{t('profile.email_note')}</span>
                       </div>
@@ -278,7 +260,7 @@ export default function Profile() {
               </div>
 
               {/* Exam Focus */}
-              <div className="bento-card bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+              <div className="mehfil-m3-card bento-card rounded-3xl overflow-hidden">
                 <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 text-purple-600 flex items-center justify-center">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -334,7 +316,7 @@ export default function Profile() {
               </div>
 
               {/* Account Status */}
-              <div className="bento-card bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 flex items-center justify-between">
+              <div className="mehfil-m3-card bento-card rounded-3xl p-6 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -353,13 +335,16 @@ export default function Profile() {
 
               {/* Save Button */}
               <div className="flex justify-end pt-4">
-                <button
+                <MdFilledButtonReact
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-3 rounded-xl font-semibold shadow-lg shadow-emerald-500/25 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
+                  style={{
+                    "--md-filled-button-container-shape": "12px",
+                    "--md-filled-button-container-height": "48px"
+                  } as React.CSSProperties}
                 >
                   {isSaving ? t('profile.saving') : t('profile.save_changes')}
-                </button>
+                </MdFilledButtonReact>
               </div>
             </div>
           </div>

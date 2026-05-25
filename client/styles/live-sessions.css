@@ -1,0 +1,109 @@
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif:ital,wght@0,400;0,600;0,700&family=JetBrains+Mono:wght@500&family=Public+Sans:wght@400;500;600&display=swap");
+
+.live-classroom {
+  --lc-primary: var(--safar-ui-primary);
+  --lc-primary-container: var(--safar-ui-primary-container);
+  --lc-on-primary: var(--safar-ui-on-primary);
+  --lc-on-primary-container: #e7ebff;
+  --lc-background: #faf9fa;
+  --lc-on-background: #1b1c1d;
+  --lc-surface: #faf9fa;
+  --lc-on-surface: #1b1c1d;
+  --lc-on-surface-variant: #434653;
+  --lc-outline: #737784;
+  --lc-outline-variant: #c3c6d5;
+  --lc-surface-container-lowest: #ffffff;
+  --lc-surface-container-low: #f5f3f4;
+  --lc-surface-container: #efedee;
+  --lc-surface-container-high: #e9e8e9;
+  --lc-surface-container-highest: #e3e2e3;
+  --lc-surface-variant: #e3e2e3;
+  --lc-surface-bright: #faf9fa;
+  --lc-surface-dim: #dbdadb;
+  --lc-error: #ba1a1a;
+  --lc-on-error: #ffffff;
+  --lc-secondary-container: #dfe3e8;
+  --lc-on-secondary-container: #606569;
+  --lc-gradient-from: var(--safar-ui-gradient-from);
+  --lc-gradient-to: var(--safar-ui-gradient-to);
+  --lc-ghost-border-opacity: 0.15;
+  font-family: "Inter", sans-serif;
+  background-color: var(--lc-background);
+  color: var(--lc-on-background);
+}
+
+.dark .live-classroom {
+  --lc-primary: var(--safar-ui-primary);
+  --lc-primary-container: var(--safar-ui-primary-container);
+  --lc-on-primary: var(--safar-ui-on-primary);
+  --lc-on-primary-container: #002661;
+  /* Align with Nishtha / Goals / Check-in dark theme (global :root) */
+  --lc-background: hsl(var(--background));
+  --lc-on-background: hsl(var(--foreground));
+  --lc-surface: hsl(var(--background));
+  --lc-on-surface: hsl(var(--foreground));
+  --lc-on-surface-variant: hsl(var(--muted-foreground));
+  --lc-outline: hsl(var(--muted-foreground));
+  --lc-outline-variant: hsl(var(--border));
+  --lc-surface-container-lowest: hsl(var(--background));
+  --lc-surface-container-low: hsl(var(--card));
+  --lc-surface-container: hsl(var(--muted));
+  --lc-surface-container-high: hsl(var(--muted));
+  --lc-surface-container-highest: hsl(var(--card));
+  --lc-surface-variant: hsl(var(--muted));
+  --lc-surface-bright: hsl(var(--card));
+  --lc-surface-dim: hsl(var(--background));
+  --lc-error: #ffb4ab;
+  --lc-on-error: #690005;
+  --lc-secondary-container: hsl(var(--muted));
+  --lc-on-secondary-container: hsl(var(--muted-foreground));
+  --lc-gradient-from: var(--safar-ui-gradient-from);
+  --lc-gradient-to: var(--safar-ui-gradient-to);
+  --lc-ghost-border-opacity: 1;
+}
+
+.live-classroom .lc-headline {
+  font-family: "Noto Serif", serif;
+}
+
+.live-classroom .lc-label {
+  font-family: "Public Sans", sans-serif;
+}
+
+.dark .live-classroom .lc-label {
+  font-family: "JetBrains Mono", monospace;
+}
+
+.live-classroom .material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.live-classroom .material-symbols-outlined.filled {
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.live-classroom .lc-ghost-border {
+  border: 1px solid color-mix(in srgb, var(--lc-outline-variant) calc(var(--lc-ghost-border-opacity) * 100%), transparent);
+}
+
+.live-classroom .lc-btn-primary {
+  background: linear-gradient(to right, var(--lc-gradient-from), var(--lc-gradient-to));
+  color: var(--lc-on-primary);
+}
+
+.dark .live-classroom .lc-btn-primary {
+  background: var(--lc-primary);
+}

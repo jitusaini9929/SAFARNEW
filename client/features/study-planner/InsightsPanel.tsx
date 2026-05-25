@@ -1,20 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export type InsightTrackStatus =
   | "on_track"
   | "at_risk"
   | "behind"
+  | "broken"
   | "ahead"
   | "needs_data";
 
@@ -44,7 +36,21 @@ export interface PlannerInsightSubjectRow {
 export interface PlannerInsights {
   summary: PlannerInsightsSummary;
   subjectRows: PlannerInsightSubjectRow[];
-  recommendationLines: string[];
+}
+
+export type RecommendationActionTone = "primary" | "secondary";
+
+export interface PlannerRecommendationAction {
+  label: string;
+  onClick: () => void;
+  tone?: RecommendationActionTone;
+}
+
+export interface PlannerRecommendation {
+  id: string;
+  title: string;
+  message: string;
+  action: PlannerRecommendationAction;
 }
 
 type InsightSummaryFocus =
@@ -61,36 +67,39 @@ const INSIGHT_BADGE: Record<
 > = {
   on_track: {
     label: "On track",
-    className:
-      "bg-emerald-500/15 text-emerald-600 border-emerald-500/25 dark:text-emerald-400",
+    className: "bg-[#d1fae5] text-[#047857] border-[#a7f3d0]",
   },
   at_risk: {
-    label: "At risk",
-    className:
-      "bg-amber-500/15 text-amber-600 border-amber-500/25 dark:text-amber-400",
+    label: "Tight Schedule",
+    className: "bg-[#fef08a] text-[#854d0e] border-[#fde047]",
   },
   behind: {
-    label: "Behind",
-    className:
-      "bg-red-500/15 text-red-600 border-red-500/25 dark:text-red-400",
+    label: "Overloaded",
+    className: "bg-[#ffdad6] text-[#ba1a1a] border-[#fecaca]",
+  },
+  broken: {
+    label: "Broken Plan",
+    className: "bg-[#ba1a1a] text-white border-[#93000a]",
   },
   ahead: {
     label: "Ahead",
-    className:
-      "bg-blue-500/15 text-blue-600 border-blue-500/25 dark:text-blue-400",
+    className: "bg-[#d8e2ff] text-[#004493] border-[#adc7ff]",
   },
   needs_data: {
     label: "Set exam date",
-    className:
-      "bg-muted text-muted-foreground border-border",
+    className: "bg-[#eceeef] text-[#727785] border-[#c1c6d6]",
   },
 };
 
-function subjectMeterGradient(subjectIndex: number, totalSubjects: number) {
+function subjectBarColor(
+  subjectIndex: number,
+  totalSubjects: number,
+  hex?: string,
+) {
+  if (hex && hex.startsWith("#")) return hex;
   const n = Math.max(1, totalSubjects);
   const hue = (subjectIndex * (360 / n)) % 360;
-  const h2 = (hue + 28) % 360;
-  return `linear-gradient(to right, hsl(${hue} 72% 52%), hsl(${h2} 82% 44%))`;
+  return `hsl(${hue} 72% 52%)`;
 }
 
 function InsightSummaryCaption({
@@ -106,7 +115,7 @@ function InsightSummaryCaption({
   const remaining = Math.max(0, rollup.totalTopics - rollup.doneTopics);
 
   let text: string;
-  let className = "text-muted-foreground";
+  let className = "text-[#727785] dark:text-[#94a3b8]";
 
   switch (focus) {
     case "bar_done":
@@ -129,19 +138,18 @@ function InsightSummaryCaption({
       if (s.requiredTopicsPerStudyDay == null) {
         text = "Add topics and an exam date to estimate daily pace.";
       } else {
-        text = `You need about ${s.requiredTopicsPerStudyDay.toFixed(1)} topics per study day to finish on time.`;
+        text = `You need about ${Math.round(s.requiredTopicsPerStudyDay)} topics per study day to finish on time.`;
       }
       break;
     case "buffer":
       if (s.daysBuffer == null) {
         text =
           "Finish more planned days to see how many buffer days you have before the exam.";
-      } else if (s.daysBuffer >= 0) {
-        text = `${s.daysBuffer} study-day buffer before the exam — room to breathe.`;
-        className = "text-primary font-semibold";
+        text = `You have ${s.daysBuffer} spare days before the exam \u2014 room to breathe.`;
+        className = "text-[#005bbf] dark:text-[#adc7ff] font-semibold";
       } else {
-        text = `Behind by ${-s.daysBuffer} study days — accelerate pace or reschedule topics.`;
-        className = "text-destructive font-semibold";
+        text = `You are running ${-s.daysBuffer} days short \u2014 accelerate pace or reschedule topics.`;
+        className = "text-[#ba1a1a] dark:text-[#fca5a5] font-semibold";
       }
       break;
     default:
@@ -149,17 +157,39 @@ function InsightSummaryCaption({
   }
 
   return (
-    <p className={cn("text-xs leading-snug", className)} key={focus}>
+    <p className={cn("text-xs leading-snug text-center", className)} key={focus}>
       {text}
     </p>
   );
 }
+
+function RecommendationIcon() {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="shrink-0 text-[#727785] mt-0.5"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v5M12 16h.01" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const insightCard =
+  "rounded-[24px] border border-[#e6e8e9] dark:border-[#2e3338] bg-white dark:bg-[#141618] shadow-[0_2px_10px_rgba(0,0,0,0.03)]";
 
 export function InsightsPanel({
   planId,
   plan,
   insights,
   rollup,
+  recommendations,
 }: {
   planId: string;
   plan: {
@@ -168,9 +198,9 @@ export function InsightsPanel({
   };
   insights: PlannerInsights;
   rollup: { doneTopics: number; totalTopics: number };
+  recommendations: PlannerRecommendation[];
 }) {
   const [focus, setFocus] = useState<InsightSummaryFocus>("complete");
-  const dailyGoal = Math.max(1, plan.dailyGoal || 1);
   const s = insights.summary;
 
   useEffect(() => {
@@ -186,138 +216,135 @@ export function InsightsPanel({
   }, [plan.subjects]);
 
   const subjectCount = Math.max(1, plan.subjects.length);
-
-  const doneFraction =
-    rollup.totalTopics > 0 ? rollup.doneTopics / rollup.totalTopics : 0;
-  const remainingCount = Math.max(
-    0,
-    rollup.totalTopics - rollup.doneTopics,
-  );
-
+  const remainingCount = Math.max(0, rollup.totalTopics - rollup.doneTopics);
   const badge = INSIGHT_BADGE[s.onTrackStatus];
+  const progressFill = Math.min(100, Math.max(2, s.completionPercent));
 
   const paceValue =
     s.requiredTopicsPerStudyDay == null
-      ? "—"
-      : s.requiredTopicsPerStudyDay.toFixed(1);
-  const examValue =
-    s.daysUntilExam == null ? "—" : `${s.daysUntilExam}d`;
+      ? "\u2014"
+      : Math.round(s.requiredTopicsPerStudyDay).toString();
+  const examValue = s.daysUntilExam == null ? "\u2014" : `${s.daysUntilExam}d`;
   const bufferValue =
     s.daysBuffer == null
-      ? "—"
-      : s.daysBuffer >= 0
-        ? `+${s.daysBuffer}d`
-        : `${s.daysBuffer}d`;
+      ? "\u2014"
+      : `${Math.abs(s.daysBuffer)}d`;
+  const bufferIsNegative = s.daysBuffer != null && s.daysBuffer < 0;
+  const bufferLabel = bufferIsNegative ? "Shortfall" : "Spare Days";
 
-  const doneBarHighlight = focus === "bar_done";
-  const remBarHighlight = focus === "bar_remaining";
+  const statTiles = [
+    {
+      key: "complete" as const,
+      label: "Complete",
+      value: `${s.completionPercent}%`,
+      primary: true,
+    },
+    { key: "exam" as const, label: "Exam", value: examValue, primary: false },
+    { key: "pace" as const, label: "Pace/Day", value: paceValue, primary: false },
+    {
+      key: "buffer" as const,
+      label: bufferLabel,
+      value: bufferValue,
+      primary: false,
+      danger: bufferIsNegative,
+    },
+  ];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="space-y-6"
+      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl w-full"
     >
-      <Card className="border-border/80 shadow-sm">
-        <CardContent className="space-y-3 p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Badge
-              variant="outline"
+      {/* Progress hero */}
+      <div
+        className={`${insightCard} md:col-span-2 lg:col-span-2 flex flex-col justify-between min-h-[280px] p-6`}
+      >
+        <div>
+          <div className="flex justify-between items-center mb-6">
+            <span
               className={cn(
-                "rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest",
+                "px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border",
                 badge.className,
               )}
             >
               {badge.label}
-            </Badge>
-            <span className="truncate text-sm font-bold sm:text-base">
+            </span>
+            <span className="text-base font-medium text-[#191c1d] dark:text-[#f1f5f9]">
               {s.remainingTopics} topics left
             </span>
           </div>
 
           {rollup.totalTopics <= 0 ? (
-            <p className="text-xs text-muted-foreground">No topics yet</p>
+            <p className="text-sm text-[#727785]">No topics yet</p>
           ) : (
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                className={cn(
-                  "relative h-12 w-full overflow-hidden rounded-2xl border text-left transition-colors",
-                  remBarHighlight
-                    ? "border-muted-foreground/40 bg-neutral-300 dark:bg-neutral-600"
-                    : "border-transparent bg-neutral-200 dark:bg-neutral-700",
-                )}
-                onClick={() => setFocus("bar_remaining")}
-                aria-label="Remaining portion"
-              >
-                <motion.div
-                  layout
-                  className={cn(
-                    "absolute inset-y-0 left-0 z-[1] rounded-l-2xl bg-gradient-to-r from-green-600 to-green-500",
-                    doneBarHighlight && "from-green-500 to-emerald-400",
-                  )}
-                  initial={false}
-                  animate={{ width: `${doneFraction * 100}%` }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 100,
-                    damping: 20,
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setFocus("bar_done");
-                  }}
-                  role="presentation"
-                />
-                <div className="pointer-events-none relative z-[2] flex h-full items-center justify-between px-3">
-                  <span className="text-xs font-bold text-neutral-900 drop-shadow-sm dark:text-neutral-100">
-                    {s.completionPercent}% done
-                  </span>
-                  <span className="text-xs font-semibold text-neutral-700 dark:text-neutral-200">
-                    {remainingCount} left
-                  </span>
-                </div>
-              </button>
-            </div>
+            <button
+              type="button"
+              className="relative w-full h-10 rounded-xl bg-[#eceeef] dark:bg-[#2e3338] overflow-hidden mb-6 flex items-center px-4 text-left"
+              onClick={() =>
+                setFocus((f) =>
+                  f === "bar_remaining" ? "bar_done" : "bar_remaining",
+                )
+              }
+              aria-label="Toggle progress breakdown"
+            >
+              <div
+                className="absolute left-0 top-0 h-full bg-[#1a73e8]/25 dark:bg-[#1a73e8]/35 transition-all duration-500"
+                style={{ width: `${progressFill}%` }}
+              />
+              <div className="relative z-10 flex justify-between w-full">
+                <span className="text-sm font-bold text-[#191c1d] dark:text-[#f1f5f9]">
+                  {s.completionPercent}% done
+                </span>
+                <span className="text-sm text-[#414754] dark:text-[#94a3b8]">
+                  {remainingCount} left
+                </span>
+              </div>
+            </button>
           )}
+        </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {(
-              [
-                {
-                  key: "complete" as const,
-                  label: "Complete",
-                  value: `${s.completionPercent}%`,
-                },
-                { key: "exam" as const, label: "Exam", value: examValue },
-                {
-                  key: "pace" as const,
-                  label: "Pace/day",
-                  value: paceValue,
-                },
-                {
-                  key: "buffer" as const,
-                  label: "Buffer",
-                  value: bufferValue,
-                },
-              ] as const
-            ).map((pill) => (
-              <Button
-                key={pill.key}
+        <div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            {statTiles.map((tile) => (
+              <button
+                key={tile.key}
                 type="button"
-                size="sm"
-                variant={focus === pill.key ? "default" : "secondary"}
-                className="h-auto flex-col gap-0.5 py-2.5 text-center"
-                onClick={() => setFocus(pill.key)}
+                onClick={() => setFocus(tile.key)}
+                className={cn(
+                  "rounded-xl p-4 flex flex-col items-center justify-center transition-all",
+                  tile.primary
+                    ? "bg-[#005bbf] text-white shadow-sm"
+                    : "bg-[#f2f4f5] dark:bg-[#1c1f22] border border-[#e1e3e4] dark:border-[#2e3338]",
+                  focus === tile.key &&
+                    !tile.primary &&
+                    "ring-2 ring-[#005bbf]/40",
+                )}
               >
-                <span className="text-base font-extrabold leading-none">
-                  {pill.value}
+                <span
+                  className={cn(
+                    "text-2xl font-bold leading-none",
+                    tile.danger
+                      ? "text-[#ba1a1a]"
+                      : tile.primary
+                        ? "text-white"
+                        : "text-[#191c1d] dark:text-[#f1f5f9]",
+                  )}
+                >
+                  {tile.value}
                 </span>
-                <span className="text-[10px] font-medium uppercase tracking-wide opacity-90">
-                  {pill.label}
+                <span
+                  className={cn(
+                    "text-[10px] uppercase tracking-wider mt-1",
+                    tile.primary
+                      ? "text-white/80"
+                      : "text-[#727785] dark:text-[#94a3b8]",
+                  )}
+                >
+                  {tile.label}
                 </span>
-              </Button>
+              </button>
             ))}
           </div>
 
@@ -336,75 +363,99 @@ export function InsightsPanel({
               />
             </motion.div>
           </AnimatePresence>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-1">
-        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
-          Coverage
-        </h3>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/80">
-          Subjects
-        </p>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        {insights.subjectRows.map((row) => {
-          const colorIdx =
-            subjectIndexById[row.subjectId] ?? 0;
-          const fill = subjectMeterGradient(colorIdx, subjectCount);
-          return (
-            <Card key={row.subjectId} className="border-border/80 shadow-sm">
-              <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold">{row.subjectName}</p>
-                  <p className="truncate text-[10px] text-muted-foreground">
-                    {row.remainingTopics} left · {row.overdueTopics} overdue ·{" "}
-                    {row.revisionTopics} revision
+      {/* Recommendations */}
+      <div
+        className={`${insightCard} md:col-span-2 lg:col-span-2 flex flex-col p-6`}
+      >
+        <h3 className="text-base font-bold text-[#191c1d] dark:text-[#f1f5f9] mb-1">
+          Next best actions
+        </h3>
+        <p className="text-sm text-[#727785] dark:text-[#94a3b8] mb-6">
+          Based on your current plan and pace
+        </p>
+        <ul className="space-y-4 mt-auto">
+          {recommendations.map((rec) => (
+            <li
+              key={rec.id}
+              className="flex flex-col gap-4 p-4 rounded-xl bg-[#f2f4f5] dark:bg-[#1c1f22] border border-[#e1e3e4] dark:border-[#2e3338]"
+            >
+              <div className="flex items-start gap-4">
+                <RecommendationIcon />
+                <div>
+                  <div className="text-sm font-semibold text-[#191c1d] dark:text-[#e2e8f0]">
+                    {rec.title}
+                  </div>
+                  <p className="text-sm text-[#4b5563] dark:text-[#94a3b8] leading-relaxed">
+                    {rec.message}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 sm:shrink-0">
-                  <div className="h-2 w-[108px] overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${row.completionPercent}%`,
-                        background:
-                          row.color && row.color.startsWith("#")
-                            ? row.color
-                            : fill,
-                      }}
-                    />
-                  </div>
-                  <span className="min-w-[2.25rem] text-end text-sm font-bold text-primary">
-                    {row.completionPercent}%
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+              </div>
+              <button
+                type="button"
+                onClick={rec.action.onClick}
+                className={`self-start rounded-full px-4 py-2 text-[12px] font-semibold uppercase tracking-widest transition-colors ${
+                  rec.action.tone === "secondary"
+                    ? "border border-[#c1c6d6] bg-white text-[#1f2937] hover:bg-[#f8fafb] dark:border-[#3d444d] dark:bg-[#1c1f22] dark:text-[#e2e8f0] dark:hover:bg-[#25292e]"
+                    : "bg-[#005bbf] text-white shadow-[0_4px_14px_rgba(0,91,191,0.28)] hover:bg-[#004da3]"
+                }`}
+              >
+                {rec.action.label}
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <Card className="border-border/80 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Recommendations</CardTitle>
-          <CardDescription className="text-xs">
-            Based on your current plan and schedule
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-1 pt-0">
-          {insights.recommendationLines.map((line, i) => (
-            <p
-              key={`${i}-${line.slice(0, 24)}`}
-              className="text-[13px] leading-relaxed text-foreground/90"
-            >
-              <span className="mr-1 text-muted-foreground">•</span>
-              {line}
-            </p>
-          ))}
-        </CardContent>
-      </Card>
+      {/* Coverage header */}
+      <div className="col-span-1 md:col-span-2 lg:col-span-4 mt-2 -mb-1">
+        <h2 className="text-xs uppercase text-[#727785] tracking-widest mb-1">
+          Coverage
+        </h2>
+        <h3 className="text-sm font-bold text-[#414754] dark:text-[#94a3b8] uppercase">
+          Subjects
+        </h3>
+      </div>
+
+      {/* Subject cards */}
+      {insights.subjectRows.map((row) => {
+        const colorIdx = subjectIndexById[row.subjectId] ?? 0;
+        const barColor = subjectBarColor(
+          colorIdx,
+          subjectCount,
+          row.color,
+        );
+        const fill = Math.min(100, Math.max(2, row.completionPercent));
+        return (
+          <div
+            key={row.subjectId}
+            className={`${insightCard} md:col-span-1 lg:col-span-1 flex flex-col justify-between gap-6 min-h-[160px] p-6 hover:shadow-[0_4px_12px_rgba(26,115,232,0.08)] transition-shadow`}
+          >
+            <div>
+              <h4 className="text-base font-bold text-[#191c1d] dark:text-[#f1f5f9] mb-2 leading-tight">
+                {row.subjectName}
+              </h4>
+              <p className="text-xs text-[#727785] dark:text-[#94a3b8]">
+                {row.remainingTopics} left · {row.overdueTopics} overdue ·{" "}
+                {row.revisionTopics} revision
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 w-full mt-auto">
+              <span className="text-sm font-bold text-[#005bbf]">
+                {row.completionPercent}%
+              </span>
+              <div className="w-full bg-[#eceeef] dark:bg-[#2e3338] h-2 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${fill}%`, background: barColor }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </motion.div>
   );
 }
@@ -419,47 +470,8 @@ export function computeAndroidOnTrackStatus(
   if (remaining === 0) return "on_track";
   if (requiredPerDay == null || daysBuffer == null) return "needs_data";
   if (requiredPerDay <= dailyGoal && (daysBuffer ?? 0) >= 0) return "on_track";
-  if (requiredPerDay <= dailyGoal * 1.15) return "at_risk";
-  if (requiredPerDay > dailyGoal * 1.15) return "behind";
-  return "on_track";
+  if (requiredPerDay <= dailyGoal * 1.5) return "at_risk";
+  if (requiredPerDay <= dailyGoal * 2.5) return "behind";
+  return "broken";
 }
 
-/** Mirrors `PlannerInsightsCalculator.buildRecommendations` (Android). */
-export function buildAndroidRecommendationLines(
-  summary: PlannerInsightsSummary,
-  overloadDays: number,
-  overdueTotal: number,
-  unplannedUnfinished: number,
-  remainingTopicCount: number,
-): string[] {
-  const out: string[] = [];
-  if (remainingTopicCount === 0) {
-    out.push(
-      "Plan complete — keep revision cadence if exams are still ahead.",
-    );
-  }
-  if (summary.daysBuffer != null && summary.daysBuffer < 0) {
-    out.push(
-      "Forecast finishes after your exam date — raise daily pace or reschedule.",
-    );
-  }
-  if (overloadDays >= 3) {
-    out.push(
-      "Several upcoming days look overloaded — redistribute topics from Syllabus or reschedule.",
-    );
-  }
-  if (overdueTotal > 0) {
-    out.push(`Clear ${overdueTotal} overdue topics first (Today tab).`);
-  }
-  if (unplannedUnfinished > 0) {
-    out.push(
-      `${unplannedUnfinished} topics still need dates — run Build Schedule or assign manually.`,
-    );
-  }
-  if (out.length === 0) {
-    out.push(
-      "Stay consistent with your daily goal and review Insights after schedule changes.",
-    );
-  }
-  return [...new Set(out)];
-}

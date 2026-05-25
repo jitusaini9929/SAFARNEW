@@ -28,6 +28,14 @@ function extractVideoId(raw: string): string | null {
         return parts[embedIdx + 1];
       }
     }
+
+    if (host === 'studio.youtube.com') {
+      const parts = url.pathname.split('/').filter(Boolean);
+      const videoIdx = parts.indexOf('video');
+      if (videoIdx >= 0 && parts[videoIdx + 1] && YOUTUBE_ID_REGEX.test(parts[videoIdx + 1])) {
+        return parts[videoIdx + 1];
+      }
+    }
   } catch {
     return null;
   }
@@ -42,9 +50,17 @@ export function parseYouTubeVideoInput(input: unknown): { videoId: string } | nu
 
 export function buildYouTubeUrls(videoId: string) {
   const id = String(videoId || '').trim();
+  // autoplay=1  → stream starts automatically inside the iframe
+  // rel=0       → don't show unrelated videos at the end
+  // modestbranding=1 → minimal YouTube branding
+  const embedParams = new URLSearchParams({
+    autoplay: '1',
+    rel: '0',
+    modestbranding: '1',
+  });
   return {
     watchUrl: `https://www.youtube.com/watch?v=${id}`,
-    embedUrl: `https://www.youtube.com/embed/${id}`,
+    embedUrl: `https://www.youtube.com/embed/${id}?${embedParams.toString()}`,
     thumbnailUrl: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
   };
 }

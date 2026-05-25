@@ -14,9 +14,9 @@ import { useGuidedTour } from "@/contexts/GuidedTourContext";
 import { PremiumEmoji } from "@/components/PremiumEmoji";
 import {
   InsightsPanel,
-  buildAndroidRecommendationLines,
   computeAndroidOnTrackStatus,
   type PlannerInsights,
+  type PlannerRecommendation,
 } from "./InsightsPanel";
 import MergedPlanTab from "./MergedPlanTab";
 import { QuickStart } from "./StudyPlannerQuickStart";
@@ -445,12 +445,11 @@ type BulkAddMode = "manual" | "txt-file";
 
 type BulkSyllabusOverwritePrompt =
   | null
-  | { flow: "file"; file: File }
   | { flow: "submit" };
 
 function normalizeBulkTopicToken(input: string): string {
   return input
-    .replace(/^[>\s-]*[-*•]\s*/, "")
+    .replace(/^[>\s-]*[-*â€¢]\s*/, "")
     .replace(/^[>\s]*\d+[\).:-]\s*/, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -527,7 +526,7 @@ function parseBulkTopicsByChapter(
     }
 
     const headingWithColon = rawLine.match(/^([^:]{2,100})\s*:\s*$/);
-    if (headingWithColon && !/^[-*•]/.test(rawLine)) {
+    if (headingWithColon && !/^[-*â€¢]/.test(rawLine)) {
       activeChapterIndex = ensureChapter(headingWithColon[1]);
       continue;
     }
@@ -536,7 +535,7 @@ function parseBulkTopicsByChapter(
     if (
       inlineChapterTopics &&
       /[,;|]/.test(inlineChapterTopics[2]) &&
-      !/^[-*•]/.test(rawLine)
+      !/^[-*â€¢]/.test(rawLine)
     ) {
       activeChapterIndex = ensureChapter(inlineChapterTopics[1]);
       const inlineTopics = inlineChapterTopics[2]
@@ -774,7 +773,7 @@ function dayDiff(dateStr?: string): number | null {
   const todayMs = parseLocalMidnight(todayKey);
   if (Number.isNaN(examMs) || Number.isNaN(todayMs)) return null;
   const msPerDay = 1000 * 60 * 60 * 24;
-  // Whole calendar days from today → exam (negative = exam already passed).
+  // Whole calendar days from today â†’ exam (negative = exam already passed).
   return Math.round((examMs - todayMs) / msPerDay);
 }
 
@@ -932,7 +931,7 @@ function computeStudyStreak(
   }
 }
 
-// ── Custom Date Picker Component ──────────────────────────────
+// â”€â”€ Custom Date Picker Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CustomDatePicker({
   value,
   onChange,
@@ -1350,7 +1349,7 @@ function CalendarView({
                 )}
 
                 {plannedCount > 0 && (
-                  <div className="mt-auto flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-[#6b7280] dark:text-[#9ca3af]">
+                  <div className="mt-auto flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-[#6b7280] dark:text-[#9ca3af]">
                     <span>{plannedCount}P</span>
                     <span className="text-emerald-600 dark:text-emerald-400">
                       {doneCount}D
@@ -1428,6 +1427,7 @@ export default function StudyPlanner({
     useState<StudyPlannerPlanSummary | null>(null);
   const [isDeletingYourExamsPlan, setIsDeletingYourExamsPlan] = useState(false);
   const [monthDate, setMonthDate] = useState(new Date());
+  const [needsScheduleBuild, setNeedsScheduleBuild] = useState(false);
 
   const [examType, setExamType] = useState("");
   const [examDateDraft, setExamDateDraft] = useState("");
@@ -1468,14 +1468,13 @@ export default function StudyPlanner({
   const [bulkChapterName, setBulkChapterName] = useState("");
   const [bulkTopicsText, setBulkTopicsText] = useState("");
   const [bulkAddError, setBulkAddError] = useState("");
-  const [bulkImportedFileName, setBulkImportedFileName] = useState("");
   const [bulkTxtGuideOpen, setBulkTxtGuideOpen] = useState(false);
   const isTxtBulkMode = bulkAddMode === "txt-file";
   const [bulkSyllabusOverwritePrompt, setBulkSyllabusOverwritePrompt] =
     useState<BulkSyllabusOverwritePrompt>(null);
   const bulkSyllabusImportOverwriteRef = useRef(false);
 
-  // ── Premium Upgrade Modal ──
+  // â”€â”€ Premium Upgrade Modal â”€â”€
   type PremiumModalReason =
     | "topic_limit"
     | "auto_schedule"
@@ -1497,7 +1496,9 @@ export default function StudyPlanner({
     }
     return total;
   }
-  const bulkImportInputRef = useRef<HTMLInputElement | null>(null);
+  const [rawSyllabusText, setRawSyllabusText] = useState("");
+  const [isStructuringSyllabus, setIsStructuringSyllabus] = useState(false);
+  const [hasStructured, setHasStructured] = useState(false);
   const [expandedTopicId, setExpandedTopicId] = useState<string | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
     null,
@@ -1528,7 +1529,7 @@ export default function StudyPlanner({
   const [isAutoDistributing, setIsAutoDistributing] = useState(false);
   const [plannerOnboardingState, setPlannerOnboardingState] =
     useState<PlannerOnboardingState>(() => readPlannerOnboardingState());
-  // ── Template picker state ──
+  // â”€â”€ Template picker state â”€â”€
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [availableTemplates, setAvailableTemplates] = useState<
     {
@@ -1543,9 +1544,9 @@ export default function StudyPlanner({
     }[]
   >([]);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
-  // ── Off-day rebuild prompt ──
+  // â”€â”€ Off-day rebuild prompt â”€â”€
   const [showRebuildPrompt, setShowRebuildPrompt] = useState(false);
-  // ── Exam type change prompt ──
+  // â”€â”€ Exam type change prompt â”€â”€
   const [showExamTypeChangePrompt, setShowExamTypeChangePrompt] =
     useState(false);
   const [pendingExamType, setPendingExamType] = useState("");
@@ -1555,7 +1556,7 @@ export default function StudyPlanner({
     [plan],
   );
   const countdown = useMemo(() => dayDiff(plan?.examDate), [plan?.examDate]);
-  // ── Confirm Delete Modal state ──
+  // â”€â”€ Confirm Delete Modal state â”€â”€
   const [pendingDelete, setPendingDelete] = useState<{
     type: "subject" | "chapter" | "topic";
     id: string;
@@ -1565,7 +1566,7 @@ export default function StudyPlanner({
     modalTitle?: string;
   } | null>(null);
 
-  // ── Toast Notification state ──
+  // â”€â”€ Toast Notification state â”€â”€
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState<"success" | "error" | "info">(
     "info",
@@ -1786,6 +1787,7 @@ export default function StudyPlanner({
   async function doSaveExamType(normalized: string) {
     try {
       await updatePlanMeta({ examType: normalized });
+      setNeedsScheduleBuild(true);
       setError("");
     } catch (err: any) {
       const message = normalizePlannerActionMessage(
@@ -1843,6 +1845,7 @@ export default function StudyPlanner({
     }
     try {
       await updatePlanMeta({ examDate: normalized });
+      setNeedsScheduleBuild(true);
       setError("");
       setIsExamDateEditorOpen(false);
       showToast("Exam date saved.", "success");
@@ -1869,7 +1872,7 @@ export default function StudyPlanner({
       if (next !== requiredView) {
         // BUG-2 Fix: Show reminder toast instead of blocking navigation
         showToast(
-          `Tip: You're on ${currentGuide.step} — head to ${PLANNER_ONBOARDING_REQUIRED_VIEW[activeGuideAction]} to continue setup.`,
+          `Tip: You're on ${currentGuide.step} â€” head to ${PLANNER_ONBOARDING_REQUIRED_VIEW[activeGuideAction]} to continue setup.`,
           "info",
         );
       }
@@ -1992,7 +1995,7 @@ export default function StudyPlanner({
       const year = parsedDate.getFullYear();
       if (Number.isNaN(parsedDate.getTime()) || year < 2020 || year > 2099) {
         const message =
-          "Invalid exam date. Please use the date picker to select a valid date (2020–2099).";
+          "Invalid exam date. Please use the date picker to select a valid date (2020â€“2099).";
         setError(message);
         showToast(message, "error");
         return;
@@ -2007,6 +2010,7 @@ export default function StudyPlanner({
 
     try {
       await updatePlanMeta(payload);
+      setNeedsScheduleBuild(true);
       setError("");
       showToast("Plan settings saved.", "success");
     } catch (err: any) {
@@ -2032,6 +2036,7 @@ export default function StudyPlanner({
 
     try {
       await updatePlanMeta(payload);
+      setNeedsScheduleBuild(true);
       setError("");
       // Show rebuild prompt if off-days changed and there are scheduled topics
       if (offDaysChanged) {
@@ -2637,16 +2642,21 @@ export default function StudyPlanner({
     setBulkChapterName("");
     setBulkTopicsText("");
     setBulkAddError("");
-    setBulkImportedFileName("");
     setBulkTxtGuideOpen(false);
     setBulkSyllabusOverwritePrompt(null);
     bulkSyllabusImportOverwriteRef.current = false;
+    setRawSyllabusText("");
+    setIsStructuringSyllabus(false);
+    setHasStructured(false);
   }
 
   function openBulkAddDialog() {
     bulkSyllabusImportOverwriteRef.current = false;
     setBulkSyllabusOverwritePrompt(null);
     setBulkAddMode("txt-file");
+    setRawSyllabusText("");
+    setIsStructuringSyllabus(false);
+    setHasStructured(false);
     setBulkAddOpen(true);
   }
 
@@ -2660,8 +2670,6 @@ export default function StudyPlanner({
       setBulkChapterName("");
       return;
     }
-
-    setBulkImportedFileName("");
   }
 
   async function ensureBulkSubjectByName(
@@ -2759,98 +2767,80 @@ export default function StudyPlanner({
     return nextPlan;
   }
 
-  async function runBulkFileImport(file: File) {
-    try {
-      const formData = new FormData();
-      formData.append("file", file, file.name);
-
-      const importUrl = `${API_BASE}/syllabus/import`;
-
-      const response = await apiFetch(importUrl, {
-        method: "POST",
-        body: formData,
-        timeoutMs: BULK_IMPORT_REQUEST_TIMEOUT_MS,
-      });
-
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        const details =
-          payload?.detail || payload?.message || payload?.error || "";
-        const message = details || "Could not import syllabus file.";
-        setBulkAddError(message);
-        showToast(message, "error");
-        return;
-      }
-
-      if (!payload?.success) {
-        const details = Array.isArray(payload?.errors)
-          ? payload.errors.join("; ")
-          : "";
-        const message =
-          payload?.message || details || "Could not import syllabus file.";
-        setBulkTopicsText(String(payload?.syllabusCode || ""));
-        setBulkAddError(message);
-        showToast(message, "error");
-        return;
-      }
-
-      switchBulkAddMode("txt-file");
-      setBulkTopicsText(String(payload.syllabusCode || ""));
-      setBulkAddError("");
-      setBulkImportedFileName(file.name);
-      showToast(`Formatted syllabus imported from ${file.name}.`, "success");
-    } catch (err: unknown) {
-      const errMsg =
-        err instanceof Error ? err.message : String(err ?? "unknown");
-      const message =
-        errMsg && errMsg !== "unknown"
-          ? errMsg
-          : "Could not import the syllabus file.";
-      setBulkAddError(message);
-      showToast(message, "error");
-    } finally {
-      const el = bulkImportInputRef.current;
-      if (el) el.value = "";
-    }
-  }
-
   function cancelBulkSyllabusOverwrite() {
     setBulkSyllabusOverwritePrompt(null);
     setBulkAddError(
-      "Import cancelled. Remove existing subjects and chapters from the Syllabus tab (Hierarchy or Chart view), then try your file import again if you want a clean slate.",
+      "Import cancelled. Remove existing subjects and chapters from the Syllabus tab (Hierarchy or Chart view) first if you want a clean slate.",
     );
     showToast("Import cancelled.", "info");
-    const el = bulkImportInputRef.current;
-    if (el) el.value = "";
   }
 
   function confirmBulkSyllabusOverwrite() {
     bulkSyllabusImportOverwriteRef.current = true;
-    const prompt = bulkSyllabusOverwritePrompt;
     setBulkSyllabusOverwritePrompt(null);
-    if (prompt?.flow === "file") {
-      void runBulkFileImport(prompt.file);
-    } else if (prompt?.flow === "submit") {
-      void handleBulkAdd();
-    }
+    void handleBulkAdd();
   }
 
-  async function handleBulkFileImport(event: any) {
-    const file = event?.target?.files?.[0] as File | undefined;
-    if (!file) return;
-
-    if (
-      plan &&
-      plan.subjects.length > 0 &&
-      !bulkSyllabusImportOverwriteRef.current
-    ) {
-      setBulkSyllabusOverwritePrompt({ flow: "file", file });
-      if (event?.target) event.target.value = "";
+  async function handleStructureSyllabus() {
+    if (!rawSyllabusText.trim()) {
+      setBulkAddError("Please paste some syllabus text first.");
       return;
     }
+    setIsStructuringSyllabus(true);
+    setBulkAddError("");
+    try {
+      const response = await apiFetch(`${API_BASE}/syllabus/structure-preview`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rawText: rawSyllabusText,
+          examType: plan?.examType,
+          planTitle: plan?.title,
+        }),
+      });
 
-    await runBulkFileImport(file);
-    if (event?.target) event.target.value = "";
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to structure syllabus.");
+      }
+
+      // Convert subjects array to text format (- Subject, _ Chapter, > Topic)
+      const subjects = data.subjects || [];
+      const lines: string[] = [];
+      for (const subject of subjects) {
+        if (subject.name) {
+          lines.push(`- ${subject.name.trim()}`);
+        }
+        const chapters = subject.chapters || [];
+        for (const chapter of chapters) {
+          if (chapter.name) {
+            lines.push(`_ ${chapter.name.trim()}`);
+          }
+          const topics = chapter.topics || [];
+          for (const topic of topics) {
+            if (topic) {
+              lines.push(`> ${topic.trim()}`);
+            }
+          }
+        }
+      }
+
+      setBulkTopicsText(lines.join("\n"));
+      setHasStructured(true);
+      if (data.warnings && data.warnings.length > 0) {
+        showToast(`Structured with warnings: ${data.warnings.join(", ")}`, "info");
+      } else {
+        showToast("Syllabus structured successfully with AI!", "success");
+      }
+    } catch (err: any) {
+      const msg = err.message || "Could not structure syllabus.";
+      setBulkAddError(msg);
+      showToast(msg, "error");
+    } finally {
+      setIsStructuringSyllabus(false);
+    }
   }
 
   async function handleBulkAdd() {
@@ -2860,7 +2850,7 @@ export default function StudyPlanner({
       return;
     }
 
-    // ── Premium gate: Bulk Add ──
+    // â”€â”€ Premium gate: Bulk Add â”€â”€
     if (!isPremium) {
       setPremiumModalReason("bulk_add");
       resetBulkAdd();
@@ -3021,6 +3011,41 @@ export default function StudyPlanner({
       return false;
     }
     if (isAutoDistributing) return false;
+
+    // Automatically save any unsaved draft settings before distributing
+    if (plan) {
+      const pendingBasicsPatch: Record<string, unknown> = {};
+      const trimmedTitle = planTitleDraft.trim();
+      if (trimmedTitle && trimmedTitle !== (plan.title || "")) {
+        pendingBasicsPatch.title = trimmedTitle;
+      }
+      if (examType.trim() !== (plan.examType || "")) {
+        pendingBasicsPatch.examType = examType.trim() || undefined;
+      }
+      const rawDate = examDateDraft.trim();
+      if (rawDate !== (plan.examDate ? toIsoDateOnly(plan.examDate) : "")) {
+        pendingBasicsPatch.examDate = rawDate || undefined;
+      }
+
+      const pendingCapacityPatch: Record<string, unknown> = {};
+      const nextDailyGoal = Math.max(1, Number(dailyGoalDraft) || 1);
+      if (nextDailyGoal !== (plan.dailyGoal || 3)) {
+        pendingCapacityPatch.dailyGoal = nextDailyGoal;
+      }
+      if (JSON.stringify(plan.offDays || []) !== JSON.stringify(offDaysDraft)) {
+        pendingCapacityPatch.offDays = offDaysDraft;
+      }
+
+      const fullPatch = { ...pendingBasicsPatch, ...pendingCapacityPatch };
+      if (Object.keys(fullPatch).length > 0) {
+        try {
+          await updatePlanMeta(fullPatch);
+        } catch (err) {
+          console.error("Failed to auto-save settings before auto-distribute:", err);
+        }
+      }
+    }
+
     setIsAutoDistributing(true);
     try {
       const payload = {
@@ -3045,6 +3070,7 @@ export default function StudyPlanner({
         `Schedule built! ${data.assigned ?? ""} topics scheduled.`,
         "success",
       );
+      setNeedsScheduleBuild(false);
       return true;
     } catch (err: any) {
       const rawMessage = String(err?.message || "Auto distribution failed");
@@ -3113,7 +3139,7 @@ export default function StudyPlanner({
     },
   };
 
-  // ── Premium Upgrade Modal ──
+  // â”€â”€ Premium Upgrade Modal â”€â”€
   const premiumModal = premiumModalReason
     ? (() => {
         const meta = premiumModalMeta[premiumModalReason];
@@ -3131,7 +3157,7 @@ export default function StudyPlanner({
                 onClick={() => setPremiumModalReason(null)}
                 className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
               >
-                ✕
+                âœ•
               </button>
 
               <div className="text-center">
@@ -3336,6 +3362,7 @@ export default function StudyPlanner({
     }
     return null;
   })();
+  const completedTasks = topics.filter((t) => t.status === "done");
   const todayTasks = topics.filter(
     (topic) =>
       topic.plannedDate && toIsoDateOnly(topic.plannedDate) === todayKey,
@@ -3372,7 +3399,7 @@ export default function StudyPlanner({
   const hasPendingUnplannedTopics = topics.some(
     (topic) => topic.status !== "done" && !topic.plannedDate,
   );
-  const isPremium = Boolean(plan.features?.isPremium);
+  const isPremium = true; // MVP: keep it free
   const totalTopicCount = getTotalTopicCount();
   const remainingFreeTopics = Math.max(0, FREE_TOPIC_LIMIT - totalTopicCount);
   const insights: PlannerInsights = (() => {
@@ -3497,18 +3524,10 @@ export default function StudyPlanner({
       scheduleCoveragePercent,
     };
 
-    const recommendationLines = buildAndroidRecommendationLines(
-      summaryBlock,
-      androidOverloadDays,
-      overdueTasks.length,
-      unplannedUnfinishedTopics,
-      remainingTopicCount,
-    );
-
     return {
       summary: summaryBlock,
       subjectRows,
-      recommendationLines,
+      recommendationLines: [],
     };
   })();
   const guidedActionMeta: Record<
@@ -3630,7 +3649,7 @@ export default function StudyPlanner({
                 onClick={() => navigate("/study/planner")}
                 className={`text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] inline-block ${PLANNER_TEXT_PRESSABLE}`}
               >
-                ← All Plans
+                â† All Plans
               </button>
             </div>
           ) : (
@@ -3643,7 +3662,7 @@ export default function StudyPlanner({
                   onClick={() => navigate("/study/planner")}
                   className={`text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] mb-3 inline-block ${PLANNER_TEXT_PRESSABLE}`}
                 >
-                  ← All Plans
+                  â† All Plans
                 </button>
                 <h1
                   className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
@@ -3809,7 +3828,7 @@ export default function StudyPlanner({
                       >
                         Skip For Now
                       </button>
-                    ) : null /* BUG-1 FIX: Removed duplicate "Resume Guide" button — the header already has it */
+                    ) : null /* BUG-1 FIX: Removed duplicate "Resume Guide" button â€” the header already has it */
                   }
                 </div>
               </div>
@@ -3859,9 +3878,9 @@ export default function StudyPlanner({
               {(
                 [
                   ["your-exams", "Your Exams"],
+                  ["plan", "Plan"],
                   ["syllabus", "Syllabus"],
                   ["calendar", "Calendar"],
-                  ["plan", "Plan"],
                   ["insights", "Insights"],
                 ] as Array<[PlannerSection, string]>
               ).map(([value, label]) => (
@@ -3901,10 +3920,10 @@ export default function StudyPlanner({
                 type="button"
                 data-tour="planner-plan-actions"
                 onClick={() => {
-                  void autoDistribute();
+                  void autoDistribute({ lockExistingDates: false });
                 }}
                 disabled={isAutoDistributing}
-                className={`${cleanPrimaryPill} py-4 px-10 text-[15px] font-black shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] transition-all hover:scale-[1.03] active:scale-[0.97] whitespace-nowrap flex-shrink-0`}
+                className={`${cleanPrimaryPill} py-4 px-10 text-[15px] font-black shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] transition-all hover:scale-[1.03] active:scale-[0.97] whitespace-nowrap flex-shrink-0 ${needsScheduleBuild ? "animate-[pulse_1.5s_cubic-bezier(0.4,0,0.6,1)_infinite] ring-4 ring-blue-500/50" : ""}`}
               >
                 {isAutoDistributing ? "Building Schedule..." : "Build Schedule"}
               </button>
@@ -3971,14 +3990,47 @@ export default function StudyPlanner({
             </>
           )}
 
-          {view === "insights" && plan && (
-            <InsightsPanel
-              planId={plan.id}
-              plan={plan}
-              insights={insights}
-              rollup={{ doneTopics: summary.done, totalTopics: summary.total }}
-            />
-          )}
+          {view === "insights" && plan && (() => {
+            const recommendations: PlannerRecommendation[] = [];
+            if (insights.summary.remainingTopics === 0) {
+              recommendations.push({
+                id: "complete",
+                title: "Plan Complete",
+                message: "You've finished the syllabus. Focus on revision.",
+                action: { label: "View Progress", tone: "secondary", onClick: () => setView("plan") }
+              });
+            } else if (insights.summary.daysBuffer != null && insights.summary.daysBuffer < 0) {
+              recommendations.push({
+                id: "behind",
+                title: "Pace Too Slow",
+                message: "You will miss your exam date at this rate.",
+                action: { label: "Adjust Capacity", tone: "primary", onClick: () => { setView("plan"); setTimeout(() => document.querySelector("[data-tour='planner-merged-capacity']")?.scrollIntoView(), 100); } }
+              });
+            } else if (overdueTasks.length > 0) {
+              recommendations.push({
+                id: "overdue",
+                title: "Overdue Topics",
+                message: `You have ${overdueTasks.length} overdue topics piling up.`,
+                action: { label: "Go to Today", tone: "primary", onClick: () => setView("plan") }
+              });
+            } else {
+              recommendations.push({
+                id: "track",
+                title: "On Track",
+                message: "You are doing great. Keep sticking to your daily goal.",
+                action: { label: "Keep Going", tone: "secondary", onClick: () => setView("plan") }
+              });
+            }
+            return (
+              <InsightsPanel
+                planId={plan.id}
+                plan={plan}
+                insights={insights}
+                rollup={{ doneTopics: summary.done, totalTopics: summary.total }}
+                recommendations={recommendations}
+              />
+            );
+          })()}
           {view === "plan" && plan && (
             <MergedPlanTab
               isDarkMode={isDarkMode}
@@ -4031,6 +4083,7 @@ export default function StudyPlanner({
               todayTopics={todayTasks}
               overdueTopics={overdueTasks}
               upcomingTopics={upcomingMerged}
+              completedTopics={completedTasks}
               formatPlannedDate={formatDate}
               daysOverdue={(plannedIso, tk) =>
                 daysBetweenDateKeys(toIsoDateOnly(plannedIso), tk)
@@ -4067,7 +4120,7 @@ export default function StudyPlanner({
               transition={{ duration: 0.4 }}
               className="flex flex-col gap-6"
             >
-              {/* ── Free Plan Topic Counter Badge ── */}
+              {/* â”€â”€ Free Plan Topic Counter Badge â”€â”€ */}
               {!isPremium && (
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
@@ -4204,48 +4257,12 @@ export default function StudyPlanner({
                     >
                       Bulk Add
                     </button>
-                    <button
-                      onClick={async () => {
-                        setTemplatePickerOpen(true);
-                        if (availableTemplates.length === 0) {
-                          try {
-                            const templates = await plannerRequest<
-                              {
-                                id: string;
-                                name: string;
-                                examBody: string;
-                                category: string;
-                                description: string;
-                                estimatedTopics: number;
-                                recommendedDailyGoal: number;
-                                tags: string[];
-                              }[]
-                            >(`${BASE}/templates`);
-                            setAvailableTemplates(templates);
-                          } catch {
-                            showToast(
-                              "Failed to load exam templates.",
-                              "error",
-                            );
-                          }
-                        }
-                      }}
-                      className={`${cleanSecondaryPill} rounded-xl px-6 ${isDarkMode ? "bg-[#1a3a52] border-[#0ea5e9] text-[#0ea5e9] hover:bg-[#214864]" : "bg-[#dbeafe] border-[#0ea5e9] text-[#0c4a6e] hover:bg-[#d1e8ff]"}`}
-                    >
-                      <PremiumEmoji
-                        name="bookmarks"
-                        alt=""
-                        className="h-4 w-4"
-                      />
-                      Template
-                    </button>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-4 mt-6 mb-2">
                   <div className="text-[13px] font-medium text-[#8b919e] dark:text-[#767575]">
-                    Use bulk add for fast entry, or load a full exam template
-                    (JEE, NEET, SSC, etc.).
+                    Use bulk add for fast entry.
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-black uppercase tracking-[0.2em] text-[#8b919e] dark:text-[#767575] mr-2">
@@ -4307,7 +4324,7 @@ export default function StudyPlanner({
                 <div
                   className={`mb-4 rounded-2xl border px-4 py-3 text-center text-[13px] font-bold ${isDarkMode ? "border-amber-800/50 bg-amber-950/30 text-amber-100" : "border-amber-200 bg-amber-50 text-amber-950"}`}
                 >
-                  No topics match your filters — Chart and Classic views are
+                  No topics match your filters â€” Chart and Classic views are
                   still available below.{" "}
                   <button
                     type="button"
@@ -4396,7 +4413,7 @@ export default function StudyPlanner({
                                     : "Expand subject"
                                 }
                               >
-                                {subjectOpen ? "▾" : "▸"}
+                                {subjectOpen ? "\u25be" : "\u25b8"}
                               </button>
                               <button
                                 onClick={() => {
@@ -4491,7 +4508,7 @@ export default function StudyPlanner({
                                                 : "Expand chapter"
                                             }
                                           >
-                                            {chapterOpen ? "▾" : "▸"}
+                                            {chapterOpen ? "\u25be" : "\u25b8"}
                                           </button>
                                           <button
                                             onClick={() => {
@@ -6272,50 +6289,33 @@ export default function StudyPlanner({
                                         <span className="text-slate-300 dark:text-slate-700 text-[10px]">
                                           |
                                         </span>
-                                        <button
-                                          onClick={() =>
-                                            patchTopic(topic.id, {
-                                              status: "done",
-                                            })
-                                          }
-                                          className="whitespace-nowrap flex-shrink-0 text-[11px] font-black uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
-                                        >
-                                          Mark Done
-                                        </button>
-                                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
-                                          |
-                                        </span>
-                                        <button
-                                          onClick={() =>
-                                            patchTopic(topic.id, {
-                                              status: "revision_needed",
-                                            })
-                                          }
-                                          className="whitespace-nowrap flex-shrink-0 text-[11px] font-black uppercase tracking-[0.15em] text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
-                                        >
-                                          Needs Revision
-                                        </button>
+                                        {topic.status !== "done" ? (
+                                          <button
+                                            onClick={() =>
+                                              patchTopic(topic.id, {
+                                                status: "done",
+                                              })
+                                            }
+                                            className="whitespace-nowrap flex-shrink-0 text-[11px] font-black uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+                                          >
+                                            Mark Done
+                                          </button>
+                                        ) : (
+                                          <button
+                                            onClick={() =>
+                                              patchTopic(topic.id, {
+                                                status: "todo",
+                                              })
+                                            }
+                                            className="whitespace-nowrap flex-shrink-0 text-[11px] font-black uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                                          >
+                                            Undo
+                                          </button>
+                                        )}
                                       </div>
 
                                       {expandedTopicId === topic.id && (
                                         <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                                          <CustomDatePicker
-                                            value={
-                                              topic.plannedDate
-                                                ? toIsoDateOnly(
-                                                    topic.plannedDate,
-                                                  )
-                                                : ""
-                                            }
-                                            onChange={(val) =>
-                                              patchTopic(topic.id, {
-                                                plannedDate: val || "",
-                                              })
-                                            }
-                                            isDarkMode={isDarkMode}
-                                            align="top"
-                                            offDays={plan?.offDays || []}
-                                          />
                                           <button
                                             onClick={() => {
                                               void editTopicNotes(topic);
@@ -6323,16 +6323,6 @@ export default function StudyPlanner({
                                             className={`text-[11px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
                                           >
                                             Edit Notes
-                                          </button>
-                                          <button
-                                            onClick={() =>
-                                              patchTopic(topic.id, {
-                                                plannedDate: "",
-                                              })
-                                            }
-                                            className="text-[11px] font-black tracking-wide whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full bg-[#f59e0b] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(245,158,11,0.4)] transition-transform hover:scale-[1.05]"
-                                          >
-                                            Unschedule
                                           </button>
                                           <button
                                             onClick={() => {
@@ -6453,28 +6443,7 @@ export default function StudyPlanner({
                     ▶
                   </motion.button>
 
-                  <button
-                    type="button"
-                    onClick={() => plan && exportSyllabusPDF(plan)}
-                    className={`text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full border whitespace-nowrap flex items-center gap-2 transition-all active:scale-[0.97] ${isDarkMode ? "bg-[#202225] border-[#2f3440] text-[#c6c6c6] hover:bg-[#2a2d33]" : "bg-white border-[#c0c4d1] text-[#334155] hover:bg-gray-50"}`}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    Export
-                  </button>
+
                 </div>
 
                 <div data-tour="planner-calendar-grid">
@@ -6562,61 +6531,25 @@ export default function StudyPlanner({
                         {item.chapterName}
                       </div>
                       <div className="flex flex-wrap items-center gap-4 mt-5 border-t border-[#c0c4d1]/50 dark:border-[#252626] pt-4">
-                        <button
-                          onClick={() =>
-                            patchTopic(item.topicId, { status: "done" })
-                          }
-                          className="text-[11px] font-black uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
-                        >
-                          Mark Done
-                        </button>
-                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
-                          |
-                        </span>
-                        <button
-                          onClick={() =>
-                            patchTopic(item.topicId, {
-                              status: "revision_needed",
-                            })
-                          }
-                          className="text-[11px] font-black uppercase tracking-[0.15em] text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors"
-                        >
-                          Needs Revision
-                        </button>
-                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
-                          |
-                        </span>
-                        <button
-                          onClick={() => {
-                            if (!pickedDay) {
-                              showToast("Pick a day first.", "error");
-                              return;
+                        {item.status !== "done" ? (
+                          <button
+                            onClick={() =>
+                              patchTopic(item.topicId, { status: "done" })
                             }
-                            const next = new Date(pickedDay);
-                            next.setDate(next.getDate() + 1);
-                            const targetDate = findNextAvailableDate(
-                              next,
-                              plan.offDays,
-                            );
-                            void patchTopic(item.topicId, {
-                              plannedDate: targetDate,
-                            });
-                          }}
-                          className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                        >
-                          Move Date
-                        </button>
-                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
-                          |
-                        </span>
-                        <button
-                          onClick={() =>
-                            patchTopic(item.topicId, { plannedDate: "" })
-                          }
-                          className="text-[11px] font-black uppercase tracking-[0.15em] text-rose-500 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors"
-                        >
-                          Remove Date
-                        </button>
+                            className="text-[11px] font-black uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+                          >
+                            Mark Done
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              patchTopic(item.topicId, { status: "todo" })
+                            }
+                            className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                          >
+                            Undo
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -6628,41 +6561,7 @@ export default function StudyPlanner({
                   )}
                 </div>
 
-                {pickedDay && selectedDayItems.length > 0 && (
-                  <div className="flex flex-col gap-3 mt-4">
-                    <button
-                      onClick={() => {
-                        if (!pickedDay) {
-                          showToast("Pick a day first.", "error");
-                          return;
-                        }
-                        const next = new Date(pickedDay);
-                        next.setDate(next.getDate() + 1);
-                        const targetDate = findNextAvailableDate(
-                          next,
-                          plan.offDays,
-                        );
-                        void moveTopicsToDate(
-                          selectedDayItems.map((item) => item.topicId),
-                          targetDate,
-                        );
-                      }}
-                      className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full bg-[#3b82f6] text-white"
-                    >
-                      Move All to Next Available Day
-                    </button>
-                    <button
-                      onClick={() =>
-                        clearTopicsFromDate(
-                          selectedDayItems.map((item) => item.topicId),
-                        )
-                      }
-                      className="text-[12px] font-black uppercase tracking-widest px-4 py-3 rounded-full border border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-300"
-                    >
-                      Clear This Day
-                    </button>
-                  </div>
-                )}
+
               </div>
             </motion.div>
           )}
@@ -6706,7 +6605,7 @@ export default function StudyPlanner({
                 className="mb-6 rounded-2xl border border-red-200/50 dark:border-red-900/30 bg-red-50 dark:bg-red-950/20 px-5 py-4 text-[13px] text-red-600 dark:text-red-400 font-bold flex items-center gap-3"
               >
                 <span className="shrink-0 w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center text-[10px]">
-                  ✕
+                  âœ•
                 </span>
                 {bulkAddError}
               </motion.div>
@@ -6723,7 +6622,7 @@ export default function StudyPlanner({
                       : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                   }`}
                 >
-                  Import a PDF
+                  Syllabus AI Paste
                 </button>
                 <button
                   type="button"
@@ -6738,246 +6637,265 @@ export default function StudyPlanner({
                 </button>
               </div>
 
-              {isTxtBulkMode && (
-                <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/20 px-5 py-4 flex items-center justify-between">
-                  <div className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
-                    Need help with the format?
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setBulkTxtGuideOpen((prev) => !prev)}
-                    className="shrink-0 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-sm"
-                  >
-                    {bulkTxtGuideOpen ? "Hide Guide" : "View Guide"}
-                  </button>
-                </div>
-              )}
+              {isTxtBulkMode ? (
+                // Syllabus AI Paste Mode
+                hasStructured ? (
+                  // Structured Preview Phase
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    <div className="rounded-2xl border border-emerald-200/50 dark:border-emerald-900/30 bg-emerald-50 dark:bg-emerald-950/20 px-5 py-4 text-[13px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-3">
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-[10px]">
+                        ✓
+                      </span>
+                      Structured with AI! Review and edit the format below before importing.
+                    </div>
 
-              {!isTxtBulkMode && (
-                <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-900/10 p-6 space-y-5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
-                      Destination Details
-                    </span>
-                  </div>
+                    <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/20 px-5 py-4 flex items-center justify-between">
+                      <div className="text-[13px] font-bold text-slate-500 dark:text-slate-400">
+                        Need help with the format?
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setBulkTxtGuideOpen((prev) => !prev)}
+                        className="shrink-0 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-sm"
+                      >
+                        {bulkTxtGuideOpen ? "Hide Guide" : "View Guide"}
+                      </button>
+                    </div>
 
-                  <div className="grid gap-4">
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
-                          Subject
-                        </label>
-                        <select
-                          value={bulkSubjectId}
-                          onChange={(e) => {
-                            setBulkSubjectId(e.target.value);
-                            if (e.target.value) setBulkSubjectName("");
-                          }}
-                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 px-4 py-3 text-[14px] font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    <AnimatePresence initial={false}>
+                      {bulkTxtGuideOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
                         >
-                          <option value="">Select existing</option>
-                          {plan?.subjects.map((subject) => (
-                            <option key={subject.id} value={subject.id}>
-                              {subject.name}
-                            </option>
-                          ))}
-                        </select>
+                          <div className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)] pt-2 pb-4">
+                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30 px-5 py-4">
+                              <div className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-4">
+                                Symbols
+                              </div>
+                              <div className="space-y-3 text-[13px] font-bold text-slate-700 dark:text-slate-300">
+                                <div className="flex items-center gap-2">
+                                  <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
+                                    -
+                                  </code>{" "}
+                                  Subject
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
+                                    _
+                                  </code>{" "}
+                                  Chapter
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
+                                    &gt;
+                                  </code>{" "}
+                                  Topic
+                                </div>
+                              </div>
+                            </div>
+
+                            <pre className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 px-5 py-4 text-[12px] font-mono leading-relaxed text-slate-600 dark:text-slate-400 whitespace-pre-wrap overflow-x-auto shadow-inner">
+                              {BULK_TXT_FORMAT_EXAMPLE}
+                            </pre>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
+                        Structured Topics List
+                      </label>
+                      <textarea
+                        value={bulkTopicsText}
+                        onChange={(e) => setBulkTopicsText(e.target.value)}
+                        placeholder="Structured syllabus topics list..."
+                        className="w-full rounded-[24px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 px-6 py-5 text-[15px] font-medium min-h-[220px] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none shadow-sm"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  // Unstructured Raw Paste Phase
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="rounded-2xl border border-blue-200/50 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-950/10 p-5 space-y-2">
+                      <div className="text-[13px] font-bold text-blue-600 dark:text-blue-400">
+                        Paste Raw Syllabus
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
-                          New Subject
-                        </label>
-                        <input
-                          value={bulkSubjectName}
-                          onChange={(e) => {
-                            setBulkSubjectName(e.target.value);
-                            if (e.target.value) setBulkSubjectId("");
-                          }}
-                          placeholder="Or type to create"
-                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-[14px] font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                        />
-                      </div>
+                      <p className="text-[13px] leading-relaxed text-slate-600 dark:text-slate-400 font-medium">
+                        Paste your raw, unformatted syllabus text below (e.g. from PDF, website, or document) and click "Structure with AI".
+                      </p>
                     </div>
 
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
-                        Chapter Name (Optional)
+                        Raw Syllabus Text
                       </label>
-                      <input
-                        value={bulkChapterName}
-                        onChange={(e) => setBulkChapterName(e.target.value)}
-                        placeholder="e.g. Calculus Foundations"
-                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-[14px] font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      <textarea
+                        value={rawSyllabusText}
+                        onChange={(e) => setRawSyllabusText(e.target.value)}
+                        disabled={isStructuringSyllabus}
+                        placeholder="Paste raw syllabus text here..."
+                        className="w-full rounded-[24px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 px-6 py-5 text-[15px] font-medium min-h-[220px] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none shadow-sm"
                       />
                     </div>
                   </div>
-                </div>
-              )}
-
-              {isTxtBulkMode ? (
-                <div className="space-y-4">
-                  <div className="px-1">
-                    <div
-                      onClick={() => bulkImportInputRef.current?.click()}
-                      className={`relative overflow-hidden w-full border-2 border-dashed rounded-[24px] p-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group ${isDarkMode ? "border-slate-700 hover:border-blue-500/50 hover:bg-blue-500/5" : "border-slate-300 hover:border-blue-500/50 hover:bg-blue-50"}`}
-                    >
-                      <input
-                        ref={bulkImportInputRef}
-                        type="file"
-                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        className="hidden"
-                        onChange={(event) => {
-                          void handleBulkFileImport(event);
-                        }}
-                      />
-
-                      {!bulkImportedFileName ? (
-                        <>
-                          <div
-                            className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-transform duration-500 transform group-hover:scale-110 ${isDarkMode ? "bg-slate-800 text-blue-400" : "bg-blue-50 text-blue-600"}`}
-                          >
-                            <svg
-                              className="w-8 h-8"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                              />
-                            </svg>
-                          </div>
-                          <div
-                            className={`text-[15px] font-bold mb-2 text-center ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}
-                          >
-                            Click to upload or drag and drop
-                          </div>
-                          <div
-                            className={`text-[11px] font-black uppercase tracking-widest text-center ${isDarkMode ? "text-slate-500" : "text-slate-400"}`}
-                          >
-                            PDF, DOCX ONLY
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center animate-in fade-in zoom-in-95 duration-300">
-                          <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 text-emerald-500">
-                            <svg
-                              className="w-8 h-8"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                          </div>
-                          <div
-                            className={`text-[15px] font-bold mb-2 text-center ${isDarkMode ? "text-slate-200" : "text-slate-700"}`}
-                          >
-                            {bulkImportedFileName}
-                          </div>
-                          <div className="text-[11px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 transition-colors">
-                            Click to replace file
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <AnimatePresence initial={false}>
-                    {bulkTxtGuideOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)] pt-2 pb-4">
-                          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30 px-5 py-4">
-                            <div className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 mb-4">
-                              Symbols
-                            </div>
-                            <div className="space-y-3 text-[13px] font-bold text-slate-700 dark:text-slate-300">
-                              <div className="flex items-center gap-2">
-                                <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
-                                  -
-                                </code>{" "}
-                                Subject
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
-                                  _
-                                </code>{" "}
-                                Chapter
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <code className="bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded border dark:border-slate-700">
-                                  &gt;
-                                </code>{" "}
-                                Topic
-                              </div>
-                            </div>
-                          </div>
-
-                          <pre className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 px-5 py-4 text-[12px] font-mono leading-relaxed text-slate-600 dark:text-slate-400 whitespace-pre-wrap overflow-x-auto shadow-inner">
-                            {BULK_TXT_FORMAT_EXAMPLE}
-                          </pre>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                )
               ) : (
-                <div className="px-1 text-[13px] font-medium text-slate-400 dark:text-slate-500 italic">
-                  Tip: Enter one topic per line in the box below.
+                // Manual Entry Mode
+                <div className="space-y-6 animate-in fade-in duration-300">
+                  <div className="rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-900/10 p-6 space-y-5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                        Destination Details
+                      </span>
+                    </div>
+
+                    <div className="grid gap-4">
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
+                            Subject
+                          </label>
+                          <select
+                            value={bulkSubjectId}
+                            onChange={(e) => {
+                              setBulkSubjectId(e.target.value);
+                              if (e.target.value) setBulkSubjectName("");
+                            }}
+                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 px-4 py-3 text-[14px] font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                          >
+                            <option value="">Select existing</option>
+                            {plan?.subjects.map((subject) => (
+                              <option key={subject.id} value={subject.id}>
+                                {subject.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
+                            New Subject
+                          </label>
+                          <input
+                            value={bulkSubjectName}
+                            onChange={(e) => {
+                              setBulkSubjectName(e.target.value);
+                              if (e.target.value) setBulkSubjectId("");
+                            }}
+                            placeholder="Or type to create"
+                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-[14px] font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
+                          Chapter Name (Optional)
+                        </label>
+                        <input
+                          value={bulkChapterName}
+                          onChange={(e) => setBulkChapterName(e.target.value)}
+                          placeholder="e.g. Calculus Foundations"
+                          className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-4 py-3 text-[14px] font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
+                      Topics List
+                    </label>
+                    <textarea
+                      value={bulkTopicsText}
+                      onChange={(e) => setBulkTopicsText(e.target.value)}
+                      placeholder="Topic 1&#10;Topic 2&#10;Topic 3..."
+                      className="w-full rounded-[24px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-650 px-6 py-5 text-[15px] font-medium min-h-[180px] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none shadow-sm"
+                    />
+                  </div>
                 </div>
               )}
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-wider">
-                  Topics List
-                </label>
-                <textarea
-                  value={bulkTopicsText}
-                  onChange={(e) => setBulkTopicsText(e.target.value)}
-                  placeholder={
-                    isTxtBulkMode
-                      ? "Paste text here or edit the preview from your upload..."
-                      : "Topic 1\nTopic 2\nTopic 3..."
-                  }
-                  className="w-full rounded-[24px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[#0f172a] dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 px-6 py-5 text-[15px] font-medium min-h-[180px] focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none shadow-sm"
-                />
-              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-end mt-10">
-              <button
-                onClick={resetBulkAdd}
-                className="px-8 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-[13px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all active:scale-95"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  void handleBulkAdd();
-                }}
-                className="px-10 py-3.5 rounded-2xl bg-blue-600 text-white text-[13px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/25 hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <span>{isTxtBulkMode ? "Import Syllabus" : "Apply list"}</span>
-              </button>
+              {isTxtBulkMode ? (
+                hasStructured ? (
+                  // Structured Phase Buttons
+                  <>
+                    <button
+                      onClick={() => setHasStructured(false)}
+                      className="px-8 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-[13px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all active:scale-95"
+                    >
+                      Start Over
+                    </button>
+                    <button
+                      onClick={() => {
+                        void handleBulkAdd();
+                      }}
+                      className="px-10 py-3.5 rounded-2xl bg-blue-600 text-white text-[13px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/25 hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <span>Import Syllabus</span>
+                    </button>
+                  </>
+                ) : (
+                  // Unstructured Phase Buttons
+                  <>
+                    <button
+                      onClick={resetBulkAdd}
+                      disabled={isStructuringSyllabus}
+                      className="px-8 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-[13px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        void handleStructureSyllabus();
+                      }}
+                      disabled={isStructuringSyllabus || !rawSyllabusText.trim()}
+                      className="px-10 py-3.5 rounded-2xl bg-blue-600 text-white text-[13px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/25 hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isStructuringSyllabus ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Structuring...</span>
+                        </>
+                      ) : (
+                        <span>Structure with AI</span>
+                      )}
+                    </button>
+                  </>
+                )
+              ) : (
+                // Manual Entry Phase Buttons
+                <>
+                  <button
+                    onClick={resetBulkAdd}
+                    className="px-8 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-[13px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      void handleBulkAdd();
+                    }}
+                    className="px-10 py-3.5 rounded-2xl bg-blue-600 text-white text-[13px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/25 hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>Apply list</span>
+                  </button>
+                </>
+              )}
             </div>
           </motion.div>
         </div>
       )}
 
-      {/* ── Toast Notification ── */}
+      {/* â”€â”€ Toast Notification â”€â”€ */}
       <AnimatePresence>
         {toastVisible && (
           <motion.div
@@ -6986,19 +6904,19 @@ export default function StudyPlanner({
             exit={{ opacity: 0, y: 40 }}
             className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl text-[13px] font-bold ${
               toastType === "success"
-                ? "bg-emerald-600 text-white"
+                ? "bg-primary text-primary-foreground"
                 : toastType === "error"
                   ? "bg-red-600 text-white"
                   : "bg-slate-800 text-white"
             }`}
           >
-            {toastType === "success" ? "✓" : toastType === "error" ? "✕" : "ℹ"}{" "}
+            {toastType === "success" ? "\u2714" : toastType === "error" ? "\u2715" : "\u2139"}{" "}
             {toastMessage}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Bulk syllabus overwrite (PDF / structured import) ── */}
+      {/* â”€â”€ Bulk syllabus overwrite (PDF / structured import) â”€â”€ */}
       <AnimatePresence>
         {bulkSyllabusOverwritePrompt && (
           <motion.div
@@ -7021,9 +6939,7 @@ export default function StudyPlanner({
               <p
                 className={`text-[16px] font-bold mb-3 leading-snug tracking-tight ${isDarkMode ? "text-white" : "text-[#0f172a]"}`}
               >
-                {bulkSyllabusOverwritePrompt.flow === "file"
-                  ? "This plan already has subjects or chapters. Import this file anyway?"
-                  : "This plan already has subjects or chapters. Run this bulk import anyway?"}
+                {"This plan already has subjects or chapters. Run this bulk import anyway?"}
               </p>
               <p
                 className={`text-[13px] font-medium mb-8 leading-relaxed ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}
@@ -7031,7 +6947,7 @@ export default function StudyPlanner({
                 If you choose <span className="font-bold">Yes</span>, we will
                 continue and merge topics using matching subject and chapter
                 names. If you choose <span className="font-bold">No</span>,
-                nothing is imported—clear subjects and chapters from the
+                nothing is importedâ€”clear subjects and chapters from the
                 Syllabus tab (Hierarchy or Chart) first, or create a separate
                 study plan from <span className="font-bold">All Plans</span> if
                 you want a clean slate.
@@ -7059,7 +6975,7 @@ export default function StudyPlanner({
         )}
       </AnimatePresence>
 
-      {/* ── Confirm Delete Modal ── */}
+      {/* â”€â”€ Confirm Delete Modal â”€â”€ */}
       <AnimatePresence>
         {pendingDelete && (
           <motion.div
@@ -7122,8 +7038,8 @@ export default function StudyPlanner({
         )}
       </AnimatePresence>
 
-      {/* ── Template Picker Modal ── */}
-      {/* ── Template Picker Modal ── */}
+      {/* â”€â”€ Template Picker Modal â”€â”€ */}
+      {/* â”€â”€ Template Picker Modal â”€â”€ */}
       <AnimatePresence>
         {templatePickerOpen && (
           <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
@@ -7303,7 +7219,7 @@ export default function StudyPlanner({
                               >(`${BASE}/${planId}/calendar`);
                               setCalendar(calendarData);
                               showToast(
-                                `${t.name} template imported — ${t.estimatedTopics} topics added!`,
+                                `${t.name} template imported â€” ${t.estimatedTopics} topics added!`,
                                 "success",
                               );
                               setTemplatePickerOpen(false);
@@ -7330,7 +7246,7 @@ export default function StudyPlanner({
         )}
       </AnimatePresence>
 
-      {/* ── Off-Day Rebuild Prompt ── */}
+      {/* â”€â”€ Off-Day Rebuild Prompt â”€â”€ */}
       <AnimatePresence>
         {showRebuildPrompt && (
           <motion.div
@@ -7353,7 +7269,7 @@ export default function StudyPlanner({
               <p
                 className={`text-[17px] font-bold mb-8 leading-snug tracking-tight ${isDarkMode ? "text-white" : "text-[#0f172a]"}`}
               >
-                Would you like to redistribute topics across your new schedule?
+                Would you like to save the current changes?
               </p>
               <div className="flex gap-3 justify-end">
                 <button
@@ -7365,11 +7281,11 @@ export default function StudyPlanner({
                 <button
                   onClick={() => {
                     setShowRebuildPrompt(false);
-                    void autoDistribute();
+                    void autoDistribute({ lockExistingDates: false });
                   }}
                   className="px-7 py-3 rounded-2xl bg-blue-600 text-white text-[12px] font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95"
                 >
-                  Rebuild
+                  Save
                 </button>
               </div>
             </motion.div>
@@ -7377,7 +7293,7 @@ export default function StudyPlanner({
         )}
       </AnimatePresence>
 
-      {/* ── Exam Type Change Prompt ── */}
+      {/* â”€â”€ Exam Type Change Prompt â”€â”€ */}
       <AnimatePresence>
         {showExamTypeChangePrompt && (
           <motion.div
@@ -7463,3 +7379,4 @@ export default function StudyPlanner({
     </>
   );
 }
+

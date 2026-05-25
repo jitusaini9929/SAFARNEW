@@ -49,7 +49,7 @@ export function ShareHandlePanel({ show, onShare }: ShareHandlePanelProps) {
             onShare(platform, normalized);
             setHandle("");
           }}
-          className="rounded-lg bg-teal-600 px-2 text-xs font-medium text-white"
+          className="rounded-lg bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
         >
           Share
         </button>

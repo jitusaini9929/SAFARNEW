@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import MainLayout from '@/components/MainLayout';
+import NishthaLayout from '@/components/NishthaLayout';
 import { PremiumEmoji, type PremiumEmojiName } from '@/components/PremiumEmoji';
 import {
   Sparkles, AlertTriangle, Heart, Target, Moon,
@@ -10,10 +10,11 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/utils/apiFetch';
+import "@/styles/mehfil-m3.css";
+import { MdFilledButtonReact, MdOutlinedTextFieldReact, MdOutlinedButtonReact } from "@/components/mehfil/material/MdComponents";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 const SHOW_SUGGESTION_BOX = false;
-
 interface MoodSuggestion {
   title: string;
   description: string;
@@ -230,47 +231,47 @@ export default function Suggestions() {
 
   if (loading) {
     return (
-      <MainLayout showHome={false}>
+      <NishthaLayout>
         <div className="min-h-[100dvh] flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
             <p className="text-slate-600 dark:text-slate-400">Personalizing your experience...</p>
           </div>
         </div>
-      </MainLayout>
+      </NishthaLayout>
     );
   }
 
   if (!data) {
     return (
-      <MainLayout showHome={false}>
+      <NishthaLayout>
         <div className="min-h-[100dvh] flex items-center justify-center">
           <p className="text-slate-600 dark:text-slate-400">Could not load suggestions. Please try again.</p>
         </div>
-      </MainLayout>
+      </NishthaLayout>
     );
   }
 
   return (
-    <MainLayout showHome={false}>
-      <div className="min-h-[100dvh] pb-20 px-4 md:px-6 max-w-6xl mx-auto">
+    <NishthaLayout>
+      <div className="min-h-[100dvh] mehfil-m3 bg-background pb-20 px-4 md:px-6 max-w-6xl mx-auto">
 
         {/* ═══════ Hero Section ═══════ */}
         <section className="pt-8 pb-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/45 md:p-6">
+          <div className="mehfil-m3-card p-5 md:p-6">
             <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
               <div className="max-w-2xl">
-                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-650 dark:border-white/10 dark:bg-white/5 dark:text-slate-350">
                   <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
                   Personalized suggestions
                 </div>
                 <div className="flex items-center gap-3">
                   <PremiumEmoji name={moodEmojis[data.mood.category]} alt="" className="h-9 w-9" />
-                  <h1 className="text-2xl font-bold text-slate-950 dark:text-white md:text-4xl">
+                  <h1 className="text-2xl font-bold text-slate-955 dark:text-white md:text-4xl">
                     {data.greeting}
                   </h1>
                 </div>
-                <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-455">
                   {data.mood.category === 'low'
                     ? "It's okay to not be okay. Here are a few steady, practical next steps."
                     : data.mood.category === 'high'
@@ -280,17 +281,17 @@ export default function Suggestions() {
               </div>
 
               <div className="grid grid-cols-3 gap-2 md:min-w-[360px]">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-800">
                   <Target className="mb-2 h-4 w-4 text-emerald-500" />
                   <div className="text-lg font-bold text-slate-950 dark:text-white">{data.stats.activeGoals}</div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">Active goals</div>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-800">
                   <Trophy className="mb-2 h-4 w-4 text-amber-500" />
                   <div className="text-lg font-bold text-slate-950 dark:text-white">{data.stats.completedToday}</div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">Done today</div>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="rounded-xl border border-slate-200 p-3 bg-slate-50 dark:bg-slate-800">
                   <Clock className="mb-2 h-4 w-4 text-indigo-500" />
                   <div className="text-lg font-bold text-slate-950 dark:text-white">{data.stats.weeklyFocusHours}h</div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">This week</div>
@@ -303,11 +304,11 @@ export default function Suggestions() {
         {/* ═══════ SOS Quick Relief ═══════ */}
         {showSOS && (
           <div className="mb-8 animate-in slide-in-from-top-4 duration-500">
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm dark:border-rose-500/20 dark:bg-rose-950/30">
+            <div className="mehfil-m3-card border-rose-500/20 dark:border-rose-500/30 bg-rose-500/5 dark:bg-rose-500/10 p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className="p-2 bg-white dark:bg-rose-500/15 rounded-xl">
-                    <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                    <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-455" />
                   </div>
                   <div>
                     <h3 className="font-bold text-rose-900 dark:text-rose-200">SOS Quick Relief</h3>
@@ -320,7 +321,7 @@ export default function Suggestions() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {data.sosExercises.map((ex, i) => (
-                  <div key={i} className="p-3 rounded-xl bg-white border border-rose-100 hover:border-rose-200 transition-all cursor-pointer group dark:bg-white/5 dark:border-white/10 dark:hover:bg-white/10">
+                  <div key={i} className="p-3 rounded-xl transition-all cursor-pointer group border border-rose-500/10 dark:border-rose-500/20 bg-white dark:bg-card hover:scale-[1.02]">
                     <PremiumEmoji emoji={ex.icon} fallback={ex.icon} alt="" className="h-7 w-7" />
                     <h4 className="text-sm font-semibold text-slate-900 dark:text-white mt-2">{ex.title}</h4>
                     <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">{ex.description}</p>
@@ -348,31 +349,35 @@ export default function Suggestions() {
               </span>
             </div>
 
-            <textarea
-              value={suggestionText}
-              onChange={(event) => {
-                setSuggestionText(event.target.value);
-                if (suggestionError) setSuggestionError(null);
-              }}
-              maxLength={2000}
-              rows={4}
-              placeholder="Write your suggestion or complaint..."
-              className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-slate-950/40 dark:text-white dark:focus:border-indigo-500 dark:focus:ring-indigo-500/10"
-            />
+            <div className="w-full flex flex-col gap-2">
+              <MdOutlinedTextFieldReact
+                type="textarea"
+                rows={4}
+                label="Write your suggestion or complaint..."
+                value={suggestionText}
+                onInput={(event: any) => {
+                  setSuggestionText(event.target.value);
+                  if (suggestionError) setSuggestionError(null);
+                }}
+                maxLength={2000}
+                style={{ width: "100%" }}
+              />
+            </div>
             <div className="mt-3 flex items-center justify-between gap-3">
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 {suggestionText.length}/2000
                 {suggestionError ? <span className="ml-3 text-rose-600 dark:text-rose-400">{suggestionError}</span> : null}
               </div>
-              <button
-                type="button"
-                onClick={handleSubmitSuggestion}
+              <MdFilledButtonReact
+                onClick={handleSubmitSuggestion as any}
                 disabled={suggestionText.trim().length < 3 || suggestionSubmitting}
-                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                style={{"--md-filled-button-container-height": "36px", "--md-filled-button-container-shape": "8px"} as React.CSSProperties}
               >
-                <Send className="h-3.5 w-3.5" />
-                {suggestionSubmitting ? 'Submitting...' : 'Submit'}
-              </button>
+                <span className="flex items-center gap-2">
+                  <Send className="h-3.5 w-3.5" />
+                  <span>{suggestionSubmitting ? 'Submitting...' : 'Submit'}</span>
+                </span>
+              </MdFilledButtonReact>
             </div>
 
             <div className="mt-6 border-t border-slate-200 pt-4 dark:border-white/10">
@@ -401,19 +406,17 @@ export default function Suggestions() {
                             {submission.content}
                           </p>
                         </div>
-                        <button
-                          type="button"
+                        <MdOutlinedButtonReact
                           onClick={() => handleVoteSuggestion(submission.id)}
-                          className={`shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
-                            submission.hasVoted
-                              ? 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-200 hover:text-indigo-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:border-indigo-500/30 dark:hover:text-indigo-300'
-                          }`}
+                          className="shrink-0"
                           title={submission.hasVoted ? 'Remove vote' : 'Vote'}
+                          style={{"--md-outlined-button-container-height": "36px", "--md-outlined-button-container-shape": "8px"} as React.CSSProperties}
                         >
-                          <ThumbsUp className="h-3.5 w-3.5" />
-                          {submission.voteCount}
-                        </button>
+                          <span className="flex items-center gap-1.5">
+                            <ThumbsUp className={`h-3.5 w-3.5 ${submission.hasVoted ? 'fill-current text-indigo-600 dark:text-indigo-400' : ''}`} />
+                            <span>{submission.voteCount}</span>
+                          </span>
+                        </MdOutlinedButtonReact>
                       </div>
                     </div>
                   ))}
@@ -437,12 +440,12 @@ export default function Suggestions() {
               <div
                 key={i}
                 onClick={() => navigate(suggestion.link)}
-                className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-indigo-500/30"
+                className="group cursor-pointer p-5 transition hover:scale-[1.01] mehfil-m3-card"
               >
                 <PremiumEmoji emoji={suggestion.icon} fallback={suggestion.icon} alt="" className="h-8 w-8" />
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-3">{suggestion.title}</h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">{suggestion.description}</p>
-                <div className="flex items-center gap-1 mt-4 text-xs font-medium text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors">
+                <div className="flex items-center gap-1 mt-4 text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors">
                   <span>{suggestion.action}</span>
                   <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                 </div>
@@ -454,7 +457,7 @@ export default function Suggestions() {
         {/* ═══════ Two Column: Daily Challenge + Focus Boost ═══════ */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Daily Challenge */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm">
+          <div className="p-5 mehfil-m3-card shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <div className="p-2 bg-amber-100 dark:bg-amber-500/15 rounded-xl">
                 <Flame className="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -473,7 +476,7 @@ export default function Suggestions() {
           {/* Focus Boost */}
           {data.focusBoost.show && (
             <div
-              className="p-5 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all shadow-sm"
+              className="p-5 cursor-pointer transition-all hover:scale-[1.01] mehfil-m3-card shadow-sm"
               onClick={() => navigate('/nishtha/focus')}
             >
               <div className="flex items-center gap-2 mb-3">
@@ -505,7 +508,7 @@ export default function Suggestions() {
         {/* ═══════ Sleep Wind-Down ═══════ */}
         {data.sleepWindDown && (
           <section className="mb-8 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="p-5 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 shadow-sm">
+            <div className="p-5 mehfil-m3-card shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <div className="p-2 bg-violet-100 dark:bg-violet-500/15 rounded-xl">
                   <Moon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
@@ -537,7 +540,7 @@ export default function Suggestions() {
 
         {/* ═══════ Mindful Moment ═══════ */}
         <section className="mb-8">
-          <div className="p-7 rounded-2xl bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-center shadow-sm">
+          <div className="p-7 text-center mehfil-m3-card shadow-sm">
             <Quote className="w-6 h-6 text-teal-600/70 dark:text-teal-400/70 mx-auto mb-4" />
             <p className="text-lg md:text-xl text-slate-800 dark:text-slate-200 font-medium italic leading-relaxed max-w-2xl mx-auto">
               "{data.mindfulMoment.quote}"
@@ -547,7 +550,7 @@ export default function Suggestions() {
         </section>
 
         {/* ═══════ Crisis Helpline Footer ═══════ */}
-        <div className="mt-12 p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-center shadow-sm">
+        <div className="mt-12 p-4 text-center mehfil-m3-card shadow-sm">
           <div className="flex items-center justify-center gap-2 mb-2">
             <PhoneCall className="w-4 h-4 text-slate-600 dark:text-slate-500" />
             <span className="text-xs text-slate-600 dark:text-slate-500 font-medium">24/7 Support</span>
@@ -561,7 +564,6 @@ export default function Suggestions() {
           </a>
         </div>
       </div>
-    </MainLayout>
+    </NishthaLayout>
   );
 }
-

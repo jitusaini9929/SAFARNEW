@@ -11,7 +11,6 @@ import {
   TopicStatus,
   autoDistributeTopics,
   buildCalendarMap,
-  buildStudyHeatmap,
   clampOffDays,
   rollupProgress,
   toIsoDateOnly,
@@ -26,6 +25,16 @@ router.use(requireAuth);
 const PLANNER_PREMIUM_BYPASS_EMAILS = [
   "steve123@example.com",
   "safarparmar0@gmail.com",
+];
+const SYLLABUS_SUBJECT_COLORS = [
+  "#6750A4", // M3 Primary
+  "#006874", // M3 Cyan
+  "#984061", // M3 Rose
+  "#386A20", // M3 Green
+  "#7D5260", // M3 Tertiary
+  "#005FAF", // M3 Blue
+  "#E65100", // M3 Orange
+  "#004D40", // M3 Teal
 ];
 
 function getUserId(req: Request): string {
@@ -101,69 +110,17 @@ function countAllTopics(plan: StudyPlan): number {
   return total;
 }
 
+function normalizePlannerName(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+function plannerNameKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 async function canUsePremiumPlanner(userId: string): Promise<boolean> {
-  const projection = {
-    id: 1,
-    email: 1,
-    is_premium: 1,
-    subscription_tier: 1,
-    paid_features: 1,
-    premium_until: 1,
-  };
-
-  // App auth uses a UUID string stored in `users.id` as the JWT subject.
-  // Keep backward compatibility with ObjectId-based subjects by trying both.
-  let user = await usersCollection().findOne(
-    { id: userId },
-    {
-      projection,
-    },
-  );
-
-  if (!user) {
-    const userObjectId = toObjectId(userId);
-    if (userObjectId) {
-      user = await usersCollection().findOne(
-        { _id: userObjectId },
-        {
-          projection,
-        },
-      );
-    }
-  }
-
-  if (!user) return false;
-
-  // Explicit account-level bypass for planner premium.
-  const email = String((user as any).email || "")
-    .trim()
-    .toLowerCase();
-  const devPremiumEmails = String(
-    process.env.DEV_PREMIUM_EMAILS || PLANNER_PREMIUM_BYPASS_EMAILS.join(","),
-  )
-    .split(",")
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-  if (email && devPremiumEmails.includes(email)) {
-    return true;
-  }
-
-  const hasTier = ["premium", "pro", "plus"].includes(
-    String((user as any).subscription_tier || "").toLowerCase(),
-  );
-  const hasFlag = Boolean((user as any).is_premium);
-  const hasFeature = Array.isArray((user as any).paid_features)
-    ? (user as any).paid_features.includes("study_planner_100k")
-    : false;
-
-  const premiumUntil = (user as any).premium_until
-    ? new Date((user as any).premium_until)
-    : null;
-  const isStillPremium = premiumUntil
-    ? premiumUntil.getTime() > Date.now()
-    : false;
-
-  return hasTier || hasFlag || hasFeature || isStillPremium;
+  // MVP: remove premium locks completely
+  return true;
 }
 
 function withResolvedPlannerPremium(
@@ -254,6 +211,351 @@ router.get("/", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("[PLANNER] List plans failed:", error);
     res.status(500).json({ message: "Failed to fetch plans" });
+  }
+});
+
+router.post("/:planId/import-syllabus", async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    const modeRaw = req.body?.mode !== undefined ? String(req.body.mode) : "replace";
+    const mode = modeRaw.trim().toLowerCase();
+    if (mode !== "replace" && mode !== "merge") {
+      return res
+        .status(400)
+        .json({ message: "mode must be replace or merge" });
+    }
+
+    const rawSubjects = Array.isArray(req.body?.subjects)
+      ? req.body.subjects
+      : null;
+    if (!rawSubjects || rawSubjects.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "subjects are required" });
+    }
+
+    const plan = await plansCollection().findOne({
+      id: req.params.planId,
+      userId,
+    });
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    const subjectOrder: string[] = [];
+    const subjectMap = new Map<
+      string,
+      {
+        name: string;
+        chapterOrder: string[];
+        chapters: Map<
+          string,
+          { name: string; topicOrder: string[]; topics: Map<string, string> }
+        >;
+      }
+    >();
+
+    for (const rawSubject of rawSubjects) {
+      const subjectName = normalizePlannerName(rawSubject?.name);
+      if (!subjectName) {
+        return res.status(400).json({ message: "Subject name is required" });
+      }
+
+      const rawChapters = Array.isArray(rawSubject?.chapters)
+        ? rawSubject.chapters
+        : null;
+      if (!rawChapters || rawChapters.length === 0) {
+        return res
+          .status(400)
+          .json({ message: "Chapters are required" });
+      }
+
+      const subjectKey = plannerNameKey(subjectName);
+      let subjectEntry = subjectMap.get(subjectKey);
+      if (!subjectEntry) {
+        subjectEntry = {
+          name: subjectName,
+          chapterOrder: [],
+          chapters: new Map(),
+        };
+        subjectMap.set(subjectKey, subjectEntry);
+        subjectOrder.push(subjectKey);
+      }
+
+      for (const rawChapter of rawChapters) {
+        const chapterName = normalizePlannerName(rawChapter?.name);
+        if (!chapterName) {
+          return res
+            .status(400)
+            .json({ message: "Chapter name is required" });
+        }
+
+        const rawTopics = Array.isArray(rawChapter?.topics)
+          ? rawChapter.topics
+          : null;
+        if (!rawTopics || rawTopics.length === 0) {
+          return res
+            .status(400)
+            .json({ message: "Topics are required" });
+        }
+
+        const chapterKey = plannerNameKey(chapterName);
+        let chapterEntry = subjectEntry.chapters.get(chapterKey);
+        if (!chapterEntry) {
+          chapterEntry = {
+            name: chapterName,
+            topicOrder: [],
+            topics: new Map(),
+          };
+          subjectEntry.chapters.set(chapterKey, chapterEntry);
+          subjectEntry.chapterOrder.push(chapterKey);
+        }
+
+        for (const rawTopic of rawTopics) {
+          const topicName = normalizePlannerName(
+            typeof rawTopic === "string" ? rawTopic : rawTopic?.name,
+          );
+          if (!topicName) {
+            return res
+              .status(400)
+              .json({ message: "Topic name is required" });
+          }
+
+          const topicKey = plannerNameKey(topicName);
+          if (!chapterEntry.topics.has(topicKey)) {
+            chapterEntry.topics.set(topicKey, topicName);
+            chapterEntry.topicOrder.push(topicKey);
+          }
+        }
+      }
+    }
+
+    const incomingSubjects = subjectOrder.map((subjectKey) => {
+      const subjectEntry = subjectMap.get(subjectKey);
+      if (!subjectEntry) return null;
+      const chapters = subjectEntry.chapterOrder
+        .map((chapterKey) => {
+          const chapterEntry = subjectEntry.chapters.get(chapterKey);
+          if (!chapterEntry) return null;
+          const topics = chapterEntry.topicOrder
+            .map((topicKey) => chapterEntry.topics.get(topicKey))
+            .filter((topic): topic is string => Boolean(topic));
+          return {
+            name: chapterEntry.name,
+            topics,
+          };
+        })
+        .filter(
+          (chapter): chapter is { name: string; topics: string[] } =>
+            Boolean(chapter),
+        );
+      return {
+        name: subjectEntry.name,
+        chapters,
+      };
+    });
+
+    const cleanedSubjects = incomingSubjects.filter(
+      (subject): subject is { name: string; chapters: { name: string; topics: string[] }[] } =>
+        Boolean(subject),
+    );
+    if (cleanedSubjects.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "subjects are required" });
+    }
+
+    const incomingTopicCount = cleanedSubjects.reduce((sum, subject) => {
+      return (
+        sum +
+        subject.chapters.reduce((chapterSum, chapter) => {
+          return chapterSum + chapter.topics.length;
+        }, 0)
+      );
+    }, 0);
+
+    const isPremium = await canUsePremiumPlanner(userId);
+    if (!(plan.features?.isPremium || isPremium)) {
+      if (mode === "replace") {
+        if (incomingTopicCount > FREE_TIER_TOPIC_LIMIT) {
+          return res.status(403).json({
+            code: "TOPIC_LIMIT",
+            message: `Free plans support up to ${FREE_TIER_TOPIC_LIMIT} topics. Upgrade to Premium for unlimited topics.`,
+            currentCount: 0,
+            limit: FREE_TIER_TOPIC_LIMIT,
+          });
+        }
+      } else {
+        const currentCount = countAllTopics(plan);
+        let additionalCount = 0;
+
+        const existingSubjectsByKey = new Map(
+          plan.subjects.map((subject) => [
+            plannerNameKey(subject.name),
+            subject,
+          ]),
+        );
+
+        for (const subject of cleanedSubjects) {
+          const existingSubject = existingSubjectsByKey.get(
+            plannerNameKey(subject.name),
+          );
+          if (!existingSubject) {
+            additionalCount += subject.chapters.reduce(
+              (sum, chapter) => sum + chapter.topics.length,
+              0,
+            );
+            continue;
+          }
+
+          const existingChaptersByKey = new Map(
+            existingSubject.chapters.map((chapter) => [
+              plannerNameKey(chapter.name),
+              chapter,
+            ]),
+          );
+
+          for (const chapter of subject.chapters) {
+            const existingChapter = existingChaptersByKey.get(
+              plannerNameKey(chapter.name),
+            );
+            if (!existingChapter) {
+              additionalCount += chapter.topics.length;
+              continue;
+            }
+
+            const existingTopics = new Set(
+              existingChapter.topics.map((topic) =>
+                plannerNameKey(topic.name),
+              ),
+            );
+
+            for (const topicName of chapter.topics) {
+              if (!existingTopics.has(plannerNameKey(topicName))) {
+                additionalCount += 1;
+              }
+            }
+          }
+        }
+
+        if (currentCount + additionalCount > FREE_TIER_TOPIC_LIMIT) {
+          return res.status(403).json({
+            code: "TOPIC_LIMIT",
+            message: `Free plans support up to ${FREE_TIER_TOPIC_LIMIT} topics. Upgrade to Premium for unlimited topics.`,
+            currentCount,
+            limit: FREE_TIER_TOPIC_LIMIT,
+          });
+        }
+      }
+    }
+
+    if (mode === "replace") {
+      plan.subjects = cleanedSubjects.map((subject, index) => {
+        const chapters: StudyChapter[] = subject.chapters.map((chapter) => {
+          const topics: StudyTopic[] = chapter.topics.map((topicName) => ({
+            id: uuidv4(),
+            name: topicName,
+            status: "todo" as TopicStatus,
+          }));
+
+          return {
+            id: uuidv4(),
+            name: chapter.name,
+            topics,
+          };
+        });
+
+        return {
+          id: uuidv4(),
+          name: subject.name,
+          color: SYLLABUS_SUBJECT_COLORS[index % SYLLABUS_SUBJECT_COLORS.length],
+          chapters,
+        };
+      });
+    } else {
+      const subjectsByKey = new Map(
+        plan.subjects.map((subject) => [
+          plannerNameKey(subject.name),
+          subject,
+        ]),
+      );
+      let colorIndex = plan.subjects.length;
+
+      for (const subject of cleanedSubjects) {
+        const subjectKey = plannerNameKey(subject.name);
+        let targetSubject = subjectsByKey.get(subjectKey);
+        if (!targetSubject) {
+          targetSubject = {
+            id: uuidv4(),
+            name: subject.name,
+            color:
+              SYLLABUS_SUBJECT_COLORS[
+                colorIndex % SYLLABUS_SUBJECT_COLORS.length
+              ],
+            chapters: [],
+          };
+          colorIndex += 1;
+          plan.subjects.push(targetSubject);
+          subjectsByKey.set(subjectKey, targetSubject);
+        }
+
+        const chaptersByKey = new Map(
+          targetSubject.chapters.map((chapter) => [
+            plannerNameKey(chapter.name),
+            chapter,
+          ]),
+        );
+
+        for (const chapter of subject.chapters) {
+          const chapterKey = plannerNameKey(chapter.name);
+          let targetChapter = chaptersByKey.get(chapterKey);
+          if (!targetChapter) {
+            targetChapter = {
+              id: uuidv4(),
+              name: chapter.name,
+              topics: [],
+            };
+            targetSubject.chapters.push(targetChapter);
+            chaptersByKey.set(chapterKey, targetChapter);
+          }
+
+          const topicKeys = new Set(
+            targetChapter.topics.map((topic) => plannerNameKey(topic.name)),
+          );
+
+          for (const topicName of chapter.topics) {
+            const topicKey = plannerNameKey(topicName);
+            if (topicKeys.has(topicKey)) continue;
+            targetChapter.topics.push({
+              id: uuidv4(),
+              name: topicName,
+              status: "todo" as TopicStatus,
+            });
+            topicKeys.add(topicKey);
+          }
+        }
+      }
+    }
+
+    const previousUpdatedAt = plan.updatedAt;
+    const newUpdatedAt = new Date().toISOString();
+
+    const writeResult = await plansCollection().updateOne(
+      { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+      { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
+    );
+    if (writeResult.matchedCount === 0) {
+      return res.status(409).json({
+        code: "CONFLICT",
+        message: "Plan was modified by another request. Please refresh and retry.",
+      });
+    }
+    plan.updatedAt = newUpdatedAt;
+
+    return res.json(plan);
+  } catch (error) {
+    console.error("[PLANNER] Import syllabus failed:", error);
+    return res.status(500).json({ message: "Failed to import syllabus" });
   }
 });
 
@@ -462,16 +764,7 @@ router.patch("/:planId", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/:planId", async (req: Request, res: Response) => {
-  try {
-    const userId = getUserId(req);
-    await plansCollection().deleteOne({ id: req.params.planId, userId });
-    return res.json({ ok: true });
-  } catch (error) {
-    console.error("[PLANNER] Delete plan failed:", error);
-    return res.status(500).json({ message: "Failed to delete plan" });
-  }
-});
+
 
 router.post("/:planId/subjects", async (req: Request, res: Response) => {
   try {
@@ -505,12 +798,20 @@ router.post("/:planId/subjects", async (req: Request, res: Response) => {
     };
 
     plan.subjects.push(subject);
-    plan.updatedAt = new Date().toISOString();
+    const previousUpdatedAt = plan.updatedAt;
+    const newUpdatedAt = new Date().toISOString();
 
-    await plansCollection().updateOne(
-      { id: req.params.planId, userId },
-      { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+    const writeResult = await plansCollection().updateOne(
+      { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+      { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
     );
+    if (writeResult.matchedCount === 0) {
+      return res.status(409).json({
+        code: "CONFLICT",
+        message: "Plan was modified by another request. Please refresh and retry.",
+      });
+    }
+    plan.updatedAt = newUpdatedAt;
 
     return res.status(201).json(plan);
   } catch (error) {
@@ -553,12 +854,20 @@ router.patch(
       }
 
       subject.name = nextName;
-      plan.updatedAt = new Date().toISOString();
+      const previousUpdatedAt = plan.updatedAt;
+      const newUpdatedAt = new Date().toISOString();
 
-      await plansCollection().updateOne(
-        { id: req.params.planId, userId },
-        { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+      const writeResult = await plansCollection().updateOne(
+        { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+        { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
       );
+      if (writeResult.matchedCount === 0) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "Plan was modified by another request. Please refresh and retry.",
+        });
+      }
+      plan.updatedAt = newUpdatedAt;
 
       return res.json(plan);
     } catch (error) {
@@ -584,12 +893,20 @@ router.delete(
       plan.subjects = plan.subjects.filter(
         (s) => s.id !== req.params.subjectId,
       );
-      plan.updatedAt = new Date().toISOString();
+      const previousUpdatedAt = plan.updatedAt;
+      const newUpdatedAt = new Date().toISOString();
 
-      await plansCollection().updateOne(
-        { id: req.params.planId, userId },
-        { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+      const writeResult = await plansCollection().updateOne(
+        { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+        { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
       );
+      if (writeResult.matchedCount === 0) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "Plan was modified by another request. Please refresh and retry.",
+        });
+      }
+      plan.updatedAt = newUpdatedAt;
 
       return res.json(plan);
     } catch (error) {
@@ -631,12 +948,20 @@ router.post(
       };
 
       subject.chapters.push(chapter);
-      plan.updatedAt = new Date().toISOString();
+      const previousUpdatedAt = plan.updatedAt;
+      const newUpdatedAt = new Date().toISOString();
 
-      await plansCollection().updateOne(
-        { id: req.params.planId, userId },
-        { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+      const writeResult = await plansCollection().updateOne(
+        { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+        { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
       );
+      if (writeResult.matchedCount === 0) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "Plan was modified by another request. Please refresh and retry.",
+        });
+      }
+      plan.updatedAt = newUpdatedAt;
 
       return res.status(201).json(plan);
     } catch (error) {
@@ -687,12 +1012,20 @@ router.patch(
       }
 
       chapter.name = nextName;
-      plan.updatedAt = new Date().toISOString();
+      const previousUpdatedAt = plan.updatedAt;
+      const newUpdatedAt = new Date().toISOString();
 
-      await plansCollection().updateOne(
-        { id: req.params.planId, userId },
-        { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+      const writeResult = await plansCollection().updateOne(
+        { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+        { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
       );
+      if (writeResult.matchedCount === 0) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "Plan was modified by another request. Please refresh and retry.",
+        });
+      }
+      plan.updatedAt = newUpdatedAt;
 
       return res.json(plan);
     } catch (error) {
@@ -723,12 +1056,20 @@ router.delete(
       subject.chapters = subject.chapters.filter(
         (c) => c.id !== req.params.chapterId,
       );
-      plan.updatedAt = new Date().toISOString();
+      const previousUpdatedAt = plan.updatedAt;
+      const newUpdatedAt = new Date().toISOString();
 
-      await plansCollection().updateOne(
-        { id: req.params.planId, userId },
-        { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+      const writeResult = await plansCollection().updateOne(
+        { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+        { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
       );
+      if (writeResult.matchedCount === 0) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "Plan was modified by another request. Please refresh and retry.",
+        });
+      }
+      plan.updatedAt = newUpdatedAt;
 
       return res.json(plan);
     } catch (error) {
@@ -813,17 +1154,119 @@ router.post(
       };
 
       chapter.topics.push(topic);
-      plan.updatedAt = new Date().toISOString();
+      const previousUpdatedAt = plan.updatedAt;
+      const newUpdatedAt = new Date().toISOString();
 
-      await plansCollection().updateOne(
-        { id: req.params.planId, userId },
-        { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+      const writeResult = await plansCollection().updateOne(
+        { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+        { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
       );
+      if (writeResult.matchedCount === 0) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "Plan was modified by another request. Please refresh and retry.",
+        });
+      }
+      plan.updatedAt = newUpdatedAt;
 
       return res.status(201).json(plan);
     } catch (error) {
       console.error("[PLANNER] Add topic failed:", error);
       return res.status(500).json({ message: "Failed to add topic" });
+    }
+  },
+);
+
+router.post(
+  "/:planId/subjects/:subjectId/chapters/:chapterId/bulk-topics",
+  async (req: Request, res: Response) => {
+    try {
+      const userId = getUserId(req);
+      const isPremium = await canUsePremiumPlanner(userId);
+      const topicsPayload = req.body?.topics;
+      
+      if (!Array.isArray(topicsPayload) || topicsPayload.length === 0) {
+        return res.status(400).json({ message: "Topics array is required" });
+      }
+
+      const plan = await plansCollection().findOne({
+        id: req.params.planId,
+        userId,
+      });
+      if (!plan) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+
+      // ── Free tier: 30-topic limit ──
+      if (!(plan.features?.isPremium || isPremium)) {
+        const currentTopicCount = countAllTopics(plan);
+        if (currentTopicCount + topicsPayload.length > FREE_TIER_TOPIC_LIMIT) {
+          return res.status(403).json({
+            code: "TOPIC_LIMIT",
+            message: `Free plans support up to ${FREE_TIER_TOPIC_LIMIT} topics. Upgrade to Premium for unlimited topics.`,
+            currentCount: currentTopicCount,
+            limit: FREE_TIER_TOPIC_LIMIT,
+          });
+        }
+      }
+
+      const subject = plan.subjects.find((s) => s.id === req.params.subjectId);
+      if (!subject) {
+        return res.status(404).json({ message: "Subject not found" });
+      }
+
+      const chapter = subject.chapters.find((c) => c.id === req.params.chapterId);
+      if (!chapter) {
+        return res.status(404).json({ message: "Chapter not found" });
+      }
+
+      const newTopics: StudyTopic[] = [];
+
+      for (const t of topicsPayload) {
+        const name = String(t.name || "").trim();
+        if (name.length < 2) continue; // Skip invalid names
+
+        let plannedDateIso: string | undefined;
+        if (t.plannedDate) {
+          const parsedPlannedDate = new Date(t.plannedDate);
+          if (!Number.isNaN(parsedPlannedDate.getTime())) {
+            plannedDateIso = parsedPlannedDate.toISOString();
+          }
+        }
+
+        newTopics.push({
+          id: uuidv4(),
+          name,
+          status: "todo",
+          notes: t.notes ? String(t.notes) : undefined,
+          plannedDate: plannedDateIso,
+        });
+      }
+
+      if (newTopics.length === 0) {
+        return res.status(400).json({ message: "No valid topics provided" });
+      }
+
+      chapter.topics.push(...newTopics);
+      const previousUpdatedAt = plan.updatedAt;
+      const newUpdatedAt = new Date().toISOString();
+
+      const writeResult = await plansCollection().updateOne(
+        { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+        { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
+      );
+      if (writeResult.matchedCount === 0) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "Plan was modified by another request. Please refresh and retry.",
+        });
+      }
+      plan.updatedAt = newUpdatedAt;
+
+      return res.status(201).json(plan);
+    } catch (error) {
+      console.error("[PLANNER] Add bulk topics failed:", error);
+      return res.status(500).json({ message: "Failed to add bulk topics" });
     }
   },
 );
@@ -904,12 +1347,20 @@ router.patch(
         return res.status(404).json({ message: "Topic not found" });
       }
 
-      plan.updatedAt = new Date().toISOString();
+      const previousUpdatedAt = plan.updatedAt;
+      const newUpdatedAt = new Date().toISOString();
 
-      await plansCollection().updateOne(
-        { id: req.params.planId, userId },
-        { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+      const writeResult = await plansCollection().updateOne(
+        { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+        { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
       );
+      if (writeResult.matchedCount === 0) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "Plan was modified by another request. Please refresh and retry.",
+        });
+      }
+      plan.updatedAt = newUpdatedAt;
 
       // Event logging for status changes
       if (req.body.status !== undefined) {
@@ -963,12 +1414,20 @@ router.delete(
         return res.status(404).json({ message: "Topic not found" });
       }
 
-      plan.updatedAt = new Date().toISOString();
+      const previousUpdatedAt = plan.updatedAt;
+      const newUpdatedAt = new Date().toISOString();
 
-      await plansCollection().updateOne(
-        { id: req.params.planId, userId },
-        { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+      const writeResult = await plansCollection().updateOne(
+        { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+        { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
       );
+      if (writeResult.matchedCount === 0) {
+        return res.status(409).json({
+          code: "CONFLICT",
+          message: "Plan was modified by another request. Please refresh and retry.",
+        });
+      }
+      plan.updatedAt = newUpdatedAt;
 
       return res.json(plan);
     } catch (error) {
@@ -1008,9 +1467,8 @@ router.get("/:planId/analytics", async (req: Request, res: Response) => {
     }
 
     const progress = rollupProgress(plan);
-    const heatmap = buildStudyHeatmap(plan);
 
-    return res.json({ progress, heatmap });
+    return res.json({ progress });
   } catch (error) {
     console.error("[PLANNER] Analytics failed:", error);
     return res.status(500).json({ message: "Failed to compute analytics" });
@@ -1042,14 +1500,23 @@ router.post("/:planId/auto-distribute", async (req: Request, res: Response) => {
       fromDate: req.body?.fromDate,
       lockExistingDates: req.body?.lockExistingDates,
       includeRevisionNeeded: req.body?.includeRevisionNeeded,
+      overloadMode: req.body?.overloadMode,
     });
 
-    plan.updatedAt = new Date().toISOString();
+    const previousUpdatedAt = plan.updatedAt;
+    const newUpdatedAt = new Date().toISOString();
 
-    await plansCollection().updateOne(
-      { id: req.params.planId, userId },
-      { $set: { subjects: plan.subjects, updatedAt: plan.updatedAt } },
+    const writeResult = await plansCollection().updateOne(
+      { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+      { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
     );
+    if (writeResult.matchedCount === 0) {
+      return res.status(409).json({
+        code: "CONFLICT",
+        message: "Plan was modified by another request. Please refresh and retry.",
+      });
+    }
+    plan.updatedAt = newUpdatedAt;
 
     logPlannerEvent(userId, plan.id, "reschedule_triggered", {
       assigned: result.assigned,
@@ -1082,16 +1549,24 @@ router.post("/:planId/upgrade", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Plan not found" });
     }
 
+    const previousUpdatedAt = plan.updatedAt;
     plan.features = {
       isPremium: true,
       unlockedAt: new Date().toISOString(),
     };
-    plan.updatedAt = new Date().toISOString();
+    const newUpdatedAt = new Date().toISOString();
 
-    await plansCollection().updateOne(
-      { id: req.params.planId, userId },
-      { $set: { features: plan.features, updatedAt: plan.updatedAt } },
+    const writeResult = await plansCollection().updateOne(
+      { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+      { $set: { features: plan.features, updatedAt: newUpdatedAt } },
     );
+    if (writeResult.matchedCount === 0) {
+      return res.status(409).json({
+        code: "CONFLICT",
+        message: "Plan was modified by another request. Please refresh and retry.",
+      });
+    }
+    plan.updatedAt = newUpdatedAt;
 
     return res.json({
       message: "Planner premium unlocked",
@@ -1124,6 +1599,76 @@ router.post("/:planId/checkin", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("[PLANNER] Daily checkin failed:", error);
     return res.status(500).json({ message: "Failed to record check-in" });
+  }
+});
+
+// AI Syllabus Import Integration
+router.post("/:planId/syllabus-ai", async (req: Request, res: Response) => {
+  try {
+    const userId = getUserId(req);
+    const plan = await plansCollection().findOne({
+      id: req.params.planId,
+      userId,
+    });
+    if (!plan) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    const { aiPreview } = req.body as { aiPreview?: { subjects?: any[] } };
+    if (!aiPreview || !Array.isArray(aiPreview.subjects)) {
+      return res.status(400).json({ message: "aiPreview and subjects are required" });
+    }
+
+    // Build the new subjects
+    const newSubjects: StudySubject[] = aiPreview.subjects.map((s: any, idx: number) => {
+      const chapters: StudyChapter[] = (s.chapters || []).map((c: any) => {
+        const topics: StudyTopic[] = (c.topics || []).map((topicName: string) => ({
+          id: uuidv4(),
+          name: topicName.trim(),
+          status: "todo" as TopicStatus,
+        }));
+        return {
+          id: uuidv4(),
+          name: c.name.trim(),
+          topics,
+        };
+      });
+
+      return {
+        id: uuidv4(),
+        name: s.name.trim(),
+        color: SYLLABUS_SUBJECT_COLORS[idx % SYLLABUS_SUBJECT_COLORS.length],
+        chapters,
+      };
+    });
+
+    const previousUpdatedAt = plan.updatedAt;
+    plan.subjects = newSubjects;
+
+    // Auto-distribute
+    autoDistributeTopics(plan, {
+      lockExistingDates: false,
+      includeRevisionNeeded: false,
+    });
+
+    const newUpdatedAt = new Date().toISOString();
+
+    const writeResult = await plansCollection().updateOne(
+      { id: req.params.planId, userId, updatedAt: previousUpdatedAt },
+      { $set: { subjects: plan.subjects, updatedAt: newUpdatedAt } },
+    );
+    if (writeResult.matchedCount === 0) {
+      return res.status(409).json({
+        code: "CONFLICT",
+        message: "Plan was modified by another request. Please refresh and retry.",
+      });
+    }
+    plan.updatedAt = newUpdatedAt;
+
+    return res.json({ success: true, plan });
+  } catch (error) {
+    console.error("[PLANNER] AI syllabus import failed:", error);
+    return res.status(500).json({ message: "Failed to apply AI syllabus" });
   }
 });
 

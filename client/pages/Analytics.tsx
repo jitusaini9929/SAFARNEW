@@ -70,14 +70,6 @@ const achievementImages: Record<string, string> = {
   T009: "/Achievments/svgviewer-output.svg",
 };
 
-const intensityClass = (intensity: number) => {
-  if (intensity >= 4) return "bg-emerald-600 scale-110 shadow-lg shadow-emerald-500/20";
-  if (intensity === 3) return "bg-emerald-500 scale-105";
-  if (intensity === 2) return "bg-emerald-400";
-  if (intensity === 1) return "bg-emerald-200 opacity-60";
-  return "bg-muted/50";
-};
-
 const formatMinutes = (value: number | null | undefined) => {
   const minutes = Math.max(0, Math.round(Number(value || 0)));
   if (minutes <= 0) return "0m";
@@ -499,21 +491,6 @@ function MonthlyReview({
             </div>
 
             <div className="space-y-6 lg:col-span-12 xl:col-span-5">
-              <div className="rounded-[40px] border-2 bg-card p-8 shadow-sm">
-                <h3 className="mb-6 flex items-center justify-between font-black">
-                  {t("analytics.heatmap")} <span className="text-[9px] uppercase tracking-widest text-muted-foreground">30 Day Density</span>
-                </h3>
-                <div className="flex flex-wrap gap-2.5">
-                  {report.heatmap.map((cell) => (
-                    <div
-                      key={cell.date}
-                      title={`${cell.date} | intensity ${cell.intensity}`}
-                      className={`h-5 w-5 cursor-help rounded-md ring-primary/30 transition-all duration-300 hover:ring-2 ${intensityClass(cell.intensity)}`}
-                    />
-                  ))}
-                </div>
-              </div>
-
               <div className="space-y-6 rounded-[40px] border-2 bg-card p-8 shadow-sm">
                 <h3 className="flex items-center justify-between font-black">
                   {t("analytics.insights")} <div className="rounded-xl bg-muted p-2"><Brain className="h-4 w-4 text-indigo-500" /></div>

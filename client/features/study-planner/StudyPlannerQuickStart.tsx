@@ -519,7 +519,7 @@ export function QuickStart({
                   type="date"
                   value={examDate}
                   onChange={(e) => setExamDate(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className={`w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? "[&::-webkit-calendar-picker-indicator]:invert" : ""}`}
                   style={{ colorScheme: isDark ? "dark" : "light" }}
                   min={new Date().toISOString().split("T")[0]}
                 />
@@ -704,7 +704,7 @@ export function QuickStart({
                 type="date"
                 value={examDate}
                 onChange={(e) => setExamDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                className={`w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? "[&::-webkit-calendar-picker-indicator]:invert" : ""}`}
                 style={{ colorScheme: isDark ? "dark" : "light" }}
                 min={new Date().toISOString().split("T")[0]}
               />

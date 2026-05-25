@@ -1542,6 +1542,38 @@ Marks the plan as premium (`features.isPremium = true`).
 
 ---
 
+### 13.13 Import Syllabus (Replace or Merge)
+```
+POST /api/plans/:planId/import-syllabus
+```
+**Body:**
+```json
+{
+  "mode": "replace",
+  "subjects": [
+    {
+      "name": "Physics",
+      "chapters": [
+        {
+          "name": "Mechanics",
+          "topics": ["Newton's Laws", "Friction"]
+        }
+      ]
+    }
+  ]
+}
+```
+- `mode`: `replace` (default) overwrites the plan syllabus; `merge` adds only new names.
+- `subjects`, `chapters`, and `topics` must be non-empty.
+- Names are deduplicated case-insensitively during import.
+- Free tier enforces the 30-topic limit (`403` with code `TOPIC_LIMIT`).
+
+**Response `200`:** Returns the full updated plan document.
+
+**Errors:** `400` invalid payload, `403` topic limit, `409` conflict (stale `updatedAt`).
+
+---
+
 ## 14. Error Codes
 
 | Status | Meaning | Common Causes |

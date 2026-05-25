@@ -13,7 +13,7 @@ function getHandleLink(platform: "linkedin" | "instagram" | "discord", handle: s
 
 export function MessageList({ messages, currentUserId }: MessageListProps) {
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-[#0f172a]/50 scrollbar-hide">
+    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-background/50 scrollbar-hide">
       {messages.length === 0 ? (
         <p className="text-center text-xs text-slate-500 dark:text-slate-400 py-6">No messages yet.</p>
       ) : (
@@ -39,7 +39,7 @@ export function MessageList({ messages, currentUserId }: MessageListProps) {
                     {message.fromUserName?.charAt(0).toUpperCase() || "U"}
                   </div>
                 )}
-                <div className={`max-w-[80%] rounded-2xl p-3 shadow-sm ${isMe ? "bg-teal-500 text-white rounded-br-none shadow-md shadow-teal-500/20" : "bg-white dark:bg-[#283548] text-slate-700 dark:text-slate-200 rounded-bl-none border border-slate-100 dark:border-transparent"}`}>
+                <div className={`max-w-[80%] rounded-2xl p-3 shadow-sm ${isMe ? "bg-primary text-primary-foreground rounded-br-none shadow-md shadow-primary/20" : "bg-white dark:bg-card text-slate-700 dark:text-foreground rounded-bl-none border border-slate-100 dark:border-border"}`}>
                   <p className="font-semibold text-xs opacity-90">Handle Shared</p>
                   <p className="mt-1 text-sm leading-relaxed">{platform}: @{handle}</p>
                   {link ? (
@@ -59,7 +59,7 @@ export function MessageList({ messages, currentUserId }: MessageListProps) {
                   {message.fromUserName?.charAt(0).toUpperCase() || "U"}
                 </div>
               )}
-              <div className={`max-w-[80%] rounded-2xl py-2.5 px-4 shadow-sm ${isMe ? "bg-teal-500 text-white rounded-br-none shadow-md shadow-teal-500/20" : "bg-white dark:bg-[#283548] text-slate-700 dark:text-slate-200 rounded-bl-none border border-slate-100 dark:border-transparent"}`}>
+              <div className={`max-w-[80%] rounded-2xl py-2.5 px-4 shadow-sm ${isMe ? "bg-primary text-primary-foreground rounded-br-none shadow-md shadow-primary/20" : "bg-white dark:bg-card text-slate-700 dark:text-foreground rounded-bl-none border border-slate-100 dark:border-border"}`}>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
               </div>
             </div>

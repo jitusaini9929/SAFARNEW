@@ -58,6 +58,7 @@ export interface AutoDistributeOptions {
   fromDate?: string;
   lockExistingDates?: boolean;
   includeRevisionNeeded?: boolean;
+  overloadMode?: "strict" | "flex";
 }
 
 export interface ProgressRollup {
@@ -95,11 +96,6 @@ export interface CalendarTopicItem {
 }
 
 export type CalendarMap = Record<string, CalendarTopicItem[]>;
-
-export interface HeatmapPoint {
-  date: string;
-  count: number;
-}
 
 export function toIsoDateOnly(input: Date | string): string {
   const d = new Date(input);
@@ -198,23 +194,52 @@ export function buildCalendarMap(plan: StudyPlan): CalendarMap {
   return map;
 }
 
-export function buildStudyHeatmap(plan: StudyPlan): HeatmapPoint[] {
-  const heat = new Map<string, number>();
 
+
+export function calculateStreak(plan: StudyPlan, todayStr?: string): number {
+  const heat = new Set<string>();
   for (const subject of plan.subjects) {
     for (const chapter of subject.chapters) {
       for (const topic of chapter.topics) {
         if (topic.status === "done" && topic.completedDate) {
           const key = toIsoDateOnly(topic.completedDate);
-          if (key) heat.set(key, (heat.get(key) || 0) + 1);
+          if (key) heat.add(key);
         }
       }
     }
   }
 
-  return [...heat.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, count]) => ({ date, count }));
+  const today = todayStr ? new Date(todayStr) : new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let streak = 0;
+  let cursor = new Date(today);
+
+  if (heat.has(toIsoDateOnly(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  } else {
+    // If they haven't studied today yet, check yesterday to see if streak is still alive
+    cursor.setDate(cursor.getDate() - 1);
+    if (heat.has(toIsoDateOnly(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      return 0;
+    }
+  }
+
+  // Count backwards
+  while (true) {
+    if (heat.has(toIsoDateOnly(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return streak;
 }
 
 export function findTopicLocation(plan: StudyPlan, topicId: string): TopicLocation | null {
@@ -331,6 +356,27 @@ export function autoDistributeTopics(plan: StudyPlan, opts?: AutoDistributeOptio
     scheduleEnd.setHours(23, 59, 59, 999);
   }
 
+  let availableStudyDays = 0;
+  let tempCursor = new Date(cursor);
+  while (tempCursor.getTime() <= scheduleEnd.getTime()) {
+    if (!offDays.has(tempCursor.getDay())) {
+      availableStudyDays += 1;
+    }
+    tempCursor.setDate(tempCursor.getDate() + 1);
+  }
+
+  let effectiveDailyGoal = dailyGoal;
+  if (availableStudyDays > 0) {
+    // If not locking existing dates, the queue has ALL future topics.
+    // We calculate exactly how many per day are needed to finish by the exam date.
+    // If it exceeds the base daily goal, we smoothly flex it up so we don't pile them on one day.
+    // However, if overloadMode is "strict", we strictly respect the user's daily goal.
+    const requiredDaily = Math.ceil(queue.length / availableStudyDays);
+    if (requiredDaily > effectiveDailyGoal && opts?.overloadMode !== "strict") {
+      effectiveDailyGoal = requiredDaily;
+    }
+  }
+
   let i = 0;
   let assigned = 0;
 
@@ -342,7 +388,7 @@ export function autoDistributeTopics(plan: StudyPlan, opts?: AutoDistributeOptio
 
     const dateKey = toIsoDateOnly(cursor);
     const usedSlots = fixedLoadByDate.get(dateKey) || 0;
-    const availableSlots = Math.max(0, dailyGoal - usedSlots);
+    const availableSlots = Math.max(0, effectiveDailyGoal - usedSlots);
 
     for (let slots = 0; slots < availableSlots && i < queue.length; slots += 1) {
       queue[i].plannedDate = dateKey;

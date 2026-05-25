@@ -232,7 +232,7 @@ export default function Journal() {
                       <button
                         key={btn.cmd}
                         onClick={() => exec(btn.cmd)}
-                        className={`p-2.5 rounded-xl transition-all ${btn.active ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'hover:bg-muted'}`}
+                        className={`p-2.5 rounded-xl transition-all ${btn.active ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'hover:bg-muted'}`}
                       >
                         <btn.icon size={18} />
                       </button>
@@ -270,7 +270,7 @@ export default function Journal() {
                 <button
                   onClick={handleAddEntry}
                   disabled={isSubmitting}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-10 rounded-2xl flex items-center gap-3 transition-all shadow-xl shadow-emerald-500/20 active:scale-95 disabled:opacity-50"
+                  className="safar-btn-primary font-bold py-4 px-10 rounded-2xl flex items-center gap-3 active:scale-95 disabled:opacity-50"
                 >
                   <CheckCircle size={20} strokeWidth={3} />
                   {isSubmitting ? t('journal.saving') : t('journal.save_entry')}

@@ -23,7 +23,7 @@ export function DMChatWindow() {
       animate={{ y: 0, opacity: 1, scale: 1 }}
       exit={{ y: 20, opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed bottom-6 right-6 z-[85] flex h-[550px] w-[380px] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-[#1e293b] overflow-hidden transition-colors duration-300"
+      className="fixed bottom-6 right-6 z-[85] flex h-[550px] w-[380px] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-border dark:bg-card overflow-hidden transition-colors duration-300"
     >
       <ChatHeader
         otherUserName={activeChat.otherUserName}

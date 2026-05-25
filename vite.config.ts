@@ -12,6 +12,9 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0",
     port: 8080,
+    headers: {
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+    },
     fs: {
       // 2. Change 'allow' to this:
       allow: [
@@ -58,6 +61,20 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
+  },
+  optimizeDeps: {
+    // @material/web has no package root entry — only subpath exports (e.g. chips/chip-set.js)
+    include: [
+      '@lit/react',
+      '@material/web/chips/chip-set.js',
+      '@material/web/chips/filter-chip.js',
+      '@material/web/textfield/outlined-text-field.js',
+      '@material/web/button/filled-button.js',
+      '@material/web/button/outlined-button.js',
+      '@material/web/button/text-button.js',
+      '@material/web/iconbutton/icon-button.js',
+      '@material/web/divider/divider.js',
+    ],
   },
   plugins: [react(), cfAsyncPlugin(), expressPlugin()],
   resolve: {

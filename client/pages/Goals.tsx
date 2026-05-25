@@ -33,8 +33,10 @@ import {
   CalendarClock,
   Sparkles,
   Target,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import "@/styles/goals-dashboard.css";
 
 import { ekagraAnalyticsService } from "@/services/ekagraAnalyticsService";
 
@@ -134,137 +136,136 @@ const WeekChart = ({ goals }: { goals: UIGoal[] }) => {
   );
 };
 
-const GoalCard = ({ goal, onToggle, onDelete, onEdit, onRepeat, hideActions = false, hideMeta = false, createdMeta }: any) => {
-  const { t } = useTranslation();
+const kindBadgeClass = (kind: GoalKind) => {
+  if (kind === "scheduled") return "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20";
+  if (kind === "repeat") return "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20";
+  return "bg-primary/10 text-primary border-primary/20";
+};
+
+const kindRingClass = (kind: GoalKind) => {
+  if (kind === "scheduled") return "border-indigo-400 text-indigo-500";
+  if (kind === "repeat") return "border-sky-400 text-sky-500";
+  return "border-primary text-primary";
+};
+
+const formatDueLabel = (goal: UIGoal, todayKey: string) => {
   const completedAt = getGoalCompletedDate(goal);
-  const completedDateLabel = completedAt ? formatDateLabel(completedAt.toISOString()) : "";
-  const completedTimeLabel = completedAt ? formatTime(completedAt) : "";
+  if (completedAt) {
+    return `DONE ${formatISTDate(completedAt, { month: "short", day: "numeric", year: "numeric" }).toUpperCase()}`;
+  }
+  const scheduledKey = goal.scheduledDate ?? (goal as any).scheduled_date;
+  if (scheduledKey) {
+    const key =
+      typeof scheduledKey === "string" && /^\d{4}-\d{2}-\d{2}$/.test(scheduledKey)
+        ? scheduledKey
+        : getISTDateKey(new Date(scheduledKey));
+    if (key < todayKey) return "DUE YESTERDAY";
+    return `DUE ${formatISTDate(dateKeyToUtcDate(key), { month: "short", day: "numeric", year: "numeric" }).toUpperCase()}`;
+  }
+  return "DUE TODAY";
+};
+
+const StitchGoalCard = ({
+  goal,
+  onToggle,
+  onDelete,
+  onEdit,
+  onRepeat,
+  hideActions = false,
+  todayKey,
+}: {
+  goal: UIGoal;
+  onToggle: (id: string, completed: boolean) => void;
+  onDelete: (id: string) => void;
+  onEdit: (goal: UIGoal) => void;
+  onRepeat: (goal: UIGoal) => void;
+  hideActions?: boolean;
+  todayKey: string;
+}) => {
+  const { t } = useTranslation();
   const goalKind = normalizeGoalKind(goal);
   const unitType = normalizeGoalUnitType(goal);
-  const targetValue = normalizeTargetValue(goal);
-  const achievedValue = normalizeAchievedValue(goal);
-  const status = normalizeGoalStatus(goal);
-  const showProgress = unitType !== "binary" && (unitType === "checklist" || targetValue !== null);
-  const progressPercent = getGoalProgressPercent(goal);
-  const kindTone = getGoalKindTone(goalKind);
-  const unitTone = getGoalUnitTone(unitType);
-  const statusTone = getGoalStatusTone(status);
-
-  const primaryMeta = goal.completed
-    ? completedTimeLabel
-      ? t("goals.meta.completed_with_time", { date: completedDateLabel, time: completedTimeLabel })
-      : t("goals.meta.completed", { date: completedDateLabel })
-    : (goal.scheduledDate ? t("goals.meta.due", { date: formatDateLabel(goal.scheduledDate) }) : "");
-
-  const studiedMins = Number(goal.studiedMinutes ?? (goal as any).studied_minutes ?? 0);
-  const studiedLabel = studiedMins > 0
-    ? `${Math.floor(studiedMins / 60) > 0 ? `${Math.floor(studiedMins / 60)}h ` : ''}${studiedMins % 60}m studied`
-    : null;
-
-  const metaPieces = [primaryMeta, createdMeta].filter(Boolean);
-  const actionButtonClass = "ui-pressable flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-background/80 text-muted-foreground hover:bg-muted/70 hover:text-foreground";
+  const kindLabel = getGoalKindBadgeLabel(goalKind).toUpperCase();
+  const unitLabel = getGoalUnitBadgeLabel(unitType).toUpperCase();
+  const isScheduled = goalKind === "scheduled";
 
   return (
     <div
       className={cn(
-        "group relative flex items-start gap-4 rounded-[24px] border border-border/70 bg-card/78 p-4 transition-[transform,background-color,border-color,box-shadow] duration-200",
-        "hover:border-border hover:bg-card hover:shadow-sm",
-        goal.completed && "bg-muted/20 opacity-80",
+        "gd-m3-card group relative flex gap-4 rounded-xl p-5 transition-all",
+        isScheduled && "border-l-4 border-l-indigo-400",
+        goal.completed && "opacity-80",
       )}
     >
-      <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border", goal.completed ? statusTone.softClassName : kindTone.softClassName)}>
-        {goal.completed ? <CheckCircle2 size={18} strokeWidth={2.5} className={statusTone.accentClassName} /> : <Target size={18} strokeWidth={2.2} className={kindTone.accentClassName} />}
+      <div className="shrink-0 pt-1">
+        {!hideActions && !goal.completed ? (
+          <button
+            type="button"
+            onClick={() => onToggle(goal.id, goal.completed)}
+            className={cn(
+              "ui-pressable flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs",
+              kindRingClass(goalKind),
+            )}
+            title={t("goals.actions.mark_done")}
+          >
+            <Target size={12} strokeWidth={2.5} />
+          </button>
+        ) : (
+          <div
+            className={cn(
+              "flex h-6 w-6 items-center justify-center rounded-full border-2",
+              goal.completed ? "border-primary bg-primary/10 text-primary" : kindRingClass(goalKind),
+            )}
+          >
+            {goal.completed ? <Check size={12} strokeWidth={3} /> : <Target size={12} strokeWidth={2.5} />}
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", kindTone.badgeClassName)}>
-            {getGoalKindBadgeLabel(goalKind)}
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", kindBadgeClass(goalKind))}>
+            {kindLabel}
           </span>
-          <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", unitTone.badgeClassName)}>
-            {getGoalUnitBadgeLabel(unitType)}
+          <span className="rounded border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+            {unitLabel}
           </span>
-          {status !== "completed" && status !== "not_started" && (
-            <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em]", statusTone.badgeClassName)}>
-              {getGoalStatusLabel(status)}
-            </span>
-          )}
         </div>
-        {goal.source === "ekagra" && (
-          <div className="mb-2">
-            <span className="inline-flex items-center rounded-full border border-rose-500/15 bg-rose-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-700 dark:text-rose-300">
-              Ekagra mode task
-            </span>
-          </div>
-        )}
-        <div className="flex items-start justify-between gap-3">
-          <h4 className={cn("text-[15px] font-semibold leading-6 text-foreground", goal.completed && "line-through text-muted-foreground")}>
-            {goal.title}
-          </h4>
-          {showProgress && <span className="shrink-0 text-xs font-semibold text-muted-foreground">{progressPercent}%</span>}
+        <h4 className={cn("text-sm font-bold text-foreground", goal.completed && "line-through text-muted-foreground")}>
+          {goal.title}
+        </h4>
+        <div className="mt-1 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <Clock size={10} className="shrink-0 opacity-70" />
+          {formatDueLabel(goal, todayKey)}
         </div>
-        {goal.description && (
-          <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-            {goal.description}
-          </p>
-        )}
-        {showProgress && (
-          <div className="mt-3 space-y-2">
-            <div className="h-2 overflow-hidden rounded-full bg-muted/80">
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-[width] duration-300"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              {targetValue !== null
-                ? `Progress ${achievedValue} / ${targetValue}${unitType === "duration_minutes" ? " min" : ""}`
-                : `Progress ${achievedValue}${unitType === "duration_minutes" ? " min" : ""}`}
-            </p>
-          </div>
-        )}
-        {!hideMeta && metaPieces.length > 0 && (
-          <div className="mt-3 flex items-center gap-2">
-            <Clock size={12} className="text-muted-foreground" />
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {metaPieces.join(" · ")}
-            </span>
-          </div>
-        )}
-        {goal.completed && studiedLabel && (
-          <div className="mt-2 flex items-center gap-2">
-            <BookOpen size={12} className="text-emerald-500" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
-              {studiedLabel}
-            </span>
-          </div>
-        )}
       </div>
 
       {!hideActions && (
-        <div className="flex items-center gap-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-          {!goal.completed && (
-            <button onClick={() => onEdit(goal)} className={cn(actionButtonClass, "text-sky-600 hover:bg-sky-500/10 hover:text-sky-700 dark:hover:text-sky-300")} title={t("goals.actions.edit")}>
-              <Edit2 size={16} />
-            </button>
-          )}
-          <button onClick={() => onRepeat(goal)} className={cn(actionButtonClass, "text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300")} title={t("goals.actions.repeat_task")}>
-            <RotateCcw size={16} />
+        <div className="flex shrink-0 items-center gap-1 self-start opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={() => onEdit(goal)}
+            className="ui-pressable rounded-lg p-1.5 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+            title={t("goals.actions.edit")}
+          >
+            <Edit2 size={14} />
           </button>
-          {!goal.completed && (
-            <>
-              <button onClick={() => onDelete(goal.id)} className={cn(actionButtonClass, "text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-300")} title={t("goals.actions.delete")}>
-                <Trash2 size={16} />
-              </button>
-              <button
-                onClick={() => onToggle(goal.id, goal.completed)}
-                className="ui-pressable flex h-9 w-9 items-center justify-center rounded-full border-2 border-emerald-500/25 text-emerald-600 hover:border-emerald-500 hover:bg-emerald-500/10"
-                title={t("goals.actions.mark_done")}
-              >
-                <Check size={14} strokeWidth={3} />
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={() => onRepeat(goal)}
+            className="ui-pressable rounded-lg p-1.5 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+            title={t("goals.actions.repeat_task")}
+          >
+            <RotateCcw size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(goal.id)}
+            className="ui-pressable rounded-lg p-1.5 text-rose-600 hover:bg-rose-500/10"
+            title={t("goals.actions.delete")}
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
       )}
     </div>
@@ -285,8 +286,8 @@ const ScheduledTasksSection = ({ goals, onEdit, onDelete, t }: { goals: UIGoal[]
             <CalendarClock size={18} className="text-violet-500" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-foreground">Scheduled Tasks</h3>
-            <p className="text-xs text-muted-foreground">These stay quiet until their scheduled date arrives.</p>
+            <h3 className="text-sm font-semibold text-foreground">{t("goals.scheduled_title")}</h3>
+            <p className="text-xs text-muted-foreground">{t("goals.scheduled_hint")}</p>
           </div>
           <span className="ml-1 rounded-full border border-violet-500/15 bg-violet-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
             {goals.length} upcoming
@@ -593,7 +594,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                 <button
                   type="button"
                   onClick={addSubtask}
-                  className="ui-pressable rounded-xl border border-emerald-500/20 bg-emerald-600 px-4 text-sm font-bold text-white hover:bg-emerald-500"
+                  className="ui-pressable rounded-xl border border-primary/20 bg-primary px-4 text-sm font-bold text-primary-foreground hover:bg-primary/90"
                 >
                   {t("goals.modal.add")}
                 </button>
@@ -605,7 +606,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
                       <button
                         type="button"
                         onClick={() => toggleSubtaskDone(item.id)}
-                        className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'border-border text-transparent'}`}
+                        className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${item.done ? 'bg-primary border-primary text-primary-foreground' : 'border-border text-transparent'}`}
                       >
                         <Check size={12} strokeWidth={3} />
                       </button>
@@ -696,7 +697,7 @@ const GoalModal = ({ goal, mode, onSave, onClose, todayKey, maxDateKey }: any) =
             <button
               onClick={submit}
               disabled={!canSubmit}
-              className="ui-pressable rounded-xl border border-emerald-500/20 bg-emerald-600 py-3.5 text-xs font-bold text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="ui-pressable rounded-xl border border-primary/20 bg-primary py-3.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {isEdit ? t("goals.modal.save_changes") : t("goals.modal.create_goal")}
             </button>
@@ -852,7 +853,7 @@ const StudyDurationModal = ({ goalTitle, onConfirm, onClose }: {
             </button>
             <button
               onClick={handleSubmit}
-              className="ui-pressable rounded-xl border border-emerald-500/20 bg-emerald-600 py-3 text-xs font-bold text-white hover:bg-emerald-500"
+              className="ui-pressable rounded-xl border border-primary/20 bg-primary py-3 text-xs font-bold text-primary-foreground hover:bg-primary/90"
             >
               {showWarning ? 'Confirm' : 'Done'}
             </button>
@@ -1220,270 +1221,326 @@ export default function Goals() {
       })),
     [sevenDaySeries],
   );
+  const activeListGoals = useMemo(
+    () => [...pendingGoals, ...dormantScheduledGoals],
+    [pendingGoals, dormantScheduledGoals],
+  );
+
+  const goalTabs = [
+    { id: "goals", label: t("goals.tab_goals"), icon: Check },
+    { id: "history", label: t("goals.tab_history"), icon: Clock },
+    ...(completedRecent.length > 0
+      ? [{ id: "completed", label: t("goals.tab_completed"), icon: CheckCircle2 }]
+      : []),
+  ];
+
   return (
     <NishthaLayout>
-      <div className="flex-1 min-h-screen bg-background/95 p-6 md:p-8 animate-in fade-in duration-500">
+      <div className="goals-dashboard flex-1 min-h-screen bg-[#f8fafc] dark:bg-background px-4 py-6 sm:px-6 md:px-8 md:py-8 animate-in fade-in duration-500">
         <div className="max-w-7xl mx-auto space-y-8">
 
-          <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="space-y-1">
-              <h1 className="text-3xl font-black flex items-center gap-3 tracking-tight">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-500/15 bg-emerald-500/10">
-                  <BarChart3 className="h-6 w-6 text-emerald-600 dark:text-emerald-300" />
-                </div>
-                {t('goals.title')}
-              </h1>
-              <p className="text-muted-foreground font-medium pl-1">{t('goals.subtitle')}</p>
+          {/* Dashboard header — Stitch layout */}
+          <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <BarChart3 className="h-6 w-6 text-primary" />
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">{t("goals.title")}</h1>
+              </div>
+              <p className="text-sm text-muted-foreground">{t("goals.subtitle")}</p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowGoalsGuide(true)}
-              className="ui-pressable inline-flex items-center gap-2 rounded-xl border border-border/70 bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm hover:bg-muted/70"
-              title="Goal Usage Guide"
-            >
-              <HelpCircle size={16} className="text-emerald-600" />
-              Guide
-            </button>
-          </header>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="gd-tab-shell">
+                {goalTabs.map((tabItem) => (
+                  <button
+                    key={tabItem.id}
+                    type="button"
+                    onClick={() => setTab(tabItem.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-sm font-medium transition-colors",
+                      tab === tabItem.id ? "gd-tab-active" : "text-muted-foreground hover:bg-muted/60",
+                    )}
+                  >
+                    <tabItem.icon size={14} />
+                    {tabItem.label}
+                  </button>
+                ))}
+              </div>
 
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-            <div className="grid w-full grid-cols-2 items-center rounded-2xl border bg-muted/50 p-1 md:flex md:w-fit">
-              {[
-                { id: "goals", label: t('goals.tab_goals'), icon: Check },
-                { id: "history", label: t('goals.tab_history'), icon: Clock },
-              ].map((tabItem) => (
-                <button
-                  key={tabItem.id}
-                  onClick={() => setTab(tabItem.id)}
-                  className={`min-w-0 flex items-center justify-center gap-2 rounded-[14px] px-3 py-3 text-sm font-bold transition-all sm:px-4 md:flex-none md:px-6
-                    ${tab === tabItem.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  <tabItem.icon size={16} />
-                  <span className="truncate">{tabItem.label}</span>
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => setModal({ mode: "add", goal: null })}
+                data-tour="add-goal"
+                className="ui-pressable gd-btn-primary flex items-center gap-2 rounded-2xl px-6 py-2 text-sm font-semibold shadow-md hover:opacity-90"
+              >
+                <Plus size={16} strokeWidth={3} />
+                {t("goals.add_goal")}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/nishtha/analytics?tab=goals")}
+                className="ui-pressable flex items-center gap-2 rounded-2xl border border-primary px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
+              >
+                <TrendingUp size={16} />
+                {t("goals.insights_btn")}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowGoalsGuide(true)}
+                className="ui-pressable rounded-xl border border-border/70 px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+                title="Goal Usage Guide"
+              >
+                <HelpCircle size={14} className="inline mr-1" />
+                Guide
+              </button>
             </div>
+          </section>
 
-            <button
-              onClick={() => setModal({ mode: "add", goal: null })}
-              data-tour="add-goal"
-              className="ui-pressable flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-500/20 bg-emerald-600 px-6 py-3 font-bold text-white shadow-sm hover:bg-emerald-500 md:w-auto"
-            >
-              <Plus size={18} strokeWidth={3} /> {t('goals.add_goal')}
-            </button>
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+            {/* Left column */}
+            <div className="space-y-8 lg:col-span-8">
 
-            <button
-              type="button"
-              onClick={() => navigate("/nishtha/analytics?tab=goals")}
-              className="ui-pressable flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/20 bg-card px-6 py-3 font-bold text-primary shadow-sm hover:bg-muted/70 md:w-auto"
-            >
-              <TrendingUp size={18} strokeWidth={2.5} /> Goal Insights
-            </button>
-          </div>
-
-          {tab === "goals" && (
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-[28px] border border-border/70 bg-card/88 p-5 shadow-sm">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Done Today</p>
-                <div className="mt-3 flex items-end justify-between">
-                  <p className="text-3xl font-black text-emerald-500">{todayMetrics.count}</p>
-                  <CheckCircle2 className="h-5 w-5 text-emerald-500/70" />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">Manual goals completed on today’s date.</p>
-              </div>
-              <div className="rounded-[28px] border border-border/70 bg-card/88 p-5 shadow-sm">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Open Now</p>
-                <div className="mt-3 flex items-end justify-between">
-                  <p className="text-3xl font-black text-foreground">{pendingGoals.length}</p>
-                  <Target className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">Active manual goals available to work on right now.</p>
-              </div>
-              <div className="rounded-[28px] border border-border/70 bg-card/88 p-5 shadow-sm">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Scheduled Ahead</p>
-                <div className="mt-3 flex items-end justify-between">
-                  <p className="text-3xl font-black text-violet-500">{dormantScheduledGoals.length}</p>
-                  <CalendarClock className="h-5 w-5 text-violet-500/70" />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">Future goals parked until their scheduled day arrives.</p>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-in slide-in-from-bottom-4 duration-500">
-              <div className="lg:col-span-7 space-y-6">
-
-                {tab === "goals" && (
-                  <div className="overflow-hidden rounded-[32px] border border-border/70 bg-card shadow-sm" data-tour="goal-cards">
-                    <div className="flex items-center justify-between border-b bg-muted/10 p-6">
-                      <div>
-                        <h3 className="font-bold flex items-center gap-2">
-                          <Check size={18} className="text-emerald-500" /> {t('goals.pending_section')}
-                        </h3>
-                        <p className="mt-1 text-xs text-muted-foreground">Only goals that are active today appear here.</p>
-                      </div>
-                      <span className="rounded-full border border-emerald-500/15 bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">
-                        {t("goals.pending_tasks", { count: pendingGoals.length })}
-                      </span>
+              {(tab === "goals" || tab === "completed") && (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="gd-m3-card rounded-[28px] p-5">
+                    <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      {t("goals.stat_done_today")}
+                    </h3>
+                    <div className="flex items-end justify-between">
+                      <span className="font-serif text-4xl font-bold text-primary">{todayMetrics.count}</span>
+                      <CheckCircle2 className="h-5 w-5 text-primary/80" />
                     </div>
+                    <p className="mt-2 text-[10px] text-muted-foreground">{t("goals.stat_done_hint")}</p>
+                  </div>
 
-                    {pendingGoals.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-20 text-center">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/15 bg-emerald-500/10">
-                          <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-                        </div>
-                        <p className="mt-4 font-semibold text-foreground">{t("goals.all_caught_up")}</p>
-                        <p className="mt-1 text-sm text-muted-foreground">Anything scheduled for later stays in the upcoming section below.</p>
-                      </div>
+                  <div className="gd-m3-card rounded-[28px] border-l-4 border-l-primary p-5">
+                    <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      {t("goals.stat_open")}
+                    </h3>
+                    <div className="flex items-end justify-between">
+                      <span className="font-serif text-4xl font-bold text-foreground">{pendingGoals.length}</span>
+                      <Target className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="mt-2 text-[10px] text-muted-foreground">{t("goals.stat_open_hint")}</p>
+                  </div>
+
+                  <div className="gd-m3-card rounded-[28px] p-5">
+                    <h3 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      {t("goals.stat_scheduled")}
+                    </h3>
+                    <div className="flex items-end justify-between">
+                      <span className="font-serif text-4xl font-bold text-indigo-500">{dormantScheduledGoals.length}</span>
+                      <CalendarClock className="h-5 w-5 text-indigo-400" />
+                    </div>
+                    <p className="mt-2 text-[10px] text-muted-foreground">{t("goals.stat_scheduled_hint")}</p>
+                  </div>
+                </div>
+              )}
+
+              {tab === "goals" && (
+                <section data-tour="goal-cards">
+                  <div className="mb-4 flex items-center justify-between px-2">
+                    <div className="flex items-center gap-2">
+                      <Check className="h-5 w-5 text-primary" />
+                      <h2 className="text-xl font-bold text-foreground">{t("goals.pending_section")}</h2>
+                    </div>
+                    <span className="rounded border border-border/70 bg-muted/50 px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
+                      {t("goals.pending_tasks", { count: activeListGoals.length })}
+                    </span>
+                  </div>
+                  <p className="mb-6 px-2 text-[10px] text-muted-foreground">{t("goals.pending_hint")}</p>
+
+                  {activeListGoals.length === 0 ? (
+                    <div className="gd-m3-card rounded-xl px-6 py-16 text-center">
+                      <CheckCircle2 className="mx-auto h-10 w-10 text-primary/70" />
+                      <p className="mt-4 font-semibold text-foreground">{t("goals.all_caught_up")}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {activeListGoals.map((g) => (
+                        <StitchGoalCard
+                          key={g.id}
+                          goal={g}
+                          todayKey={todayKey}
+                          onToggle={toggleGoal}
+                          onDelete={deleteGoal}
+                          onEdit={(goal) => setModal({ mode: "edit", goal })}
+                          onRepeat={handleRepeatGoal}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {tab === "completed" && (
+                <section>
+                  <div className="mb-4 flex items-center gap-2 px-2">
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                    <h2 className="text-xl font-bold text-foreground">{t("goals.completed_section")}</h2>
+                  </div>
+                  <div className="space-y-3">
+                    {completedRecent.map((g) => (
+                      <StitchGoalCard
+                        key={g.id}
+                        goal={g}
+                        todayKey={todayKey}
+                        hideActions
+                        onToggle={toggleGoal}
+                        onDelete={deleteGoal}
+                        onEdit={(goal) => setModal({ mode: "edit", goal })}
+                        onRepeat={handleRepeatGoal}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {tab === "history" && (
+                <div className="gd-m3-card flex h-[min(700px,80dvh)] flex-col overflow-hidden rounded-[28px]">
+                  <div className="flex flex-col gap-4 border-b border-border/60 p-6 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h3 className="flex items-center gap-2 font-bold text-foreground">
+                        <Clock size={18} className="text-primary" />
+                        {t("goals.archive")}
+                      </h3>
+                      <p className="mt-1 text-xs text-muted-foreground">{t("goals.history_hint")}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={historyDateFilter || todayKey}
+                        onChange={(e) => setHistoryDateFilter(e.target.value)}
+                        className="ui-field rounded-xl px-3 py-2 text-xs focus:outline-none color-scheme-dark"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setHistoryDateFilter(todayKey)}
+                        className="ui-pressable rounded-xl border border-border/70 p-2 text-muted-foreground hover:bg-muted/70"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-3">
+                    {filteredHistory.length === 0 ? (
+                      <p className="py-20 text-center text-muted-foreground">{t("goals.nothing_found_for_date")}</p>
                     ) : (
-                      <div className="divide-y divide-muted/50">
-                        {pendingGoals.map(g => (
-                          <GoalCard key={g.id} goal={g} onToggle={toggleGoal} onDelete={deleteGoal} onEdit={(goal: any) => setModal({ mode: "edit", goal })} onRepeat={handleRepeatGoal} />
+                      <div className="space-y-3">
+                        {filteredHistory.map((g) => (
+                          <StitchGoalCard
+                            key={g.id}
+                            goal={g}
+                            todayKey={todayKey}
+                            hideActions
+                            onToggle={toggleGoal}
+                            onDelete={deleteGoal}
+                            onEdit={(goal) => setModal({ mode: "edit", goal })}
+                            onRepeat={handleRepeatGoal}
+                          />
                         ))}
                       </div>
                     )}
                   </div>
-                )}
-
-                {tab === "goals" && dormantScheduledGoals.length > 0 && (
-                  <ScheduledTasksSection
-                    goals={dormantScheduledGoals}
-                    onEdit={(goal: any) => setModal({ mode: "edit", goal })}
-                    onDelete={deleteGoal}
-                    t={t}
-                  />
-                )}
-
-                {tab === "history" && (
-                  <div className="bg-card border rounded-[32px] shadow-sm overflow-hidden flex flex-col h-[700px]">
-                    <div className="p-6 border-b bg-muted/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div>
-                        <h3 className="font-bold flex items-center gap-2">
-                          <Clock size={18} className="text-blue-500" /> {t("goals.archive")}
-                        </h3>
-                        <p className="mt-1 text-xs text-muted-foreground">Review what was completed on a specific day.</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="date"
-                          value={historyDateFilter || todayKey}
-                          onChange={e => setHistoryDateFilter(e.target.value)}
-                          className="ui-field rounded-xl px-3 py-2 text-xs focus:outline-none color-scheme-dark"
-                        />
-                        <button onClick={() => setHistoryDateFilter(todayKey)} className="ui-pressable rounded-xl border border-border/70 p-2 text-muted-foreground hover:bg-muted/70 hover:text-foreground">
-                          <RotateCcw size={16} />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto divide-y divide-muted/50">
-                      {filteredHistory.length === 0 ? (
-                        <div className="py-20 text-center">
-                          <p className="font-medium text-muted-foreground">{t("goals.nothing_found_for_date")}</p>
-                        </div>
-                      ) : (
-                        filteredHistory.map(g => (
-                          <GoalCard key={g.id} goal={g} hideActions hideMeta createdMeta={formatDateLabel(g.scheduledDate)} />
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {tab === "goals" && completedRecent.length > 0 && (
-                  <div className="bg-card/50 border rounded-[32px] shadow-sm overflow-hidden">
-                    <div className="p-6 border-b bg-muted/5 flex items-center justify-between">
-                      <h3 className="font-bold text-sm text-muted-foreground">{t('goals.completed_section')}</h3>
-                    </div>
-                    <div className="divide-y divide-muted/50">
-                      {completedRecent.map(g => (
-                        <GoalCard key={g.id} goal={g} hideActions />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="lg:col-span-5 space-y-6">
-                <div className="p-8 bg-card border rounded-[32px] shadow-sm space-y-6">
-                  <div>
-                    <h3 className="text-sm font-bold opacity-60 uppercase tracking-widest mb-6">Today Pulse</h3>
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center bg-muted/30 p-4 rounded-2xl">
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-70">{t("goals.focus_activity")}</p>
-                          <p className="text-lg font-black">{t("goals.completed_count", { count: todayMetrics.count })}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {pendingGoals.length} open manual goals
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {manualCompletionRate}% overall completion rate
-                          </p>
-                        </div>
-                        <TrendingUp className="text-emerald-500 w-8 h-8 opacity-20" />
-                      </div>
-
-                      <div className="bg-muted/30 p-4 rounded-2xl space-y-3 shadow-sm border border-border/50">
-                        <div className="flex items-center gap-2">
-                          <Clock size={14} className="text-emerald-500" />
-                          <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-70">Study Time Today</p>
-                        </div>
-                        <p className="text-2xl font-black text-emerald-500">{formatStudyTime(todaysStudiedMinutes + focusTodayMinutes)}</p>
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/50">
-                          <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Manual</p>
-                            <p className="text-sm font-bold text-foreground">{formatStudyTime(todaysStudiedMinutes)}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase">Ekagra</p>
-                            <p className="text-sm font-bold text-foreground">{formatStudyTime(focusTodayMinutes)}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-bold">
-                          <span>{t("goals.daily_progress")}</span>
-                          <span className="text-primary">{dailyProgressPercent}%</span>
-                        </div>
-                        <div className="h-3 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, dailyProgressPercent)}%` }} />
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 bg-muted/20 p-4 rounded-2xl border">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Time Studied</p>
-                        <div className="space-y-3 pt-1">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground font-medium flex items-center gap-2">
-                              <Clock size={16} className="text-indigo-500" /> Ekagra Mode
-                            </span>
-                            <span className="font-black text-indigo-500 text-base">{formatStudyTime(focusTotalMinutes)}</span>
-                          </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground font-medium flex items-center gap-2">
-                              <BookOpen size={16} className="text-teal-500" /> Manual Goal
-                            </span>
-                            <span className="font-black text-teal-500 text-base">{formatStudyTime(totalStudiedMinutes)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-
-                <div className="rounded-[32px] border border-emerald-500/15 bg-card/88 p-8 shadow-sm">
-                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-500/15 bg-emerald-500/10">
-                    <Sparkles className="h-5 w-5 text-emerald-500" />
-                  </div>
-                  <h3 className="mb-2 font-bold">{t("goals.pro_tip_title")}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {t("goals.pro_tip_desc")}
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
+
+            {/* Right column — Today Pulse */}
+            <aside className="space-y-6 lg:col-span-4">
+              <div className="gd-m3-card rounded-[28px] p-6 shadow-sm">
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {t("goals.live_pulse")}
+                  </h3>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="mb-1 text-[10px] font-bold uppercase text-muted-foreground">{t("goals.focus_activity")}</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="font-serif text-2xl font-bold text-foreground">{todayMetrics.count}</span>
+                        <span className="text-sm font-bold text-foreground">completed</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{pendingGoals.length} open</p>
+                      <p className="text-[10px] text-muted-foreground">{manualCompletionRate}% rate</p>
+                    </div>
+                    <TrendingUp className="h-5 w-5 font-bold text-primary" />
+                  </div>
+
+                  <hr className="border-border/60" />
+
+                  <div>
+                    <div className="mb-3 flex items-center gap-2">
+                      <Clock size={12} className="text-primary" />
+                      <p className="text-[10px] font-bold uppercase text-muted-foreground">{t("goals.pulse_study")}</p>
+                    </div>
+                    <p className="mb-4 font-serif text-3xl font-bold text-foreground">
+                      {formatStudyTime(todaysStudiedMinutes + focusTodayMinutes)}
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[9px] font-bold uppercase text-muted-foreground">{t("goals.pulse_manual")}</p>
+                        <p className="text-sm font-bold">{formatStudyTime(todaysStudiedMinutes)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold uppercase text-muted-foreground">{t("goals.pulse_ekagra")}</p>
+                        <p className="text-sm font-bold">{formatStudyTime(focusTodayMinutes)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <hr className="border-border/60" />
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className="text-[10px] font-bold text-muted-foreground">{t("goals.daily_progress")}</p>
+                      <p className="text-[10px] font-bold text-primary">{dailyProgressPercent}%</p>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full bg-primary transition-all duration-700"
+                        style={{ width: `${Math.min(100, dailyProgressPercent)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <hr className="border-border/60" />
+
+                  <div>
+                    <p className="mb-3 text-[9px] font-bold uppercase text-muted-foreground">{t("goals.pulse_total")}</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="flex items-center gap-2 text-muted-foreground">
+                          <Zap size={12} className="text-indigo-500" />
+                          Ekagra
+                        </span>
+                        <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{formatStudyTime(focusTotalMinutes)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="flex items-center gap-2 text-muted-foreground">
+                          <BookOpen size={12} className="text-primary" />
+                          {t("goals.pulse_manual")}
+                        </span>
+                        <span className="text-sm font-bold text-primary">{formatStudyTime(totalStudiedMinutes)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-primary/20 bg-primary/5 p-6">
+                <div className="mb-4 flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <Sparkles size={16} />
+                </div>
+                <h4 className="mb-2 font-bold text-foreground">{t("goals.pro_tip_title")}</h4>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">{t("goals.pro_tip_desc")}</p>
+              </div>
+            </aside>
+          </div>
         </div>
 
         {showGoalsGuide && (

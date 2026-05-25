@@ -7,7 +7,7 @@ export default function Courses() {
   const courses = useMemo(() => DHYAN_COURSES, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19]">
+    <div className="min-h-screen bg-slate-50 dark:bg-background">
       <TopNavbar />
 
       <main className="mx-auto w-full max-w-6xl px-6 py-10">
@@ -33,9 +33,9 @@ export default function Courses() {
             return (
               <article
                 key={course.id}
-                className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/90 dark:bg-[#101624]/90 shadow-lg shadow-emerald-500/5 overflow-hidden"
+                className="rounded-2xl border border-slate-200/70 dark:border-border bg-white/90 dark:bg-card/90 shadow-lg shadow-emerald-500/5 overflow-hidden"
               >
-                <div className="aspect-[16/9] w-full overflow-hidden bg-slate-100 dark:bg-[#0B0F19]">
+                <div className="aspect-[16/9] w-full overflow-hidden bg-slate-100 dark:bg-muted">
                   <img
                     src={course.imageUrl || "/Banner.jpeg"}
                     alt={course.name}

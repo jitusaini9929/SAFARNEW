@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, Wrench, Zap, Star, Shield, Cpu, CheckCircle2, Al
 import { updates, type UpdateEntry, type TagType } from '../data/updates';
 import Footer from '../components/landing/Footer';
 import BetaAnnouncementCard from '../components/landing/BetaAnnouncementCard';
+import "@/styles/mehfil-m3.css";
+import { MdFilterChipReact, MdChipSetReact } from "@/components/mehfil/material/MdComponents";
 
 // ─── Tag colour map ───────────────────────────────────────────────────────────
 const TAG_STYLES: Record<TagType, string> = {
@@ -90,11 +92,11 @@ function FadeInCard({ children, delay = 0 }: { children: React.ReactNode; delay?
 // ─── Feature Card ─────────────────────────────────────────────────────────────
 function FeatureCard({ feature }: { feature: UpdateEntry["features"][number] }) {
   return (
-    <div className="flex gap-3 p-4 rounded-xl bg-white/5 dark:bg-white/5 light:bg-slate-50 border border-white/10 dark:border-white/10 light:border-slate-200">
+    <div className="flex gap-3 p-4 transition-all hover:scale-[1.005] mehfil-m3-card">
       <CheckCircle2 className="w-5 h-5 text-teal-400 dark:text-teal-400 light:text-teal-600 flex-shrink-0 mt-0.5" />
       <div>
-        <p className="font-semibold text-sm text-white dark:text-white light:text-slate-900 mb-0.5">{feature.title}</p>
-        <p className="text-xs text-white/60 dark:text-white/60 light:text-slate-500 leading-relaxed">{feature.description}</p>
+        <p className="font-semibold text-sm text-slate-800 dark:text-white mb-0.5">{feature.title}</p>
+        <p className="text-xs text-slate-500 dark:text-white/60 leading-relaxed">{feature.description}</p>
       </div>
     </div>
   );
@@ -103,31 +105,27 @@ function FeatureCard({ feature }: { feature: UpdateEntry["features"][number] }) 
 // ─── Patch Card ───────────────────────────────────────────────────────────────
 function PatchCard({ patch }: { patch: UpdateEntry["patches"][number] }) {
   return (
-    <div className="rounded-xl border border-rose-500/20 dark:border-rose-500/20 light:border-rose-200 bg-rose-500/5 dark:bg-rose-500/5 light:bg-rose-50 p-4">
+    <div className="p-4 transition-all hover:scale-[1.005] mehfil-m3-card border-rose-500/20 dark:border-rose-500/35 bg-rose-500/5 dark:bg-rose-500/10">
       <div className="flex items-start gap-2 mb-2">
         <AlertCircle className="w-4 h-4 text-rose-400 dark:text-rose-400 light:text-rose-600 flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className="text-xs font-bold text-rose-400 dark:text-rose-400 light:text-rose-600 uppercase tracking-widest">{patch.id}</span>
             <span className="hidden sm:block text-white/20 dark:text-white/20 light:text-slate-300 text-xs">|</span>
-            <span className="font-semibold text-sm text-white dark:text-white light:text-slate-900">{patch.title}</span>
+            <span className="font-semibold text-sm text-slate-800 dark:text-white">{patch.title}</span>
           </div>
           <div className="flex flex-wrap gap-1 mt-1">
-            {patch.tags.map(t => (
-              <span
-                key={t}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border
-                  dark:bg-opacity-20 dark:border-opacity-30"
-                style={{
-                  background: t === "Bug Fix" ? "rgba(244,63,94,0.15)" : t === "UX Improvement" ? "rgba(99,102,241,0.15)" : "rgba(139,92,246,0.15)",
-                  borderColor: t === "Bug Fix" ? "rgba(244,63,94,0.3)" : t === "UX Improvement" ? "rgba(99,102,241,0.3)" : "rgba(139,92,246,0.3)",
-                  color: t === "Bug Fix" ? "#fb7185" : t === "UX Improvement" ? "#818cf8" : "#a78bfa",
-                }}
-              >
-                {PATCH_TAG_ICON[t]}
-                {t}
-              </span>
-            ))}
+            <MdChipSetReact>
+              {patch.tags.map(t => (
+                <MdFilterChipReact
+                  key={t}
+                  label={t}
+                  selected={true}
+                  className="mehfil-room-chip-active"
+                  style={{"--md-filter-chip-container-shape": "9999px", "--md-filter-chip-label-text-size": "10px"} as React.CSSProperties}
+                />
+              ))}
+            </MdChipSetReact>
           </div>
         </div>
       </div>
@@ -195,20 +193,17 @@ function UpdateCard({ entry, isLatest, index }: { entry: UpdateEntry; isLatest: 
 
           {/* Tags row */}
           <div className="flex flex-wrap gap-2 mb-6">
-            {entry.tags.map(tag => (
-              <span
-                key={tag}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border"
-                style={{
-                  background: tag === "New Feature" ? "rgba(45,212,191,0.12)" : tag === "Bug Fix" ? "rgba(244,63,94,0.12)" : tag === "UX Improvement" ? "rgba(99,102,241,0.12)" : tag === "Architecture" ? "rgba(139,92,246,0.12)" : "rgba(245,158,11,0.12)",
-                  borderColor: tag === "New Feature" ? "rgba(45,212,191,0.3)" : tag === "Bug Fix" ? "rgba(244,63,94,0.3)" : tag === "UX Improvement" ? "rgba(99,102,241,0.3)" : tag === "Architecture" ? "rgba(139,92,246,0.3)" : "rgba(245,158,11,0.3)",
-                  color: tag === "New Feature" ? "#2dd4bf" : tag === "Bug Fix" ? "#fb7185" : tag === "UX Improvement" ? "#818cf8" : tag === "Architecture" ? "#a78bfa" : "#fbbf24",
-                }}
-              >
-                {PATCH_TAG_ICON[tag]}
-                {tag}
-              </span>
-            ))}
+            <MdChipSetReact>
+              {entry.tags.map(tag => (
+                <MdFilterChipReact
+                  key={tag}
+                  label={tag}
+                  selected={true}
+                  className="mehfil-room-chip-active"
+                  style={{"--md-filter-chip-container-shape": "9999px", "--md-filter-chip-label-text-size": "10px"} as React.CSSProperties}
+                />
+              ))}
+            </MdChipSetReact>
           </div>
 
           {/* Features */}
@@ -247,7 +242,7 @@ function UpdateCard({ entry, isLatest, index }: { entry: UpdateEntry; isLatest: 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Updates() {
   return (
-    <div className="min-h-[100dvh] font-sans bg-gradient-to-br from-[#0a0c10] via-[#0f1115] to-[#0d0f13] dark:from-[#0a0c10] dark:via-[#0f1115] dark:to-[#0d0f13] light:from-white light:via-slate-50 light:to-indigo-50 text-white dark:text-white light:text-slate-900">
+    <div className="min-h-[100dvh] font-sans mehfil-m3 bg-gradient-to-br from-white via-slate-50 to-indigo-50 dark:bg-background text-slate-900 dark:text-foreground">
 
       {/* Ambient glow blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">

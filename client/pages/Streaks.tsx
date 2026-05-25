@@ -177,7 +177,7 @@ export default function Streaks() {
                     ) : (
                       <div className={`w-10 h-10 rounded-full flex flex-col items-center justify-center transition-all duration-500 relative cursor-pointer
                         ${d.hasActivity 
-                          ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20 ring-4 ring-emerald-500/10' 
+                          ? 'bg-primary text-primary-foreground shadow-xl shadow-primary/20 ring-4 ring-primary/10' 
                           : 'bg-muted/20 border-2 border-muted/30 text-muted-foreground/30 hover:border-muted'}`}>
                         <span className={`text-xs font-black ${d.hasActivity ? 'order-1' : ''}`}>{d.day}</span>
                         {d.hasActivity && (

@@ -66,7 +66,7 @@ export default function CourseBanner({
           href={MEDITATION_PAYMENT_REDIRECT_URL}
           target="_blank"
           rel="noreferrer"
-          className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold text-sm px-4 py-2.5 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:scale-[1.01] transition-all inline-flex items-center justify-center gap-2"
+          className="w-full rounded-xl safar-btn-primary font-semibold text-sm px-4 py-2.5 hover:scale-[1.01] transition-all inline-flex items-center justify-center gap-2"
         >
           <CreditCard className="w-4 h-4" />
           Continue to payment

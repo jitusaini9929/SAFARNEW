@@ -103,6 +103,7 @@ export async function createServer() {
   app.use(helmet({
     contentSecurityPolicy: false, // Vite uses inline scripts; enable in prod with proper policy
     crossOriginEmbedderPolicy: false, // Allow loading external fonts & images
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   }));
 
   // Middleware
@@ -234,6 +235,19 @@ export async function createServer() {
     res.json({ message: ping });
   });
 
+  app.get("/api/demo", handleDemo);
+
+  // Catch-all 404 for API routes
+  app.use(/^\/api(?:\/.*)?$/, (req, res) => {
+    res.status(404).json({ message: "API endpoint not found" });
+  });
+
+  // Catch-all 500 for API routes
+  app.use(/^\/api(?:\/.*)?$/, (err: any, req: any, res: any, next: any) => {
+    console.error("[API Error]", err);
+    res.status(500).json({ message: "Internal server error" });
+  });
+
   app.get("/health/redis", async (_req, res) => {
     const client = getRedisClient();
     if (!client) {
@@ -247,8 +261,6 @@ export async function createServer() {
       return res.status(500).json({ redis: "down" });
     }
   });
-
-  app.get("/api/demo", handleDemo);
 
   startWishboxWorker();
   startNotificationScheduler();

@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { apiFetch } from "@/utils/apiFetch";
 import {
   Dialog,
@@ -335,9 +336,9 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
   const categoryLabel = thought.category === "REFLECTIVE" ? t('mehfil.rooms.reflective') : t('mehfil.rooms.academic');
   const categoryClass =
-    thought.category === "REFLECTIVE"
-      ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
-      : "bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300";
+    thought.category === "REFLECTIVE" ? "mehfil-badge-reflective" : "mehfil-badge-academic";
+  const avatarClass =
+    thought.category === "REFLECTIVE" ? "mehfil-avatar-reflective" : "mehfil-avatar-academic";
   const canConnectToPost = Boolean(thought.userId) && thought.userId !== currentUserId;
   const glowTheme = thought.category === "REFLECTIVE" ? "reflective" : "academic";
 
@@ -345,30 +346,37 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
 
   return (
     <>
-      <article className={`composer-glow-card ${glowTheme} p-3 sm:p-4 md:p-6 w-full transition-[transform,shadow] duration-300 hover:scale-[1.01] hover:shadow-glass-hover`}>
+      <article className={`mehfil-m3-card ${glowTheme} p-3 sm:p-4 md:p-6 w-full transition-[transform,shadow] duration-300 hover:scale-[1.005]`}>
         {/* Header */}
         <div className="flex justify-between items-start mb-3 sm:mb-4">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <Avatar className="w-9 h-9 sm:w-11 sm:h-11 ring-2 ring-transparent hover:ring-teal-500/30 transition-all shrink-0">
+            <Avatar
+              className={cn(
+                "w-9 h-9 sm:w-11 sm:h-11 ring-2 ring-transparent transition-all shrink-0",
+                thought.category === "REFLECTIVE"
+                  ? "hover:ring-[color-mix(in_srgb,var(--mehfil-room-reflective-muted)_35%,transparent)]"
+                  : "hover:ring-[color-mix(in_srgb,var(--mehfil-room-academic)_35%,transparent)]",
+              )}
+            >
               <AvatarImage
                 src={thought.authorAvatar || undefined}
                 alt={thought.authorName}
               />
-              <AvatarFallback className="bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400 font-bold text-sm">
+              <AvatarFallback className={cn("font-bold text-sm", avatarClass)}>
                 {getInitials(thought.authorName)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mb-0.5 truncate">
+              <h3 className="text-xs sm:text-sm font-bold mehfil-text-title mb-0.5 truncate">
                 {thought.authorName}
                 {isOwnThought && (
-                  <span className="ml-2 text-[10px] bg-teal-100 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 px-2 py-0.5 rounded-full font-semibold">
+                  <span className={cn("ml-2 text-[10px] px-2 py-0.5 rounded-full font-semibold", categoryClass)}>
                     {t('mehfil.card.you')}
                   </span>
                 )}
               </h3>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-400 font-medium">
+                <span className="text-[10px] mehfil-text-muted font-medium">
                   {formatTime(thought.createdAt)}
                 </span>
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${categoryClass}`}>
@@ -476,8 +484,8 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
               <button
                 onClick={handleToggleComments}
                 className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap break-normal ${isCommentsOpen
-                  ? "bg-teal-500/10 text-teal-600 dark:text-teal-400 ring-2 ring-teal-500/20"
-                  : "text-slate-500 hover:bg-black/5 dark:hover:bg-white/5 hover:text-teal-500"
+                  ? "bg-primary/10 text-primary ring-2 ring-primary/20"
+                  : "text-slate-500 hover:bg-black/5 dark:hover:bg-white/5 hover:text-primary"
                   }`}
               >
                 <MessageCircle className="w-4 h-4" />
@@ -698,7 +706,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               {t('mehfil.card.cancel')}
             </Button>
-            <Button onClick={handleEdit} className="bg-teal-600 hover:bg-teal-700 text-white">
+            <Button onClick={handleEdit} className="safar-btn-primary hover:opacity-90">
               {t('mehfil.card.save_changes')}
             </Button>
           </DialogFooter>

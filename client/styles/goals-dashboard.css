@@ -1,0 +1,57 @@
+/* Goals dashboard — Stitch / Alexandria M3 layout */
+
+.goals-dashboard {
+  --gd-primary: #3366cc;
+  --gd-surface: #f8fafc;
+  --gd-card-border: #e2e8f0;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.dark .goals-dashboard {
+  --gd-surface: hsl(var(--background));
+  --gd-card-border: hsl(var(--border));
+}
+
+.goals-dashboard h1,
+.goals-dashboard h2,
+.goals-dashboard h3,
+.goals-dashboard h4 {
+  font-family: "Noto Serif", "Playfair Display", serif;
+}
+
+.goals-dashboard .gd-m3-card {
+  background-color: hsl(var(--card));
+  border: 1px solid var(--gd-card-border);
+  transition: box-shadow 0.2s ease;
+}
+
+.goals-dashboard .gd-m3-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.dark .goals-dashboard .gd-m3-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.goals-dashboard .gd-tab-shell {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 16px;
+  border: 1px solid var(--gd-card-border);
+  background: hsl(var(--muted) / 0.5);
+}
+
+.goals-dashboard .gd-tab-active {
+  background: hsl(var(--card));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  color: hsl(var(--foreground));
+}
+
+.goals-dashboard .gd-btn-primary {
+  background: linear-gradient(to right, var(--safar-ui-gradient-from), var(--safar-ui-gradient-to));
+  color: var(--safar-ui-on-primary);
+}
+
+.dark .goals-dashboard .gd-btn-primary {
+  background: var(--safar-ui-primary);
+}

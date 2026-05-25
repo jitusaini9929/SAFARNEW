@@ -183,4 +183,186 @@ router.post(
   },
 );
 
+// ── AI Syllabus Structure Preview ──────────────────────────────────────────
+// Accepts raw/messy syllabus text and returns a structured JSON preview
+// (subjects → chapters → topics) by calling the Groq API server-side.
+// The client shows the preview and lets the user confirm before importing.
+
+const GROQ_STRUCTURE_MODEL =
+  process.env.SYLLABUS_GROQ_MODEL || "llama-3.3-70b-versatile";
+const GROQ_STRUCTURE_API_URL =
+  "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_STRUCTURE_TIMEOUT_MS = 60_000;
+
+const STRUCTURE_SYSTEM_PROMPT = `You are a syllabus structuring assistant for SAFAR, an Indian competitive-exam study planner.
+
+Your job: Given messy syllabus text (from websites, PDFs, coaching notes, or typed notes), extract a clean Subject → Chapter → Topic hierarchy.
+
+Rules:
+1. Return ONLY valid JSON matching this exact schema — no markdown, no extra text:
+{
+  "subjects": [
+    {
+      "name": "Subject Name",
+      "chapters": [
+        {
+          "name": "Chapter Name",
+          "topics": ["Topic 1", "Topic 2"]
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}
+
+2. Infer subjects from the headings. If only chapters/topics are present with no clear subject, use "General" as the subject name.
+3. Keep topic names concise — trim whitespace, capitalise properly.
+4. Deduplicate exact repeated topics within the same chapter.
+5. Warnings is an array of short strings noting anything ambiguous (can be empty).
+6. If you cannot extract ANY structure, return {"subjects":[],"warnings":["Could not parse syllabus text"]}.`;
+
+router.post("/structure-preview", async (req: Request, res: Response) => {
+  try {
+    const { rawText, examType, planTitle, language } = req.body as {
+      rawText?: string;
+      examType?: string;
+      planTitle?: string;
+      language?: string;
+    };
+
+    const text = (rawText ?? "").trim();
+    if (!text) {
+      return res
+        .status(400)
+        .json({ success: false, message: "rawText is required." });
+    }
+    if (text.length > 40_000) {
+      return res.status(400).json({
+        success: false,
+        message: "Syllabus text is too long. Please trim it to under 40,000 characters.",
+      });
+    }
+
+    const groqKey = (process.env.GROQ_API_KEY || "").trim();
+    if (!groqKey) {
+      return res.status(503).json({
+        success: false,
+        message:
+          "AI structuring is not configured on the server (GROQ_API_KEY missing).",
+      });
+    }
+
+    const contextHints = [
+      examType ? `Exam type: ${examType}` : null,
+      planTitle ? `Plan title: ${planTitle}` : null,
+      language ? `Language of text: ${language}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const userMessage = contextHints
+      ? `${contextHints}\n\nSyllabus text:\n${text}`
+      : `Syllabus text:\n${text}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      GROQ_STRUCTURE_TIMEOUT_MS,
+    );
+
+    let groqRes: globalThis.Response;
+    try {
+      groqRes = await fetch(GROQ_STRUCTURE_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${groqKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: GROQ_STRUCTURE_MODEL,
+          messages: [
+            { role: "system", content: STRUCTURE_SYSTEM_PROMPT },
+            { role: "user", content: userMessage },
+          ],
+          temperature: 0.1,
+          max_tokens: 8192,
+          response_format: { type: "json_object" },
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const groqPayload = await groqRes.json().catch(() => null);
+
+    if (!groqRes.ok) {
+      const errMsg =
+        groqPayload?.error?.message ||
+        groqPayload?.message ||
+        "AI request failed.";
+      return res.status(502).json({ success: false, message: errMsg });
+    }
+
+    const rawContent: string =
+      groqPayload?.choices?.[0]?.message?.content ?? "";
+
+    let parsed: { subjects?: unknown[]; warnings?: string[] };
+    try {
+      parsed = JSON.parse(rawContent);
+    } catch {
+      return res.status(502).json({
+        success: false,
+        message: "AI returned an invalid response. Please try again.",
+      });
+    }
+
+    if (!Array.isArray(parsed?.subjects)) {
+      return res.status(502).json({
+        success: false,
+        message: "AI response is missing the subjects list.",
+      });
+    }
+
+    const subjects = parsed.subjects as Array<{
+      name: string;
+      chapters: Array<{ name: string; topics: string[] }>;
+    }>;
+    const warnings: string[] = Array.isArray(parsed.warnings)
+      ? (parsed.warnings as string[])
+      : [];
+
+    const topicCount = subjects.reduce(
+      (sum, s) =>
+        sum +
+        s.chapters.reduce((cs, c) => cs + (c.topics?.length ?? 0), 0),
+      0,
+    );
+    const chapterCount = subjects.reduce(
+      (sum, s) => sum + s.chapters.length,
+      0,
+    );
+
+    return res.json({
+      success: true,
+      subjects,
+      warnings,
+      stats: {
+        subjectCount: subjects.length,
+        chapterCount,
+        topicCount,
+      },
+    });
+  } catch (error: any) {
+    console.error("[SYLLABUS-STRUCTURE-PREVIEW] Error:", error);
+    const isAbort = error?.name === "AbortError";
+    return res.status(isAbort ? 504 : 500).json({
+      success: false,
+      message: isAbort
+        ? "AI request timed out. Please try again."
+        : error?.message || "Could not structure syllabus.",
+    });
+  }
+});
+
 export const syllabusImportRoutes = router;

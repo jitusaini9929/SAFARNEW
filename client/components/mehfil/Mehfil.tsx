@@ -3,30 +3,25 @@ import { Socket } from 'socket.io-client';
 import { useMehfilStore, MehfilRoom } from '@/store/mehfilStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { authService } from '@/utils/authService';
-import LanguageToggle from '../LanguageToggle';
 import ThoughtCard from './ThoughtCard';
 import Composer from './Composer';
 import MehfilSidebar from './MehfilSidebar';
 import type { MehfilSidebarView } from './MehfilSidebar';
 import SandeshCard from './SandeshCard';
 import { toast } from 'sonner';
-import ThemeToggle from '@/components/ui/theme-toggle';
 import GlobalSidebar from '@/components/GlobalSidebar';
 import { closeMehfilSocket, getMehfilSocket } from '@/lib/socket';
 import { useTranslation } from 'react-i18next';
 
-import { Search, Settings, LogOut, Menu, Info, ShieldAlert, AlertCircle, ChevronDown, ChevronUp, Clock, Ban, Ghost, MessageCircle } from 'lucide-react';
+import "@/styles/mehfil-m3.css";
+import M3TopNavbar from "@/components/M3TopNavbar";
+import { MdRoomFilterChips } from "./material/MdRoomFilterChips";
+
+import { Info, ShieldAlert, AlertCircle, ChevronDown, Clock, Ban, Ghost, MessageCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from '@/lib/utils';
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 
 interface MehfilProps {
@@ -487,134 +482,51 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
   const isGuestReadOnly = !user?.id;
 
-  const isAll = activeRoom === 'ALL';
-  const isReflective = activeRoom === 'REFLECTIVE';
-  const roomPalette = isAll
-    ? {
-      page: 'bg-[#f8f7f5] dark:bg-[#0a0a0b]',
-      selection: 'selection:bg-rose-200/50',
-      blobA: 'bg-rose-400/10 dark:bg-rose-500/20',
-      blobB: 'bg-pink-300/10 dark:bg-pink-500/20',
-      ring: 'focus:ring-rose-500/20 focus:border-rose-500/50',
-      tabActive: 'bg-gradient-to-r from-mehfil-maroon to-mehfil-plum text-white shadow-lg shadow-mehfil-maroon/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]',
-      tabIdle: 'text-rose-700 hover:text-rose-800 hover:bg-white/60 dark:text-rose-300 dark:hover:bg-white/10 dark:hover:text-rose-200',
-    }
-    : isReflective
-      ? {
-        page: 'bg-[#f8f7f5] dark:bg-[#0a0a0b]',
-        selection: 'selection:bg-indigo-200/50',
-        blobA: 'bg-indigo-400/10 dark:bg-indigo-500/20',
-        blobB: 'bg-violet-300/10 dark:bg-violet-500/20',
-        ring: 'focus:ring-indigo-500/20 focus:border-indigo-500/50',
-        tabActive: 'bg-gradient-to-r from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 text-white shadow-lg shadow-indigo-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]',
-        tabIdle: 'text-indigo-700 hover:text-indigo-800 hover:bg-white/60 dark:text-indigo-300 dark:hover:bg-white/10 dark:hover:text-indigo-200',
-      }
-      : {
-        page: 'bg-[#f8f7f5] dark:bg-[#0a0a0b]',
-        selection: 'selection:bg-teal-200/50',
-        blobA: 'bg-teal-400/10 dark:bg-teal-500/20',
-        blobB: 'bg-cyan-300/10 dark:bg-cyan-500/20',
-        ring: 'focus:ring-teal-500/20 focus:border-teal-500/50',
-        tabActive: 'bg-gradient-to-r from-teal-500 to-teal-600 dark:from-teal-600 dark:to-teal-700 text-white shadow-lg shadow-teal-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]',
-        tabIdle: 'text-teal-700 hover:text-teal-800 hover:bg-white/60 dark:text-teal-300 dark:hover:bg-white/10 dark:hover:text-indigo-200',
-      };
+  const mehfilRoomAttr = activeRoom.toLowerCase() as 'all' | 'academic' | 'reflective';
 
   return (
-    <div className={`min-h-[100dvh] ${roomPalette.page} text-foreground ${roomPalette.selection} overflow-x-hidden font-sans`}>
+    <div
+      className="min-h-[100dvh] mehfil-m3 text-foreground overflow-x-hidden font-sans selection:bg-[color-mix(in_srgb,var(--mehfil-room-accent)_25%,transparent)]"
+      data-mehfil-room={mehfilRoomAttr}
+    >
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {ariaLiveMessage}
       </div>
 
-      <div className={`fixed inset-0 pointer-events-none overflow-hidden -z-10 ${roomPalette.page}`}>
-        <div className={`gradient-blob ${roomPalette.blobA} w-[800px] h-[800px] -top-64 -left-32`} />
-        <div className={`gradient-blob ${roomPalette.blobB} w-[600px] h-[600px] top-1/2 -right-32`} />
-        <div className="gradient-blob bg-sky-300/30 dark:bg-sky-500/20 w-[500px] h-[500px] bottom-0 left-1/3 opacity-40" />
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10 bg-[var(--mehfil-bg)]">
+        <div className="gradient-blob mehfil-blob-a w-[800px] h-[800px] -top-64 -left-32" />
+        <div className="gradient-blob mehfil-blob-b w-[600px] h-[600px] top-1/2 -right-32" />
       </div>
 
-      <nav className="relative w-full min-h-14 sm:min-h-16 glass-2-0 rounded-2xl z-50 px-2 sm:px-4 md:px-6 py-2 sm:py-0 flex items-center justify-between border border-slate-200 dark:border-white/5 bg-white/40 dark:bg-black/40 backdrop-blur-2xl shadow-lg shadow-black/5 dark:shadow-black/20 gap-1.5 sm:gap-2 mt-2 sm:mt-4 mb-4 sm:mb-6">
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <button
-            onClick={() => setIsGlobalSidebarOpen(true)}
-            className="p-1.5 sm:p-2 md:p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-            title={t('mehfil.menu')}
-          >
-            <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-          <Link to="/home" className="flex items-center gap-2 sm:gap-3 group cursor-pointer text-inherit no-underline shrink-0">
-            <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r ${ROOM_CONFIG[activeRoom].chipClass} transform transition-transform group-hover:scale-105 shadow-lg flex items-center justify-center`}>
-              <span className="text-white font-bold text-sm sm:text-lg tracking-tight whitespace-nowrap break-normal">{t('mehfil.title')}</span>
-            </div>
-          </Link>
-        </div>
+      <M3TopNavbar
+        moduleName="MEHFIL"
+        onSidebarToggle={() => setIsGlobalSidebarOpen(true)}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        showSearch={true}
+      />
 
-        <div className="relative flex-1 min-w-0 md:flex-none group">
-          <Search className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 w-4 h-4 z-10" />
-          <input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={`relative bg-black/5 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl py-1.5 sm:py-2 md:py-2.5 pl-9 sm:pl-10 pr-3 sm:pr-4 text-sm w-full md:w-72 lg:w-96 focus:ring-2 focus:bg-white/50 dark:focus:bg-black/60 transition-all focus:outline-none placeholder:text-slate-500 text-slate-900 dark:text-slate-100 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_2px_6px_rgba(0,0,0,0.2)] backdrop-blur-md ${roomPalette.ring}`}
-            placeholder={t('mehfil.search_placeholder')}
-            type="text"
-          />
-        </div>
-
-        <div className="flex items-center gap-1.5 sm:gap-3 md:gap-5 shrink-0">
-          {/* Desktop Navigation Icons */}
-          <div className="hidden sm:flex items-center gap-1">
-            <LanguageToggle />
-            <ThemeToggle />
-          </div>
-
-            <div className="hidden sm:flex items-center gap-2 md:gap-5 md:pr-6 border-l border-slate-200 dark:border-slate-800 ml-1 sm:ml-2 pl-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center justify-center w-8 h-8 sm:w-[40px] sm:h-[40px] p-0.5 rounded-full transition-all duration-200 hover:scale-105 cursor:pointer hover:bg-slate-100/80 dark:hover:bg-slate-800/80 outline-none">
-                  <Avatar className="w-full h-full rounded-full border border-slate-200 dark:border-white/10 transition-transform">
-                    <AvatarImage src={user?.avatar} className="object-cover" />
-                    <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs ring-1 ring-inset ring-slate-900/10 dark:ring-white/10">
-                      {user?.name?.[0]?.toUpperCase() || 'G'}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 mt-2 rounded-2xl border-slate-200 dark:border-slate-800 p-2 shadow-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
-                <DropdownMenuItem onClick={handleProfile} className="rounded-xl cursor-pointer py-2.5 focus:bg-slate-100 dark:focus:bg-slate-800 text-slate-700 dark:text-slate-200">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>{t('mehfil.profile_settings')}</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-slate-200 dark:bg-slate-800 my-1" />
-                <DropdownMenuItem onClick={handleLogout} className="rounded-xl cursor-pointer py-2.5 focus:bg-rose-50 dark:focus:bg-rose-950/30 text-rose-600 dark:text-rose-400">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>{t('mehfil.logout')}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </nav>
-
-      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pb-6 sm:pb-8 md:pb-12">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-6 pb-6 sm:pb-8 md:pb-12 mt-4 sm:mt-6">
         <main className="scrollbar-blend">
-          <section className="mb-4 sm:mb-6 rounded-2xl sm:rounded-[2rem] border border-slate-200 dark:border-white/5 bg-white/40 dark:bg-black/40 backdrop-blur-2xl flex flex-col items-center text-center shadow-glass transition-all">
-            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 p-1.5 glass-2-0 rounded-2xl border border-slate-200/60 dark:border-white/5 w-full sm:w-fit shadow-inner bg-white/20 dark:bg-black/30">
-              {(['ALL', 'ACADEMIC', 'REFLECTIVE'] as MehfilFeedRoom[]).map((room) => (
-                <button
-                  key={room}
-                  onClick={() => setActiveRoom(room)}
-                  className={`px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 whitespace-nowrap break-normal outline-none ${room === activeRoom ? `scale-[1.02] ${roomPalette.tabActive}` : `hover:scale-105 ${roomPalette.tabIdle}`
-                    }`}
-                >
-                  {t(`mehfil.rooms.${room.toLowerCase()}`)}
-                </button>
-              ))}
+          <section className="mehfil-filter-section mb-4 sm:mb-6 p-4 sm:p-6 mehfil-m3-card flex flex-col items-center text-center">
+            <div className="p-2 w-full flex justify-center">
+              <MdRoomFilterChips
+                activeRoom={activeRoom}
+                rooms={['ALL', 'ACADEMIC', 'REFLECTIVE'] as MehfilFeedRoom[]}
+                labels={{
+                  ALL: t('mehfil.rooms.all'),
+                  ACADEMIC: t('mehfil.rooms.academic'),
+                  REFLECTIVE: t('mehfil.rooms.reflective'),
+                }}
+                tabActiveClass=""
+                tabIdleClass=""
+                onSelect={(room) => setActiveRoom(room)}
+              />
             </div>
-            <p className="mt-4 text-sm font-medium text-slate-700 dark:text-slate-300 max-w-3xl leading-relaxed">
+            <p className="mt-4 text-sm font-medium mehfil-text-body max-w-3xl leading-relaxed">
               {t(`mehfil.subtitles.${activeRoom.toLowerCase()}`)}
             </p>
           </section>
-
-
-
 
           {/* Main Layout Grid */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 md:gap-6 lg:gap-8 max-w-7xl mx-auto relative z-10">
@@ -622,76 +534,83 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
             {/* Center Feed - Spans 8 columns */}
             <main className="md:col-span-7 lg:col-span-8 flex flex-col gap-3 sm:gap-4 md:gap-6">
 
-              <div className="backdrop-blur-2xl bg-white/40 dark:bg-black/40 border border-slate-200 dark:border-white/5 shadow-glass rounded-2xl sm:rounded-[2rem] p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-500 hover:shadow-glass-hover">
-                <div className="mb-4 sm:mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-3 sm:gap-4">
-                  <div>
-                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-1 sm:mb-2">{t('mehfil.community_space')}</h1>
-                    <p className="text-slate-500 dark:text-slate-400 leading-relaxed max-w-xl">
-                      {t('mehfil.community_desc')}
-                    </p>
-                  </div>
-                </div>
+              <div className="mehfil-m3-card community-space-panel p-5 sm:p-6 lg:p-8">
+                <header className="mb-5 sm:mb-6">
+                  <h1 className="text-2xl sm:text-[1.75rem] font-bold mehfil-text-title tracking-tight">
+                    {t('mehfil.community_space')}
+                  </h1>
+                  <p className="mt-1.5 text-sm sm:text-[15px] mehfil-text-body leading-relaxed max-w-2xl">
+                    {t('mehfil.community_desc')}
+                  </p>
+                </header>
 
-                {/* Guidelines Notice Section — collapsible */}
-                <div className="composer-glow-card mb-4 sm:mb-6 md:mb-8 w-full" style={{ padding: 0 }}>
-                  <Collapsible
-                    open={guidelinesOpen}
-                    onOpenChange={setGuidelinesOpen}
-                  >
+                <Collapsible
+                  open={guidelinesOpen}
+                  onOpenChange={setGuidelinesOpen}
+                  className="mb-5 sm:mb-6"
+                >
+                  <div className="mehfil-guidelines-bar rounded-2xl border overflow-hidden transition-colors">
                     <CollapsibleTrigger asChild>
-                      <button className="guideline-btn group w-full flex items-center justify-between gap-2.5 px-5 py-3.5 cursor-pointer outline-none rounded-2xl transition-colors hover:bg-slate-50 dark:hover:bg-white/5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 bg-indigo-500/10 rounded-xl">
-                            <ShieldAlert className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                      <button
+                        type="button"
+                        className="group w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 sm:py-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--mehfil-info-muted)_40%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="mehfil-guidelines-icon-wrap flex h-9 w-9 shrink-0 items-center justify-center rounded-xl">
+                            <ShieldAlert className="w-[18px] h-[18px]" aria-hidden />
                           </div>
-                          <span className="text-sm font-bold bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-300 dark:to-violet-300 bg-clip-text text-transparent">
+                          <span className="mehfil-guidelines-label text-sm font-semibold truncate">
                             {t('mehfil.guidelines')}
                           </span>
                         </div>
-                        <ChevronDown className="w-4 h-4 text-slate-400 ml-auto transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                        <ChevronDown
+                          className={cn(
+                            "w-5 h-5 shrink-0 mehfil-text-muted transition-transform duration-200",
+                            guidelinesOpen && "rotate-180",
+                          )}
+                          aria-hidden
+                        />
                       </button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="px-5 sm:px-6 pb-5 pt-2 animate-in slide-in-from-top-2 duration-200 flex flex-col">
+                    <CollapsibleContent className="px-4 sm:px-5 pb-5 pt-1 border-t border-[var(--mehfil-outline-variant)] animate-in slide-in-from-top-1 duration-200">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                        {/* Rules Column */}
                         <div className="space-y-4">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider mehfil-text-muted flex items-center gap-2">
                             <Info className="w-3.5 h-3.5" /> {t('mehfil.posting_rules')}
                           </h4>
                           <ul className="space-y-3">
-                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                              <div className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-1.5 shrink-0" />
+                            <li className="flex gap-3 text-sm mehfil-text-body">
+                              <div className="w-1.5 h-1.5 rounded-full bg-[var(--mehfil-room-academic)] mt-1.5 shrink-0" />
                               <span>{t('mehfil.academic_rule')}</span>
                             </li>
-                            <li className="flex gap-3 text-sm text-slate-600 dark:text-slate-300">
-                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                            <li className="flex gap-3 text-sm mehfil-text-body">
+                              <div className="w-1.5 h-1.5 rounded-full bg-[var(--mehfil-room-reflective-muted)] mt-1.5 shrink-0" />
                               <span>{t('mehfil.thoughts_rule')}</span>
                             </li>
                           </ul>
                         </div>
 
-                        {/* Consequences Column */}
                         <div className="space-y-4">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider mehfil-text-muted flex items-center gap-2">
                             <AlertCircle className="w-3.5 h-3.5" /> {t('mehfil.consequences')}
                           </h4>
                           <div className="space-y-3">
-                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-100/50 dark:bg-black/20 border border-slate-200 dark:border-white/5">
-                              <div className="p-1.5 bg-amber-500/10 rounded-lg">
-                                <Ban className="w-4 h-4 text-amber-500" />
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--mehfil-surface-low)] border border-[var(--mehfil-outline-variant)]">
+                              <div className="p-1.5 rounded-lg bg-[var(--mehfil-warning-container)]">
+                                <Ban className="w-4 h-4 text-[var(--mehfil-warning)]" />
                               </div>
                               <div className="text-xs leading-tight">
-                                <span className="font-bold block text-slate-900 dark:text-white">{t('mehfil.report_bans')}</span>
-                                <span className="text-slate-600 dark:text-slate-400">{t('mehfil.report_desc')}</span>
+                                <span className="font-bold block mehfil-text-title">{t('mehfil.report_bans')}</span>
+                                <span className="mehfil-text-body">{t('mehfil.report_desc')}</span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-100/50 dark:bg-black/20 border border-slate-200 dark:border-white/5">
-                              <div className="p-1.5 bg-rose-500/10 rounded-lg">
-                                <Ghost className="w-4 h-4 text-rose-500" />
+                            <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--mehfil-surface-low)] border border-[var(--mehfil-outline-variant)]">
+                              <div className="p-1.5 rounded-lg bg-[var(--mehfil-error-container)]">
+                                <Ghost className="w-4 h-4 text-[var(--mehfil-error)]" />
                               </div>
                               <div className="text-xs leading-tight">
-                                <span className="font-bold block text-slate-900 dark:text-white">{t('mehfil.shadow_banning')}</span>
-                                <span className="text-slate-600 dark:text-slate-400">{t('mehfil.spam_desc')}</span>
+                                <span className="font-bold block mehfil-text-title">{t('mehfil.shadow_banning')}</span>
+                                <span className="mehfil-text-body">{t('mehfil.spam_desc')}</span>
                               </div>
                             </div>
                           </div>
@@ -700,11 +619,11 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
 
 
                     </CollapsibleContent>
-                  </Collapsible>
-                </div>
+                  </div>
+                </Collapsible>
 
                 {isGuestReadOnly ? (
-                  <div className="rounded-2xl border border-amber-300/70 dark:border-amber-500/30 bg-amber-50/90 dark:bg-amber-500/10 px-4 py-3.5 text-sm text-amber-800 dark:text-amber-200">
+                  <div className="rounded-2xl border border-[color-mix(in_srgb,var(--mehfil-warning)_35%,var(--mehfil-outline-variant))] bg-[var(--mehfil-warning-container)] px-4 py-3.5 text-sm text-[var(--mehfil-on-surface)]">
                     <span className="font-semibold">Guest mode:</span> You can read all community posts. Sign in to post, react, comment, and connect.
                     <Link to="/?signin=true" className="ml-2 font-semibold underline underline-offset-2 hover:opacity-80">
                       Sign in
@@ -728,10 +647,10 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
               <div className="space-y-6">
                 {visibleThoughts.length === 0 ? (
                   <div className="text-center py-16">
-                    <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                      <MessageCircle className="w-12 h-12 text-slate-400 dark:text-slate-500" />
+                    <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-[var(--mehfil-surface-low)] flex items-center justify-center">
+                      <MessageCircle className="w-12 h-12 mehfil-text-muted" />
                     </div>
-                    <p className="text-slate-500 mt-2">
+                    <p className="mehfil-text-body mt-2">
                       {t('mehfil.no_thoughts', { room: t(`mehfil.rooms.${activeRoom.toLowerCase()}`) })}
                     </p>
                   </div>
@@ -752,13 +671,13 @@ const Mehfil: React.FC<MehfilProps> = ({ backendUrl }) => {
                 )}
 
                 {isLoadingThoughts && (
-                  <div className="text-center py-4 text-sm text-slate-500 dark:text-slate-400">
+                  <div className="text-center py-4 text-sm mehfil-text-body">
                     {t('mehfil.loading_more')}
                   </div>
                 )}
 
                 {!hasMoreThoughts && thoughts.length > 0 && (
-                  <div className="text-center py-3 text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  <div className="text-center py-3 text-xs uppercase tracking-wider mehfil-text-muted">
                     {t('mehfil.end_of_feed')}
                   </div>
                 )}

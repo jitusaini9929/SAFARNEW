@@ -485,25 +485,7 @@ async function generateMonthlyReport(
     const focusSkill = focusDays > 0 ? clampPercent((focusDepth / 90) * 100) : 0;
     const reflectionScore = evaluationDays > 0 ? clampPercent((reflectionDays / evaluationDays) * 100) : 0;
 
-    const heatmap = [];
-    for (let day = 1; day <= daysInMonth; day += 1) {
-        const dayUTC = new Date(startUTC.getTime() + (day - 1) * DAY_MS);
-        const dayKey = toISTDateKey(dayUTC);
-        const entry = ensureDayStat(dayKey);
-        const activityPoints =
-            (entry.moodCount > 0 ? 1 : 0)
-            + Math.min(2, entry.journalCount)
-            + (entry.goalsCompleted * 2)
-            + Math.round(entry.focusMinutes / 25);
-        const intensity = activityPoints >= 8 ? 4 : activityPoints >= 5 ? 3 : activityPoints >= 2 ? 2 : activityPoints >= 1 ? 1 : 0;
-        const date = toISTDate(dayUTC);
-        heatmap.push({
-            date: dayKey,
-            dayOfWeek: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getUTCDay()],
-            value: activityPoints,
-            intensity,
-        });
-    }
+
 
     const report = {
         version: REPORT_VERSION,
@@ -554,7 +536,6 @@ async function generateMonthlyReport(
             { subject: "Focus", score: focusSkill, fullMark: 100 },
             { subject: "Reflection", score: reflectionScore, fullMark: 100 },
         ],
-        heatmap,
     };
 
     await collections.monthlyReports().updateOne(

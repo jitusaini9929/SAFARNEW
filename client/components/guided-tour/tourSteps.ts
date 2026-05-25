@@ -318,13 +318,6 @@ export const studyPlannerTour: TourConfig = {
             placement: "bottom",
         },
         {
-            target: "[data-tour='planner-merged-guide']",
-            title: "Setup Guide",
-            content: "Follow the checklist: exam date, topics, auto-schedule, then review the calendar.",
-            placement: "bottom",
-            spotlightPadding: 12,
-        },
-        {
             target: "[data-tour='planner-merged-progress']",
             title: "Progress",
             content: "See completion percent, how many topics are done, and your target pace (topics per day).",

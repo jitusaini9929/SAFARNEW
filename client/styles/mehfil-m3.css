@@ -1,0 +1,462 @@
+/* Mehfil — surfaces + Live Classroom UIButton palette (--mehfil-ui-*) */
+
+.mehfil-m3 {
+  /* Live Sessions / global UI tokens */
+  --mehfil-ui-primary: var(--safar-ui-primary);
+  --mehfil-ui-primary-container: var(--safar-ui-primary-container);
+  --mehfil-ui-on-primary: var(--safar-ui-on-primary);
+  --mehfil-ui-on-primary-container: #e7ebff;
+  --mehfil-ui-gradient-from: var(--safar-ui-gradient-from);
+  --mehfil-ui-gradient-to: var(--safar-ui-gradient-to);
+  --mehfil-ui-focus-ring: var(--safar-ui-focus-ring);
+
+  --mehfil-bg: #faf9fa;
+  --mehfil-surface: #ffffff;
+  --mehfil-surface-low: #f5f3f4;
+  --mehfil-surface-container: #efedee;
+  --mehfil-outline-variant: #c3c6d5;
+  --mehfil-on-surface: #1b1c1d;
+  --mehfil-on-surface-variant: #434653;
+  --mehfil-outline: #737784;
+
+  /* Info / links / guidelines — same as UI primary */
+  --mehfil-info: var(--mehfil-ui-primary);
+  --mehfil-info-muted: var(--mehfil-ui-primary-container);
+  --mehfil-info-container: #e7ebff;
+  --mehfil-info-on-container: #094cb2;
+
+  --mehfil-room-academic: #0d9488;
+  --mehfil-room-academic-muted: #14b8a6;
+  --mehfil-room-academic-container: #ccfbf1;
+  --mehfil-room-academic-on-container: #115e59;
+
+  --mehfil-room-reflective: #4f46e5;
+  --mehfil-room-reflective-muted: #6366f1;
+  --mehfil-room-reflective-container: #e0e7ff;
+  --mehfil-room-reflective-on-container: #3730a3;
+
+  --mehfil-room-all-from: #7a1f3d;
+  --mehfil-room-all-to: #5b21b6;
+
+  --mehfil-faculty: #7c3aed;
+  --mehfil-faculty-muted: #8b5cf6;
+  --mehfil-faculty-container: #ede9fe;
+  --mehfil-faculty-on-container: #5b21b6;
+
+  --mehfil-warning: #d97706;
+  --mehfil-warning-container: #fef3c7;
+  --mehfil-error: #e11d48;
+  --mehfil-error-container: #ffe4e6;
+
+  /* Primary actions (Post, chips, focus) — Live Classroom blue */
+  --mehfil-room-accent: var(--mehfil-ui-primary-container);
+  --mehfil-room-accent-strong: var(--mehfil-ui-primary);
+  --mehfil-room-accent-container: var(--mehfil-info-container);
+  --mehfil-room-accent-on-container: var(--mehfil-info-on-container);
+
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: var(--mehfil-on-surface);
+  background-color: var(--mehfil-bg);
+
+  --md-sys-color-background: var(--mehfil-bg);
+  --md-sys-color-on-background: var(--mehfil-on-surface);
+  --md-sys-color-surface: var(--mehfil-surface);
+  --md-sys-color-on-surface: var(--mehfil-on-surface);
+  --md-sys-color-surface-variant: var(--mehfil-surface-low);
+  --md-sys-color-on-surface-variant: var(--mehfil-on-surface-variant);
+  --md-sys-color-outline: var(--mehfil-outline);
+  --md-sys-color-outline-variant: var(--mehfil-outline-variant);
+  --md-sys-color-primary: var(--mehfil-ui-primary-container);
+  --md-sys-color-on-primary: var(--mehfil-ui-on-primary);
+  --md-sys-color-primary-container: var(--mehfil-info-container);
+  --md-sys-color-on-primary-container: var(--mehfil-info-on-container);
+  --md-sys-color-secondary: var(--mehfil-room-academic);
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: var(--mehfil-room-academic-container);
+  --md-sys-color-on-secondary-container: var(--mehfil-room-academic-on-container);
+}
+
+.dark .mehfil-m3 {
+  --mehfil-ui-primary: var(--safar-ui-primary);
+  --mehfil-ui-primary-container: var(--safar-ui-primary-container);
+  --mehfil-ui-on-primary: var(--safar-ui-on-primary);
+  --mehfil-ui-on-primary-container: #002661;
+  --mehfil-ui-gradient-from: var(--safar-ui-gradient-from);
+  --mehfil-ui-gradient-to: var(--safar-ui-gradient-to);
+  --mehfil-ui-focus-ring: var(--safar-ui-focus-ring);
+
+  /* Align with Nishtha / Goals / Check-in dark theme (global :root) */
+  --mehfil-bg: hsl(var(--background));
+  --mehfil-surface: hsl(var(--card));
+  --mehfil-surface-low: hsl(var(--muted));
+  --mehfil-surface-container: hsl(var(--muted));
+  --mehfil-outline-variant: hsl(var(--border));
+  --mehfil-on-surface: hsl(var(--foreground));
+  --mehfil-on-surface-variant: hsl(var(--muted-foreground));
+  --mehfil-outline: hsl(var(--muted-foreground));
+
+  --mehfil-info: var(--mehfil-ui-primary);
+  --mehfil-info-muted: var(--mehfil-ui-primary-container);
+  --mehfil-info-container: color-mix(in srgb, var(--mehfil-ui-primary) 14%, hsl(var(--card)));
+  --mehfil-info-on-container: hsl(var(--foreground));
+
+  --mehfil-room-academic: #2dd4bf;
+  --mehfil-room-academic-muted: #5eead4;
+  --mehfil-room-academic-container: rgba(45, 212, 191, 0.14);
+  --mehfil-room-academic-on-container: #ccfbf1;
+
+  --mehfil-room-reflective: #a5b4fc;
+  --mehfil-room-reflective-muted: #818cf8;
+  --mehfil-room-reflective-container: rgba(99, 102, 241, 0.16);
+  --mehfil-room-reflective-on-container: #e0e7ff;
+
+  --mehfil-room-all-from: #9f1239;
+  --mehfil-room-all-to: #6b21a8;
+
+  --mehfil-faculty: #c4b5fd;
+  --mehfil-faculty-muted: #a78bfa;
+  --mehfil-faculty-container: rgba(124, 58, 237, 0.16);
+  --mehfil-faculty-on-container: #ede9fe;
+
+  --mehfil-warning: #fbbf24;
+  --mehfil-warning-container: rgba(251, 191, 36, 0.12);
+  --mehfil-error: #fb7185;
+  --mehfil-error-container: rgba(251, 113, 133, 0.12);
+
+  --mehfil-room-accent: var(--mehfil-ui-primary-container);
+  --mehfil-room-accent-strong: var(--mehfil-ui-primary);
+
+  --md-sys-color-primary: var(--mehfil-ui-primary-container);
+  --md-sys-color-on-primary: var(--mehfil-ui-on-primary);
+  --md-sys-color-primary-container: var(--mehfil-info-container);
+  --md-sys-color-on-primary-container: var(--mehfil-info-on-container);
+  --md-sys-color-secondary: var(--mehfil-room-academic);
+  --md-sys-color-on-secondary: #042f2e;
+  --md-sys-color-secondary-container: rgba(17, 94, 89, 0.45);
+  --md-sys-color-on-secondary-container: #ccfbf1;
+}
+
+/* UIButton — matches Live Sessions .lc-btn-primary */
+.mehfil-btn-primary {
+  background: linear-gradient(to right, var(--mehfil-ui-gradient-from), var(--mehfil-ui-gradient-to));
+  color: var(--mehfil-ui-on-primary);
+  border: none;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--mehfil-ui-primary) 28%, transparent);
+  transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mehfil-btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--mehfil-ui-primary) 38%, transparent);
+}
+
+.mehfil-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.mehfil-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.dark .mehfil-m3 .mehfil-btn-primary {
+  background: var(--mehfil-ui-primary);
+}
+
+/* Typography utilities */
+.mehfil-text-title {
+  color: var(--mehfil-on-surface);
+}
+
+.mehfil-text-body {
+  color: var(--mehfil-on-surface-variant);
+}
+
+.mehfil-text-muted {
+  color: var(--mehfil-on-surface-variant);
+  opacity: 0.85;
+}
+
+.mehfil-m3-card {
+  background: var(--mehfil-surface);
+  border: 1px solid var(--mehfil-outline-variant);
+  border-radius: 1rem; /* 16px - gorgeous M3 rounding */
+  transition: border-color 0.25s cubic-bezier(0.2, 0, 0, 1), 
+              box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1), 
+              background-color 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mehfil-m3-card:hover {
+  border-color: var(--md-sys-color-outline);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+/* Category-specific card glow micro-animations */
+.mehfil-m3-card.academic {
+  transition: border-color 0.25s cubic-bezier(0.2, 0, 0, 1), 
+              box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+.mehfil-m3-card.academic:hover {
+  border-color: color-mix(in srgb, var(--mehfil-room-academic) 40%, var(--mehfil-outline-variant));
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--mehfil-room-academic) 8%, transparent);
+}
+
+.mehfil-m3-card.reflective {
+  transition: border-color 0.25s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mehfil-m3-card.reflective:hover {
+  border-color: color-mix(in srgb, var(--mehfil-room-reflective-muted) 45%, var(--mehfil-outline-variant));
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--mehfil-room-reflective-muted) 10%, transparent);
+}
+
+/* Room filter chips */
+.mehfil-m3 .mehfil-room-chip-idle {
+  --md-filter-chip-label-text-color: var(--mehfil-on-surface-variant) !important;
+  --md-filter-chip-outline-color: var(--mehfil-outline-variant) !important;
+}
+
+.mehfil-m3 .mehfil-room-chip-active {
+  background: linear-gradient(to right, var(--mehfil-ui-gradient-from), var(--mehfil-ui-gradient-to)) !important;
+  --md-filter-chip-label-text-color: var(--mehfil-ui-on-primary) !important;
+  --md-filter-chip-icon-color: var(--mehfil-ui-on-primary) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--mehfil-ui-primary) 28%, transparent) !important;
+}
+
+.dark .mehfil-m3 .mehfil-room-chip-active {
+  background: var(--mehfil-ui-primary) !important;
+}
+
+.mehfil-m3 .mehfil-room-chip-idle:hover {
+  --md-filter-chip-label-text-color: var(--mehfil-on-surface) !important;
+  background: var(--mehfil-surface-low) !important;
+}
+
+/* Category badges on posts */
+.mehfil-badge-academic {
+  background: var(--mehfil-room-academic-container);
+  color: var(--mehfil-room-academic-on-container);
+}
+
+.mehfil-badge-reflective {
+  background: var(--mehfil-room-reflective-container);
+  color: var(--mehfil-room-reflective-on-container);
+}
+
+.mehfil-badge-faculty {
+  background: var(--mehfil-faculty-container);
+  color: var(--mehfil-faculty-on-container);
+}
+
+.mehfil-avatar-academic {
+  background: var(--mehfil-room-academic-container);
+  color: var(--mehfil-room-academic-on-container);
+}
+
+.mehfil-avatar-reflective {
+  background: var(--mehfil-room-reflective-container);
+  color: var(--mehfil-room-reflective-on-container);
+}
+
+/* Guidelines — info semantic (not room accent) */
+.mehfil-guidelines-bar {
+  border-color: var(--mehfil-outline-variant);
+  background: var(--mehfil-surface-low);
+}
+
+.mehfil-guidelines-bar:hover {
+  border-color: color-mix(in srgb, var(--mehfil-ui-primary-container) 40%, var(--mehfil-outline-variant));
+}
+
+.mehfil-guidelines-icon-wrap {
+  background: var(--mehfil-info-container);
+  color: var(--mehfil-info);
+}
+
+.mehfil-guidelines-label {
+  color: var(--mehfil-info-on-container);
+}
+
+.dark .mehfil-guidelines-label {
+  color: var(--mehfil-info);
+}
+
+/* Ambient blobs — room-tinted only */
+.mehfil-blob-a {
+  background: color-mix(in srgb, var(--mehfil-room-accent) 12%, transparent);
+}
+
+.mehfil-blob-b {
+  background: color-mix(in srgb, var(--mehfil-faculty-muted) 10%, transparent);
+}
+
+/* Panel + community card */
+.mehfil-m3 .community-space-panel {
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--mehfil-on-surface) 6%, transparent);
+}
+
+.dark .mehfil-m3 .community-space-panel {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+.mehfil-filter-section {
+  background: var(--mehfil-surface);
+  border-color: var(--mehfil-outline-variant);
+}
+
+.mehfil-m3-surface-low {
+  background: var(--mehfil-surface-low);
+}
+
+.mehfil-m3-text-variant {
+  color: var(--mehfil-on-surface-variant);
+}
+
+.mehfil-m3-text-body {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.mehfil-m3-text-title {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.mehfil-m3-text-label {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Chip set: room filter row */
+.mehfil-m3 md-chip-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mehfil-m3 md-filter-chip {
+  --md-filter-chip-container-shape: 9999px;
+  --md-filter-chip-outline-width: 1px;
+}
+
+.mehfil-m3 md-filter-chip.mehfil-room-chip-active {
+  --md-filter-chip-outline-color: transparent;
+}
+
+/* Search field in top bar */
+.mehfil-m3-search-field {
+  width: 100%;
+  max-width: 36rem;
+}
+
+.mehfil-m3-search-field md-outlined-text-field {
+  width: 100%;
+  --md-outlined-text-field-container-shape: 9999px;
+  --md-outlined-text-field-outline-color: transparent;
+  --md-outlined-text-field-hover-outline-color: transparent;
+  --md-outlined-text-field-focus-outline-color: var(--md-sys-color-primary);
+  background: var(--mehfil-surface-low);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mehfil-m3-search-field md-outlined-text-field:focus-within {
+  background: var(--mehfil-surface);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+/* Composer — Live Classroom UIButton + focus */
+.mehfil-m3 .composer-inner-card:focus-within {
+  border-color: color-mix(in srgb, var(--mehfil-ui-primary) 45%, var(--mehfil-outline-variant));
+  box-shadow: 0 0 0 3px var(--mehfil-ui-focus-ring);
+}
+
+.mehfil-m3 .composer-btn-share {
+  /* extends .mehfil-btn-primary when both classes present */
+}
+
+.mehfil-m3 .composer-btn-share.mehfil-btn-primary,
+.mehfil-m3 .composer-btn-share {
+  background: linear-gradient(to right, var(--mehfil-ui-gradient-from), var(--mehfil-ui-gradient-to));
+  color: var(--mehfil-ui-on-primary);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--mehfil-ui-primary) 28%, transparent);
+}
+
+.dark .mehfil-m3 .composer-btn-share {
+  background: var(--mehfil-ui-primary);
+}
+
+.mehfil-m3 .composer-btn-share:hover:not(:disabled) {
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--mehfil-ui-primary) 38%, transparent);
+}
+
+/* Sandesh header bell — UI primary; faculty badge stays violet */
+.mehfil-m3 .sandesh-header-icon {
+  color: var(--mehfil-ui-primary-container);
+}
+
+.mehfil-m3 .sandesh-faculty-badge {
+  background: var(--mehfil-faculty-container);
+  color: var(--mehfil-faculty-on-container);
+}
+
+.mehfil-m3 .sandesh-avatar-faculty {
+  background: var(--mehfil-faculty-container);
+  color: var(--mehfil-faculty);
+}
+
+.mehfil-m3 md-filled-button.composer-btn-share {
+  --md-filled-button-container-height: 40px;
+  --md-filled-button-container-shape: 9999px;
+  /* Colors come from Composer.css .composer-btn-share rules */
+}
+
+.mehfil-m3 .sandesh-m3-panel {
+  background: var(--mehfil-surface);
+}
+
+.mehfil-m3 .sandesh-m3-list-item {
+  border-bottom: 1px solid var(--mehfil-outline-variant);
+}
+
+.mehfil-m3 .sandesh-m3-list-item:hover {
+  background: var(--mehfil-surface-low);
+}
+
+/* Icon buttons in toolbar */
+.mehfil-m3 md-icon-button {
+  --md-icon-button-icon-size: 20px;
+  --md-icon-button-state-layer-shape: 8px;
+}
+
+/* Secondary UI chips / banners (Sandesh compose toolbar) */
+.mehfil-m3 .mehfil-ui-chip-active {
+  background: color-mix(in srgb, var(--mehfil-ui-primary) 18%, var(--mehfil-surface-low));
+  border: 1px solid color-mix(in srgb, var(--mehfil-ui-primary) 35%, var(--mehfil-outline-variant));
+  color: var(--mehfil-ui-primary-container);
+}
+
+.mehfil-m3 .mehfil-ui-chip-idle {
+  background: color-mix(in srgb, var(--mehfil-on-surface) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mehfil-outline-variant) 80%, transparent);
+  color: var(--mehfil-on-surface-variant);
+}
+
+.mehfil-m3 .mehfil-ui-banner {
+  background: var(--mehfil-info-container);
+  border: 1px solid color-mix(in srgb, var(--mehfil-ui-primary-container) 28%, var(--mehfil-outline-variant));
+  color: var(--mehfil-info-on-container);
+}
+
+.mehfil-m3 .mehfil-ui-soft-btn {
+  background: color-mix(in srgb, var(--mehfil-ui-primary) 12%, var(--mehfil-surface-low));
+  border: 1px solid color-mix(in srgb, var(--mehfil-ui-primary) 28%, var(--mehfil-outline-variant));
+  color: var(--mehfil-ui-primary-container);
+}

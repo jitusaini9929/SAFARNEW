@@ -400,7 +400,7 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div className="sandesh-bell-box">
-                        <Bell size={16} className={`text-indigo-600 dark:text-indigo-300 relative z-10 ${hasUnread ? 'animate-swing' : ''}`} />
+                        <Bell size={16} className={`sandesh-header-icon relative z-10 ${hasUnread ? 'animate-swing' : ''}`} />
                         {hasUnread && (
                             <span style={{
                                 position: 'absolute', top: '4px', right: '4px',
@@ -412,8 +412,8 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
                         )}
                     </div>
                     <div>
-                        <h2 className="text-base font-bold text-slate-900 dark:text-slate-200 tracking-wide">{t('sandesh.title')}</h2>
-                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        <h2 className="text-base font-bold mehfil-text-title tracking-wide">{t('sandesh.title')}</h2>
+                        <p className="text-[11px] font-medium mehfil-text-muted">
                             {sandeshes.length === 1 ? t('sandesh.announcements_singular') : t('sandesh.announcements_plural', { count: sandeshes.length })}
                         </p>
                     </div>
@@ -449,7 +449,7 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
                                     alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                                     transition: 'all 0.2s'
                                 }}
-                                className={btn.active ? "bg-indigo-500/20 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400" : "bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-slate-500 dark:text-slate-400"}
+                                className={btn.active ? "mehfil-ui-chip-active" : "mehfil-ui-chip-idle"}
                             >
                                 {btn.icon}
                             </button>
@@ -463,7 +463,7 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
                         <div style={{ marginBottom: '8px' }}>
                             <div className="sandesh-input-card" style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', marginBottom: '6px', gap: '8px', flexWrap: 'wrap' }}>
                                 <button onClick={() => imageInputRef.current?.click()} disabled={isUploadingImage}
-                                    className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400"
+                                    className="mehfil-ui-soft-btn"
                                     style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer', fontWeight: 500, flexShrink: 0, border: 'none' }}>
                                     {isUploadingImage ? <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Uploading&hellip;</> : <><ImageIcon size={12} /> Upload Image</>}
                                 </button>
@@ -523,12 +523,12 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
 
                     {/* Audio status */}
                     {isUploadingAudio && (
-                        <div className="bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-300" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '8px', marginBottom: '8px', fontSize: '12px' }}>
+                        <div className="mehfil-ui-banner" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '8px', marginBottom: '8px', fontSize: '12px' }}>
                             <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> {t('sandesh.uploading_audio')}
                         </div>
                     )}
                     {audioUrl && (
-                        <div className="bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-300" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: '8px', marginBottom: '8px' }}>
+                        <div className="mehfil-ui-banner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: '8px', marginBottom: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
                                 <Mic size={13} /> {t('sandesh.audio_attached')}
                             </div>
@@ -587,16 +587,18 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
 
                             {/* Author row */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                                <div className="sandesh-avatar-indigo"
-                                    style={{ width: '34px', height: '34px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                                <div
+                                    className="sandesh-avatar-faculty"
+                                    style={{ width: '34px', height: '34px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 }}
+                                >
                                     <ShieldCheck size={16} />
                                 </div>
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                        <span className="text-[13.5px] font-semibold text-slate-900 dark:text-slate-200">Parmar Sir&apos;s Corner</span>
-                                        <span className="sandesh-badge sandesh-badge-indigo">{t('sandesh.faculty')}</span>
+                                        <span className="text-[13.5px] font-semibold mehfil-text-title">Parmar Sir&apos;s Corner</span>
+                                        <span className="sandesh-badge sandesh-faculty-badge">{t('sandesh.faculty')}</span>
                                     </div>
-                                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    <span className="text-[11px] mehfil-text-muted">
                                         {formatDistanceToNow(new Date(sandesh.created_at), { addSuffix: true, locale: i18n.language === 'hi' ? hi : enUS })}
                                     </span>
                                 </div>
@@ -666,7 +668,7 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
 
                             {/* Audio Player */}
                             {sandesh.audio_url && (
-                                <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10" style={{ marginBottom: '10px', padding: '12px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div className="bg-slate-50 dark:bg-muted/40 border border-slate-200 dark:border-border" style={{ marginBottom: '10px', padding: '12px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <button onClick={() => toggleAudioPlay(sandesh.audio_url!, sandesh.id)}
                                         className={playingAudioId === sandesh.id ? 'bg-rose-600 text-white' : 'bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white'}
                                         style={{ width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}>
@@ -688,8 +690,8 @@ const SandeshCard: React.FC<SandeshCardProps> = ({ onUnreadChange }) => {
                             {sandesh.link_meta && !sandesh.link_meta.url.match(/(?:youtube\.com|youtu\.be)/i) && (
                                 <a href={sandesh.link_meta.url} target="_blank" rel="noopener noreferrer" className="sandesh-link-preview">
                                     <div style={{ width: '34px', height: '34px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-                                        className="bg-indigo-100 dark:bg-indigo-500/10">
-                                        <LinkIcon size={14} className="text-indigo-600 dark:text-indigo-400" />
+                                        className="mehfil-ui-soft-btn">
+                                        <LinkIcon size={14} style={{ color: 'var(--mehfil-ui-primary-container)' }} />
                                     </div>
                                     <div>
                                         <div className="text-indigo-900 dark:text-indigo-300" style={{ fontSize: '12.5px', fontWeight: 600 }}>{sandesh.link_meta.title}</div>

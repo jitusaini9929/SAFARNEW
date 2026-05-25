@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const PLANNER_PRESS_EASE = "motion-safe:ease-\\[cubic-bezier(0.23,1,0.32,1)\\]";
-const PLANNER_PRESSABLE = `motion-safe:transition-[transform,box-shadow,background-color,border-color,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} motion-reduce:transition-colors active:scale-[0.97] active:translate-y-[1px] disabled:active:scale-100 disabled:active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40`;
+const PLANNER_PRESSABLE = `motion-safe:transition-[transform,box-shadow,background-color,border-color,color,opacity] motion-safe:duration-150 ${PLANNER_PRESS_EASE} motion-reduce:transition-colors active:scale-[0.98] disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005bbf]/35`;
 
 export type MergedPlanTopicStatus =
   | "todo"
@@ -24,41 +24,97 @@ export type MergedPlanTopic = {
 
 const STATUS_ROW: Record<
   MergedPlanTopicStatus,
-  { label: string; color: string; bg: string; darkBg?: string }
+  { label: string; color: string; bg: string; darkBg?: string; border: string }
 > = {
   todo: {
-    label: "Not Started",
-    color: "#64748b",
+    label: "Not started",
+    color: "#475569",
     bg: "#f1f5f9",
     darkBg: "#1e293b",
+    border: "#e2e8f0",
   },
   in_progress: {
-    label: "In Progress",
-    color: "#00b8d4",
-    bg: "#e0f7fa",
-    darkBg: "#00363d",
+    label: "In progress",
+    color: "#0369a1",
+    bg: "#e0f2fe",
+    darkBg: "#0c4a6e",
+    border: "#bae6fd",
   },
   done: {
     label: "Done",
-    color: "#0284c7",
-    bg: "#e0f2fe",
-    darkBg: "#0c4a6e",
+    color: "#047857",
+    bg: "#d1fae5",
+    darkBg: "#064e3b",
+    border: "#a7f3d0",
   },
   revision_needed: {
-    label: "Needs Revision",
-    color: "#7c3aed",
-    bg: "#f3e8ff",
+    label: "Needs revision",
+    color: "#6d28d9",
+    bg: "#ede9fe",
     darkBg: "#3b0764",
+    border: "#ddd6fe",
   },
 };
 
-function surfaceCard(isDarkMode: boolean, dense = true) {
-  const pad = dense ? "p-3 sm:p-4" : "p-5 sm:p-6";
-  return `rounded-2xl sm:rounded-3xl ${pad} transition-colors duration-500 ${
+function plannerCard(isDarkMode: boolean, className = "") {
+  return `rounded-2xl border transition-colors duration-300 ${
     isDarkMode
-      ? "bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#2b2c2c]"
-      : "bg-[#f0f0f5] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] border border-[#c0c4d1]"
-  }`;
+      ? "bg-[#141618] border-[#2e3338] shadow-[0_1px_0_rgba(255,255,255,0.04)]"
+      : "bg-white border-[#e2e8f0] shadow-[0_1px_3px_rgba(15,23,42,0.06)]"
+  } ${className}`;
+}
+
+function ProgressRing({
+  percent,
+  isDarkMode,
+}: {
+  percent: number;
+  isDarkMode: boolean;
+}) {
+  const clamped = Math.min(100, Math.max(0, percent));
+  const r = 36;
+  const c = 2 * Math.PI * r;
+  const offset = c - (clamped / 100) * c;
+  return (
+    <svg
+      width="88"
+      height="88"
+      viewBox="0 0 88 88"
+      className="shrink-0"
+      aria-hidden
+    >
+      <circle
+        cx="44"
+        cy="44"
+        r={r}
+        fill="none"
+        stroke={isDarkMode ? "#2e3338" : "#eceef1"}
+        strokeWidth="8"
+      />
+      <circle
+        cx="44"
+        cy="44"
+        r={r}
+        fill="none"
+        stroke="#005bbf"
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={offset}
+        transform="rotate(-90 44 44)"
+        className="transition-[stroke-dashoffset] duration-500"
+      />
+      <text
+        x="44"
+        y="46"
+        textAnchor="middle"
+        className="fill-[#005bbf] text-[17px] font-bold"
+        style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+      >
+        {clamped}%
+      </text>
+    </svg>
+  );
 }
 
 export type MergedPlanTabProps = {
@@ -87,8 +143,13 @@ export type MergedPlanTabProps = {
   onToggleOffDay: (day: number) => void;
   onSaveCapacity: () => void;
   todayTopics: MergedPlanTopic[];
+  todayDoneCount?: number;
+  todayTotalCount?: number;
+  bonusDoneCount?: number;
+  bonusTopics?: MergedPlanTopic[];
   overdueTopics: MergedPlanTopic[];
   upcomingTopics: MergedPlanTopic[];
+  completedTopics: MergedPlanTopic[];
   formatPlannedDate: (iso?: string) => string;
   daysOverdue: (plannedIso: string, todayKey: string) => number;
   todayKey: string;
@@ -98,21 +159,22 @@ export type MergedPlanTabProps = {
   onGoSyllabusFromEmpty: () => void;
   onRequestResetPlan: () => void;
   onExport?: () => void;
+  focusRequest?: PlanFocusRequest | null;
+  onFocusRequestHandled?: () => void;
 };
 
 const OFF_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
-type TaskTab = "today" | "overdue" | "upcoming";
+export type TaskTab = "today" | "overdue" | "upcoming" | "completed";
+
+type PlanFocusRequest = {
+  taskTab?: TaskTab;
+  settingsSection?: "capacity" | "basics";
+  scrollTo?: "tasks" | "settings";
+};
 
 export default function MergedPlanTab({
   isDarkMode,
-  hasExamDate,
-  hasTopics,
-  hasScheduledTopics,
-  onScrollToBasics,
-  onOpenSyllabus,
-  onBuildSchedule,
-  onOpenCalendar,
   progressPercent,
   progressDone,
   progressTotal,
@@ -130,8 +192,13 @@ export default function MergedPlanTab({
   onToggleOffDay,
   onSaveCapacity,
   todayTopics,
+  todayDoneCount = 0,
+  todayTotalCount = 0,
+  bonusDoneCount = 0,
+  bonusTopics = [],
   overdueTopics,
   upcomingTopics,
+  completedTopics,
   formatPlannedDate,
   daysOverdue,
   todayKey,
@@ -141,23 +208,65 @@ export default function MergedPlanTab({
   onGoSyllabusFromEmpty,
   onRequestResetPlan,
   onExport,
+  focusRequest,
+  onFocusRequestHandled,
 }: MergedPlanTabProps) {
-  const overdueShown = overdueTopics.slice(0, 8);
+
   const [taskTab, setTaskTab] = useState<TaskTab>("today");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isFlowModeActive, setIsFlowModeActive] = useState(false);
+  const tasksRef = useRef<HTMLDivElement | null>(null);
+  const basicsRef = useRef<HTMLDivElement | null>(null);
+  const capacityRef = useRef<HTMLDivElement | null>(null);
 
-  const cleanPillBase = `inline-flex items-center justify-center rounded-full px-3 py-2 text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] leading-none ${PLANNER_PRESSABLE} disabled:opacity-60 disabled:cursor-not-allowed`;
-  const cleanPrimaryPill = `${cleanPillBase} bg-[#3b82f6] text-white shadow-[0_8px_18px_rgba(37,99,235,0.32)] hover:bg-[#2563eb]`;
-  const cleanSecondaryPill = `${cleanPillBase} border ${
+  useEffect(() => {
+    if (!focusRequest) return;
+    if (focusRequest.taskTab) {
+      setTaskTab(focusRequest.taskTab);
+    }
+    if (focusRequest.settingsSection) {
+      setSettingsOpen(true);
+    }
+
+    if (focusRequest.scrollTo === "tasks") {
+      tasksRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (focusRequest.scrollTo === "settings") {
+      const targetRef =
+        focusRequest.settingsSection === "capacity" ? capacityRef : basicsRef;
+      window.setTimeout(() => {
+        targetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
+    }
+
+    onFocusRequestHandled?.();
+  }, [focusRequest, onFocusRequestHandled]);
+
+  const activeFlowTopic = todayTopics.length > 0 ? todayTopics[0] : bonusTopics.length > 0 ? bonusTopics[0] : null;
+  if (isFlowModeActive && !activeFlowTopic) {
+    setIsFlowModeActive(false);
+  }
+
+  const overdueShown = overdueTopics.slice(0, 12);
+
+  const textPrimary = isDarkMode ? "text-[#f1f5f9]" : "text-[#191c1d]";
+  const textMuted = isDarkMode ? "text-[#94a3b8]" : "text-[#5c6370]";
+  const textLabel = isDarkMode ? "text-[#64748b]" : "text-[#727785]";
+
+  const primaryBtn = `${PLANNER_PRESSABLE} inline-flex items-center justify-center gap-2 rounded-full bg-[#005bbf] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_4px_14px_rgba(0,91,191,0.28)] hover:bg-[#004da3]`;
+  const secondaryBtn = `${PLANNER_PRESSABLE} inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-[13px] font-semibold ${
     isDarkMode
-      ? "bg-[#343840] border-[#4a4e55] text-[#e2e8f0] hover:bg-[#3b4048]"
-      : "bg-white/95 border-[#cfd6e2] text-[#1f2937] hover:bg-white"
-  } shadow-[0_4px_10px_rgba(15,23,42,0.14)]`;
+      ? "border-[#3d444d] bg-[#1c1f22] text-[#e2e8f0] hover:bg-[#25292e]"
+      : "border-[#c1c6d6] bg-white text-[#191c1d] hover:bg-[#f8fafb]"
+  }`;
 
-  const inputClass = `w-full bg-[#ffffff] dark:bg-[#0e0e0e] text-[#2d333b] dark:text-[#e7e5e5] rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 border border-[#c0c4d1] dark:border-[#2b2c2c] font-bold text-[13px]`;
+  const fieldClass = `w-full rounded-xl border px-3.5 py-2.5 text-[14px] font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#005bbf]/30 ${
+    isDarkMode
+      ? "border-[#3d444d] bg-[#0e1012] text-[#f1f5f9] placeholder:text-[#64748b]"
+      : "border-[#d8dce6] bg-[#f8fafb] text-[#191c1d] placeholder:text-[#94a3b8]"
+  }`;
 
-  const guideBtn = `flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[11px] sm:text-[12px] font-semibold leading-tight ${isDarkMode ? "hover:bg-white/5" : "hover:bg-black/5"}`;
-
-  function TopicRow({ topic }: { topic: MergedPlanTopic }) {
+  function TopicRow({ topic }: { topic: MergedPlanTopic; variant?: "overdue" }) {
     const ui = STATUS_ROW[topic.status];
     return (
       <div
@@ -185,7 +294,25 @@ export default function MergedPlanTab({
                 {topic.subject.name}
                 {topic.chapter?.name ? ` · ${topic.chapter.name}` : ""}
               </div>
-              {topic.plannedDate && topic.status !== "done" ? (
+              {topic.status === "done" ? (
+                <div
+                  className={`text-[11px] font-semibold mt-1 flex flex-wrap items-center gap-1.5 ${
+                    isDarkMode ? "text-[#94a3b8]" : "text-[#64748b]"
+                  }`}
+                >
+                  {topic.plannedDate && (
+                    <span>
+                      Set for: <span className={isDarkMode ? "text-[#e2e8f0]" : "text-[#1e293b]"}>{formatPlannedDate(topic.plannedDate)}</span>
+                    </span>
+                  )}
+                  {topic.plannedDate && topic.completedDate && <span className="opacity-40">•</span>}
+                  {topic.completedDate && (
+                    <span className="text-primary font-bold">
+                      Completed: {formatPlannedDate(topic.completedDate)}
+                    </span>
+                  )}
+                </div>
+              ) : topic.plannedDate ? (
                 <div
                   className={`text-[11px] font-semibold mt-0.5 ${isDarkMode ? "text-[#93c5fd]" : "text-[#1d4ed8]"}`}
                 >
@@ -209,430 +336,464 @@ export default function MergedPlanTab({
             <button
               type="button"
               onClick={() => void patchTopic(topic.id, { status: "done" })}
-              className={`text-[10px] sm:text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-600 text-white ${PLANNER_PRESSABLE}`}
+              className={`text-[10px] sm:text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-primary text-primary-foreground ${PLANNER_PRESSABLE}`}
             >
-              Done
+              Mark Done
             </button>
           </div>
-        ) : null}
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void patchTopic(topic.id, { status: "todo" })}
+              className={`text-[10px] sm:text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-slate-200 text-slate-600 dark:bg-[#2a2d32] dark:text-slate-400 ${PLANNER_PRESSABLE}`}
+            >
+              Undo
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
   if (emptySyllabus) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        data-tour="planner-merged-home"
-        className="rounded-2xl sm:rounded-3xl p-6 sm:p-8 transition-colors duration-500 bg-[#f0f0f5] dark:bg-[#1a1c1e] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.6),-4px_-4px_8px_rgba(255,255,255,0.03),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-[#c0c4d1] dark:border-[#2b2c2c] flex flex-col items-center text-center gap-4 max-w-2xl mx-auto"
-      >
-        <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-        </div>
-        <div>
-          <h3 className="text-xl sm:text-2xl font-black text-[#2d333b] dark:text-[#e7e5e5] mb-2">
-            Step 1: Build Your Syllabus
-          </h3>
-          <p className="text-xs sm:text-sm font-bold text-[#4b5563] dark:text-[#9ca3af] max-w-sm mx-auto leading-relaxed">
-            Add subjects and topics in Syllabus, then return here to pace and
-            track your study plan.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onGoSyllabusFromEmpty}
-          className="text-[12px] sm:text-[14px] font-black uppercase tracking-widest px-8 py-3.5 sm:py-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-[0_4px_14px_rgba(37,99,235,0.39)] transition-transform hover:scale-105 active:scale-95"
-        >
-          Go to Syllabus Builder
+      <div className={`${plannerCard(isDarkMode, "flex flex-col items-center justify-center p-8 text-center sm:p-12")}`}>
+        <div className="mb-4 text-[40px]">📚</div>
+        <h3 className={`mb-2 text-[18px] font-bold ${textPrimary}`}>Your syllabus is empty</h3>
+        <p className={`mb-6 max-w-md text-[14px] ${textMuted}`}>
+          Start by adding subjects, chapters, and topics to your syllabus. Once you have topics, you can track them here.
+        </p>
+        <button type="button" onClick={onGoSyllabusFromEmpty} className={primaryBtn}>
+          Go to Syllabus Setup
         </button>
-      </motion.div>
+      </div>
     );
   }
 
-  /** One scroll region for tasks so the main page stays short; fits typical laptop below header/tabs. */
+  if (isFlowModeActive && activeFlowTopic) {
+    return (
+      <div className={`relative flex min-h-[500px] flex-col items-center justify-center rounded-2xl p-4 sm:p-8 ${isDarkMode ? "bg-[#0e1012] border border-[#2e3338]" : "bg-white border border-[#e2e8f0]"}`}>
+        <button 
+          type="button"
+          onClick={() => setIsFlowModeActive(false)}
+          className={`absolute left-4 top-4 flex items-center gap-1 rounded-full px-4 py-2 text-[12px] font-bold uppercase tracking-wider transition-colors ${isDarkMode ? "text-slate-400 hover:bg-slate-800 hover:text-white" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"}`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          Exit Flow
+        </button>
+        
+        <div className="mx-auto flex w-full max-w-xl flex-col items-center text-center mt-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeFlowTopic.id}
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              className="w-full flex flex-col items-center"
+            >
+              <div className="mb-6 animate-pulse text-[13px] font-black uppercase tracking-widest text-[#005bbf]">
+                Active Focus Session
+              </div>
+              <h2 className={`mb-4 text-4xl font-bold leading-tight sm:text-5xl ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
+                {activeFlowTopic.name}
+              </h2>
+              <div className="mb-12 text-[14px] font-bold uppercase tracking-widest text-slate-500">
+                {activeFlowTopic.subject.name} {activeFlowTopic.chapter?.name ? `· ${activeFlowTopic.chapter.name}` : ""}
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  patchTopic(activeFlowTopic.id, { status: "done" });
+                }}
+                className={`flex w-full items-center justify-center gap-3 rounded-full safar-btn-primary px-12 py-5 text-[18px] font-black uppercase tracking-widest hover:shadow-2xl active:scale-95 sm:w-auto`}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Mark as Done
+              </button>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+    );
+  }
+
   const taskScrollClass =
-    "min-h-0 max-h-[min(32dvh,280px)] sm:max-h-[min(34dvh,320px)] lg:max-h-[min(38dvh,360px)] overflow-y-auto overscroll-contain pr-0.5";
+    "min-h-0 max-h-[min(42dvh,420px)] overflow-y-auto overscroll-contain scroll-smooth pr-1";
 
   return (
     <motion.div
       data-tour="planner-merged-home"
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="w-full max-w-7xl mx-auto flex flex-col gap-2 sm:gap-3"
+      transition={{ duration: 0.35 }}
+      className="mx-auto flex w-full max-w-7xl flex-col gap-4"
     >
-      {/* Top dashboard: 4 columns on xl — uses horizontal space, less vertical stack */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-2 sm:gap-3 shrink-0">
-        <div
-          data-tour="planner-merged-guide"
-          className={`${surfaceCard(isDarkMode)} xl:col-span-2`}
-        >
-          <div className="text-[13px] sm:text-[14px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2">
-            Setup Guide
-          </div>
-          <div className="grid grid-cols-2 gap-1">
-            <button
-              type="button"
-              onClick={onScrollToBasics}
-              className={guideBtn}
-            >
-              <span
-                className={hasExamDate ? "text-emerald-600" : "text-slate-400"}
-              >
-                {hasExamDate ? "✓" : "→"}
-              </span>
-              <span className="min-w-0">Exam date</span>
-            </button>
-            <button type="button" onClick={onOpenSyllabus} className={guideBtn}>
-              <span
-                className={hasTopics ? "text-emerald-600" : "text-slate-400"}
-              >
-                {hasTopics ? "✓" : "→"}
-              </span>
-              <span className="min-w-0">Topics</span>
-            </button>
-            <button
-              type="button"
-              onClick={onBuildSchedule}
-              className={guideBtn}
-            >
-              <span
-                className={
-                  hasScheduledTopics ? "text-emerald-600" : "text-slate-400"
-                }
-              >
-                {hasScheduledTopics ? "✓" : "→"}
-              </span>
-              <span className="min-w-0">Schedule</span>
-            </button>
-            <button type="button" onClick={onOpenCalendar} className={guideBtn}>
-              <span className="text-slate-400">→</span>
-              <span className="min-w-0">Calendar</span>
-            </button>
-          </div>
-        </div>
-
-        <div
-          data-tour="planner-merged-progress"
-          className={`${surfaceCard(isDarkMode)} md:col-span-1 xl:col-span-4`}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-stretch sm:justify-between gap-3">
+      {/* Hero: progress + setup + quick actions */}
+      <div
+        className={`${plannerCard(isDarkMode, "overflow-hidden")} grid lg:grid-cols-[1fr_auto] lg:items-stretch`}
+      >
+        <div className="flex flex-col gap-4 p-4 sm:p-5 lg:border-r lg:border-[#e2e8f0] dark:lg:border-[#2e3338]">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-5">
+            <ProgressRing percent={progressPercent} isDarkMode={isDarkMode} />
             <div className="min-w-0 flex-1">
-              <div className="flex items-end gap-2">
-                <span className="text-[26px] sm:text-[30px] font-extrabold text-blue-600 dark:text-blue-400 leading-none">
-                  {progressPercent}%
-                </span>
-                <span className="text-[12px] font-semibold text-[#64748b] dark:text-[#9aa2ae] pb-0.5">
-                  complete
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+              <p className={`text-[12px] font-semibold uppercase tracking-wider ${textLabel}`}>
+                Plan progress
+              </p>
+              <p className={`mt-1 text-[15px] font-semibold ${textPrimary}`}>
+                {progressDone} of {progressTotal} topics complete
+              </p>
+              <p className={`mt-0.5 text-[13px] ${textMuted}`}>
+                Target pace · {requiredPacePerDay} topics / study day
+              </p>
+              <div
+                className={`mt-3 h-1.5 overflow-hidden rounded-full ${
+                  isDarkMode ? "bg-[#2e3338]" : "bg-[#eceef1]"
+                }`}
+              >
                 <div
-                  className="h-full rounded-full bg-blue-600 transition-all"
+                  className="h-full rounded-full bg-[#005bbf] transition-all duration-500"
                   style={{
                     width: `${Math.min(100, Math.max(0, progressPercent))}%`,
                   }}
                 />
               </div>
-              <p className="mt-2 text-[12px] sm:text-[13px] font-semibold text-[#2d333b] dark:text-[#e7e5e5] leading-tight">
-                {progressDone} / {progressTotal} topics done
-              </p>
-              <p className="mt-0.5 text-[11px] sm:text-[12px] text-[#64748b] dark:text-[#9aa2ae]">
-                Pace: {requiredPacePerDay} topics/day
-              </p>
-            </div>
-            <div className="flex sm:flex-col justify-stretch sm:justify-center shrink-0 gap-2">
-              <button
-                type="button"
-                data-tour="planner-merged-add-topics"
-                onClick={onAddTopics}
-                className={`${cleanPrimaryPill} w-full sm:w-auto py-2.5 px-4 text-[11px] sm:text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-                </svg>
-                Add Topics
-              </button>
-              {onExport && (
-                <button
-                  type="button"
-                  onClick={onExport}
-                  className={`${cleanSecondaryPill} w-full sm:w-auto py-2.5 px-4 text-[11px] sm:text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap`}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  Export
-                </button>
-              )}
             </div>
           </div>
         </div>
 
         <div
-          data-tour="planner-merged-basics"
-          className={`${surfaceCard(isDarkMode)} md:col-span-1 xl:col-span-3`}
+          data-tour="planner-merged-progress"
+          className={`flex flex-col justify-center gap-2 border-t p-4 sm:p-5 lg:w-[200px] lg:border-t-0 lg:border-l ${
+            isDarkMode ? "border-[#2e3338] bg-[#0e1012]/50" : "border-[#e2e8f0] bg-[#f8fafb]/80"
+          }`}
         >
-          <div className="text-[13px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2">
-            Basics
-          </div>
-          <div className="grid gap-2">
-            <input
-              value={planTitleDraft}
-              onChange={(e) => onPlanTitleChange(e.target.value)}
-              placeholder="Plan title"
-              className={inputClass}
-            />
-            <input
-              value={examType}
-              onChange={(e) => onExamTypeChange(e.target.value)}
-              placeholder="Exam type"
-              className={inputClass}
-            />
-            <div>
-              <div className="text-[10px] font-bold text-[#64748b] dark:text-[#9aa2ae] mb-1">
-                Exam date
-              </div>
-              <div className="scale-95 origin-top-left">{examDateField}</div>
-            </div>
-            <button
-              type="button"
-              onClick={() => onSaveBasics()}
-              className={`${cleanPrimaryPill} py-2 text-[11px] font-black uppercase tracking-widest w-full`}
-            >
-              Save Basics
-            </button>
-          </div>
-        </div>
-
-        <div
-          data-tour="planner-merged-capacity"
-          className={`${surfaceCard(isDarkMode)} md:col-span-2 xl:col-span-3`}
-        >
-          <div className="text-[13px] font-bold text-[#2d333b] dark:text-[#e7e5e5] mb-2">
-            Study Capacity
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#9aa2ae]">
-                Daily goal
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={dailyGoalDraft}
-                onChange={(e) => onDailyGoalChange(Number(e.target.value))}
-                className={`${inputClass} mt-1`}
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <div className="text-[10px] font-black uppercase tracking-widest text-[#64748b] dark:text-[#9aa2ae] mb-1">
-                Off days
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {OFF_LABELS.map((label, idx) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => onToggleOffDay(idx)}
-                    className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border ${
-                      offDaysDraft.includes(idx)
-                        ? "bg-[#3b82f6] text-white border-[#2563eb]"
-                        : "bg-white dark:bg-[#202225] text-[#4b5563] dark:text-[#cbd5f5] border-[#c0c4d1] dark:border-[#2b2c2c]"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
           <button
             type="button"
-            onClick={() => onSaveCapacity()}
-            className={`${cleanPrimaryPill} py-2 text-[11px] font-black uppercase tracking-widest w-full mt-2`}
+            data-tour="planner-merged-add-topics"
+            onClick={onAddTopics}
+            className={`${primaryBtn} w-full`}
           >
-            Save Capacity
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+            </svg>
+            Add topics
           </button>
+          {onExport ? (
+            <button type="button" onClick={onExport} className={`${secondaryBtn} w-full`}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export
+            </button>
+          ) : null}
         </div>
       </div>
 
-      {/* Tasks: tabs replace three stacked sections — same content, less height */}
-      <div className={`${surfaceCard(isDarkMode)} flex flex-col min-h-0`}>
-        <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-[#e6e7ee] dark:bg-[#131416] border border-[#c0c4d1]/60 dark:border-[#2b2c2c]">
-          <button
-            type="button"
-            data-tour="planner-merged-today"
-            onClick={() => setTaskTab("today")}
-            className={`flex-1 min-w-[5.5rem] rounded-lg px-2 py-1.5 text-[11px] sm:text-[12px] font-bold transition-colors ${
-              taskTab === "today"
-                ? "bg-white dark:bg-[#1a1c1e] text-[#1e293b] dark:text-[#e7e5e5] shadow-sm"
-                : "text-[#64748b] dark:text-[#9aa2ae]"
-            }`}
-          >
-            Today ({todayTopics.length})
-          </button>
-          <button
-            type="button"
-            data-tour="planner-merged-overdue"
-            onClick={() => setTaskTab("overdue")}
-            className={`flex-1 min-w-[5.5rem] rounded-lg px-2 py-1.5 text-[11px] sm:text-[12px] font-bold transition-colors ${
-              taskTab === "overdue"
-                ? "bg-white dark:bg-[#1a1c1e] text-[#1e293b] dark:text-[#e7e5e5] shadow-sm"
-                : "text-[#64748b] dark:text-[#9aa2ae]"
-            }`}
-          >
-            Overdue ({overdueTopics.length})
-          </button>
-          <button
-            type="button"
-            data-tour="planner-merged-upcoming"
-            onClick={() => setTaskTab("upcoming")}
-            className={`flex-1 min-w-[5.5rem] rounded-lg px-2 py-1.5 text-[11px] sm:text-[12px] font-bold transition-colors ${
-              taskTab === "upcoming"
-                ? "bg-white dark:bg-[#1a1c1e] text-[#1e293b] dark:text-[#e7e5e5] shadow-sm"
-                : "text-[#64748b] dark:text-[#9aa2ae]"
-            }`}
-          >
-            Upcoming ({upcomingTopics.length})
-          </button>
-        </div>
+      {/* Collapsible plan settings */}
+      <div className={plannerCard(isDarkMode, "overflow-hidden")}>
+        <button
+          type="button"
+          onClick={() => setSettingsOpen((o) => !o)}
+          className={`flex w-full items-center justify-between gap-3 px-4 py-3.5 sm:px-5 ${PLANNER_PRESSABLE} ${
+            isDarkMode ? "hover:bg-[#1c1f22]" : "hover:bg-[#f8fafb]"
+          }`}
+        >
+          <span className={`text-[15px] font-semibold ${textPrimary}`}>Plan settings</span>
+          <span className={`flex items-center gap-2 text-[13px] font-medium ${textMuted}`}>
+            Basics & capacity
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`transition-transform ${settingsOpen ? "rotate-180" : ""}`}
+            >
+              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+        </button>
 
-        <div className={`mt-2 ${taskScrollClass}`}>
-          {taskTab === "today" ? (
-            todayTopics.length === 0 ? (
-              <div
-                className={`text-center py-6 text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] rounded-xl border border-dashed ${isDarkMode ? "border-[#2b2c2c] bg-[#131416]/50" : "border-[#d9dbe2] bg-[#e6e7ee]/50"}`}
-              >
-                No tasks planned for today.
+        {settingsOpen ? (
+          <div
+            className={`grid gap-4 border-t px-4 pb-4 pt-2 sm:grid-cols-2 sm:px-5 sm:pb-5 ${
+              isDarkMode ? "border-[#2e3338]" : "border-[#e2e8f0]"
+            }`}
+          >
+            <div
+              ref={basicsRef}
+              data-tour="planner-merged-basics"
+              className="flex flex-col gap-3"
+            >
+              <h4 className={`text-[13px] font-semibold uppercase tracking-wider ${textLabel}`}>
+                Basics
+              </h4>
+              <input
+                value={planTitleDraft}
+                onChange={(e) => onPlanTitleChange(e.target.value)}
+                placeholder="Plan title"
+                className={fieldClass}
+              />
+              <input
+                value={examType}
+                onChange={(e) => onExamTypeChange(e.target.value)}
+                placeholder="Exam type"
+                className={fieldClass}
+              />
+              <div>
+                <label className={`mb-1.5 block text-[12px] font-semibold ${textLabel}`}>
+                  Exam date
+                </label>
+                {examDateField}
               </div>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {todayTopics.map((topic) => (
-                  <TopicRow key={topic.id} topic={topic} />
-                ))}
-              </div>
-            )
-          ) : null}
+              <button type="button" onClick={() => onSaveBasics()} className={`${primaryBtn} w-full sm:w-auto`}>
+                Save basics
+              </button>
+            </div>
 
-          {taskTab === "overdue" ? (
-            overdueShown.length === 0 ? (
-              <div
-                className={`text-center py-6 text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] rounded-xl border border-dashed ${isDarkMode ? "border-[#2b2c2c] bg-[#131416]/50" : "border-[#d9dbe2] bg-[#e6e7ee]/50"}`}
-              >
-                No overdue topics.
+            <div
+              ref={capacityRef}
+              data-tour="planner-merged-capacity"
+              className="flex flex-col gap-3"
+            >
+              <h4 className={`text-[13px] font-semibold uppercase tracking-wider ${textLabel}`}>
+                Study capacity
+              </h4>
+              <div>
+                <label className={`mb-1.5 block text-[12px] font-semibold ${textLabel}`}>
+                  Daily goal (topics)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={dailyGoalDraft}
+                  onChange={(e) => onDailyGoalChange(Number(e.target.value))}
+                  className={`${fieldClass} max-w-[120px] text-center`}
+                />
               </div>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {overdueShown.map((topic) => (
-                  <div
-                    key={topic.id}
-                    className="rounded-xl p-3 bg-[#fee2e2] dark:bg-[#2a1216] border border-[#fecaca] dark:border-[#7f1d1d]"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onTopicOpen(topic)}
-                      className="w-full text-left"
-                    >
-                      <div className="text-[13px] font-bold text-[#7f1d1d] dark:text-[#fecaca] leading-snug">
-                        {topic.name}
-                      </div>
-                      <div className="text-[10px] font-extrabold tracking-wide text-[#b91c1c] dark:text-[#fca5a5] mt-0.5 uppercase">
-                        {topic.subject.name}
-                        {topic.chapter?.name ? ` · ${topic.chapter.name}` : ""}
-                      </div>
-                      {topic.plannedDate ? (
-                        <div className="text-[10px] font-black tracking-wide text-[#b91c1c] dark:text-[#fca5a5] mt-1">
-                          {daysOverdue(topic.plannedDate, todayKey)} days
-                          overdue
-                        </div>
-                      ) : null}
-                    </button>
-                    <div className="mt-2 flex flex-wrap gap-2">
+              <div>
+                <label className={`mb-2 block text-[12px] font-semibold ${textLabel}`}>
+                  Off days
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {OFF_LABELS.map((label, idx) => {
+                    const active = offDaysDraft.includes(idx);
+                    return (
                       <button
+                        key={label}
                         type="button"
-                        onClick={() =>
-                          void patchTopic(topic.id, { status: "done" })
-                        }
-                        className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-600 text-white"
+                        onClick={() => onToggleOffDay(idx)}
+                        className={`${PLANNER_PRESSABLE} rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                          active
+                            ? "bg-[#005bbf] text-white shadow-sm"
+                            : isDarkMode
+                              ? "border border-[#3d444d] text-[#94a3b8] hover:bg-[#1c1f22]"
+                              : "border border-[#c1c6d6] text-[#5c6370] hover:bg-[#f8fafb]"
+                        }`}
                       >
-                        Done
+                        {label}
                       </button>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
-            )
-          ) : null}
-
-          {taskTab === "upcoming" ? (
-            upcomingTopics.length === 0 ? (
-              <div
-                className={`text-center py-6 text-[12px] font-bold text-[#64748b] dark:text-[#9aa2ae] rounded-xl border border-dashed ${isDarkMode ? "border-[#2b2c2c] bg-[#131416]/50" : "border-[#d9dbe2] bg-[#e6e7ee]/50"}`}
-              >
-                No upcoming topics.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {upcomingTopics.map((topic) => (
-                  <TopicRow key={topic.id} topic={topic} />
-                ))}
-              </div>
-            )
-          ) : null}
-        </div>
+              <button type="button" onClick={() => onSaveCapacity()} className={`${primaryBtn} w-full sm:w-auto`}>
+                Save capacity
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div
-        className={`${surfaceCard(isDarkMode)} shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3`}
+        ref={tasksRef}
+        className={`${plannerCard(isDarkMode, "flex min-h-0 flex-col")}`}
       >
-        <div className="text-[12px] sm:text-[13px] font-bold text-red-600 dark:text-red-400">
-          Danger Zone
-        </div>
-        <button
-          type="button"
-          onClick={onRequestResetPlan}
-          className={`${cleanSecondaryPill} w-full sm:w-auto py-2 px-4 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 text-[11px] font-black uppercase tracking-widest`}
+        {(todayTotalCount > 0 || bonusDoneCount > 0) && (
+          <div className={`px-4 pt-4 pb-2 ${isDarkMode ? "border-[#2e3338]" : "border-[#e2e8f0]"}`}>
+            <div className="flex items-center justify-between text-[13px] font-semibold">
+              <span className={textPrimary}>Day Progress</span>
+              <span className={textMuted}>
+                {todayTotalCount > 0 ? `${todayDoneCount}/${todayTotalCount} done` : "0 planned"}
+                {bonusDoneCount > 0 && <span className="ml-1 text-primary font-bold">(+{bonusDoneCount} bonus)</span>}
+              </span>
+            </div>
+            {todayTotalCount > 0 && (
+              <div className={`mt-2 h-1.5 overflow-hidden rounded-full ${isDarkMode ? "bg-[#2e3338]" : "bg-[#eceef1]"}`}>
+                <div 
+                  className="h-full rounded-full bg-primary transition-all duration-500" 
+                  style={{ width: `${Math.round((todayDoneCount / todayTotalCount) * 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+        <div
+          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b px-3 py-3 sm:px-4 ${
+            isDarkMode ? "border-[#2e3338] bg-[#0e1012]/40" : "border-[#e2e8f0] bg-[#f2f4f5]/60"
+          }`}
         >
-          Reset Entire Plan
-        </button>
+          <h3 className={`text-[16px] font-bold shrink-0 ${textPrimary}`} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+            Today&apos;s queue
+          </h3>
+          <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:gap-1 rounded-full p-1">
+            {(todayTopics.length > 0 || bonusTopics.length > 0) && (
+              <button 
+                type="button"
+                onClick={() => setIsFlowModeActive(true)}
+                className="mr-2 flex shrink-0 items-center gap-1.5 rounded-full bg-[#005bbf] px-4 py-1.5 text-[11px] sm:text-[12px] font-bold uppercase tracking-wider text-white shadow-sm transition-all hover:bg-[#004a9f] active:scale-95"
+              >
+                <span className="text-[14px]">▶</span> Start Studying
+              </button>
+            )}
+            {(
+              [
+                ["today", "Today", todayTopics.length],
+                ["overdue", "Overdue", overdueTopics.length],
+                ["upcoming", "Upcoming", upcomingTopics.length],
+                ["completed", "Completed", completedTopics.length],
+              ] as const
+            ).map(([tab, label, count]) => (
+              <button
+                key={tab}
+                type="button"
+                data-tour={
+                  tab === "today"
+                    ? "planner-merged-today"
+                    : tab === "overdue"
+                      ? "planner-merged-overdue"
+                      : tab === "completed"
+                        ? "planner-merged-completed"
+                        : "planner-merged-upcoming"
+                }
+                onClick={() => setTaskTab(tab)}
+                className={`${PLANNER_PRESSABLE} flex-1 min-w-[5rem] rounded-full px-3 py-2 text-[12px] font-semibold sm:flex-none sm:px-4 ${
+                  taskTab === tab
+                    ? isDarkMode
+                      ? "bg-[#1a1d20] text-[#f1f5f9] shadow-sm"
+                      : "bg-white text-[#191c1d] shadow-sm"
+                    : textMuted
+                }`}
+              >
+                {label}
+                <span className="ml-1 opacity-70">({count})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className={`p-3 sm:p-4 ${taskScrollClass}`}>
+          {taskTab === "today" &&
+            (todayTopics.length === 0 ? (
+              bonusTopics.length > 0 ? (
+                <div className="flex flex-col gap-3 py-2">
+                  <div className="text-center bg-[#f0fdf4] dark:bg-[#064e3b]/30 p-4 rounded-xl border border-[#bbf7d0] dark:border-[#065f46]">
+                    <h4 className="text-[15px] font-bold text-[#166534] dark:text-[#34d399] mb-1">
+                      {todayTotalCount > 0 ? "🎉 You finished today's plan!" : "🎉 You have no tasks today!"}
+                    </h4>
+                    <p className="text-[13px] text-[#15803d] dark:text-[#6ee7b7] opacity-90">Want to do more? Here are some bonus topics to get ahead.</p>
+                  </div>
+                  <div className="mt-2 text-[12px] font-bold uppercase tracking-widest text-[#64748b] dark:text-[#94a3b8] px-1">
+                    {overdueTopics.length > 0 ? "Pick up where you left off" : "Get ahead for tomorrow"}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <AnimatePresence initial={false}>
+                      {bonusTopics.map((topic) => (
+                        <TopicRow key={topic.id} topic={topic} />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              ) : (
+                <EmptyTasks isDarkMode={isDarkMode} message="No tasks planned for today." />
+              )
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <AnimatePresence initial={false}>
+                  {todayTopics.map((topic) => (
+                    <TopicRow key={topic.id} topic={topic} />
+                  ))}
+                </AnimatePresence>
+              </div>
+            ))}
+
+          {taskTab === "overdue" &&
+            (overdueShown.length === 0 ? (
+              <EmptyTasks isDarkMode={isDarkMode} message="You're caught up — no overdue topics." />
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <AnimatePresence initial={false}>
+                  {overdueShown.map((topic) => (
+                    <TopicRow key={topic.id} topic={topic} variant="overdue" />
+                  ))}
+                </AnimatePresence>
+              </div>
+            ))}
+
+          {taskTab === "upcoming" &&
+            (upcomingTopics.length === 0 ? (
+              <EmptyTasks isDarkMode={isDarkMode} message="Nothing scheduled ahead yet." />
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <AnimatePresence initial={false}>
+                  {upcomingTopics.map((topic) => (
+                    <TopicRow key={topic.id} topic={topic} />
+                  ))}
+                </AnimatePresence>
+              </div>
+            ))}
+
+          {taskTab === "completed" &&
+            (completedTopics.length === 0 ? (
+              <EmptyTasks isDarkMode={isDarkMode} message="No completed tasks yet." />
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <AnimatePresence initial={false}>
+                  {completedTopics.map((topic) => (
+                    <TopicRow key={topic.id} topic={topic} />
+                  ))}
+                </AnimatePresence>
+              </div>
+            ))}
+        </div>
       </div>
+
+      {false && (
+        <div className={plannerCard(isDarkMode, "flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between")}>
+          <span className="text-[13px] font-semibold text-red-600">Danger zone</span>
+          <button type="button" onClick={onRequestResetPlan} className={secondaryBtn}>
+            Reset entire plan
+          </button>
+        </div>
+      )}
     </motion.div>
+  );
+}
+
+function EmptyTasks({
+  isDarkMode,
+  message,
+}: {
+  isDarkMode: boolean;
+  message: string;
+}) {
+  return (
+    <div
+      className={`rounded-xl border border-dashed px-4 py-10 text-center text-[13px] font-medium ${
+        isDarkMode
+          ? "border-[#3d444d] bg-[#0e1012]/50 text-[#94a3b8]"
+          : "border-[#d8dce6] bg-[#f8fafb] text-[#64748b]"
+      }`}
+    >
+      {message}
+    </div>
   );
 }
