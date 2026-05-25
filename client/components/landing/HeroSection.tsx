@@ -231,9 +231,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                         {showStudyPlanner && (
                             <Link
                                 to="/study/planner"
-                                className="group relative flex items-center justify-center gap-3 bg-transparent border-2 border-slate-800 text-slate-900 dark:border-emerald-500 dark:text-emerald-400 px-8 py-3.5 md:px-10 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 hover:bg-slate-900/5 dark:hover:bg-emerald-500/10 cursor-pointer"
+                                className="group relative inline-flex self-start items-center justify-center gap-3 border-2 border-[var(--safar-ui-primary)] text-[var(--safar-ui-primary)] dark:border-[var(--safar-ui-primary)] dark:text-[var(--safar-ui-primary)] bg-transparent px-8 py-3.5 md:px-10 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 hover:-translate-y-1 active:translate-y-0 hover:bg-[color-mix(in_srgb,var(--safar-ui-primary)_8%,transparent)] cursor-pointer"
                             >
-                                <span className="relative z-10">Try Study Planner</span>
+                                <span className="relative z-10">{t('landing.study_planner_btn')}</span>
                                 <ArrowRight className="w-5 h-5 relative z-10 transition-transform duration-300 group-hover:translate-x-1" />
                             </Link>
                         )}
