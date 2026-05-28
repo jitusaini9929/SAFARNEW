@@ -14,11 +14,9 @@ import {
   generateFamilyId,
   generateTokenId,
 } from '../lib/token.store';
+import { isAdminEmail } from '../lib/admin-emails';
 
 const router = Router();
-const ADMIN_EMAILS = new Set(
-  (process.env.ADMIN_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase())
-);
 const isProduction = process.env.NODE_ENV === "production";
 const cookieNamePrefix = isProduction ? "__Host-" : "";
 const configuredSameSite = String(process.env.AUTH_COOKIE_SAMESITE || (isProduction ? "lax" : "lax")).toLowerCase();
@@ -269,7 +267,7 @@ router.post('/signup', async (req: Request, res) => {
         // Issue tokens
         const familyId = generateFamilyId();
         const tokenId  = generateTokenId();
-        const isAdmin = ADMIN_EMAILS.has(normalizedEmail);
+        const isAdmin = isAdminEmail(normalizedEmail);
         const accessToken  = signAccessToken(userId, isAdmin);
         const refreshToken = signRefreshToken(userId, familyId, tokenId);
 
@@ -285,7 +283,8 @@ router.post('/signup', async (req: Request, res) => {
                 avatar: avatarUrl,
                 examType,
                 preparationStage,
-                gender
+                gender,
+                isAdmin,
             }
         });
     } catch (error) {
@@ -435,7 +434,7 @@ router.post('/login', async (req: any, res) => {
         }
 
         // Issue tokens
-        const isAdmin = ADMIN_EMAILS.has(normalizedEmail);
+        const isAdmin = isAdminEmail(normalizedEmail);
         const familyId = generateFamilyId();
         const tokenId  = generateTokenId();
       
@@ -546,7 +545,7 @@ router.post('/refresh', async (req, res) => {
   }
 
   const user = await collections.users().findOne({ id: result.userId }, { projection: { email: 1 } });
-  const isAdmin = ADMIN_EMAILS.has((user?.email || '').toLowerCase());
+  const isAdmin = isAdminEmail(user?.email);
 
   const newAccessToken  = signAccessToken(result.userId, isAdmin);
   const newRefreshToken = signRefreshToken(result.userId, payload.familyId, result.newTokenId);
@@ -779,7 +778,8 @@ router.get('/me', requireAuth, async (req: Request, res) => {
                 avatar: avatarUrl,
                 examType: user.exam_type,
                 preparationStage: user.preparation_stage,
-                gender: user.gender
+                gender: user.gender,
+                isAdmin: isAdminEmail(user.email),
             },
             streaks: {
                 loginStreak: streaks?.login_streak || 0,

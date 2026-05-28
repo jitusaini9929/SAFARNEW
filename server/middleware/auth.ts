@@ -1,4 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
+import { collections } from '../db';
+import { isAdminEmail } from '../lib/admin-emails';
 import { verifyAccessToken } from '../lib/jwt.service';
 import { isAccessTokenBlocked } from '../lib/token.store';
 
@@ -61,11 +63,32 @@ export async function requireAuth(
   }
 }
 
-// For routes that are admin-only (replaces your ADMIN_EMAILS check scattered in routes)
-export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  if (!req.user?.isAdmin) {
-    res.status(403).json({ error: 'forbidden' });
+// Admin routes: trust JWT isAdmin, or re-check user email (covers tokens issued before ADMIN_EMAILS was set).
+export async function requireAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  if (!req.user?.userId) {
+    res.status(401).json({ error: 'unauthenticated' });
     return;
   }
-  next();
+  if (req.user.isAdmin) {
+    next();
+    return;
+  }
+  try {
+    const user = await collections.users().findOne(
+      { id: req.user.userId },
+      { projection: { email: 1 } },
+    );
+    if (isAdminEmail(user?.email)) {
+      req.user.isAdmin = true;
+      next();
+      return;
+    }
+  } catch (err) {
+    console.error('[requireAdmin] email lookup failed:', err);
+  }
+  res.status(403).json({ error: 'forbidden' });
 }
