@@ -128,7 +128,7 @@ export default function TourTooltip({
                 left: position?.left ?? -9999,
                 opacity: position ? 1 : 0,
                 transform: position ? "scale(1)" : "scale(0.98)",
-                fontFamily: 'Satoshi, sans-serif'
+                fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif"
             }}
         >
             {/* Header / Meta Info */}

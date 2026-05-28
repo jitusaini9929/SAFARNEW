@@ -24,7 +24,6 @@ import {
 
 export function NotificationOptIn() {
   const [visible, setVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Determine whether to show the banner
@@ -48,23 +47,21 @@ export function NotificationOptIn() {
   }, []);
 
   const handleEnable = useCallback(async () => {
-    setLoading(true);
+    // Hide immediately after click to avoid showing a confusing "loading toast" state.
+    setVisible(false);
     try {
       const token = await requestNotificationPermission();
       if (token) {
-        // Success — set up foreground listener and hide banner
+        // Success — set up foreground listener
         setupForegroundMessageListener();
-        setVisible(false);
       } else if (typeof Notification !== "undefined" && Notification.permission === "denied") {
         // User blocked via browser UI — hide banner permanently
         dismissPushOptIn();
-        setVisible(false);
       }
-      // If null but not denied, user may have dismissed the browser prompt — keep banner visible
+      // If null but not denied, user may have dismissed browser prompt.
+      // We keep it hidden for now to avoid repeatedly interrupting the user.
     } catch {
       // Silently fail
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -96,10 +93,9 @@ export function NotificationOptIn() {
 
         <button
           onClick={handleEnable}
-          disabled={loading}
-          className="flex-shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-amber-950 transition-colors hover:bg-amber-400 disabled:opacity-60"
+          className="flex-shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-amber-950 transition-colors hover:bg-amber-400"
         >
-          {loading ? "…" : "Enable"}
+          Enable
         </button>
 
         <button

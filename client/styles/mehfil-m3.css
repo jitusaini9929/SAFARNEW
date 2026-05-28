@@ -54,7 +54,7 @@
   --mehfil-room-accent-container: var(--mehfil-info-container);
   --mehfil-room-accent-on-container: var(--mehfil-info-on-container);
 
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
   color: var(--mehfil-on-surface);
   background-color: var(--mehfil-bg);
 

@@ -1,4 +1,4 @@
-import { Plan, CalendarItem } from "./plan.model";
+import { StudyPlan as Plan, CalendarTopicItem as CalendarItem } from "./plan.model";
 
 /**
  * Handles read-only offline caching for the Study Planner.

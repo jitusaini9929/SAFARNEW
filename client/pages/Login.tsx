@@ -1,20 +1,54 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { authService } from "@/utils/authService";
-import nishthaLogo from "@/assets/nishtha-logo.webp";
+import SafarLogo from "@/components/landing/SafarLogo";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import "@/styles/mehfil-m3.css";
 import { MdFilledButtonReact, MdOutlinedTextFieldReact, MdCheckboxReact } from "@/components/mehfil/material/MdComponents";
 
+const ALLOWED_SIGNUP_DOMAINS = new Set(["gmail.com", "outlook.com"]);
+const SIGNUP_EMAIL_EXCEPTION = "steve123@example.com";
+
+function isAllowedSignupEmail(email: string): boolean {
+  if (email === SIGNUP_EMAIL_EXCEPTION) return true;
+  const domain = email.split("@")[1] || "";
+  return ALLOWED_SIGNUP_DOMAINS.has(domain);
+}
+
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
+
+  const [mode, setMode] = useState<"login" | "signup">("login");
+
+  // Auth fields
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+
+  // Signup fields
+  const [name, setName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [examType, setExamType] = useState("");
+  const [preparationStage, setPreparationStage] = useState("");
+  const [gender, setGender] = useState("");
+
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Check URL path or query params or returning user status
+  useEffect(() => {
+    const isSignupUrl = location.pathname === "/signup" || searchParams.get("mode") === "signup";
+    if (isSignupUrl) {
+      setMode("signup");
+    } else {
+      const isReturning = localStorage.getItem("safar_returning_user") === "true";
+      setMode(isReturning ? "login" : "signup");
+    }
+  }, [location.pathname, searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,12 +66,66 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      const user = await authService.login(email, password, rememberMe);
+      await authService.login(email, password, rememberMe);
       toast.success(t('auth.welcome_back_toast'));
       sessionStorage.setItem("showWelcomeNishtha", "true");
+      localStorage.setItem("safar_returning_user", "true");
       navigate("/home", { replace: true });
     } catch (err: any) {
       setError(err.message || t('auth.error_invalid_creds'));
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!name.trim() || !email.trim() || !password.trim() || !gender) {
+      setError(t('auth.error_fill_all'));
+      return;
+    }
+
+    if (!email.includes("@")) {
+      setError(t('auth.error_valid_email'));
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isAllowedSignupEmail(normalizedEmail)) {
+      setError(t('auth.error_gmail_only'));
+      return;
+    }
+
+    if (password.length < 6) {
+      setError(t('auth.error_password_min'));
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError(t('auth.error_password_match'));
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Create account
+      await authService.signup(
+        name,
+        email,
+        password,
+        examType || undefined,
+        preparationStage || undefined,
+        gender
+      );
+
+      toast.success(t('auth.signup_success'));
+      sessionStorage.setItem("showWelcomeNishtha", "true");
+      localStorage.setItem("safar_returning_user", "true");
+      navigate("/home", { replace: true });
+    } catch (err: any) {
+      setError(err.message || t('auth.error_invalid_creds'));
+    } finally {
       setIsLoading(false);
     }
   };
@@ -76,15 +164,6 @@ export default function Login() {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-10px); }
         }
-        .btn-gradient {
-          background: linear-gradient(135deg, #047857 0%, #881337 100%);
-          transition: all 0.3s ease;
-        }
-        .btn-gradient:hover {
-          background: linear-gradient(135deg, #059669 0%, #9f1239 100%);
-          transform: translateY(-1px);
-          box-shadow: 0 4px 15px rgba(4, 120, 87, 0.4);
-        }
         .glass-surface {
           background: rgba(255, 255, 255, 0.7);
           backdrop-filter: blur(16px);
@@ -109,104 +188,253 @@ export default function Login() {
 
         <main className="relative z-10 w-full max-w-md">
           <div className="mehfil-m3-card p-8 md:p-10 transition-all duration-300">
-
             {/* Logo and Title */}
-            <div className="flex flex-col items-center mb-8">
-              <div className="relative w-24 h-24 mb-4 rounded-full shadow-lg overflow-hidden border-2 border-white/50 dark:border-white/10 group hover:scale-105 transition-transform duration-300">
-                <img loading="lazy"
-                  src={nishthaLogo}
-                  alt="Nishtha wellness logo"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+            <div className="flex flex-col items-center mb-6">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <div className="flex h-12 w-12 items-center justify-center overflow-visible text-[#042854] dark:text-white group hover:scale-105 transition-transform duration-300">
+                  <SafarLogo
+                    className="h-12 w-12 origin-center scale-[1.3]"
+                    title="Safar Logo"
+                  />
+                </div>
+                <span className="text-3xl font-playfair font-bold text-[#042854] dark:text-white tracking-tight select-none">
+                  SAFAR
+                </span>
               </div>
-              <h1 className="text-3xl font-bold text-center mb-1 tracking-tight text-teal-700 dark:text-teal-400">
-                SAFAR
-              </h1>
-              <p className="text-center text-sm font-medium text-gray-500 dark:text-gray-400 tracking-wide mt-2">
-                {t('auth.login_subtitle')}
+              <p className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 tracking-wide">
+                {mode === "login" ? t('auth.login_subtitle') : t('auth.modal_signup_desc')}
               </p>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div className="w-full flex flex-col gap-2">
-                <MdOutlinedTextFieldReact
-                  id="email"
-                  label={t('auth.email')}
-                  type="email"
-                  value={email}
-                  onInput={(e: any) => setEmail(e.target.value.toLowerCase())}
-                  required
-                  disabled={isLoading}
-                  style={{ width: "100%" }}
-                />
-              </div>
+            {/* Login Form */}
+            {mode === "login" && (
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="w-full flex flex-col gap-2">
+                  <MdOutlinedTextFieldReact
+                    id="email"
+                    label={t('auth.email')}
+                    type="email"
+                    value={email}
+                    onInput={(e: any) => setEmail(e.target.value.toLowerCase())}
+                    required
+                    disabled={isLoading}
+                    style={{ width: "100%" }}
+                  />
+                </div>
 
-              <div className="w-full flex flex-col gap-2">
-                <MdOutlinedTextFieldReact
-                  id="password"
-                  label={t('auth.password')}
-                  type="password"
-                  value={password}
-                  onInput={(e: any) => setPassword(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  style={{ width: "100%" }}
-                />
-                <div className="flex items-center justify-between mt-4">
-                  <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => !isLoading && setRememberMe(prev => !prev)}>
-                    <MdCheckboxReact
-                      id="remember-me"
-                      checked={rememberMe}
-                      disabled={isLoading}
-                    />
-                    <label htmlFor="remember-me" className="text-sm text-gray-700 dark:text-gray-300 font-medium cursor-pointer">
-                      {t('auth.remember_me')}
-                    </label>
+                <div className="w-full flex flex-col gap-2">
+                  <MdOutlinedTextFieldReact
+                    id="password"
+                    label={t('auth.password')}
+                    type="password"
+                    value={password}
+                    onInput={(e: any) => setPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    style={{ width: "100%" }}
+                  />
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => !isLoading && setRememberMe(prev => !prev)}>
+                      <MdCheckboxReact
+                        id="remember-me"
+                        checked={rememberMe}
+                        disabled={isLoading}
+                      />
+                      <label htmlFor="remember-me" className="text-sm text-gray-700 dark:text-gray-300 font-medium cursor-pointer">
+                        {t('auth.remember_me')}
+                      </label>
+                    </div>
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors"
+                    >
+                      Forgot password?
+                    </Link>
                   </div>
-                  <Link
-                    to="/forgot-password"
-                    className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors"
+                </div>
+
+                {error && (
+                  <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm border border-red-200 dark:border-red-800">
+                    {error}
+                  </div>
+                )}
+
+                <div className="w-full">
+                  <MdFilledButtonReact
+                    type="submit"
+                    disabled={isLoading}
+                    style={{
+                      width: "100%",
+                      "--md-filled-button-container-height": "48px",
+                      "--md-filled-button-container-shape": "12px",
+                      "--md-filled-button-container-color": "var(--md-sys-color-primary)",
+                    } as React.CSSProperties}
                   >
-                    Forgot password?
-                  </Link>
+                    <span>{isLoading ? t('auth.signin_loading') : t('auth.signin')}</span>
+                  </MdFilledButtonReact>
                 </div>
-              </div>
+              </form>
+            )}
 
-              {error && (
-                <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm border border-red-200 dark:border-red-800">
-                  {error}
+            {/* Signup Form */}
+            {mode === "signup" && (
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="w-full flex flex-col gap-2">
+                  <MdOutlinedTextFieldReact
+                    id="signup-name"
+                    label={t('auth.full_name')}
+                    type="text"
+                    value={name}
+                    onInput={(e: any) => setName(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    style={{ width: "100%" }}
+                  />
                 </div>
-              )}
 
-              <div className="w-full">
-                <MdFilledButtonReact
-                  type="submit"
-                  disabled={isLoading}
-                  style={{
-                    width: "100%",
-                    "--md-filled-button-container-height": "48px",
-                    "--md-filled-button-container-shape": "12px",
-                    "--md-filled-button-container-color": "var(--md-sys-color-primary)",
-                  } as React.CSSProperties}
-                >
-                  <span>{isLoading ? t('auth.signin_loading') : t('auth.signin')}</span>
-                </MdFilledButtonReact>
+                <div className="w-full flex flex-col gap-2">
+                  <MdOutlinedTextFieldReact
+                    id="signup-email"
+                    label={t('auth.email')}
+                    type="email"
+                    value={email}
+                    onInput={(e: any) => setEmail(e.target.value.toLowerCase())}
+                    required
+                    disabled={isLoading}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <MdOutlinedTextFieldReact
+                    id="signup-password"
+                    label={t('auth.password')}
+                    type="password"
+                    value={password}
+                    onInput={(e: any) => setPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    style={{ width: "100%" }}
+                  />
+                  <MdOutlinedTextFieldReact
+                    id="signup-confirm-password"
+                    label="Confirm"
+                    type="password"
+                    value={confirmPassword}
+                    onInput={(e: any) => setConfirmPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    style={{ width: "100%" }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('auth.exam_type')}</label>
+                    <select
+                      value={examType}
+                      onChange={(e) => setExamType(e.target.value)}
+                      disabled={isLoading}
+                      className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-xs font-sans"
+                    >
+                      <option value="">{t('auth.select')}</option>
+                      <option value="CGL">CGL</option>
+                      <option value="CHSL">CHSL</option>
+                      <option value="GD">GD</option>
+                      <option value="MTS">MTS</option>
+                      <option value="12th Boards">12th Boards</option>
+                      <option value="NTPC">NTPC</option>
+                      <option value="JEE">JEE</option>
+                      <option value="Other">{t('auth.other')}</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Prep Stage</label>
+                    <select
+                      value={preparationStage}
+                      onChange={(e) => setPreparationStage(e.target.value)}
+                      disabled={isLoading}
+                      className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-xs font-sans"
+                    >
+                      <option value="">{t('auth.select')}</option>
+                      <option value="Beginner">{t('auth.beginner')}</option>
+                      <option value="Intermediate">{t('auth.intermediate')}</option>
+                      <option value="Advanced">{t('auth.advanced')}</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('auth.gender')}</label>
+                  <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    disabled={isLoading}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-xs font-sans"
+                  >
+                    <option value="">{t('auth.select_gender')}</option>
+                    <option value="male">{t('auth.male')}</option>
+                    <option value="female">{t('auth.female')}</option>
+                    <option value="other">{t('auth.other')}</option>
+                  </select>
+                </div>
+
+                {error && (
+                  <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs border border-red-200 dark:border-red-800">
+                    {error}
+                  </div>
+                )}
+
+                <div className="w-full pt-2">
+                  <MdFilledButtonReact
+                    type="submit"
+                    disabled={isLoading}
+                    style={{
+                      width: "100%",
+                      "--md-filled-button-container-height": "48px",
+                      "--md-filled-button-container-shape": "12px",
+                      "--md-filled-button-container-color": "var(--md-sys-color-primary)",
+                    } as React.CSSProperties}
+                  >
+                    <span>{isLoading ? t('auth.signup_loading') : t('auth.signup')}</span>
+                  </MdFilledButtonReact>
+                </div>
+              </form>
+            )}
+
+            {mode === "login" ? (
+              <div className="mt-8 text-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('auth.no_account')}{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("signup");
+                      setError("");
+                    }}
+                    className="font-bold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 hover:underline transition-colors bg-transparent border-none p-0 cursor-pointer"
+                  >
+                    {t('auth.signup_here')}
+                  </button>
+                </p>
               </div>
-            </form>
-
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {t('auth.no_account')}{" "}
-                <Link
-                  to="/signup"
-                  className="font-bold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 hover:underline transition-colors"
-                >
-                  {t('auth.signup_here')}
-                </Link>
-              </p>
-            </div>
+            ) : (
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('auth.have_account')}{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("login");
+                      setError("");
+                    }}
+                    className="font-bold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 hover:underline transition-colors bg-transparent border-none p-0 cursor-pointer"
+                  >
+                    {t('auth.signin_here')}
+                  </button>
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="mt-8 text-center">

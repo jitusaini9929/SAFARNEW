@@ -4,7 +4,7 @@
   --gd-primary: #3366cc;
   --gd-surface: #f8fafc;
   --gd-card-border: #e2e8f0;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
 }
 
 .dark .goals-dashboard {
@@ -16,7 +16,7 @@
 .goals-dashboard h2,
 .goals-dashboard h3,
 .goals-dashboard h4 {
-  font-family: "Noto Serif", "Playfair Display", serif;
+  font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
 }
 
 .goals-dashboard .gd-m3-card {

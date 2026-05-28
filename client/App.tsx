@@ -11,12 +11,11 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { GuidedTourProvider } from "@/contexts/GuidedTourContext";
 import { GuidedTour } from "@/components/guided-tour";
 import { FocusProvider } from "@/contexts/FocusContext";
-import { NotificationOptIn } from "@/components/NotificationOptIn";
+import { GlobalFeedbackWidget } from "@/components/feedback/GlobalFeedbackWidget";
 
 // Lazy-loaded pages (code splitting)
 const Test = React.lazy(() => import("./pages/Test"));
 const Login = React.lazy(() => import("./pages/Login"));
-const Signup = React.lazy(() => import("./pages/Signup"));
 const Dashboard = React.lazy(() => import("./pages/Dashboard"));
 const CheckIn = React.lazy(() => import("./pages/CheckIn"));
 const Journal = React.lazy(() => import("./pages/Journal"));
@@ -38,6 +37,7 @@ const Courses = React.lazy(() => import("./pages/Courses"));
 const LiveSessions = React.lazy(() => import("./pages/LiveSessions"));
 const Updates = React.lazy(() => import("./pages/Updates"));
 const SafarVictoryModeToday = React.lazy(() => import("./pages/mission/today"));
+const AdminNotificationComposer = React.lazy(() => import("./pages/AdminNotificationComposer"));
 
 const queryClient = new QueryClient();
 const GA_MEASUREMENT_ID = "G-JGR9ENZ8W0";
@@ -82,6 +82,26 @@ function NishthaRouteAlias() {
   return <Navigate to={`${target}${location.search}${location.hash}`} replace />;
 }
 
+/** Overlay layer for global UI (feedback, tours, etc.). */
+function GlobalOverlayLayer() {
+  const location = useLocation();
+
+  // Hide overlays on Ekagra / focus routes for now
+  const isEkagraRoute = location.pathname === "/study" || location.pathname === "/nishtha/focus";
+
+  if (isEkagraRoute) {
+    return null;
+  }
+
+  return (
+    <>
+      {/* GuidedTour temporarily disabled while feedback UI is active */}
+      {/* <GuidedTour /> */}
+      <GlobalFeedbackWidget />
+    </>
+  );
+}
+
 // Suspense fallback spinner
 function PageLoadingFallback() {
   return (
@@ -104,11 +124,25 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <>{children}</> : <Navigate to="/?signin=true" replace />;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { status, isAuthenticated, isAdmin } = useAuth();
+
+  if (status === "loading") {
+    return <PageLoadingFallback />;
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/?signin=true" replace />;
+  }
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 /** Show the push notification opt-in banner only for authenticated users. */
 function AuthenticatedPushBanner() {
-  const { isAuthenticated } = useAuth();
-  if (!isAuthenticated) return null;
-  return <NotificationOptIn />;
+  // Temporarily disabled for web clients while Android push remains active.
+  return null;
 }
 
 const App = () => {
@@ -127,7 +161,7 @@ const App = () => {
                   <Routes>
                 {/* Auth Routes */}
                 <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
+                <Route path="/signup" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ForgotPassword />} />
 
@@ -190,6 +224,14 @@ const App = () => {
                   }
                 />
 
+                <Route
+                  path="/admin/notifications"
+                  element={
+                    <AdminRoute>
+                      <AdminNotificationComposer />
+                    </AdminRoute>
+                  }
+                />
                 <Route
                   path="/study"
                   element={
@@ -295,7 +337,7 @@ const App = () => {
                 <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
-                <GuidedTour />
+                <GlobalOverlayLayer />
               </GuidedTourProvider>
             </FocusProvider>
           </AuthProvider>

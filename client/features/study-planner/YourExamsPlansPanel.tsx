@@ -64,7 +64,7 @@ export function YourExamsPlansPanel({
                 isEmbedded ? "text-2xl md:text-3xl" : "text-3xl md:text-4xl"
               }`}
               style={{
-                fontFamily: "'Inter', sans-serif",
+                fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif",
                 letterSpacing: "-0.03em",
                 wordSpacing: "0.1em",
               }}
@@ -227,7 +227,7 @@ export function YourExamsPlansPanel({
             <h2
               className="text-2xl font-bold text-[#0f172a] dark:text-white mb-3"
               style={{
-                fontFamily: "'Inter', sans-serif",
+                fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif",
                 letterSpacing: "-0.03em",
                 wordSpacing: "0.1em",
               }}

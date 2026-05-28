@@ -14,11 +14,11 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Poppins", "Inter", "sans-serif"],
-        serif: ["Playfair Display", "serif"],
-        manrope: ["Manrope", "sans-serif"],
-        inter: ["Inter", "sans-serif"],
-        playfair: ["Playfair Display", "serif"],
+        sans: ["Source Sans 3", "Source Sans Pro", "sans-serif"],
+        serif: ["Source Sans 3", "Source Sans Pro", "sans-serif"],
+        manrope: ["Source Sans 3", "Source Sans Pro", "sans-serif"],
+        inter: ["Source Sans 3", "Source Sans Pro", "sans-serif"],
+        playfair: ["Source Sans 3", "Source Sans Pro", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

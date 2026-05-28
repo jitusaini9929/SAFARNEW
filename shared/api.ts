@@ -6,6 +6,7 @@ export interface User {
   examType?: string;
   preparationStage?: string;
   gender?: string;
+  isAdmin?: boolean;
 }
 
 export interface MoodEntry {

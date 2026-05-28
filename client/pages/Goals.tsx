@@ -922,6 +922,20 @@ export default function Goals() {
     try {
       await dataService.updateGoal(goalId, true, nowIso, studiedMinutes);
       toast.success(t("goals.toast.completed"));
+      try {
+        window.dispatchEvent(
+          new CustomEvent("safar:feedback:open", {
+            detail: {
+              trigger: "goal_completion",
+              feature: "goals",
+              promptTitle: "Nice work completing your goal 🎯",
+              promptBody: "Was this feature helpful?",
+            },
+          }),
+        );
+      } catch {
+        // ignore
+      }
     } catch (error) {
       toast.error(t("goals.toast.update_failed"));
       fetchGoals();

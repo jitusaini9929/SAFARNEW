@@ -9,6 +9,7 @@ import {
   isValidTimezone,
   normalizeFlavor,
   sendNotificationToUser,
+  sendPushToTokensBatched,
   sendPushToTokens,
   validatePushPayload,
 } from "../services/push-notifications";
@@ -68,12 +69,14 @@ notificationRoutes.post("/device-tokens", requireAuth, async (req: Request, res:
     const token = String(body.deviceToken || "").trim();
     const platform = String(body.platform || "android").trim().toLowerCase();
     const now = new Date();
-    const VALID_PLATFORMS = ["android", "web"];
+    const VALID_PLATFORMS = ["android"];
 
     if (!userId) return res.status(401).json({ error: "unauthenticated" });
     if (bodyUserId && bodyUserId !== userId) return res.status(403).json({ error: "user_mismatch" });
     if (!token) return res.status(400).json({ message: "deviceToken is required" });
-    if (!VALID_PLATFORMS.includes(platform)) return res.status(400).json({ message: "platform must be android or web" });
+    if (!VALID_PLATFORMS.includes(platform)) {
+      return res.status(400).json({ message: "platform must be android" });
+    }
 
     await collections.deviceTokens().updateOne(
       { token },
@@ -212,6 +215,41 @@ notificationRoutes.post("/notifications/test", requireAuth, async (req: Request,
 });
 
 notificationRoutes.post(
+  "/admin/notifications/broadcast",
+  requireAuth,
+  requireAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const { payload, error } = validatePushPayload(req.body || {});
+      if (error || !payload) return res.status(400).json({ message: error });
+      if (!ALLOWED_CHANNELS.includes(payload.channel)) {
+        return res.status(400).json({ message: "Invalid notification channel" });
+      }
+
+      const targetFlavor = req.body?.flavor ? normalizeFlavor(req.body.flavor) : null;
+      const query: any = {
+        platform: "android",
+        notifications_enabled: true,
+        revoked_at: null,
+      };
+      if (targetFlavor) query.flavor = targetFlavor;
+
+      const tokens = await collections.deviceTokens().find(query).toArray();
+      const results = await sendPushToTokensBatched(tokens, payload, 200);
+
+      return res.json({
+        message: results.some((result) => result.success) ? "sent" : "not_sent",
+        count: tokens.length,
+        results,
+      });
+    } catch (error: any) {
+      console.error("Admin notification broadcast error:", error);
+      return res.status(500).json({ message: "Failed to broadcast notifications" });
+    }
+  },
+);
+
+notificationRoutes.post(
   "/admin/notifications/send",
   requireAuth,
   requireAdmin,
@@ -232,14 +270,14 @@ notificationRoutes.post(
         tokens = await collections.deviceTokens()
           .find({
             user_id: targetUserId,
-            platform: { $in: ["android", "web"] },
+            platform: "android",
             notifications_enabled: true,
             revoked_at: null,
           })
           .toArray();
       } else if (broadcast || targetFlavor) {
         const query: any = {
-          platform: { $in: ["android", "web"] },
+          platform: "android",
           notifications_enabled: true,
           revoked_at: null,
         };

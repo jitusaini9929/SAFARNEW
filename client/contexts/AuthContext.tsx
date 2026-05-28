@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@shared/api";
 import { authService } from "@/utils/authService";
+import { getIsAdminFromAccessToken } from "@/utils/jwtClaims";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -13,6 +14,7 @@ type AuthContextValue = {
   user: User | null;
   status: AuthStatus;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   refreshUser: (force?: boolean) => Promise<User | null>;
 };
 
@@ -85,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       status,
       isAuthenticated: status === "authenticated",
+      isAdmin: getIsAdminFromAccessToken() || user?.isAdmin === true,
       refreshUser,
     }),
     [user, status, refreshUser],

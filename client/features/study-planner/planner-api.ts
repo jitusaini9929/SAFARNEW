@@ -501,11 +501,4 @@ export const plannerApi = {
     }, "idempotent-only");
   },
 
-  /** Daily check-in */
-  checkin(planId: string): Promise<{ ok: boolean; message: string }> {
-    return plannerRequest(`${BASE}/${planId}/checkin`, {
-      method: "POST",
-      body: JSON.stringify({}),
-    }, "none");
-  },
 };

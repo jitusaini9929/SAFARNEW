@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { apiFetch, API_BASE } from "@/utils/apiFetch";
 import { useTheme } from "@/contexts/ThemeContext";
 import { PremiumEmoji, type PremiumEmojiName } from "@/components/PremiumEmoji";
+import { CustomDatePicker } from "./CustomDatePicker";
 
 export interface TemplateSummary {
   id: string;
@@ -80,7 +81,7 @@ function TemplateCard({
           name={TEMPLATE_ICONS[template.id] ? TEMPLATE_ICONS[template.id].name : "bookmarks"}
           fallback={TEMPLATE_ICONS[template.id]?.fallback || "📋"}
           alt=""
-          className="h-8 w-8 dark:invert"
+          className="h-8 w-8"
         />
         {CATEGORY_BADGES[template.category] && (
           <span
@@ -404,7 +405,7 @@ export function QuickStart({
             <h1
               className="text-4xl md:text-5xl font-bold tracking-tight text-[#0f172a] dark:text-white mb-3"
               style={{
-                fontFamily: "'Inter', sans-serif",
+                fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif",
                 letterSpacing: "-0.03em",
                 wordSpacing: "0.1em",
               }}
@@ -446,7 +447,7 @@ export function QuickStart({
                 onClick={() => setShowCustom(true)}
                 className={`group flex flex-col h-full text-left rounded-2xl p-6 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:scale-[1.02] bg-white/50 dark:bg-[#141518]/50 ${STUDY_PLANNER_PRESSABLE_CARD}`}
               >
-                <PremiumEmoji name="pencil" alt="" className="h-8 w-8 mb-4 dark:invert" />
+                <PremiumEmoji name="pencil" alt="" className="h-8 w-8 mb-4" />
                 <h3 className="text-xl font-bold text-[#0f172a] dark:text-white mb-2">Custom Plan</h3>
                 <p className="text-[14px] font-medium leading-relaxed text-[#64748b] dark:text-[#94a3b8] mb-6 flex-grow line-clamp-2">
                   Build your own plan from scratch. Paste your syllabus or edit it manually.
@@ -515,13 +516,12 @@ export function QuickStart({
                 <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                   Exam Date
                 </label>
-                <input
-                  type="date"
+                <CustomDatePicker
                   value={examDate}
-                  onChange={(e) => setExamDate(e.target.value)}
-                  className={`w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? "[&::-webkit-calendar-picker-indicator]:invert" : ""}`}
-                  style={{ colorScheme: isDark ? "dark" : "light" }}
-                  min={new Date().toISOString().split("T")[0]}
+                  onChange={setExamDate}
+                  isDarkMode={isDark}
+                  minDate={new Date().toISOString().split("T")[0]}
+                  fullWidth
                 />
               </div>
               <div>
@@ -657,13 +657,13 @@ export function QuickStart({
             }
             fallback={TEMPLATE_ICONS[selectedTemplate!.id]?.fallback || "📋"}
             alt=""
-            className="h-7 w-7 dark:invert"
+            className="h-7 w-7"
           />
           <div>
             <h2
               className="text-2xl font-bold text-[#0f172a] dark:text-white"
               style={{
-                fontFamily: "'Inter', sans-serif",
+                fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif",
                 letterSpacing: "-0.03em",
                 wordSpacing: "0.1em",
               }}
@@ -700,13 +700,12 @@ export function QuickStart({
               <label className="block text-[12px] font-black uppercase tracking-[0.2em] text-[#64748b] dark:text-[#94a3b8] mb-2">
                 Exam Date
               </label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={examDate}
-                onChange={(e) => setExamDate(e.target.value)}
-                className={`w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0c0c0e] px-4 py-3 text-[15px] font-semibold text-[#0f172a] dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDark ? "[&::-webkit-calendar-picker-indicator]:invert" : ""}`}
-                style={{ colorScheme: isDark ? "dark" : "light" }}
-                min={new Date().toISOString().split("T")[0]}
+                onChange={setExamDate}
+                isDarkMode={isDark}
+                minDate={new Date().toISOString().split("T")[0]}
+                fullWidth
               />
               {daysLeft !== null && daysLeft > 0 && (
                 <p className="text-[12px] font-bold text-blue-600 dark:text-blue-400 mt-1">
@@ -786,7 +785,7 @@ export function QuickStart({
                   <div
                     className="text-2xl font-bold text-[#0f172a] dark:text-white"
                     style={{
-                      fontFamily: "'Inter', sans-serif",
+                      fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif",
                       letterSpacing: "-0.03em",
                       wordSpacing: "0.1em",
                     }}
@@ -801,7 +800,7 @@ export function QuickStart({
                   <div
                     className="text-2xl font-bold text-[#0f172a] dark:text-white"
                     style={{
-                      fontFamily: "'Inter', sans-serif",
+                      fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif",
                       letterSpacing: "-0.03em",
                       wordSpacing: "0.1em",
                     }}
@@ -816,7 +815,7 @@ export function QuickStart({
                   <div
                     className="text-2xl font-bold text-[#0f172a] dark:text-white"
                     style={{
-                      fontFamily: "'Inter', sans-serif",
+                      fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif",
                       letterSpacing: "-0.03em",
                       wordSpacing: "0.1em",
                     }}

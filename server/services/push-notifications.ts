@@ -244,16 +244,69 @@ async function markInvalidToken(token: string) {
   );
 }
 
+async function deliverPushToken(tokenRow: any, payload: PushPayload, dedupeKey: string) {
+  const token = String(tokenRow.token || "");
+  const userId = String(tokenRow.user_id || "");
+  const preview = tokenPreview(token);
+
+  if (!token || !userId || tokenRow.revoked_at || tokenRow.notifications_enabled !== true) {
+    return { tokenPreview: preview, success: false, error: "token_inactive" };
+  }
+
+  try {
+    const flavor = normalizeFlavor(tokenRow.flavor);
+    const app = getFirebaseApp(flavor);
+    const message: any = {
+      token,
+      data: {
+        type: String(payload.type),
+        title: String(payload.title),
+        body: String(payload.body),
+        channel: String(payload.channel),
+        deepLink: String(payload.deepLink),
+        priority: String(payload.priority),
+      },
+    };
+
+    message.android = {
+      priority: payload.priority === "high" ? "high" : "normal",
+    };
+
+    const response = await getMessaging(app).send(message);
+
+    await collections.notificationDeliveryLog().insertOne({
+      user_id: userId,
+      token,
+      token_preview: preview,
+      type: payload.type,
+      channel: payload.channel,
+      dedupe_key: dedupeKey,
+      message_id: response,
+      created_at: new Date(),
+    });
+
+    return { tokenPreview: preview, success: true, messageId: response };
+  } catch (error: any) {
+    const code = String(error?.code || "");
+    if (code.includes("registration-token-not-registered") || code.includes("invalid-registration-token")) {
+      await markInvalidToken(token);
+    }
+    return {
+      tokenPreview: preview,
+      success: false,
+      error: code || "send_failed",
+    };
+  }
+}
+
 export async function sendPushToTokens(tokens: any[], payload: PushPayload, options: PushSendOptions = {}) {
   const results = [];
   const dedupeKey = buildDedupeKey(payload);
 
   for (const tokenRow of tokens) {
-    const token = String(tokenRow.token || "");
     const userId = String(tokenRow.user_id || "");
-    const preview = tokenPreview(token);
-
-    if (!token || !userId || tokenRow.revoked_at || tokenRow.notifications_enabled !== true) {
+    const preview = tokenPreview(String(tokenRow.token || ""));
+    if (!userId) {
       results.push({ tokenPreview: preview, success: false, error: "token_inactive" });
       continue;
     }
@@ -264,65 +317,27 @@ export async function sendPushToTokens(tokens: any[], payload: PushPayload, opti
       continue;
     }
 
-    try {
-      const flavor = normalizeFlavor(tokenRow.flavor);
-      const app = getFirebaseApp(flavor);
-      const isWebToken = String(tokenRow.platform || "") === "web";
+    const result = await deliverPushToken(tokenRow, payload, dedupeKey);
+    results.push(result);
+  }
 
-      const message: any = {
-        token,
-        data: {
-          type: String(payload.type),
-          title: String(payload.title),
-          body: String(payload.body),
-          channel: String(payload.channel),
-          deepLink: String(payload.deepLink),
-          priority: String(payload.priority),
-        },
-      };
+  return results;
+}
 
-      if (isWebToken) {
-        message.webpush = {
-          notification: {
-            title: String(payload.title),
-            body: String(payload.body),
-            icon: "/favicon.svg",
-          },
-          fcmOptions: {
-            link: String(payload.deepLink || "/"),
-          },
-        };
-      } else {
-        message.android = {
-          priority: payload.priority === "high" ? "high" : "normal",
-        };
-      }
+export async function sendPushToTokensBatched(
+  tokens: any[],
+  payload: PushPayload,
+  chunkSize = 200,
+) {
+  const dedupeKey = buildDedupeKey(payload);
+  const results: any[] = [];
 
-      const response = await getMessaging(app).send(message);
-
-      await collections.notificationDeliveryLog().insertOne({
-        user_id: userId,
-        token,
-        token_preview: preview,
-        type: payload.type,
-        channel: payload.channel,
-        dedupe_key: dedupeKey,
-        message_id: response,
-        created_at: new Date(),
-      });
-
-      results.push({ tokenPreview: preview, success: true, messageId: response });
-    } catch (error: any) {
-      const code = String(error?.code || "");
-      if (code.includes("registration-token-not-registered") || code.includes("invalid-registration-token")) {
-        await markInvalidToken(token);
-      }
-      results.push({
-        tokenPreview: preview,
-        success: false,
-        error: code || "send_failed",
-      });
-    }
+  for (let index = 0; index < tokens.length; index += chunkSize) {
+    const chunk = tokens.slice(index, index + chunkSize);
+    const chunkResults = await Promise.all(
+      chunk.map((tokenRow) => deliverPushToken(tokenRow, payload, dedupeKey)),
+    );
+    results.push(...chunkResults);
   }
 
   return results;
@@ -332,7 +347,7 @@ export async function sendNotificationToUser(userId: string, payload: PushPayloa
   const tokens = await collections.deviceTokens()
     .find({
       user_id: userId,
-      platform: { $in: ["android", "web"] },
+      platform: "android",
       notifications_enabled: true,
       revoked_at: null,
     })
@@ -344,7 +359,7 @@ export async function sendNotificationToUser(userId: string, payload: PushPayloa
 
 export async function sendAnnouncementToActiveTokens(payload: PushPayload, flavor?: NotificationFlavor) {
   const query: any = {
-    platform: { $in: ["android", "web"] },
+    platform: "android",
     notifications_enabled: true,
     revoked_at: null,
   };

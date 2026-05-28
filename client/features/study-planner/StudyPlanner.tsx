@@ -19,6 +19,7 @@ import {
   type PlannerRecommendation,
 } from "./InsightsPanel";
 import MergedPlanTab from "./MergedPlanTab";
+import { CustomDatePicker } from "./CustomDatePicker";
 import { QuickStart } from "./StudyPlannerQuickStart";
 import {
   YourExamsPlansPanel,
@@ -241,7 +242,7 @@ const STATUS_UI: Record<
     darkBg: "#001f24",
   },
   revision_needed: {
-    label: "Needs Revision",
+    label: "Revision",
     color: "#9333ea",
     bg: "#f3e8ff",
     darkColor: "#c180ff",
@@ -931,324 +932,6 @@ function computeStudyStreak(
   }
 }
 
-// â”€â”€ Custom Date Picker Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function CustomDatePicker({
-  value,
-  onChange,
-  isDarkMode,
-  align,
-  offDays = [],
-  minDate,
-}: {
-  value: string;
-  onChange: (val: string) => void;
-  isDarkMode: boolean;
-  align?: "top" | "bottom";
-  offDays?: number[];
-  minDate?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement | null>(null);
-  const alignment = align || "bottom";
-
-  const parsed = value ? new Date(value) : new Date();
-  const [viewYear, setViewYear] = useState(parsed.getFullYear());
-  const [viewMonth, setViewMonth] = useState(parsed.getMonth());
-
-  useEffect(() => {
-    if (value) {
-      const d = new Date(value);
-      if (!Number.isNaN(d.getTime())) {
-        setViewYear(d.getFullYear());
-        setViewMonth(d.getMonth());
-      }
-    }
-  }, [value]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const handlePointerOutside = (event: MouseEvent | TouchEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (!pickerRef.current?.contains(target)) {
-        setOpen(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handlePointerOutside);
-    document.addEventListener("touchstart", handlePointerOutside);
-    document.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerOutside);
-      document.removeEventListener("touchstart", handlePointerOutside);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [open]);
-
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
-  const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-  const MONTHS = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-
-  const minCalendarYear =
-    minDate && /^\d{4}-\d{2}-\d{2}$/.test(minDate)
-      ? Number.parseInt(minDate.slice(0, 4), 10)
-      : null;
-  let prevMonthDisabled = false;
-  if (minDate && /^\d{4}-\d{2}-\d{2}$/.test(minDate)) {
-    const parts = minDate.split("-").map((x) => Number.parseInt(x, 10));
-    if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
-      const [minY, minMo1] = parts;
-      const minMonth0 = minMo1 - 1;
-      prevMonthDisabled =
-        viewYear < minY || (viewYear === minY && viewMonth <= minMonth0);
-    }
-  }
-  const yearBackDisabled =
-    minCalendarYear !== null && viewYear - 1 < minCalendarYear;
-
-  const selectedKey = value || "";
-
-  function pickDay(day: number) {
-    const mm = String(viewMonth + 1).padStart(2, "0");
-    const dd = String(day).padStart(2, "0");
-    onChange(`${viewYear}-${mm}-${dd}`);
-    setOpen(false);
-  }
-
-  function prevMonth() {
-    if (minDate && /^\d{4}-\d{2}-\d{2}$/.test(minDate)) {
-      const parts = minDate.split("-").map((x) => Number.parseInt(x, 10));
-      if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) {
-        const [minY, minMo1] = parts;
-        const minMonth0 = minMo1 - 1;
-        if (viewYear < minY || (viewYear === minY && viewMonth <= minMonth0)) {
-          return;
-        }
-      }
-    }
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear((y) => y - 1);
-    } else setViewMonth((m) => m - 1);
-  }
-  function nextMonth() {
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear((y) => y + 1);
-    } else setViewMonth((m) => m + 1);
-  }
-
-  const displayText = value
-    ? `${new Date(value).getDate()} ${MONTHS[new Date(value).getMonth()]} ${new Date(value).getFullYear()}`
-    : "Select date";
-
-  const bg = isDarkMode ? "bg-[#1a1c1e]" : "bg-white";
-  const border = isDarkMode ? "border-[#3a3d42]" : "border-[#d1d5db]";
-  const text = isDarkMode ? "text-white" : "text-[#1a202c]";
-  const muted = isDarkMode ? "text-[#9aa2ae]" : "text-[#64748b]";
-  const hoverBg = isDarkMode ? "hover:bg-[#2a2d31]" : "hover:bg-[#f0f5ff]";
-  const selectedBg = "bg-blue-600 text-white";
-
-  return (
-    <div ref={pickerRef} className="relative inline-block">
-      <button
-        type="button"
-        onClick={() => setOpen((p) => !p)}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border ${bg} ${border} ${text} ${PLANNER_PRESSABLE}`}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-          <line x1="16" x2="16" y1="2" y2="6" />
-          <line x1="8" x2="8" y1="2" y2="6" />
-          <line x1="3" x2="21" y1="10" y2="10" />
-        </svg>
-        {displayText}
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: alignment === "top" ? 8 : -8,
-              scale: 0.96,
-            }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: alignment === "top" ? 8 : -8, scale: 0.96 }}
-            className={`absolute ${alignment === "top" ? "bottom-full mb-2" : "top-full mt-2"} left-0 z-[120] w-[280px] rounded-2xl border shadow-2xl p-4 ${bg} ${border}`}
-          >
-            {/* Month/Year header */}
-            <div className="flex items-center justify-between mb-3">
-              <button
-                type="button"
-                onClick={prevMonth}
-                disabled={prevMonthDisabled}
-                aria-disabled={prevMonthDisabled}
-                className={`p-1.5 rounded-lg ${text} ${
-                  prevMonthDisabled
-                    ? "opacity-30 cursor-not-allowed"
-                    : `${hoverBg} ${PLANNER_PRESSABLE}`
-                }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="m15 18-6-6 6-6" />
-                </svg>
-              </button>
-              <span className={`text-sm font-bold ${text}`}>
-                {MONTHS[viewMonth]} {viewYear}
-              </span>
-              <button
-                type="button"
-                onClick={nextMonth}
-                className={`p-1.5 rounded-lg ${hoverBg} ${text} ${PLANNER_PRESSABLE}`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Day-of-week headers */}
-            <div className="grid grid-cols-7 gap-1 mb-1">
-              {DOW.map((d) => (
-                <div
-                  key={d}
-                  className={`text-center text-[12px] font-bold uppercase ${muted}`}
-                >
-                  {d}
-                </div>
-              ))}
-            </div>
-
-            {/* Day grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: firstDow }).map((_, i) => (
-                <div key={`empty-${i}`} />
-              ))}
-              {Array.from({ length: daysInMonth }).map((_, i) => {
-                const day = i + 1;
-                const mm = String(viewMonth + 1).padStart(2, "0");
-                const dd = String(day).padStart(2, "0");
-                const iso = `${viewYear}-${mm}-${dd}`;
-                const isSelected = iso === selectedKey;
-                const isTodayCell = iso === toIsoDateOnly(new Date());
-                const dow = new Date(viewYear, viewMonth, day).getDay();
-                const isBeforeMin = minDate ? iso < minDate : false;
-                const isRestDay = offDays?.includes(dow);
-                const isDisabled = isRestDay || isBeforeMin;
-
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => {
-                      if (!isDisabled) pickDay(day);
-                    }}
-                    disabled={isDisabled}
-                    className={`w-full aspect-square flex flex-col items-center justify-center rounded-lg text-sm relative
-                      ${isDisabled ? "opacity-40 cursor-not-allowed font-medium bg-[#f3f4f6] text-[#9ca3af] dark:bg-[#121314] dark:text-[#4b5563]" : `font-bold ${PLANNER_PRESSABLE} hover:bg-[#f0f5ff] dark:hover:bg-[#2a2d31]`}
-                      ${!isDisabled && isSelected ? selectedBg : ""}
-                      ${!isDisabled && !isSelected && isTodayCell ? `ring-1 ring-blue-400 ${text}` : ""}
-                      ${!isDisabled && !isSelected && !isTodayCell ? `${text}` : ""}
-                    `}
-                  >
-                    <span>{day}</span>
-                    {isRestDay && !isBeforeMin && (
-                      <span className="text-[6px] uppercase font-black text-amber-500 absolute bottom-[2px]">
-                        Off
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Year jump */}
-            <div
-              className="flex items-center gap-2 mt-3 pt-3 border-t"
-              style={{ borderColor: isDarkMode ? "#3a3d42" : "#e5e7eb" }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  if (yearBackDisabled) return;
-                  setViewYear((y) => y - 1);
-                }}
-                disabled={yearBackDisabled}
-                aria-disabled={yearBackDisabled}
-                className={`text-[12px] font-bold px-2 py-1 rounded ${muted} ${
-                  yearBackDisabled
-                    ? "opacity-30 cursor-not-allowed"
-                    : `${hoverBg} ${PLANNER_PRESSABLE}`
-                }`}
-              >
-                &larr; Year
-              </button>
-              <span className={`flex-1 text-center text-sm font-bold ${muted}`}>
-                {viewYear}
-              </span>
-              <button
-                type="button"
-                onClick={() => setViewYear((y) => y + 1)}
-                className={`text-[12px] font-bold px-2 py-1 rounded ${hoverBg} ${muted} ${PLANNER_PRESSABLE}`}
-              >
-                Year &rarr;
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 function CalendarView({
   monthDate,
   calendar,
@@ -1473,18 +1156,6 @@ export default function StudyPlanner({
   const [bulkSyllabusOverwritePrompt, setBulkSyllabusOverwritePrompt] =
     useState<BulkSyllabusOverwritePrompt>(null);
   const bulkSyllabusImportOverwriteRef = useRef(false);
-
-  // â”€â”€ Premium Upgrade Modal â”€â”€
-  type PremiumModalReason =
-    | "topic_limit"
-    | "auto_schedule"
-    | "bulk_add"
-    | "reschedule"
-    | "template"
-    | null;
-  const [premiumModalReason, setPremiumModalReason] =
-    useState<PremiumModalReason>(null);
-  const FREE_TOPIC_LIMIT = 30;
 
   function getTotalTopicCount(): number {
     if (!plan) return 0;
@@ -2850,13 +2521,6 @@ export default function StudyPlanner({
       return;
     }
 
-    // â”€â”€ Premium gate: Bulk Add â”€â”€
-    if (!isPremium) {
-      setPremiumModalReason("bulk_add");
-      resetBulkAdd();
-      return;
-    }
-
     if (
       bulkAddMode === "txt-file" &&
       plan.subjects.length > 0 &&
@@ -3005,11 +2669,6 @@ export default function StudyPlanner({
     lockExistingDates?: boolean;
     includeRevisionNeeded?: boolean;
   }) {
-    // ── Premium gate: Auto-Schedule ──
-    if (!isPremium) {
-      setPremiumModalReason("auto_schedule");
-      return false;
-    }
     if (isAutoDistributing) return false;
 
     // Automatically save any unsaved draft settings before distributing
@@ -3083,123 +2742,6 @@ export default function StudyPlanner({
       setIsAutoDistributing(false);
     }
   }
-
-  async function upgradePlannerPremium() {
-    try {
-      const data = await plannerRequest<{ message: string; plan: Plan }>(
-        `${BASE}/${planId}/upgrade`,
-        {
-          method: "POST",
-        },
-      );
-      setPlan(data.plan);
-      setPremiumModalReason(null);
-      showToast("Premium insights unlocked.", "success");
-    } catch (err: any) {
-      const message = normalizePlannerActionMessage(
-        err?.message,
-        "Failed to unlock planner premium",
-      );
-      showToast(message, "error");
-    }
-  }
-
-  const premiumModalMeta: Record<
-    string,
-    { title: string; description: string; icon: string }
-  > = {
-    topic_limit: {
-      title: "Topic Limit Reached",
-      description: `Free plans support up to ${FREE_TOPIC_LIMIT} topics. Competitive exams like JEE and NEET have 200+ topics \u2014 upgrade to add unlimited topics.`,
-      icon: "\u{1F4DA}",
-    },
-    auto_schedule: {
-      title: "Unlock Auto-Schedule",
-      description:
-        "Auto-Schedule builds your perfect study calendar in one click based on your exam date, daily goal, and off days. Stop spending hours on manual planning.",
-      icon: "\u26A1",
-    },
-    bulk_add: {
-      title: "Unlock Bulk Add",
-      description:
-        "Bulk Add lets you import hundreds of topics at once from text or file. Save hours of manual entry \u2014 paste your entire syllabus in seconds.",
-      icon: "\u{1F4CB}",
-    },
-    reschedule: {
-      title: "Unlock Reschedule",
-      description:
-        "Fallen behind on your study plan? Reschedule rebuilds your entire calendar to still hit your exam date. Get back on track in one click.",
-      icon: "\u{1F504}",
-    },
-    template: {
-      title: "Unlock Exam Templates",
-      description:
-        "Access pre-built syllabi for JEE, NEET, SSC, Railway, and more. Load a complete exam syllabus with 200+ topics instantly.",
-      icon: "\u{1F4C4}",
-    },
-  };
-
-  // â”€â”€ Premium Upgrade Modal â”€â”€
-  const premiumModal = premiumModalReason
-    ? (() => {
-        const meta = premiumModalMeta[premiumModalReason];
-        if (!meta) return null;
-        return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.3, ease: [0.19, 1, 0.22, 1] }}
-              className={`relative w-full max-w-lg rounded-[32px] p-10 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] border ${isDarkMode ? "bg-[#0c0d0e] border-slate-800" : "bg-white border-slate-200"}`}
-            >
-              <button
-                onClick={() => setPremiumModalReason(null)}
-                className="absolute top-6 right-6 w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
-              >
-                âœ•
-              </button>
-
-              <div className="text-center">
-                <div className="text-6xl mb-6 transform hover:scale-110 transition-transform duration-300">
-                  {meta.icon}
-                </div>
-                <div className="text-[11px] font-black uppercase tracking-[0.3em] text-amber-500 mb-4">
-                  Premium Feature
-                </div>
-                <h3
-                  className={`text-2xl font-bold tracking-tight mb-4 ${isDarkMode ? "text-white" : "text-slate-900"}`}
-                >
-                  {meta.title}
-                </h3>
-                <p
-                  className={`text-[15px] font-medium leading-relaxed mb-10 max-w-sm mx-auto ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}
-                >
-                  {meta.description}
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button
-                    onClick={() => {
-                      void upgradePlannerPremium();
-                    }}
-                    className="px-8 py-4 rounded-[20px] bg-blue-600 text-white text-[13px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/25 hover:bg-blue-700 transition-all active:scale-95"
-                  >
-                    Upgrade Now
-                  </button>
-                  <button
-                    onClick={() => setPremiumModalReason(null)}
-                    className={`px-8 py-4 rounded-[20px] border text-[13px] font-black uppercase tracking-widest transition-all active:scale-95 ${isDarkMode ? "border-slate-800 text-slate-400 hover:bg-slate-800" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}
-                  >
-                    Not Now
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        );
-      })()
-    : null;
 
   if (loading) {
     return (
@@ -3399,9 +2941,7 @@ export default function StudyPlanner({
   const hasPendingUnplannedTopics = topics.some(
     (topic) => topic.status !== "done" && !topic.plannedDate,
   );
-  const isPremium = true; // MVP: keep it free
   const totalTopicCount = getTotalTopicCount();
-  const remainingFreeTopics = Math.max(0, FREE_TOPIC_LIMIT - totalTopicCount);
   const insights: PlannerInsights = (() => {
     const now = startOfDay(new Date());
     const examDateKey = plan.examDate ? toIsoDateOnly(plan.examDate) : "";
@@ -3591,7 +3131,6 @@ export default function StudyPlanner({
 
   return (
     <>
-      {premiumModal}
       <PlannerSidebar />
       <style>{`
         .study-planner-motion button:not(:disabled),
@@ -3667,7 +3206,7 @@ export default function StudyPlanner({
                 <h1
                   className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
                   style={{
-                    fontFamily: "'Inter', sans-serif",
+                    fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif",
                     letterSpacing: "-0.02em",
                   }}
                 >
@@ -3925,7 +3464,11 @@ export default function StudyPlanner({
                 disabled={isAutoDistributing}
                 className={`${cleanPrimaryPill} py-4 px-10 text-[15px] font-black shadow-[0_0_20px_rgba(59,130,246,0.4)] hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] transition-all hover:scale-[1.03] active:scale-[0.97] whitespace-nowrap flex-shrink-0 ${needsScheduleBuild ? "animate-[pulse_1.5s_cubic-bezier(0.4,0,0.6,1)_infinite] ring-4 ring-blue-500/50" : ""}`}
               >
-                {isAutoDistributing ? "Building Schedule..." : "Build Schedule"}
+                {isAutoDistributing
+                  ? "Building..."
+                  : view === "syllabus"
+                    ? "Build Planner"
+                    : "Build Schedule"}
               </button>
             ) : null}
           </div>
@@ -4120,40 +3663,6 @@ export default function StudyPlanner({
               transition={{ duration: 0.4 }}
               className="flex flex-col gap-6"
             >
-              {/* â”€â”€ Free Plan Topic Counter Badge â”€â”€ */}
-              {!isPremium && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="px-5 py-3 rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/80 dark:bg-amber-950/20 flex items-center justify-between gap-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <PremiumEmoji name="library" alt="" className="h-5 w-5" />
-                    <span className="text-[13px] font-bold text-amber-700 dark:text-amber-300">
-                      {totalTopicCount}/{FREE_TOPIC_LIMIT} topics used on Free
-                      Plan
-                    </span>
-                    {remainingFreeTopics <= 5 && remainingFreeTopics > 0 && (
-                      <span className="text-[11px] font-black text-red-500 dark:text-red-400 animate-pulse">
-                        {remainingFreeTopics} remaining!
-                      </span>
-                    )}
-                    {remainingFreeTopics === 0 && (
-                      <span className="text-[11px] font-black text-red-500 dark:text-red-400 animate-pulse">
-                        LIMIT REACHED
-                      </span>
-                    )}
-                  </div>
-                  {remainingFreeTopics <= 10 && (
-                    <button
-                      onClick={() => setPremiumModalReason("topic_limit")}
-                      className="text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm hover:shadow-md transition-all whitespace-nowrap"
-                    >
-                      Upgrade for Unlimited
-                    </button>
-                  )}
-                </motion.div>
-              )}
               {plan && getTotalTopicCount() > 0 && (
                 <div
                   className={`rounded-3xl p-5 flex flex-row items-center gap-4 transition-colors duration-500 ${isDarkMode ? "bg-[#0e0e0e] shadow-[8px_8px_20px_rgba(0,0,0,0.6),-4px_-4px_10px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)]" : "bg-[#f0f0f5] shadow-[8px_8px_16px_rgba(166,171,189,0.4),-8px_-8px_16px_rgba(255,255,255,0.8),inset_0_1px_2px_rgba(255,255,255,1)]"}`}
@@ -4250,6 +3759,14 @@ export default function StudyPlanner({
                     </button>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => void autoDistribute({ lockExistingDates: true })}
+                      disabled={isAutoDistributing}
+                      className={`${cleanSecondaryPill} rounded-xl px-6`}
+                    >
+                      {isAutoDistributing ? "Building..." : "Build Planner"}
+                    </button>
                     <button
                       data-tour="planner-bulk-add-button"
                       onClick={() => openBulkAddDialog()}
@@ -4533,7 +4050,7 @@ export default function StudyPlanner({
                                                 <PremiumEmoji
                                                   name="warning"
                                                   alt=""
-                                                  className="h-4 w-4 dark:invert"
+                                                  className="h-4 w-4"
                                                 />
                                               )}
                                               <span className="truncate">
@@ -4742,26 +4259,6 @@ export default function StudyPlanner({
                           <button
                             onClick={() =>
                               patchTopic(selectedTopicContext.topic.id, {
-                                status: "todo",
-                              })
-                            }
-                            className={`text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full transition-transform hover:scale-[1.05] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#64748b] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
-                          >
-                            Not Started
-                          </button>
-                          <button
-                            onClick={() =>
-                              patchTopic(selectedTopicContext.topic.id, {
-                                status: "in_progress",
-                              })
-                            }
-                            className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(2,132,199,0.4)] transition-transform hover:scale-[1.05]"
-                          >
-                            Start
-                          </button>
-                          <button
-                            onClick={() =>
-                              patchTopic(selectedTopicContext.topic.id, {
                                 status: "done",
                               })
                             }
@@ -4777,48 +4274,29 @@ export default function StudyPlanner({
                             }
                             className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#9333ea] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(147,51,234,0.4)] transition-transform hover:scale-[1.05]"
                           >
-                            Needs Revision
+                            Revision
                           </button>
                         </div>
 
                         <div className="flex flex-col gap-3">
-                          <CustomDatePicker
-                            value={
-                              selectedTopicContext.topic.plannedDate
-                                ? toIsoDateOnly(
-                                    selectedTopicContext.topic.plannedDate,
-                                  )
-                                : ""
-                            }
-                            onChange={(val) =>
+                          <label
+                            className={`text-[11px] font-black uppercase tracking-widest ${isDarkMode ? "text-[#94a3b8]" : "text-[#64748b]"}`}
+                          >
+                            Notes
+                          </label>
+                          <textarea
+                            key={selectedTopicContext.topic.id}
+                            defaultValue={selectedTopicContext.topic.notes || ""}
+                            rows={3}
+                            placeholder="Add notes for this topic (optional)"
+                            onBlur={(e) =>
                               patchTopic(selectedTopicContext.topic.id, {
-                                plannedDate: val || "",
+                                notes: e.target.value,
                               })
                             }
-                            isDarkMode={isDarkMode}
-                            align="bottom"
-                            offDays={plan?.offDays || []}
-                            minDate={toIsoDateOnly(new Date())}
+                            className={`w-full rounded-xl border px-4 py-3 text-sm font-medium resize-y min-h-[88px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDarkMode ? "bg-[#131416] border-[#3a3d42] text-[#e7e5e5] placeholder-[#767575]" : "bg-white border-[#d1d5db] text-[#1f2937] placeholder-[#94a3b8]"}`}
                           />
                           <div className="flex flex-wrap gap-3">
-                            <button
-                              onClick={() => {
-                                void editTopicNotes(selectedTopicContext.topic);
-                              }}
-                              className={`text-[11px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
-                            >
-                              Edit Notes
-                            </button>
-                            <button
-                              onClick={() =>
-                                patchTopic(selectedTopicContext.topic.id, {
-                                  plannedDate: "",
-                                })
-                              }
-                              className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full bg-[#ef4444] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(239,68,68,0.4)] transition-transform hover:scale-[1.05]"
-                            >
-                              Un-Schedule
-                            </button>
                             <button
                               onClick={() => {
                                 void deleteTopic(selectedTopicContext.topic.id);
@@ -5284,7 +4762,7 @@ export default function StudyPlanner({
                                                 <PremiumEmoji
                                                   name="warning"
                                                   alt=""
-                                                  className="h-4 w-4 dark:invert"
+                                                  className="h-4 w-4"
                                                 />
                                               )}
                                               <span className="truncate">
@@ -5675,26 +5153,6 @@ export default function StudyPlanner({
                               <button
                                 onClick={() =>
                                   patchTopic(selectedTopicContext.topic.id, {
-                                    status: "todo",
-                                  })
-                                }
-                                className={`text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225]" : "bg-[#f0f0f5]"}`}
-                              >
-                                Todo
-                              </button>
-                              <button
-                                onClick={() =>
-                                  patchTopic(selectedTopicContext.topic.id, {
-                                    status: "in_progress",
-                                  })
-                                }
-                                className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#0284c7] text-white"
-                              >
-                                Start
-                              </button>
-                              <button
-                                onClick={() =>
-                                  patchTopic(selectedTopicContext.topic.id, {
                                     status: "done",
                                   })
                                 }
@@ -5702,23 +5160,33 @@ export default function StudyPlanner({
                               >
                                 Done
                               </button>
+                              <button
+                                onClick={() =>
+                                  patchTopic(selectedTopicContext.topic.id, {
+                                    status: "revision_needed",
+                                  })
+                                }
+                                className="text-[11px] font-black uppercase tracking-widest px-4 py-2.5 rounded-full bg-[#9333ea] text-white"
+                              >
+                                Revision
+                              </button>
                             </div>
-                            <CustomDatePicker
-                              value={
-                                selectedTopicContext.topic.plannedDate
-                                  ? toIsoDateOnly(
-                                      selectedTopicContext.topic.plannedDate,
-                                    )
-                                  : ""
-                              }
-                              onChange={(val) =>
+                            <label
+                              className={`text-[11px] font-black uppercase tracking-widest ${isDarkMode ? "text-[#94a3b8]" : "text-[#64748b]"}`}
+                            >
+                              Notes
+                            </label>
+                            <textarea
+                              key={selectedTopicContext.topic.id}
+                              defaultValue={selectedTopicContext.topic.notes || ""}
+                              rows={3}
+                              placeholder="Add notes for this topic (optional)"
+                              onBlur={(e) =>
                                 patchTopic(selectedTopicContext.topic.id, {
-                                  plannedDate: val || "",
+                                  notes: e.target.value,
                                 })
                               }
-                              isDarkMode={isDarkMode}
-                              align="bottom"
-                              offDays={plan?.offDays || []}
+                              className={`w-full rounded-xl border px-4 py-3 text-sm font-medium resize-y min-h-[88px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDarkMode ? "bg-[#131416] border-[#3a3d42] text-[#e7e5e5] placeholder-[#767575]" : "bg-white border-[#d1d5db] text-[#1f2937] placeholder-[#94a3b8]"}`}
                             />
                           </div>
                         ) : selectedChapterContext ? (
@@ -6116,7 +5584,7 @@ export default function StudyPlanner({
                                             <PremiumEmoji
                                               name="warning"
                                               alt=""
-                                              className="h-5 w-5 dark:invert"
+                                              className="h-5 w-5"
                                             />
                                           )}
                                           <span className="truncate">
@@ -6226,23 +5694,25 @@ export default function StudyPlanner({
                                           <span
                                             className="text-[11px] whitespace-nowrap px-3 py-1 rounded-full font-black tracking-widest"
                                             style={{
-                                              color:
-                                                STATUS_UI[topic.status].color,
-                                              background: isDarkMode
-                                                ? STATUS_UI[topic.status]
-                                                    .darkBg ||
-                                                  STATUS_UI[topic.status].bg
+                                              color: isDarkMode
+                                                ? "#f8fafc"
+                                                : STATUS_UI[topic.status].color,
+                                              backgroundColor: isDarkMode
+                                                ? STATUS_UI[topic.status].color
                                                 : STATUS_UI[topic.status].bg,
-                                              border: `1px solid ${STATUS_UI[topic.status].color}30`,
+                                              border: `1px solid ${isDarkMode ? `${STATUS_UI[topic.status].color}99` : `${STATUS_UI[topic.status].color}30`}`,
                                             }}
                                           >
                                             {STATUS_UI[topic.status].label}
                                           </span>
-                                          {topic.notes && (
-                                            <span className="text-[12px] font-black uppercase tracking-widest text-[#64748b]">
-                                              Notes
+                                          {topic.notes?.trim() ? (
+                                            <span
+                                              className={`text-[12px] font-medium max-w-[220px] truncate ${isDarkMode ? "text-[#cbd5e1]" : "text-[#475569]"}`}
+                                              title={topic.notes}
+                                            >
+                                              {topic.notes}
                                             </span>
-                                          )}
+                                          ) : null}
                                           {editingTopicId !== topic.id && (
                                             <button
                                               onClick={() =>
@@ -6276,30 +5746,32 @@ export default function StudyPlanner({
                                       </div>
 
                                       <div className="flex flex-wrap items-center gap-4 mt-4 border-t border-slate-200/50 dark:border-slate-800 pt-3">
-                                        <button
-                                          onClick={() =>
-                                            patchTopic(topic.id, {
-                                              status: "in_progress",
-                                            })
-                                          }
-                                          className="whitespace-nowrap flex-shrink-0 text-[11px] font-black uppercase tracking-[0.15em] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                                        >
-                                          Start
-                                        </button>
-                                        <span className="text-slate-300 dark:text-slate-700 text-[10px]">
-                                          |
-                                        </span>
                                         {topic.status !== "done" ? (
-                                          <button
-                                            onClick={() =>
-                                              patchTopic(topic.id, {
-                                                status: "done",
-                                              })
-                                            }
-                                            className="whitespace-nowrap flex-shrink-0 text-[11px] font-black uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
-                                          >
-                                            Mark Done
-                                          </button>
+                                          <>
+                                            <button
+                                              onClick={() =>
+                                                patchTopic(topic.id, {
+                                                  status: "done",
+                                                })
+                                              }
+                                              className="whitespace-nowrap flex-shrink-0 text-[11px] font-black uppercase tracking-[0.15em] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+                                            >
+                                              Mark Done
+                                            </button>
+                                            <span className="text-slate-300 dark:text-slate-700 text-[10px]">
+                                              |
+                                            </span>
+                                            <button
+                                              onClick={() =>
+                                                patchTopic(topic.id, {
+                                                  status: "revision_needed",
+                                                })
+                                              }
+                                              className="whitespace-nowrap flex-shrink-0 text-[11px] font-black uppercase tracking-[0.15em] text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
+                                            >
+                                              Revision
+                                            </button>
+                                          </>
                                         ) : (
                                           <button
                                             onClick={() =>
@@ -6315,20 +5787,29 @@ export default function StudyPlanner({
                                       </div>
 
                                       {expandedTopicId === topic.id && (
-                                        <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                                          <button
-                                            onClick={() => {
-                                              void editTopicNotes(topic);
-                                            }}
-                                            className={`text-[11px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full transition-transform hover:scale-[1.05] active:scale-[0.95] ${isDarkMode ? "bg-[#202225] text-[#c6c6c6] shadow-[4px_4px_10px_rgba(0,0,0,0.6),-2px_-2px_6px_rgba(255,255,255,0.02)]" : "bg-[#f0f0f5] text-[#4b5563] shadow-[4px_4px_10px_rgba(166,171,189,0.4),-4px_-4px_10px_rgba(255,255,255,0.8)]"}`}
+                                        <div className="mt-4 flex flex-col gap-3">
+                                          <label
+                                            className={`text-[11px] font-black uppercase tracking-widest ${isDarkMode ? "text-[#94a3b8]" : "text-[#64748b]"}`}
                                           >
-                                            Edit Notes
-                                          </button>
+                                            Notes
+                                          </label>
+                                          <textarea
+                                            key={topic.id}
+                                            defaultValue={topic.notes || ""}
+                                            rows={3}
+                                            placeholder="Add notes for this topic (optional)"
+                                            onBlur={(e) =>
+                                              patchTopic(topic.id, {
+                                                notes: e.target.value,
+                                              })
+                                            }
+                                            className={`w-full rounded-xl border px-4 py-3 text-sm font-medium resize-y min-h-[88px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDarkMode ? "bg-[#131416] border-[#3a3d42] text-[#e7e5e5] placeholder-[#767575]" : "bg-white border-[#d1d5db] text-[#1f2937] placeholder-[#94a3b8]"}`}
+                                          />
                                           <button
                                             onClick={() => {
                                               void deleteTopic(topic.id);
                                             }}
-                                            className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
+                                            className="self-start text-[11px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-3 rounded-full bg-[#dc2626] text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_10px_rgba(220,38,38,0.4)] transition-transform hover:scale-[1.05]"
                                           >
                                             Delete
                                           </button>
@@ -6418,7 +5899,7 @@ export default function StudyPlanner({
                   <strong
                     className="text-[31px] font-bold text-[#2d333b] dark:text-[#fcf9f8] tracking-widest uppercase drop-shadow-sm"
                     style={{
-                      fontFamily: "'Inter', sans-serif",
+                      fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif",
                       letterSpacing: "-0.03em",
                       wordSpacing: "0.1em",
                     }}

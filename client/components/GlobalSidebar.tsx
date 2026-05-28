@@ -1,7 +1,8 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { X, Home, Settings, Heart, MessageSquare, Timer, Wind, LayoutDashboard, Bookmark, BarChart3, Shield, Radio } from "lucide-react";
+import { X, Home, Settings, Heart, MessageSquare, Timer, Wind, LayoutDashboard, Bookmark, BarChart3, Shield, Radio, Megaphone } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SHOW_LIVE_SESSIONS_IN_NAV } from "@/config/featureFlags";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface GlobalSidebarProps {
     isOpen: boolean;
@@ -14,6 +15,7 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation();
+  const { isAdmin } = useAuth();
 
     const isMehfilPath = location.pathname.startsWith('/mehfil');
 
@@ -119,6 +121,17 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
                                 <span className="font-medium">Courses</span>
                             </div>
                         </button>
+                        {isAdmin && (
+                        <button
+                            onClick={() => handleNavigation("/admin/notifications")}
+                            className="ui-pressable w-full rounded-2xl px-4 py-3 text-left text-slate-950 font-semibold transition-[transform,background-color,color] duration-150 hover:bg-slate-100/85 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Megaphone className="w-5 h-5 text-fuchsia-500" />
+                                <span className="font-medium">Admin Notifications</span>
+                            </div>
+                        </button>
+                        )}
                     </div>
 
                     {isMehfilPath && onOpenMehfilSidebar && (

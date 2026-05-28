@@ -74,8 +74,7 @@ export const collections = {
     deviceTokens: () => getDb().collection('device_tokens'),
     notificationPreferences: () => getDb().collection('notification_preferences'),
     notificationDeliveryLog: () => getDb().collection('notification_delivery_log'),
-    suggestionBoxSubmissions: () => getDb().collection('suggestion_box_submissions'),
-    suggestionBoxVotes: () => getDb().collection('suggestion_box_votes'),
+    feedbackEntries: () => getDb().collection('feedback_entries'),
     liveSessions: () => getDb().collection('live_sessions'),
 
     // ── Mission Mode ──
@@ -296,12 +295,10 @@ export async function initDatabase(): Promise<void> {
         await db.collection('notification_delivery_log').createIndex({ user_id: 1, type: 1, dedupe_key: 1, created_at: -1 });
         await db.collection('notification_delivery_log').createIndex({ created_at: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 });
 
-        // Suggestion box
-        await db.collection('suggestion_box_submissions').createIndex({ created_at: -1 });
-        await db.collection('suggestion_box_submissions').createIndex({ vote_count: -1, created_at: -1 });
-        await db.collection('suggestion_box_submissions').createIndex({ user_id: 1, created_at: -1 });
-        await db.collection('suggestion_box_votes').createIndex({ submission_id: 1, user_id: 1 }, { unique: true });
-        await db.collection('suggestion_box_votes').createIndex({ user_id: 1, created_at: -1 });
+        // Feedback entries (global feedback system)
+        await db.collection('feedback_entries').createIndex({ user_id: 1, created_at: -1 });
+        await db.collection('feedback_entries').createIndex({ page: 1, created_at: -1 });
+        await db.collection('feedback_entries').createIndex({ type: 1, created_at: -1 });
 
         // Live sessions
         await db.collection('live_sessions').createIndex({ id: 1 }, { unique: true });

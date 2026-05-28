@@ -1,6 +1,5 @@
 /** @import must precede all other statements */
-@import url("https://api.fontshare.com/v2/css?f[]=satoshi@900,700,500,301,701,300,501,401,901,400&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Manrope:wght@200..800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Poppins:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&family=Source+Sans+Pro:ital,wght@0,200..900;1,200..900&display=swap");
 
 @font-face {
   font-family: "Ranade";
@@ -52,17 +51,17 @@
 @layer utilities {
   .font-ranade {
     font-family:
-      "Ranade", "Plus Jakarta Sans", "Poppins", system-ui, sans-serif;
+      "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
   }
 
   .font-liberation-sans {
     font-family:
-      "Liberation Sans", "Plus Jakarta Sans", "Poppins", system-ui, sans-serif;
+      "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
   }
 
   .font-study-planner {
     font-family:
-      "Plus Jakarta Sans", "Outfit", "Poppins", system-ui, sans-serif;
+      "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
   }
 
   .safe-area-bottom {
@@ -78,7 +77,7 @@
   }
 
   .font-editorial {
-    font-family: "Playfair Display", serif;
+    font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
   }
 
   .action-btn-nowrap {
@@ -422,7 +421,8 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family:
-      "Poppins",
+      "Source Sans 3",
+      "Source Sans Pro",
       system-ui,
       -apple-system,
       sans-serif;
@@ -1049,11 +1049,11 @@
 
   /* Font family utilities */
   .font-display {
-    font-family: "Playfair Display", serif;
+    font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
   }
 
   .font-body {
-    font-family: "Ranade", "Poppins", system-ui, sans-serif;
+    font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
   }
 
   /* Gold glow effect for premium feel */

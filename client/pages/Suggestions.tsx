@@ -1,20 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import NishthaLayout from '@/components/NishthaLayout';
 import { PremiumEmoji, type PremiumEmojiName } from '@/components/PremiumEmoji';
 import {
   Sparkles, AlertTriangle, Heart, Target, Moon,
   ChevronRight, Clock, Trophy, Flame, ArrowRight,
-  Quote, Zap, PhoneCall, RefreshCw, Send, ThumbsUp
+  Quote, Zap, PhoneCall, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/utils/apiFetch';
 import "@/styles/mehfil-m3.css";
-import { MdFilledButtonReact, MdOutlinedTextFieldReact, MdOutlinedButtonReact } from "@/components/mehfil/material/MdComponents";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
-const SHOW_SUGGESTION_BOX = false;
 interface MoodSuggestion {
   title: string;
   description: string;
@@ -76,15 +73,6 @@ interface SuggestionsData {
   showSOS: boolean;
 }
 
-interface SuggestionBoxSubmission {
-  id: string;
-  content: string;
-  userName: string;
-  voteCount: number;
-  hasVoted: boolean;
-  createdAt: string | null;
-}
-
 const difficultyColors: Record<string, string> = {
   'Easy': 'text-emerald-700 bg-emerald-100 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/20',
   'Medium': 'text-amber-700 bg-amber-100 border-amber-200 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/20',
@@ -105,21 +93,12 @@ const CRISIS_HELPLINE = {
 
 export default function Suggestions() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [data, setData] = useState<SuggestionsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSOS, setShowSOS] = useState(false);
-  const [suggestionText, setSuggestionText] = useState("");
-  const [suggestionSubmissions, setSuggestionSubmissions] = useState<SuggestionBoxSubmission[]>([]);
-  const [suggestionLoading, setSuggestionLoading] = useState(false);
-  const [suggestionSubmitting, setSuggestionSubmitting] = useState(false);
-  const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSuggestions();
-    if (SHOW_SUGGESTION_BOX) {
-      fetchSuggestionBox();
-    }
   }, []);
 
   const fetchSuggestions = async () => {
@@ -141,91 +120,6 @@ export default function Suggestions() {
       console.error('Failed to fetch suggestions', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchSuggestionBox = async () => {
-    try {
-      setSuggestionLoading(true);
-      const res = await apiFetch(`${API_URL}/suggestion-box`, { method: 'GET' });
-      if (!res.ok) throw new Error(`Failed to fetch suggestion box (${res.status})`);
-      const json = await res.json();
-      setSuggestionSubmissions(Array.isArray(json?.submissions) ? json.submissions : []);
-    } catch (err) {
-      console.error('Failed to fetch suggestion box', err);
-    } finally {
-      setSuggestionLoading(false);
-    }
-  };
-
-  const handleSubmitSuggestion = async () => {
-    const content = suggestionText.trim();
-    if (content.length < 3 || suggestionSubmitting) return;
-
-    try {
-      setSuggestionSubmitting(true);
-      setSuggestionError(null);
-      const res = await apiFetch(`${API_URL}/suggestion-box`, {
-        method: 'POST',
-        body: JSON.stringify({ content }),
-      });
-
-      if (!res.ok) {
-        const errorBody = await res.json().catch(() => null);
-        throw new Error(errorBody?.message || `Failed to submit suggestion (${res.status})`);
-      }
-
-      const json = await res.json();
-      if (json?.submission) {
-        setSuggestionSubmissions((prev) => [json.submission, ...prev].sort((a, b) => {
-          if (b.voteCount !== a.voteCount) return b.voteCount - a.voteCount;
-          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        }));
-      }
-      setSuggestionText("");
-    } catch (err: any) {
-      console.error('Failed to submit suggestion', err);
-      setSuggestionError(err?.message || 'Could not submit suggestion.');
-    } finally {
-      setSuggestionSubmitting(false);
-    }
-  };
-
-  const handleVoteSuggestion = async (submissionId: string) => {
-    setSuggestionSubmissions((prev) =>
-      prev.map((submission) =>
-        submission.id === submissionId
-          ? {
-            ...submission,
-            hasVoted: !submission.hasVoted,
-            voteCount: Math.max(0, submission.voteCount + (submission.hasVoted ? -1 : 1)),
-          }
-          : submission,
-      ).sort((a, b) => {
-        if (b.voteCount !== a.voteCount) return b.voteCount - a.voteCount;
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-      }),
-    );
-
-    try {
-      const res = await apiFetch(`${API_URL}/suggestion-box/${encodeURIComponent(submissionId)}/vote`, {
-        method: 'POST',
-      });
-      if (!res.ok) throw new Error(`Failed to vote (${res.status})`);
-      const json = await res.json();
-      setSuggestionSubmissions((prev) =>
-        prev.map((submission) =>
-          submission.id === submissionId
-            ? { ...submission, hasVoted: Boolean(json?.hasVoted), voteCount: Number(json?.voteCount || 0) }
-            : submission,
-        ).sort((a, b) => {
-          if (b.voteCount !== a.voteCount) return b.voteCount - a.voteCount;
-          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        }),
-      );
-    } catch (err) {
-      console.error('Failed to vote suggestion', err);
-      void fetchSuggestionBox();
     }
   };
 
@@ -331,100 +225,6 @@ export default function Suggestions() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Suggestion Box */}
-        {SHOW_SUGGESTION_BOX && (
-        <section className="mb-8">
-          <div className="rounded-2xl bg-white/90 border border-slate-200 shadow-sm dark:bg-white/[0.03] dark:border-white/10 p-5">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Suggestion Box</h2>
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                  Share website suggestions or complaints. No attachments, text only.
-                </p>
-              </div>
-              <span className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                As {user?.name || 'User'}
-              </span>
-            </div>
-
-            <div className="w-full flex flex-col gap-2">
-              <MdOutlinedTextFieldReact
-                type="textarea"
-                rows={4}
-                label="Write your suggestion or complaint..."
-                value={suggestionText}
-                onInput={(event: any) => {
-                  setSuggestionText(event.target.value);
-                  if (suggestionError) setSuggestionError(null);
-                }}
-                maxLength={2000}
-                style={{ width: "100%" }}
-              />
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                {suggestionText.length}/2000
-                {suggestionError ? <span className="ml-3 text-rose-600 dark:text-rose-400">{suggestionError}</span> : null}
-              </div>
-              <MdFilledButtonReact
-                onClick={handleSubmitSuggestion as any}
-                disabled={suggestionText.trim().length < 3 || suggestionSubmitting}
-                style={{"--md-filled-button-container-height": "36px", "--md-filled-button-container-shape": "8px"} as React.CSSProperties}
-              >
-                <span className="flex items-center gap-2">
-                  <Send className="h-3.5 w-3.5" />
-                  <span>{suggestionSubmitting ? 'Submitting...' : 'Submit'}</span>
-                </span>
-              </MdFilledButtonReact>
-            </div>
-
-            <div className="mt-6 border-t border-slate-200 pt-4 dark:border-white/10">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Top Suggestions</h3>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">Most voted first</span>
-              </div>
-
-              {suggestionLoading ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">Loading suggestions...</p>
-              ) : suggestionSubmissions.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">No suggestions yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {suggestionSubmissions.map((submission) => (
-                    <div
-                      key={submission.id}
-                      className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-950/30"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                            {submission.userName || 'User'}
-                          </p>
-                          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-800 dark:text-slate-200">
-                            {submission.content}
-                          </p>
-                        </div>
-                        <MdOutlinedButtonReact
-                          onClick={() => handleVoteSuggestion(submission.id)}
-                          className="shrink-0"
-                          title={submission.hasVoted ? 'Remove vote' : 'Vote'}
-                          style={{"--md-outlined-button-container-height": "36px", "--md-outlined-button-container-shape": "8px"} as React.CSSProperties}
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <ThumbsUp className={`h-3.5 w-3.5 ${submission.hasVoted ? 'fill-current text-indigo-600 dark:text-indigo-400' : ''}`} />
-                            <span>{submission.voteCount}</span>
-                          </span>
-                        </MdOutlinedButtonReact>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
         )}
 
         <section className="mb-8">

@@ -1,5 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0");
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif:ital,wght@0,400;0,600;0,700&family=JetBrains+Mono:wght@500&family=Public+Sans:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,200..900;1,200..900&family=Source+Sans+Pro:ital,wght@0,200..900;1,200..900&display=swap");
 
 .live-classroom {
   --lc-primary: var(--safar-ui-primary);
@@ -28,7 +28,7 @@
   --lc-gradient-from: var(--safar-ui-gradient-from);
   --lc-gradient-to: var(--safar-ui-gradient-to);
   --lc-ghost-border-opacity: 0.15;
-  font-family: "Inter", sans-serif;
+  font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
   background-color: var(--lc-background);
   color: var(--lc-on-background);
 }
@@ -64,15 +64,15 @@
 }
 
 .live-classroom .lc-headline {
-  font-family: "Noto Serif", serif;
+  font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
 }
 
 .live-classroom .lc-label {
-  font-family: "Public Sans", sans-serif;
+  font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
 }
 
 .dark .live-classroom .lc-label {
-  font-family: "JetBrains Mono", monospace;
+  font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
 }
 
 .live-classroom .material-symbols-outlined {

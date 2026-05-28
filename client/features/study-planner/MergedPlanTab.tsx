@@ -48,7 +48,7 @@ const STATUS_ROW: Record<
     border: "#a7f3d0",
   },
   revision_needed: {
-    label: "Needs revision",
+    label: "Revision",
     color: "#6d28d9",
     bg: "#ede9fe",
     darkBg: "#3b0764",
@@ -109,7 +109,7 @@ function ProgressRing({
         y="46"
         textAnchor="middle"
         className="fill-[#005bbf] text-[17px] font-bold"
-        style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
+        style={{ fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif" }}
       >
         {clamped}%
       </text>
@@ -319,12 +319,20 @@ export default function MergedPlanTab({
                   {formatPlannedDate(topic.plannedDate)}
                 </div>
               ) : null}
+              {topic.notes?.trim() ? (
+                <div
+                  className={`text-[12px] font-medium mt-1 leading-snug ${isDarkMode ? "text-[#cbd5e1]" : "text-[#475569]"}`}
+                >
+                  {topic.notes}
+                </div>
+              ) : null}
             </div>
             <span
-              className="flex-shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap"
+              className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap border"
               style={{
-                color: ui.color,
-                background: isDarkMode ? ui.darkBg || ui.bg : ui.bg,
+                color: isDarkMode ? "#f8fafc" : ui.color,
+                backgroundColor: isDarkMode ? ui.color : ui.bg,
+                borderColor: isDarkMode ? `${ui.color}99` : ui.border,
               }}
             >
               {ui.label}
@@ -339,6 +347,13 @@ export default function MergedPlanTab({
               className={`text-[10px] sm:text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-primary text-primary-foreground ${PLANNER_PRESSABLE}`}
             >
               Mark Done
+            </button>
+            <button
+              type="button"
+              onClick={() => void patchTopic(topic.id, { status: "revision_needed" })}
+              className={`text-[10px] sm:text-[11px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-purple-600 text-white ${PLANNER_PRESSABLE}`}
+            >
+              Revision
             </button>
           </div>
         ) : (
@@ -641,7 +656,7 @@ export default function MergedPlanTab({
             isDarkMode ? "border-[#2e3338] bg-[#0e1012]/40" : "border-[#e2e8f0] bg-[#f2f4f5]/60"
           }`}
         >
-          <h3 className={`text-[16px] font-bold shrink-0 ${textPrimary}`} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+          <h3 className={`text-[16px] font-bold shrink-0 ${textPrimary}`} style={{ fontFamily: "'Source Sans 3', 'Source Sans Pro', sans-serif" }}>
             Today&apos;s queue
           </h3>
           <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:gap-1 rounded-full p-1">
@@ -661,7 +676,9 @@ export default function MergedPlanTab({
                 ["upcoming", "Upcoming", upcomingTopics.length],
                 ["completed", "Completed", completedTopics.length],
               ] as const
-            ).map(([tab, label, count]) => (
+            ).map(([tab, label, count]) => {
+              const active = taskTab === tab;
+              return (
               <button
                 key={tab}
                 type="button"
@@ -675,18 +692,35 @@ export default function MergedPlanTab({
                         : "planner-merged-upcoming"
                 }
                 onClick={() => setTaskTab(tab)}
-                className={`${PLANNER_PRESSABLE} flex-1 min-w-[5rem] rounded-full px-3 py-2 text-[12px] font-semibold sm:flex-none sm:px-4 ${
-                  taskTab === tab
-                    ? isDarkMode
-                      ? "bg-[#1a1d20] text-[#f1f5f9] shadow-sm"
-                      : "bg-white text-[#191c1d] shadow-sm"
-                    : textMuted
-                }`}
+                className={`${PLANNER_PRESSABLE} flex min-w-[4.25rem] flex-col items-center gap-1.5 px-1 py-1 sm:min-w-[4.75rem]`}
               >
-                {label}
-                <span className="ml-1 opacity-70">({count})</span>
+                <span
+                  className={`text-[11px] font-semibold leading-tight whitespace-nowrap ${
+                    active
+                      ? isDarkMode
+                        ? "text-[#f8fafc]"
+                        : "text-[#0f172a]"
+                      : textMuted
+                  }`}
+                >
+                  {label}
+                </span>
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[13px] font-bold tabular-nums ${
+                    active
+                      ? isDarkMode
+                        ? "bg-[#38bdf8] text-[#0f172a] shadow-sm"
+                        : "bg-[#0f172a] text-white shadow-sm"
+                      : isDarkMode
+                        ? "border border-[#334155] bg-[#1a1d20] text-[#e2e8f0]"
+                        : "border border-[#e2e8f0] bg-white text-[#475569]"
+                  }`}
+                >
+                  {count}
+                </span>
               </button>
-            ))}
+            );
+            })}
           </div>
         </div>
 

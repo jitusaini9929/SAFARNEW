@@ -84,7 +84,7 @@ describe("PlannerApiError", () => {
 
 // ── plannerRequest Retry Logic ────────────────────────────────────────────────
 import { apiFetch } from "@/utils/apiFetch";
-import { plannerRequest, PlannerApiError } from "../planner-api";
+import { plannerRequest } from "../planner-api";
 
 vi.mock("@/utils/apiFetch", () => ({
   apiFetch: vi.fn(),

@@ -426,6 +426,27 @@ export default function StudyWithMe() {
                 ),
         [runtimeSessions],
     );
+
+    // Trigger contextual feedback after a meaningful timer session
+    useEffect(() => {
+        if (!pendingEndedSession || isSavingEndedSession) return;
+        const elapsedMinutes = pendingEndedSession.elapsedSeconds / 60;
+        if (elapsedMinutes < 15) return;
+        try {
+            window.dispatchEvent(
+                new CustomEvent("safar:feedback:open", {
+                    detail: {
+                        trigger: "timer_session",
+                        feature: "focus_timer",
+                        promptTitle: "That was a solid session 💪",
+                        promptBody: "Anything we can improve?",
+                    },
+                }),
+            );
+        } catch {
+            // ignore
+        }
+    }, [pendingEndedSession, isSavingEndedSession]);
     const pausedSessionCount = pausedRuntimeSessions.length;
     const pausedSessionPreviewTitle =
         String(

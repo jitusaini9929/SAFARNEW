@@ -10,6 +10,7 @@ import CommunitySpotlight from '../components/landing/CommunitySpotlight';
 import ExternalResources from '../components/landing/ExternalResources';
 import Footer from '../components/landing/Footer';
 import YoutubePromotionModal from '../components/landing/YoutubePromotionModal';
+import FeatureAnnouncementBanner from '../components/landing/FeatureAnnouncementBanner';
 
 const YOUTUBE_MODAL_SESSION_KEY_PREFIX = 'youtube-modal:auto-open-dismissed';
 
@@ -63,6 +64,8 @@ const Landing = () => {
     <div className="min-h-[100dvh] font-sans text-slate-800 dark:text-slate-100 selection:bg-brand-accent selection:text-black bg-gradient-to-br from-white via-slate-50 to-indigo-100 dark:bg-gradient-to-br dark:from-plum-dark dark:via-purple-deep dark:to-midnight">
       {/* Theme Toggle - Fixed Position */}
 
+
+      <FeatureAnnouncementBanner />
 
       <main className="w-full min-h-[100dvh] relative">
         <HeroSection

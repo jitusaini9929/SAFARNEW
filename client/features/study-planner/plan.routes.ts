@@ -98,8 +98,6 @@ function findTopicById(plan: StudyPlan, topicId: string): StudyTopic | null {
   return null;
 }
 
-const FREE_TIER_TOPIC_LIMIT = 30;
-
 function countAllTopics(plan: StudyPlan): number {
   let total = 0;
   for (const subject of plan.subjects) {
@@ -118,19 +116,7 @@ function plannerNameKey(name: string): string {
   return name.trim().toLowerCase();
 }
 
-async function canUsePremiumPlanner(userId: string): Promise<boolean> {
-  // MVP: remove premium locks completely
-  return true;
-}
-
-function withResolvedPlannerPremium(
-  plan: StudyPlan,
-  isPremium: boolean,
-): StudyPlan {
-  if (!isPremium || plan.features?.isPremium) {
-    return plan;
-  }
-
+function withPlannerPremium(plan: StudyPlan): StudyPlan {
   return {
     ...plan,
     features: {
@@ -140,11 +126,7 @@ function withResolvedPlannerPremium(
   };
 }
 
-function createDefaultPlan(
-  userId: string,
-  payload: any,
-  isPremium: boolean,
-): StudyPlan {
+function createDefaultPlan(userId: string, payload: any): StudyPlan {
   const now = new Date().toISOString();
 
   return {
@@ -164,8 +146,8 @@ function createDefaultPlan(
     offDays: clampOffDays(payload.offDays),
     subjects: [],
     features: {
-      isPremium,
-      unlockedAt: isPremium ? now : undefined,
+      isPremium: true,
+      unlockedAt: now,
     },
     createdAt: now,
     updatedAt: now,
@@ -175,7 +157,6 @@ function createDefaultPlan(
 router.get("/", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
-    const isPremium = await canUsePremiumPlanner(userId);
     const plans = await plansCollection()
       .find({ userId })
       .project({
@@ -194,10 +175,7 @@ router.get("/", async (req: Request, res: Response) => {
       .toArray();
 
     const summary = plans.map((plan) => {
-      const resolvedPlan = withResolvedPlannerPremium(
-        plan as StudyPlan,
-        isPremium,
-      );
+      const resolvedPlan = withPlannerPremium(plan as StudyPlan);
       const progress = rollupProgress(resolvedPlan);
       return {
         ...resolvedPlan,
@@ -374,81 +352,6 @@ router.post("/:planId/import-syllabus", async (req: Request, res: Response) => {
       );
     }, 0);
 
-    const isPremium = await canUsePremiumPlanner(userId);
-    if (!(plan.features?.isPremium || isPremium)) {
-      if (mode === "replace") {
-        if (incomingTopicCount > FREE_TIER_TOPIC_LIMIT) {
-          return res.status(403).json({
-            code: "TOPIC_LIMIT",
-            message: `Free plans support up to ${FREE_TIER_TOPIC_LIMIT} topics. Upgrade to Premium for unlimited topics.`,
-            currentCount: 0,
-            limit: FREE_TIER_TOPIC_LIMIT,
-          });
-        }
-      } else {
-        const currentCount = countAllTopics(plan);
-        let additionalCount = 0;
-
-        const existingSubjectsByKey = new Map(
-          plan.subjects.map((subject) => [
-            plannerNameKey(subject.name),
-            subject,
-          ]),
-        );
-
-        for (const subject of cleanedSubjects) {
-          const existingSubject = existingSubjectsByKey.get(
-            plannerNameKey(subject.name),
-          );
-          if (!existingSubject) {
-            additionalCount += subject.chapters.reduce(
-              (sum, chapter) => sum + chapter.topics.length,
-              0,
-            );
-            continue;
-          }
-
-          const existingChaptersByKey = new Map(
-            existingSubject.chapters.map((chapter) => [
-              plannerNameKey(chapter.name),
-              chapter,
-            ]),
-          );
-
-          for (const chapter of subject.chapters) {
-            const existingChapter = existingChaptersByKey.get(
-              plannerNameKey(chapter.name),
-            );
-            if (!existingChapter) {
-              additionalCount += chapter.topics.length;
-              continue;
-            }
-
-            const existingTopics = new Set(
-              existingChapter.topics.map((topic) =>
-                plannerNameKey(topic.name),
-              ),
-            );
-
-            for (const topicName of chapter.topics) {
-              if (!existingTopics.has(plannerNameKey(topicName))) {
-                additionalCount += 1;
-              }
-            }
-          }
-        }
-
-        if (currentCount + additionalCount > FREE_TIER_TOPIC_LIMIT) {
-          return res.status(403).json({
-            code: "TOPIC_LIMIT",
-            message: `Free plans support up to ${FREE_TIER_TOPIC_LIMIT} topics. Upgrade to Premium for unlimited topics.`,
-            currentCount,
-            limit: FREE_TIER_TOPIC_LIMIT,
-          });
-        }
-      }
-    }
-
     if (mode === "replace") {
       plan.subjects = cleanedSubjects.map((subject, index) => {
         const chapters: StudyChapter[] = subject.chapters.map((chapter) => {
@@ -609,15 +512,6 @@ router.get("/templates/:templateId", async (req: Request, res: Response) => {
 router.post("/from-template", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
-    const isPremium = await canUsePremiumPlanner(userId);
-
-    const activePlanCount = await plansCollection().countDocuments({ userId });
-    if (!isPremium && activePlanCount >= 1) {
-      return res.status(403).json({
-        message:
-          "Free tier supports only 1 active plan. Upgrade to premium for unlimited plans.",
-      });
-    }
 
     const { templateId, title, examDate, dailyGoal, offDays, autoDistribute } =
       req.body || {};
@@ -631,14 +525,6 @@ router.post("/from-template", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Template not found" });
     }
 
-    // Free tier: only allow CGL template
-    if (!isPremium && templateId !== "ssc-cgl-tier1") {
-      return res.status(403).json({
-        message:
-          "This template is available for Pro users. Upgrade to unlock all exam templates.",
-      });
-    }
-
     const plan = createPlanFromTemplate({
       userId,
       template,
@@ -646,7 +532,7 @@ router.post("/from-template", async (req: Request, res: Response) => {
       examDate,
       dailyGoal: dailyGoal ? Math.max(1, Number(dailyGoal)) : undefined,
       offDays,
-      isPremium,
+      isPremium: true,
       autoDistribute: Boolean(autoDistribute),
     });
 
@@ -681,8 +567,7 @@ router.get("/:planId", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Plan not found" });
     }
 
-    const isPremium = await canUsePremiumPlanner(userId);
-    const resolvedPlan = withResolvedPlannerPremium(plan, isPremium);
+    const resolvedPlan = withPlannerPremium(plan);
     const progress = rollupProgress(resolvedPlan);
     return res.json({ ...resolvedPlan, progress });
   } catch (error) {
@@ -694,15 +579,6 @@ router.get("/:planId", async (req: Request, res: Response) => {
 router.post("/", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
-    const isPremium = await canUsePremiumPlanner(userId);
-
-    const activePlanCount = await plansCollection().countDocuments({ userId });
-    if (!isPremium && activePlanCount >= 1) {
-      return res.status(403).json({
-        message:
-          "Free tier supports only 1 active plan. Upgrade to premium for unlimited plans.",
-      });
-    }
 
     if (!req.body?.title || String(req.body.title).trim().length < 3) {
       return res
@@ -710,7 +586,7 @@ router.post("/", async (req: Request, res: Response) => {
         .json({ message: "Plan title must be at least 3 characters" });
     }
 
-    const plan = createDefaultPlan(userId, req.body, isPremium);
+    const plan = createDefaultPlan(userId, req.body);
     await plansCollection().insertOne(plan);
 
     return res.status(201).json(plan);
@@ -1084,7 +960,6 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
-      const isPremium = await canUsePremiumPlanner(userId);
       const name = String(req.body?.name || "").trim();
       if (name.length < 2) {
         return res
@@ -1098,19 +973,6 @@ router.post(
       });
       if (!plan) {
         return res.status(404).json({ message: "Plan not found" });
-      }
-
-      // ── Free tier: 30-topic limit ──
-      if (!(plan.features?.isPremium || isPremium)) {
-        const currentTopicCount = countAllTopics(plan);
-        if (currentTopicCount >= FREE_TIER_TOPIC_LIMIT) {
-          return res.status(403).json({
-            code: "TOPIC_LIMIT",
-            message: `Free plans support up to ${FREE_TIER_TOPIC_LIMIT} topics. Upgrade to Premium for unlimited topics.`,
-            currentCount: currentTopicCount,
-            limit: FREE_TIER_TOPIC_LIMIT,
-          });
-        }
       }
 
       const subject = plan.subjects.find((s) => s.id === req.params.subjectId);
@@ -1182,7 +1044,6 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const userId = getUserId(req);
-      const isPremium = await canUsePremiumPlanner(userId);
       const topicsPayload = req.body?.topics;
       
       if (!Array.isArray(topicsPayload) || topicsPayload.length === 0) {
@@ -1195,19 +1056,6 @@ router.post(
       });
       if (!plan) {
         return res.status(404).json({ message: "Plan not found" });
-      }
-
-      // ── Free tier: 30-topic limit ──
-      if (!(plan.features?.isPremium || isPremium)) {
-        const currentTopicCount = countAllTopics(plan);
-        if (currentTopicCount + topicsPayload.length > FREE_TIER_TOPIC_LIMIT) {
-          return res.status(403).json({
-            code: "TOPIC_LIMIT",
-            message: `Free plans support up to ${FREE_TIER_TOPIC_LIMIT} topics. Upgrade to Premium for unlimited topics.`,
-            currentCount: currentTopicCount,
-            limit: FREE_TIER_TOPIC_LIMIT,
-          });
-        }
       }
 
       const subject = plan.subjects.find((s) => s.id === req.params.subjectId);
@@ -1478,22 +1326,12 @@ router.get("/:planId/analytics", async (req: Request, res: Response) => {
 router.post("/:planId/auto-distribute", async (req: Request, res: Response) => {
   try {
     const userId = getUserId(req);
-    const isPremium = await canUsePremiumPlanner(userId);
     const plan = await plansCollection().findOne({
       id: req.params.planId,
       userId,
     });
     if (!plan) {
       return res.status(404).json({ message: "Plan not found" });
-    }
-
-    // ── Free tier: Auto-Schedule is premium only ──
-    if (!(plan.features?.isPremium || isPremium)) {
-      return res.status(403).json({
-        code: "PREMIUM_REQUIRED",
-        message:
-          "Auto-Schedule is a Premium feature. Upgrade to build your study calendar in one click.",
-      });
     }
 
     const result = autoDistributeTopics(plan, {
@@ -1575,30 +1413,6 @@ router.post("/:planId/upgrade", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("[PLANNER] Upgrade failed:", error);
     return res.status(500).json({ message: "Failed to upgrade planner" });
-  }
-});
-
-// ── Daily Check-in ──
-
-router.post("/:planId/checkin", async (req: Request, res: Response) => {
-  try {
-    const userId = getUserId(req);
-    const plan = await plansCollection().findOne({
-      id: req.params.planId,
-      userId,
-    });
-    if (!plan) {
-      return res.status(404).json({ message: "Plan not found" });
-    }
-
-    logPlannerEvent(userId, plan.id, "daily_checkin", {
-      date: new Date().toISOString().split("T")[0],
-    });
-
-    return res.json({ ok: true, message: "Check-in recorded" });
-  } catch (error) {
-    console.error("[PLANNER] Daily checkin failed:", error);
-    return res.status(500).json({ message: "Failed to record check-in" });
   }
 });
 
