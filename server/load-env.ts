@@ -15,20 +15,24 @@ export function loadEnv() {
     Boolean(process.env.RENDER_INSTANCE_ID) ||
     Boolean(process.env.RENDER_EXTERNAL_URL);
 
-  // .env_open is committed and defines the canonical admin email list and
-  // feature flags. Use override:true so the committed list always wins over
-  // values injected by the hosting platform dashboard (e.g. Render) for keys
-  // like ADMIN_EMAILS — this prevents stale dashboard values from blocking
-  // admins.
+  // .env_open is committed and defines non-secret defaults (feature flags,
+  // admin emails, etc.). Load WITHOUT override so Render-injected vars like
+  // PORT are never stomped — but then explicitly merge ADMIN_EMAILS so the
+  // committed admin list always supplements whatever the dashboard has.
   const envOpenPath = path.join(cwd, ".env_open");
   if (fs.existsSync(envOpenPath)) {
-    const existingAdminEmails = process.env.ADMIN_EMAILS;
-    dotenv.config({ path: envOpenPath, override: true });
-    if (existingAdminEmails && process.env.ADMIN_EMAILS) {
-      const mergedEmails = Array.from(
-        new Set([...existingAdminEmails.split(","), ...process.env.ADMIN_EMAILS.split(",")])
-      ).filter(Boolean).join(",");
-      process.env.ADMIN_EMAILS = mergedEmails;
+    const hostAdminEmails = process.env.ADMIN_EMAILS; // capture before dotenv touches it
+    dotenv.config({ path: envOpenPath }); // no override — PORT etc. stay as Render set them
+    // Merge: union of host-set emails + .env_open emails so neither source is lost
+    const openAdminEmails = process.env.ADMIN_EMAILS;
+    if (hostAdminEmails || openAdminEmails) {
+      const merged = Array.from(
+        new Set([
+          ...(hostAdminEmails ?? "").split(","),
+          ...(openAdminEmails ?? "").split(","),
+        ])
+      ).map((e) => e.trim()).filter(Boolean).join(",");
+      process.env.ADMIN_EMAILS = merged;
     }
   }
 
