@@ -26,6 +26,7 @@ export type PushPayload = {
 export type PushSendOptions = {
   ignoreQuietHours?: boolean;
   bypassDedupe?: boolean;
+  bypassPreferences?: boolean;
 };
 
 export const ALLOWED_CHANNELS: NotificationChannel[] = [
@@ -202,7 +203,7 @@ async function evaluatePolicy(userId: string, payload: PushPayload, options: Pus
   const preferences = await getSavedNotificationPreferences(userId);
   const preferenceField = TYPE_TO_PREF[payload.type] || TYPE_TO_PREF[payload.channel];
 
-  if (preferenceField && preferences[preferenceField] === false) {
+  if (!options.bypassPreferences && preferenceField && preferences[preferenceField] === false) {
     return { allowed: false, reason: "preference_disabled" };
   }
 
@@ -287,6 +288,7 @@ async function deliverPushToken(tokenRow: any, payload: PushPayload, dedupeKey: 
 
     return { tokenPreview: preview, success: true, messageId: response };
   } catch (error: any) {
+    console.error("Error in deliverPushToken:", error);
     const code = String(error?.code || "");
     if (code.includes("registration-token-not-registered") || code.includes("invalid-registration-token")) {
       await markInvalidToken(token);
@@ -294,7 +296,7 @@ async function deliverPushToken(tokenRow: any, payload: PushPayload, dedupeKey: 
     return {
       tokenPreview: preview,
       success: false,
-      error: code || "send_failed",
+      error: error?.code || error?.message || "send_failed",
     };
   }
 }

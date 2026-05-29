@@ -200,8 +200,9 @@ notificationRoutes.post("/notifications/test", requireAuth, async (req: Request,
     if (error || !payload) return res.status(400).json({ message: error });
 
     const results = await sendNotificationToUser(userId, payload, {
-      ignoreQuietHours: req.body?.ignoreQuietHours === true,
-      bypassDedupe: req.body?.bypassDedupe === true,
+      ignoreQuietHours: req.body?.ignoreQuietHours !== false,
+      bypassDedupe: req.body?.bypassDedupe !== false,
+      bypassPreferences: req.body?.bypassPreferences !== false,
     });
 
     return res.json({

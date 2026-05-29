@@ -2462,6 +2462,7 @@ export default function StudyPlanner({
     try {
       const response = await apiFetch(`${API_BASE}/syllabus/structure-preview`, {
         method: "POST",
+        timeoutMs: BULK_IMPORT_REQUEST_TIMEOUT_MS,
         headers: {
           "Content-Type": "application/json",
         },
@@ -2506,7 +2507,13 @@ export default function StudyPlanner({
         showToast("Syllabus structured successfully with AI!", "success");
       }
     } catch (err: any) {
-      const msg = err.message || "Could not structure syllabus.";
+      const rawMessage = String(err?.message || "");
+      const msg = /abort|aborted|signal is aborted without reason/i.test(rawMessage)
+        ? "Request timed out while structuring the syllabus. Please try again."
+        : normalizePlannerActionMessage(
+            rawMessage,
+            "Could not structure syllabus.",
+          );
       setBulkAddError(msg);
       showToast(msg, "error");
     } finally {

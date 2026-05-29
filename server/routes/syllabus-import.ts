@@ -203,6 +203,56 @@ function clampInt(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.trunc(n)));
 }
 
+function preprocessSyllabusTextForStructuring(raw: string): {
+  cleaned: string;
+  notes: string[];
+} {
+  const notes: string[] = [];
+  let text = String(raw ?? "");
+
+  // Normalize whitespace early.
+  text = text.replace(/\r\n?/g, "\n");
+
+  // Remove common planning/schedule metadata that is not part of a syllabus.
+  const beforeMeta = text;
+  text = text
+    .replace(/\bStudy\s*Plan\s*:\s*/gi, "")
+    .replace(/\bGoal\s*:\s*\d+\s*\/\s*day\b/gi, "")
+    .replace(/\bExam\s*:\s*/gi, "")
+    .replace(/\bExam\s*Date\s*:\s*/gi, "");
+  if (text !== beforeMeta) {
+    notes.push("Removed study-plan metadata (Study Plan / Goal / Exam labels).");
+  }
+
+  // Remove inline planned dates (e.g. "02 Jun 2026") and ISO dates.
+  const month =
+    "(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)";
+  const dateWord = new RegExp(`\\b\\d{1,2}\\s+${month}\\s+\\d{4}\\b`, "gi");
+  const isoDate = /\b\d{4}-\d{2}-\d{2}\b/g;
+  const beforeDates = text;
+  text = text.replace(dateWord, "").replace(isoDate, "");
+  if (text !== beforeDates) {
+    notes.push("Removed planned dates from the input.");
+  }
+
+  // If the user pasted a schedule-like single paragraph with many dashes, add line breaks.
+  const dashCount = (text.match(/\s-\s/g) || []).length;
+  if (dashCount >= 10 && !/\n/.test(text)) {
+    text = text.replace(/\s-\s/g, "\n- ");
+    notes.push("Added line breaks around dash-separated items.");
+  }
+
+  // Clean up excess whitespace introduced by removals.
+  text = text
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n\s+/g, "\n")
+    .trim();
+
+  return { cleaned: text, notes };
+}
+
 function parseGroqTpmLimitError(
   message: string,
 ): { limit: number; requested: number } | null {
@@ -219,11 +269,265 @@ function parseGroqTpmLimitError(
   return { limit, requested };
 }
 
+type SyllabusStructureOutputMode = "full" | "chapters_only";
+
+function normalizeLabel(value: unknown): string {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/^[-_>\s]+/, "")
+    .trim();
+}
+
+function dedupeByLowerTrim(items: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    const normalized = normalizeLabel(item);
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function isGenericSubjectName(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  return n === "general" || n === "syllabus" || n === "outline";
+}
+
+function looksLikeSubjectHeading(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  if (!n) return false;
+  // Heuristics for competitive exam syllabus sections.
+  if (/(english|language|awareness|reasoning|intelligence|aptitude|quant|mathematics|maths|science|history|geography|polity|economy|current affairs)/i.test(n)) {
+    return true;
+  }
+  // Often comes as "<something> Syllabus".
+  if (/\bsyllabus\b/i.test(n)) return true;
+  // Avoid promoting very long paragraphs.
+  if (n.length > 80) return false;
+  return false;
+}
+
+function normalizeFullStructure(
+  parsedSubjects: any,
+): {
+  subjects: Array<{ name: string; chapters: Array<{ name: string; topics: string[] }> }>;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  const inputSubjects: Array<any> = Array.isArray(parsedSubjects) ? parsedSubjects : [];
+  const subjects = inputSubjects
+    .map((subject) => {
+      const subjectName = normalizeLabel(subject?.name) || "General";
+      const chaptersRaw: Array<any> = Array.isArray(subject?.chapters)
+        ? subject.chapters
+        : [];
+
+      const chapters = chaptersRaw
+        .map((chapter) => {
+          const chapterName = normalizeLabel(chapter?.name);
+          const topicsRaw: Array<any> = Array.isArray(chapter?.topics)
+            ? chapter.topics
+            : [];
+          const topics = dedupeByLowerTrim(topicsRaw.map((t) => String(t ?? "")));
+          return { name: chapterName, topics };
+        })
+        .filter((c) => c.name || c.topics.length > 0);
+
+      return { name: subjectName, chapters };
+    })
+    .filter((s) => s.name && s.chapters.length > 0);
+
+  // De-dupe chapter names per subject (case-insensitive), while merging topics.
+  const dedupedSubjects = subjects.map((subject) => {
+    const map = new Map<string, { name: string; topics: string[] }>();
+    for (const chapter of subject.chapters) {
+      const key = normalizeLabel(chapter.name).toLowerCase() || "general";
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          name: normalizeLabel(chapter.name) || "General",
+          topics: chapter.topics,
+        });
+      } else {
+        existing.topics = dedupeByLowerTrim([...existing.topics, ...chapter.topics]);
+      }
+    }
+    return {
+      name: subject.name,
+      chapters: Array.from(map.values()).map((c) => ({
+        name: c.name,
+        topics: dedupeByLowerTrim(c.topics),
+      })),
+    };
+  });
+
+  return { subjects: dedupedSubjects, warnings };
+}
+
+function repairGeneralSubjectMisgrouping(
+  subjects: Array<{ name: string; chapters: Array<{ name: string; topics: string[] }> }>,
+): {
+  subjects: Array<{ name: string; chapters: Array<{ name: string; topics: string[] }> }>;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  if (subjects.length !== 1) return { subjects, warnings };
+
+  const only = subjects[0];
+  if (!isGenericSubjectName(only.name)) return { subjects, warnings };
+
+  const likelySubjects = only.chapters.filter(
+    (c) => c.topics.length > 0 && looksLikeSubjectHeading(c.name),
+  );
+  if (likelySubjects.length < 2) return { subjects, warnings };
+
+  const nextSubjects: Array<{
+    name: string;
+    chapters: Array<{ name: string; topics: string[] }>;
+  }> = [];
+
+  // Keep any non-subject-like chapters inside General.
+  const remaining = only.chapters.filter(
+    (c) => !looksLikeSubjectHeading(c.name),
+  );
+  if (remaining.length > 0) {
+    nextSubjects.push({ name: only.name, chapters: remaining });
+  }
+
+  // Promote each likely subject chapter to a real subject.
+  for (const chapter of likelySubjects) {
+    nextSubjects.push({
+      name: chapter.name,
+      chapters: [
+        {
+          name: "General",
+          topics: chapter.topics,
+        },
+      ],
+    });
+  }
+
+  warnings.push(
+    'Detected top-level sections under a generic "General" subject; promoted them into separate subjects.',
+  );
+  return { subjects: nextSubjects, warnings };
+}
+
+function chaptersOnlyFromParsedStructure(
+  parsedSubjects: any,
+): {
+  subjects: Array<{ name: string; chapters: Array<{ name: string; topics: string[] }> }>;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  const inputSubjects: Array<any> = Array.isArray(parsedSubjects) ? parsedSubjects : [];
+  const cleanedSubjects = inputSubjects
+    .map((subject) => {
+      const subjectName = normalizeLabel(subject?.name) || "General";
+      const chaptersRaw: Array<any> = Array.isArray(subject?.chapters)
+        ? subject.chapters
+        : [];
+      const chapters = chaptersRaw
+        .map((chapter) => {
+          const chapterName = normalizeLabel(chapter?.name);
+          const topicsRaw: Array<any> = Array.isArray(chapter?.topics)
+            ? chapter.topics
+            : [];
+          const topics = dedupeByLowerTrim(topicsRaw.map((t) => String(t ?? "")));
+          return { name: chapterName, topics };
+        })
+        .filter((c) => c.name || c.topics.length > 0);
+      return { name: subjectName, chapters };
+    })
+    .filter((s) => s.name && s.chapters.length > 0);
+
+  if (cleanedSubjects.length === 1 && isGenericSubjectName(cleanedSubjects[0].name)) {
+    const general = cleanedSubjects[0];
+    const promotable = general.chapters.filter((c) => c.topics.length > 0);
+    const likelySubjects = promotable.filter((c) => looksLikeSubjectHeading(c.name));
+    if (likelySubjects.length >= 2) {
+      const nextSubjects: Array<{
+        name: string;
+        chapters: Array<{ name: string; topics: string[] }>;
+      }> = [];
+
+      const remainingGeneralChapters = general.chapters
+        .filter((c) => c.topics.length === 0)
+        .map((c) => ({ name: c.name || "General", topics: [] as string[] }))
+        .filter((c) => c.name);
+
+      if (remainingGeneralChapters.length > 0) {
+        nextSubjects.push({ name: general.name, chapters: remainingGeneralChapters });
+      }
+
+      for (const chapter of likelySubjects) {
+        const chapterNames = chapter.topics.length
+          ? chapter.topics
+          : chapter.name
+            ? [chapter.name]
+            : [];
+        const subjectChapters = dedupeByLowerTrim(chapterNames).map((name) => ({
+          name,
+          topics: [] as string[],
+        }));
+        if (subjectChapters.length === 0) continue;
+        nextSubjects.push({
+          name: chapter.name,
+          chapters: subjectChapters,
+        });
+      }
+
+      warnings.push(
+        'Detected top-level sections under a generic "General" subject; promoted them into separate subjects and converted their items into chapters.',
+      );
+      return { subjects: nextSubjects, warnings };
+    }
+  }
+
+  // Default: convert everything into chapters-only by flattening topics into chapters.
+  const subjects = cleanedSubjects.map((subject) => {
+    const chapterNames: string[] = [];
+    for (const chapter of subject.chapters) {
+      if (chapter.topics.length > 0) {
+        chapterNames.push(...chapter.topics);
+      } else if (chapter.name) {
+        chapterNames.push(chapter.name);
+      }
+    }
+
+    const chapters = dedupeByLowerTrim(chapterNames).map((name) => ({
+      name,
+      topics: [] as string[],
+    }));
+    return { name: subject.name, chapters };
+  });
+
+  warnings.push('Converted any nested topics into chapters (chapters-only mode).');
+  return { subjects, warnings };
+}
+
 const STRUCTURE_SYSTEM_PROMPT = `You are a syllabus structuring assistant for SAFAR, an Indian competitive-exam study planner.
 
 Your job: Given messy syllabus text (from websites, PDFs, coaching notes, or typed notes), extract a clean Subject → Chapter → Topic hierarchy.
 
-Important: Do NOT invent hierarchy. Many syllabus sources are just a flat list of items under a subject heading.
+Goal: Produce a structure that is most useful for studying.
+- Subjects are the highest-level buckets (e.g. English Language, Quantitative Aptitude).
+- Chapters are mid-level groupings (e.g. Grammar, Algebra).
+- Topics are the smallest study items (e.g. Tenses, Quadratic Equations).
+
+Key guidance (ambiguity handling):
+- Prefer NOT to invent chapters.
+- If a subject section is a flat list of items with no obvious sub-groups, treat those items as TOPICS under a single placeholder chapter named "General".
+- Only create multiple chapters when the input clearly indicates group headings.
+- If you're unsure whether a line is a chapter or topic, prefer TOPIC and add a short warning.
+
+Noise handling:
+- Ignore non-syllabus boilerplate (exam timing, marketing lines like "candidates can go through...", etc.).
+- Ignore scheduling information or planned dates if present (e.g. "02 Jun 2026", "Goal: 4/day").
 
 Rules:
 1. Return ONLY valid JSON matching this exact schema — no markdown, no extra text:
@@ -243,22 +547,19 @@ Rules:
 }
 
 2. Infer subjects from the headings. If only chapters/topics are present with no clear subject, use "General" as the subject name.
-3. Decide Chapter vs Topic conservatively:
-  - If a subject section is a simple/flat list of items (no obvious sub-groups), treat EACH item as a chapter and set that chapter's topics to an empty array.
-  - Only use topics when the input clearly shows a grouped structure (e.g. a chapter heading like "Grammar" followed by sub-items).
-  - Never make the first list item a parent of the remaining items unless the text explicitly indicates that grouping.
-4. Keep names concise — trim whitespace, capitalise properly.
-5. Deduplicate exact repeated chapter names within the same subject (case-insensitive). Deduplicate exact repeated topics within the same chapter.
+3. Keep names concise — trim whitespace, capitalise properly.
+4. Deduplicate exact repeated chapter names within the same subject (case-insensitive). Deduplicate exact repeated topics within the same chapter.
 5. Warnings is an array of short strings noting anything ambiguous (can be empty).
 6. If you cannot extract ANY structure, return {"subjects":[],"warnings":["Could not parse syllabus text"]}.`;
 
 router.post("/structure-preview", async (req: Request, res: Response) => {
   try {
-    const { rawText, examType, planTitle, language } = req.body as {
+    const { rawText, examType, planTitle, language, outputMode } = req.body as {
       rawText?: string;
       examType?: string;
       planTitle?: string;
       language?: string;
+      outputMode?: SyllabusStructureOutputMode;
     };
 
     const text = (rawText ?? "").trim();
@@ -274,6 +575,10 @@ router.post("/structure-preview", async (req: Request, res: Response) => {
       });
     }
 
+    const preprocessed = preprocessSyllabusTextForStructuring(text);
+    const cleanedText = preprocessed.cleaned;
+    const preprocessingWarnings = preprocessed.notes;
+
     // Uses its own dedicated key (SYLLABUS_GROQ_API_KEY) — isolated from Mehfil's GROQ_API_KEY
     const groqKey = (process.env.SYLLABUS_GROQ_API_KEY || "").trim();
     if (!groqKey) {
@@ -284,17 +589,23 @@ router.post("/structure-preview", async (req: Request, res: Response) => {
       });
     }
 
+    const mode: SyllabusStructureOutputMode =
+      outputMode === "chapters_only" ? "chapters_only" : "full";
+
     const contextHints = [
       examType ? `Exam type: ${examType}` : null,
       planTitle ? `Plan title: ${planTitle}` : null,
       language ? `Language of text: ${language}` : null,
+      mode === "chapters_only"
+        ? "Output mode: chapters only (do not return any topics)"
+        : null,
     ]
       .filter(Boolean)
       .join("\n");
 
     const userMessage = contextHints
-      ? `${contextHints}\n\nSyllabus text:\n${text}`
-      : `Syllabus text:\n${text}`;
+      ? `${contextHints}\n\nSyllabus text:\n${cleanedText}`
+      : `Syllabus text:\n${cleanedText}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(
@@ -391,13 +702,33 @@ router.post("/structure-preview", async (req: Request, res: Response) => {
       });
     }
 
-    const subjects = parsed.subjects as Array<{
+    let subjects = parsed.subjects as Array<{
       name: string;
       chapters: Array<{ name: string; topics: string[] }>;
     }>;
-    const warnings: string[] = Array.isArray(parsed.warnings)
+    let warnings: string[] = Array.isArray(parsed.warnings)
       ? (parsed.warnings as string[])
       : [];
+
+    if (preprocessingWarnings.length > 0) {
+      warnings = dedupeByLowerTrim([...warnings, ...preprocessingWarnings]);
+    }
+
+    if (mode === "full") {
+      const normalized = normalizeFullStructure(subjects);
+      subjects = normalized.subjects;
+      warnings = dedupeByLowerTrim([...warnings, ...normalized.warnings]);
+
+      const repaired = repairGeneralSubjectMisgrouping(subjects);
+      subjects = repaired.subjects;
+      warnings = dedupeByLowerTrim([...warnings, ...repaired.warnings]);
+    }
+
+    if (mode === "chapters_only") {
+      const normalized = chaptersOnlyFromParsedStructure(subjects);
+      subjects = normalized.subjects;
+      warnings = dedupeByLowerTrim([...warnings, ...normalized.warnings]);
+    }
 
     const topicCount = subjects.reduce(
       (sum, s) =>
