@@ -189,14 +189,41 @@ router.post(
 // The client shows the preview and lets the user confirm before importing.
 
 const GROQ_STRUCTURE_MODEL =
-  process.env.SYLLABUS_GROQ_MODEL || "qwen-qwq-32b"; // TODO: confirm model ID with user — requested "GPT OSS 20b"
+  process.env.SYLLABUS_GROQ_MODEL || "llama-3.1-8b-instant";
 const GROQ_STRUCTURE_API_URL =
   "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_STRUCTURE_TIMEOUT_MS = 60_000;
 
+function parsePositiveInt(value: unknown): number | null {
+  const n = typeof value === "string" ? Number.parseInt(value, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function clampInt(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.trunc(n)));
+}
+
+function parseGroqTpmLimitError(
+  message: string,
+): { limit: number; requested: number } | null {
+  // Example:
+  // "Request too large for model 'llama-3.1-8b-instant' ... on tokens per minute (TPM): Limit 6000, Requested 9082"
+  const match = /tokens per minute \(TPM\):\s*Limit\s*(\d+)\s*,\s*Requested\s*(\d+)/i.exec(
+    message,
+  );
+  if (!match) return null;
+  const limit = Number.parseInt(match[1], 10);
+  const requested = Number.parseInt(match[2], 10);
+  if (!Number.isFinite(limit) || !Number.isFinite(requested)) return null;
+  if (limit <= 0 || requested <= 0) return null;
+  return { limit, requested };
+}
+
 const STRUCTURE_SYSTEM_PROMPT = `You are a syllabus structuring assistant for SAFAR, an Indian competitive-exam study planner.
 
 Your job: Given messy syllabus text (from websites, PDFs, coaching notes, or typed notes), extract a clean Subject → Chapter → Topic hierarchy.
+
+Important: Do NOT invent hierarchy. Many syllabus sources are just a flat list of items under a subject heading.
 
 Rules:
 1. Return ONLY valid JSON matching this exact schema — no markdown, no extra text:
@@ -216,8 +243,12 @@ Rules:
 }
 
 2. Infer subjects from the headings. If only chapters/topics are present with no clear subject, use "General" as the subject name.
-3. Keep topic names concise — trim whitespace, capitalise properly.
-4. Deduplicate exact repeated topics within the same chapter.
+3. Decide Chapter vs Topic conservatively:
+  - If a subject section is a simple/flat list of items (no obvious sub-groups), treat EACH item as a chapter and set that chapter's topics to an empty array.
+  - Only use topics when the input clearly shows a grouped structure (e.g. a chapter heading like "Grammar" followed by sub-items).
+  - Never make the first list item a parent of the remaining items unless the text explicitly indicates that grouping.
+4. Keep names concise — trim whitespace, capitalise properly.
+5. Deduplicate exact repeated chapter names within the same subject (case-insensitive). Deduplicate exact repeated topics within the same chapter.
 5. Warnings is an array of short strings noting anything ambiguous (can be empty).
 6. If you cannot extract ANY structure, return {"subjects":[],"warnings":["Could not parse syllabus text"]}.`;
 
@@ -271,9 +302,18 @@ router.post("/structure-preview", async (req: Request, res: Response) => {
       GROQ_STRUCTURE_TIMEOUT_MS,
     );
 
-    let groqRes: globalThis.Response;
-    try {
-      groqRes = await fetch(GROQ_STRUCTURE_API_URL, {
+    const envMaxTokens =
+      parsePositiveInt(process.env.SYLLABUS_GROQ_MAX_TOKENS) ?? 2048;
+    // Keep this conservative by default to fit Groq on-demand TPM limits.
+    // Users on higher tiers can raise via SYLLABUS_GROQ_MAX_TOKENS.
+    const requestedMaxTokens = clampInt(envMaxTokens, 256, 4096);
+
+    async function callGroq(maxTokens: number): Promise<{
+      ok: boolean;
+      status: number;
+      payload: any;
+    }> {
+      const response = await fetch(GROQ_STRUCTURE_API_URL, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${groqKey}`,
@@ -286,27 +326,53 @@ router.post("/structure-preview", async (req: Request, res: Response) => {
             { role: "user", content: userMessage },
           ],
           temperature: 0.1,
-          max_tokens: 8192,
+          max_tokens: maxTokens,
           response_format: { type: "json_object" },
         }),
         signal: controller.signal,
       });
+
+      const payload = await response.json().catch(() => null);
+      return { ok: response.ok, status: response.status, payload };
+    }
+
+    let groqResult: Awaited<ReturnType<typeof callGroq>> | null = null;
+    try {
+      groqResult = await callGroq(requestedMaxTokens);
+      if (!groqResult.ok) {
+        const errMsg =
+          groqResult.payload?.error?.message ||
+          groqResult.payload?.message ||
+          "AI request failed.";
+
+        // If Groq rejects due to TPM-per-request budgeting, retry once with a smaller max_tokens.
+        const parsed = parseGroqTpmLimitError(String(errMsg));
+        if (parsed && parsed.requested > parsed.limit) {
+          const overBy = parsed.requested - parsed.limit;
+          const retryMaxTokens = clampInt(
+            requestedMaxTokens - overBy - 256,
+            256,
+            requestedMaxTokens,
+          );
+          if (retryMaxTokens < requestedMaxTokens) {
+            groqResult = await callGroq(retryMaxTokens);
+          }
+        }
+      }
     } finally {
       clearTimeout(timeout);
     }
 
-    const groqPayload = await groqRes.json().catch(() => null);
-
-    if (!groqRes.ok) {
+    if (!groqResult?.ok) {
       const errMsg =
-        groqPayload?.error?.message ||
-        groqPayload?.message ||
+        groqResult?.payload?.error?.message ||
+        groqResult?.payload?.message ||
         "AI request failed.";
       return res.status(502).json({ success: false, message: errMsg });
     }
 
     const rawContent: string =
-      groqPayload?.choices?.[0]?.message?.content ?? "";
+      groqResult?.payload?.choices?.[0]?.message?.content ?? "";
 
     let parsed: { subjects?: unknown[]; warnings?: string[] };
     try {
