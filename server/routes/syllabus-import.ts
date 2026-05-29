@@ -189,7 +189,7 @@ router.post(
 // The client shows the preview and lets the user confirm before importing.
 
 const GROQ_STRUCTURE_MODEL =
-  process.env.SYLLABUS_GROQ_MODEL || "llama-3.3-70b-versatile";
+  process.env.SYLLABUS_GROQ_MODEL || "qwen-qwq-32b"; // TODO: confirm model ID with user — requested "GPT OSS 20b"
 const GROQ_STRUCTURE_API_URL =
   "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_STRUCTURE_TIMEOUT_MS = 60_000;
@@ -243,12 +243,13 @@ router.post("/structure-preview", async (req: Request, res: Response) => {
       });
     }
 
-    const groqKey = (process.env.GROQ_API_KEY || "").trim();
+    // Uses its own dedicated key (SYLLABUS_GROQ_API_KEY) — isolated from Mehfil's GROQ_API_KEY
+    const groqKey = (process.env.SYLLABUS_GROQ_API_KEY || "").trim();
     if (!groqKey) {
       return res.status(503).json({
         success: false,
         message:
-          "AI structuring is not configured on the server (GROQ_API_KEY missing).",
+          "Syllabus AI is not configured on the server (SYLLABUS_GROQ_API_KEY missing).",
       });
     }
 

@@ -17,7 +17,7 @@ export type ModerationBatchResult = {
 };
 
 const GROQ_API_KEY = String(
-  process.env.Wishbox_GROQ_API_KEY || process.env.WISHBOX_GROQ_API_KEY || process.env.GROQ_API_KEY || "",
+  process.env.Wishbox_GROQ_API_KEY || process.env.WISHBOX_GROQ_API_KEY || "",
 ).trim();
 const GROQ_MODEL = "llama-3.1-8b-instant";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
