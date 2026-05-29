@@ -620,14 +620,14 @@ export default function Meditation() {
                 }
             />
 
-            <main className="pt-24 pb-32 px-4 sm:px-8 lg:px-12 min-h-screen max-w-[1400px] mx-auto">
-                <div className="flex flex-col lg:flex-row justify-center gap-8 lg:gap-16 pt-4">
+            <main className="pt-4 pb-28 lg:pt-3 lg:pb-28 px-4 sm:px-8 lg:px-12 min-h-[calc(100vh-64px)] lg:h-[calc(100vh-160px)] max-w-[1400px] mx-auto flex flex-col justify-center lg:overflow-hidden">
+                <div className="flex flex-col lg:flex-row justify-center items-center lg:items-stretch gap-8 lg:gap-16 w-full lg:h-full pt-3 lg:pt-1">
                     {/* Left Column: Practices & Atmosphere */}
-                    <section className="w-full lg:w-80 flex flex-col gap-8 pt-4">
+                    <section className="w-full lg:w-80 flex flex-col gap-6 pt-4 lg:pt-[112px]">
                         {/* Daily Practice List */}
                         <div>
                             <h2 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Daily Practice</h2>
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {sessions.slice(0, 5).map((session) => {
                                     const isSelected = selectedSession.id === session.id;
                                     return (
@@ -635,28 +635,28 @@ export default function Meditation() {
                                             key={session.id}
                                             onClick={() => handleCardClick(session)}
                                             className={cn(
-                                                "flex items-center p-3 rounded-2xl border transition-all cursor-pointer mehfil-m3-card shadow-sm",
+                                                "flex items-center py-3.5 px-4 rounded-2xl border transition-all cursor-pointer mehfil-m3-card shadow-sm",
                                                 isSelected
                                                     ? "border-[#6D5DAE] dark:border-[#a594ff] ring-1 ring-[#6D5DAE] dark:ring-[#a594ff]"
                                                     : "border-transparent hover:border-[#6D5DAE]/40"
                                             )}
                                         >
-                                            <div className="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center mr-3 text-[#6D5DAE] dark:text-[#a594ff]">
+                                            <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center mr-4 text-[#6D5DAE] dark:text-[#a594ff] shrink-0">
                                                 {session.id === "1" ? (
-                                                    <Heart className="w-5 h-5 fill-current" />
+                                                    <Heart className="w-6 h-6 fill-current" />
                                                 ) : session.id === "2" ? (
-                                                    <Wind className="w-5 h-5" />
+                                                    <Wind className="w-6 h-6" />
                                                 ) : session.id === "3" ? (
-                                                    <Square className="w-4.5 h-4.5" />
+                                                    <Square className="w-5.5 h-5.5" />
                                                 ) : session.id === "4" ? (
-                                                    <Moon className="w-5 h-5 fill-current" />
+                                                    <Moon className="w-6 h-6 fill-current" />
                                                 ) : (
-                                                    <Sparkles className="w-5 h-5" />
+                                                    <Sparkles className="w-6 h-6" />
                                                 )}
                                             </div>
                                             <div>
-                                                <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{session.title}</div>
-                                                <div className="text-xs text-slate-400 dark:text-slate-500">{session.duration} min</div>
+                                                <div className="text-base font-semibold text-slate-800 dark:text-slate-200 leading-snug">{session.title}</div>
+                                                <div className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">{session.duration} min</div>
                                             </div>
                                         </div>
                                     );
@@ -665,10 +665,10 @@ export default function Meditation() {
                         </div>
 
                         {/* Atmosphere Settings */}
-                        <div className="space-y-6">
+                        <div className="space-y-3">
                             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Atmosphere</h2>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-slate-800 dark:text-slate-200">White Noise</span>
+                                <span className="text-base font-semibold text-slate-800 dark:text-slate-200">White Noise</span>
                                 <MdSwitchReact
                                     selected={!isMuted}
                                     onChange={() => setIsMuted(!isMuted)}
@@ -679,15 +679,16 @@ export default function Meditation() {
                     </section>
 
                     {/* Center Column: Main Meditation View */}
-                    <section className="flex-initial w-full max-w-4xl">
-                        <div className="h-full mehfil-m3-card p-8 sm:p-10 flex flex-col items-center justify-between text-center min-h-[500px]" style={{ borderRadius: '24px' }}>
-                            <div className="mt-4">
-                                <h1 className="text-5xl sm:text-6xl font-extrabold mb-3 text-slate-900 dark:text-white tracking-tight">Dhyan</h1>
-                                <p className="text-lg sm:text-xl font-medium text-slate-700 dark:text-slate-300">"Silence is the language of God."</p>
-                            </div>
+                    <section className="flex-1 w-full max-w-4xl flex flex-col">
+                        {/* Title & Subtitle relocated outside container box */}
+                        <div className="mb-4 lg:mb-6 text-center">
+                            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold mb-2 text-slate-900 dark:text-white tracking-tight leading-none">Dhyan</h1>
+                            <p className="text-base sm:text-lg lg:text-xl font-medium text-slate-700 dark:text-slate-300">"Silence is the language of God."</p>
+                        </div>
 
+                        <div className="mehfil-m3-card p-6 sm:p-8 flex flex-col items-center justify-center gap-6 text-center shadow-sm lg:flex-1" style={{ borderRadius: '24px' }}>
                             {/* Play/Progress Circle Container */}
-                            <div className="relative flex items-center justify-center my-6">
+                            <div className="relative flex items-center justify-center">
                                 <div className="w-48 h-48 rounded-full bg-[#F3F0FA] dark:bg-[#201d2c] flex items-center justify-center shadow-inner relative overflow-hidden">
                                     <img src={meditationBg} alt="Meditation focus" className="absolute inset-0 w-full h-full object-cover" />
                                     <button
@@ -704,12 +705,12 @@ export default function Meditation() {
                             </div>
 
                             <div className="w-full max-w-sm">
-                                <div className="text-[64px] sm:text-[80px] font-bold mb-6 tabular-nums text-slate-900 dark:text-white tracking-tight leading-none">
+                                <div className="text-[56px] sm:text-[72px] font-bold mb-4 tabular-nums text-slate-900 dark:text-white tracking-tight leading-none">
                                     {formatTime(safeRemainingSeconds)}
                                 </div>
                                 
                                 {selectedSession.id === "dhyan-custom" ? (
-                                    <div className="space-y-4 mb-8">
+                                    <div className="space-y-3 mb-6">
                                         <div className="flex justify-between text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">
                                             <span>Session Length</span>
                                             <span>{sliderValue} min</span>
@@ -725,7 +726,7 @@ export default function Meditation() {
                                         />
                                     </div>
                                 ) : (
-                                    <div className="space-y-4 mb-8">
+                                    <div className="space-y-3 mb-6">
                                         <div className="flex justify-between text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">
                                             <span>Session Length</span>
                                             <span>{selectedSession.duration} min</span>
@@ -758,8 +759,6 @@ export default function Meditation() {
                             </div>
                         </div>
                     </section>
-
-
                 </div>
             </main>
 
