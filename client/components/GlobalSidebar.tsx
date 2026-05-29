@@ -101,17 +101,6 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
                                 <span className="font-medium">{t('apps.dhyan_name')}</span>
                             </div>
                         </button>
-                        {SHOW_LIVE_SESSIONS_IN_NAV && (
-                        <button
-                            onClick={() => handleNavigation("/live-sessions")}
-                            className="ui-pressable w-full rounded-2xl px-4 py-3 text-left text-slate-950 font-semibold transition-[transform,background-color,color] duration-150 hover:bg-slate-100/85 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
-                        >
-                            <div className="flex items-center gap-3">
-                                <Radio className="w-5 h-5 text-indigo-500" />
-                                <span className="font-medium">Live Classes</span>
-                            </div>
-                        </button>
-                        )}
                         <button
                             onClick={() => handleNavigation("/courses")}
                             className="ui-pressable w-full rounded-2xl px-4 py-3 text-left text-slate-950 font-semibold transition-[transform,background-color,color] duration-150 hover:bg-slate-100/85 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
@@ -121,17 +110,6 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
                                 <span className="font-medium">Courses</span>
                             </div>
                         </button>
-                        {isAdmin && (
-                        <button
-                            onClick={() => handleNavigation("/admin/notifications")}
-                            className="ui-pressable w-full rounded-2xl px-4 py-3 text-left text-slate-950 font-semibold transition-[transform,background-color,color] duration-150 hover:bg-slate-100/85 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
-                        >
-                            <div className="flex items-center gap-3">
-                                <Megaphone className="w-5 h-5 text-fuchsia-500" />
-                                <span className="font-medium">Admin Notifications</span>
-                            </div>
-                        </button>
-                        )}
                     </div>
 
                     {isMehfilPath && onOpenMehfilSidebar && (
