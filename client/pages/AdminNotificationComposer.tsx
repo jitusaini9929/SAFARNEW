@@ -66,6 +66,38 @@ export default function AdminNotificationComposer() {
     }
   };
 
+  const sendTestToDevice = async () => {
+    if (title.trim().length === 0 || body.trim().length === 0) {
+      toast.error("Please enter a title and body first.");
+      return;
+    }
+    setIsSending(true);
+    try {
+      const response = await apiFetch(`${API_BASE}/notifications/test`, {
+        method: "POST",
+        body: JSON.stringify({
+          type: "announcements",
+          channel: "announcements",
+          priority: "high",
+          title: title.trim(),
+          body: body.trim(),
+          deepLink: deepLink.trim() || "safar://home",
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || "Failed to send test notification");
+      }
+
+      toast.success("Test notification sent successfully!");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send test notification");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <div className="mehfil-m3 min-h-[100dvh] bg-slate-50 text-slate-900 dark:bg-background dark:text-foreground">
       <M3TopNavbar moduleName="PROFILE" homeRoute="/dashboard" />
@@ -113,7 +145,14 @@ export default function AdminNotificationComposer() {
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              disabled={isSending || title.trim().length === 0 || body.trim().length === 0}
+              onClick={sendTestToDevice}
+            >
+              Send Test to This Device
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button disabled={!canSubmit}>Review & Broadcast</Button>

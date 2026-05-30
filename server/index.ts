@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import cors from "cors";
 import compression from "compression";
 import helmet from "helmet";
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import rateLimit from "express-rate-limit";
 import crypto from "crypto";
 import cookieParser from "cookie-parser";
 import { createServer as createHttpServer } from "http";
@@ -30,8 +30,6 @@ import { dmRoutes } from "./routes/dm";
 import { getRedisClient } from "./lib/redis.client";
 import { missionRouter } from "./routes/mission";
 import { notificationRoutes } from "./routes/notifications";
-import { liveSessionRoutes } from "./routes/live-sessions";
-import { feedbackRoutes } from "./routes/feedback";
 import { wishboxRoutes } from "./temporaryFeatures/birthdayWishBox/wishbox.routes";
 import { wishboxAdminRoutes } from "./temporaryFeatures/birthdayWishBox/wishbox.admin.routes";
 import { startWishboxWorker } from "./temporaryFeatures/birthdayWishBox/wishbox.worker";
@@ -103,7 +101,6 @@ export async function createServer() {
   app.use(helmet({
     contentSecurityPolicy: false, // Vite uses inline scripts; enable in prod with proper policy
     crossOriginEmbedderPolicy: false, // Allow loading external fonts & images
-    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   }));
 
   // Middleware
@@ -140,35 +137,13 @@ export async function createServer() {
     app.set("trust proxy", 1);
   }
 
-  // ── Rate Limiting ──────────────────────────────────────────────────────────
-  // Key by the access token (hashed) for authenticated requests so users behind
-  // shared carrier-grade NAT (mobile networks) don't share a single 400/min
-  // budget. Falls back to req.ip for unauthenticated traffic. This was the root
-  // cause of "Too many requests" toasts on the Android Study Planner: opening a
-  // freshly-created plan fires getPlan + calendar + analytics back-to-back, and
-  // on a 5G/CGN IP every Safar user on the same gateway was sharing one bucket.
+  // ── Rate Limiting (100 requests per minute per IP) ──
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000,        // 1 minute window
-    max: 400,                   // max requests per window per user (or per IP for anon)
+    max: 100,                   // max 100 requests per window
     standardHeaders: true,      // Return rate limit info in `RateLimit-*` headers
     legacyHeaders: false,       // Disable `X-RateLimit-*` headers
     message: { message: "Too many requests, please try again later." },
-    keyGenerator: (req) => {
-      const auth = req.headers.authorization;
-      if (typeof auth === "string" && auth.startsWith("Bearer ")) {
-        const token = auth.slice(7).trim();
-        if (token) {
-          // Hash the token so we don't keep raw access tokens in the limiter's
-          // in-memory map. Truncated SHA-256 is plenty unique for bucketing.
-          return "u:" + crypto.createHash("sha256").update(token).digest("hex").slice(0, 32);
-        }
-      }
-      return ipKeyGenerator(req.ip || "unknown");
-    },
-    // Authenticated plan creation from template is one intentional action; skipping avoids 429 UX when global IP budget is tight.
-    skip: (req) =>
-      req.method === "POST" &&
-      (req.path === "/api/plans/from-template" || req.originalUrl.startsWith("/api/plans/from-template")),
   });
   app.use("/api/", apiLimiter);
 
@@ -223,29 +198,14 @@ export async function createServer() {
   app.use("/api/dm", dmRoutes);
   app.use("/api/plans", planModule.default);
   app.use("/api/suggestions", suggestionsModule.suggestionsRoutes);
-  app.use("/api/feedback", feedbackRoutes);
   app.use("/api/mission", missionRouter);
   app.use("/api", notificationRoutes);
-  app.use("/api/live-sessions", liveSessionRoutes);
   app.use("/api/wishbox", wishboxRoutes);
   app.use("/api/admin/wishbox", wishboxAdminRoutes);
 
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";
     res.json({ message: ping });
-  });
-
-  app.get("/api/demo", handleDemo);
-
-  // Catch-all 404 for API routes
-  app.use(/^\/api(?:\/.*)?$/, (req, res) => {
-    res.status(404).json({ message: "API endpoint not found" });
-  });
-
-  // Catch-all 500 for API routes
-  app.use(/^\/api(?:\/.*)?$/, (err: any, req: any, res: any, next: any) => {
-    console.error("[API Error]", err);
-    res.status(500).json({ message: "Internal server error" });
   });
 
   app.get("/health/redis", async (_req, res) => {
@@ -261,6 +221,8 @@ export async function createServer() {
       return res.status(500).json({ redis: "down" });
     }
   });
+
+  app.get("/api/demo", handleDemo);
 
   startWishboxWorker();
   startNotificationScheduler();
