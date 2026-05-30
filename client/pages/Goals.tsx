@@ -191,8 +191,14 @@ const StitchGoalCard = ({
 
   return (
     <div
+      onClick={() => {
+        if (!goal.completed && !hideActions) {
+          onToggle(goal.id, goal.completed);
+        }
+      }}
       className={cn(
         "gd-m3-card group relative flex gap-4 rounded-xl p-5 transition-all",
+        !goal.completed && !hideActions && "cursor-pointer hover:shadow-md hover:bg-muted/10 active:scale-[0.99]",
         isScheduled && "border-l-4 border-l-indigo-400",
         goal.completed && "opacity-80",
       )}
@@ -201,14 +207,17 @@ const StitchGoalCard = ({
         {!hideActions && !goal.completed ? (
           <button
             type="button"
-            onClick={() => onToggle(goal.id, goal.completed)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(goal.id, goal.completed);
+            }}
             className={cn(
-              "ui-pressable flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs",
+              "ui-pressable flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs transition-colors text-transparent hover:text-current hover:bg-current/10",
               kindRingClass(goalKind),
             )}
             title={t("goals.actions.mark_done")}
           >
-            <Target size={12} strokeWidth={2.5} />
+            <Check size={12} strokeWidth={3} />
           </button>
         ) : (
           <div
@@ -217,7 +226,7 @@ const StitchGoalCard = ({
               goal.completed ? "border-primary bg-primary/10 text-primary" : kindRingClass(goalKind),
             )}
           >
-            {goal.completed ? <Check size={12} strokeWidth={3} /> : <Target size={12} strokeWidth={2.5} />}
+            {goal.completed ? <Check size={12} strokeWidth={3} /> : null}
           </div>
         )}
       </div>
@@ -244,7 +253,10 @@ const StitchGoalCard = ({
         <div className="flex shrink-0 items-center gap-1 self-start opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
           <button
             type="button"
-            onClick={() => onEdit(goal)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(goal);
+            }}
             className="ui-pressable rounded-lg p-1.5 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
             title={t("goals.actions.edit")}
           >
@@ -252,7 +264,10 @@ const StitchGoalCard = ({
           </button>
           <button
             type="button"
-            onClick={() => onRepeat(goal)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRepeat(goal);
+            }}
             className="ui-pressable rounded-lg p-1.5 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
             title={t("goals.actions.repeat_task")}
           >
@@ -260,7 +275,10 @@ const StitchGoalCard = ({
           </button>
           <button
             type="button"
-            onClick={() => onDelete(goal.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(goal.id);
+            }}
             className="ui-pressable rounded-lg p-1.5 text-rose-600 hover:bg-rose-500/10"
             title={t("goals.actions.delete")}
           >

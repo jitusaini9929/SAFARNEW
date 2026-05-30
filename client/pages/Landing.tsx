@@ -60,6 +60,16 @@ const Landing = () => {
     }
   }, [searchParams, setSearchParams]);
 
+  // Auto-open YouTube promo modal if not suppressed
+  useEffect(() => {
+    if (suppressMilestoneAutoOpen) return;
+
+    const timer = setTimeout(() => {
+      setIsYoutubeModalOpen(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [suppressMilestoneAutoOpen]);
+
   return (
     <div className="min-h-[100dvh] font-sans text-slate-800 dark:text-slate-100 selection:bg-brand-accent selection:text-black bg-gradient-to-br from-white via-slate-50 to-indigo-100 dark:bg-gradient-to-br dark:from-plum-dark dark:via-purple-deep dark:to-midnight">
       {/* Theme Toggle - Fixed Position */}
