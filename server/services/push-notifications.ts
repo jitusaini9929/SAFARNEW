@@ -245,7 +245,12 @@ async function markInvalidToken(token: string) {
   );
 }
 
-async function deliverPushToken(tokenRow: any, payload: PushPayload, dedupeKey: string) {
+async function deliverPushToken(
+  tokenRow: any,
+  payload: PushPayload,
+  dedupeKey: string,
+  userName?: string
+) {
   const token = String(tokenRow.token || "");
   const userId = String(tokenRow.user_id || "");
   const preview = tokenPreview(token);
@@ -257,12 +262,24 @@ async function deliverPushToken(tokenRow: any, payload: PushPayload, dedupeKey: 
   try {
     const flavor = normalizeFlavor(tokenRow.flavor);
     const app = getFirebaseApp(flavor);
+
+    let nameToUse = userName;
+    if (nameToUse === undefined && userId) {
+      const user = await collections.users().findOne({ id: userId }, { projection: { name: 1 } });
+      nameToUse = user?.name || "";
+    }
+    const resolvedName = (nameToUse || "").trim() || "User";
+
+    // Replace the <name> placeholder case-insensitively in title and body
+    const title = payload.title.replace(/<name>/gi, resolvedName);
+    const body = payload.body.replace(/<name>/gi, resolvedName);
+
     const message: any = {
       token,
       data: {
         type: String(payload.type),
-        title: String(payload.title),
-        body: String(payload.body),
+        title,
+        body,
         channel: String(payload.channel),
         deepLink: String(payload.deepLink),
         priority: String(payload.priority),
@@ -305,6 +322,13 @@ export async function sendPushToTokens(tokens: any[], payload: PushPayload, opti
   const results = [];
   const dedupeKey = buildDedupeKey(payload);
 
+  // Batch fetch names to prevent N+1 queries
+  const userIds = Array.from(new Set(tokens.map(t => String(t.user_id || "")).filter(Boolean)));
+  const users = userIds.length > 0
+    ? await collections.users().find({ id: { $in: userIds } }).project({ id: 1, name: 1 }).toArray()
+    : [];
+  const userMap = new Map(users.map(u => [u.id, u.name]));
+
   for (const tokenRow of tokens) {
     const userId = String(tokenRow.user_id || "");
     const preview = tokenPreview(String(tokenRow.token || ""));
@@ -319,7 +343,8 @@ export async function sendPushToTokens(tokens: any[], payload: PushPayload, opti
       continue;
     }
 
-    const result = await deliverPushToken(tokenRow, payload, dedupeKey);
+    const userName = userMap.get(userId);
+    const result = await deliverPushToken(tokenRow, payload, dedupeKey, userName);
     results.push(result);
   }
 
@@ -334,10 +359,21 @@ export async function sendPushToTokensBatched(
   const dedupeKey = buildDedupeKey(payload);
   const results: any[] = [];
 
+  // Batch fetch names to prevent N+1 queries
+  const userIds = Array.from(new Set(tokens.map(t => String(t.user_id || "")).filter(Boolean)));
+  const users = userIds.length > 0
+    ? await collections.users().find({ id: { $in: userIds } }).project({ id: 1, name: 1 }).toArray()
+    : [];
+  const userMap = new Map(users.map(u => [u.id, u.name]));
+
   for (let index = 0; index < tokens.length; index += chunkSize) {
     const chunk = tokens.slice(index, index + chunkSize);
     const chunkResults = await Promise.all(
-      chunk.map((tokenRow) => deliverPushToken(tokenRow, payload, dedupeKey)),
+      chunk.map((tokenRow) => {
+        const userId = String(tokenRow.user_id || "");
+        const userName = userMap.get(userId);
+        return deliverPushToken(tokenRow, payload, dedupeKey, userName);
+      }),
     );
     results.push(...chunkResults);
   }

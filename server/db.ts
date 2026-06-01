@@ -237,6 +237,8 @@ export async function initDatabase(): Promise<void> {
         await db.collection('mehfil_saves').createIndex({ user_id: 1, thought_id: 1 }, { unique: true });
         await db.collection('mehfil_reports').createIndex({ thought_id: 1 });
         await db.collection('mehfil_reports').createIndex({ thought_id: 1, reporter_id: 1 });
+        await db.collection('mehfil_reports').createIndex({ status: 1, created_at: -1 });
+        await db.collection('mehfil_reports').createIndex({ reporter_id: 1, created_at: -1 });
         await db.collection('mehfil_shares').createIndex({ thought_id: 1 });
         await db.collection('mehfil_friendships').createIndex({ user_id: 1, friend_id: 1 }, { unique: true });
         await db.collection('mehfil_friendships').createIndex({ friend_id: 1 });

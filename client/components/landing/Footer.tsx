@@ -51,7 +51,12 @@ const Footer = () => {
                 </div>
 
                 {/* Bottom - Copyright */}
-                <p className="text-road/40 dark:text-white/30 font-inter font-medium text-xs text-center pt-8">{t('footer.copyright')}</p>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-black/5 dark:border-white/5">
+                    <p className="text-road/40 dark:text-white/30 font-inter font-medium text-xs">{t('footer.copyright')}</p>
+                    <a href="/privacy" className="text-road/40 dark:text-white/30 hover:text-solar transition-colors font-inter font-medium text-xs">
+                        Privacy Policy
+                    </a>
+                </div>
             </div>
         </footer>
     );

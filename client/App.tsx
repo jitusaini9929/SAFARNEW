@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import React, { Suspense, useEffect } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { canAccessMehfilModeration } from "@/utils/mehfilModerationAccess";
 import { GuidedTourProvider } from "@/contexts/GuidedTourContext";
 import { GuidedTour } from "@/components/guided-tour";
 import { FocusProvider } from "@/contexts/FocusContext";
@@ -38,6 +39,8 @@ const LiveSessions = React.lazy(() => import("./pages/LiveSessions"));
 const Updates = React.lazy(() => import("./pages/Updates"));
 const SafarVictoryModeToday = React.lazy(() => import("./pages/mission/today"));
 const AdminNotificationComposer = React.lazy(() => import("./pages/AdminNotificationComposer"));
+const MehfilReportModeration = React.lazy(() => import("./pages/MehfilReportModeration"));
+const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
 
 const queryClient = new QueryClient();
 const GA_MEASUREMENT_ID = "G-JGR9ENZ8W0";
@@ -139,6 +142,22 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Mehfil report review — steve123@example.com only (not general admin). */
+function MehfilModeratorRoute({ children }: { children: React.ReactNode }) {
+  const { status, isAuthenticated, user } = useAuth();
+
+  if (status === "loading") {
+    return <PageLoadingFallback />;
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/?signin=true" replace />;
+  }
+  if (!canAccessMehfilModeration(user?.email)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 /** Show the push notification opt-in banner only for authenticated users. */
 function AuthenticatedPushBanner() {
   // Temporarily disabled for web clients while Android push remains active.
@@ -230,6 +249,14 @@ const App = () => {
                     <AdminRoute>
                       <AdminNotificationComposer />
                     </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/mehfil/reports"
+                  element={
+                    <MehfilModeratorRoute>
+                      <MehfilReportModeration />
+                    </MehfilModeratorRoute>
                   }
                 />
                 <Route
@@ -329,6 +356,7 @@ const App = () => {
                 <Route path="/home" element={<Landing />} />
                 <Route path="/challenge-100k" element={<Challenge100K />} />
                 <Route path="/updates" element={<Updates />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
 
                 {/* Default route - Landing page is now home */}
                 <Route path="/" element={<Landing />} />
