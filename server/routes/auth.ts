@@ -858,5 +858,49 @@ router.patch('/profile', requireAuth, async (req: Request, res) => {
     }
 });
 
+// Delete Account
+router.post('/delete-account', async (req: Request, res) => {
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '');
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    try {
+        const user = await collections.users().findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
+        const userId = user.id;
+
+        // Delete user database entries
+        await collections.users().deleteOne({ id: userId });
+        await collections.journal().deleteMany({ user_id: userId });
+        await collections.goals().deleteMany({ user_id: userId });
+        await collections.streaks().deleteMany({ user_id: userId });
+        await collections.focusSessions().deleteMany({ user_id: userId });
+        await collections.ekagraModeSessions().deleteMany({ user_id: userId });
+        await collections.moodSnapshots().deleteMany({ user_id: userId });
+        await collections.moods().deleteMany({ user_id: userId });
+        await collections.mehfilThoughts().deleteMany({ userId: userId });
+        await collections.mehfilReactions().deleteMany({ userId: userId });
+        await collections.mehfilComments().deleteMany({ userId: userId });
+        await collections.mehfilSaves().deleteMany({ userId: userId });
+
+        res.clearCookie('token');
+        return res.json({ success: true, message: 'Account and associated study data deleted successfully.' });
+    } catch (error) {
+        console.error('Delete account error:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
 export const authRoutes = router;
 

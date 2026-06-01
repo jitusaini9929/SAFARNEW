@@ -38,6 +38,8 @@ const LiveSessions = React.lazy(() => import("./pages/LiveSessions"));
 const Updates = React.lazy(() => import("./pages/Updates"));
 const SafarVictoryModeToday = React.lazy(() => import("./pages/mission/today"));
 const AdminNotificationComposer = React.lazy(() => import("./pages/AdminNotificationComposer"));
+const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
+const DeleteAccount = React.lazy(() => import("./pages/DeleteAccount"));
 
 const queryClient = new QueryClient();
 const GA_MEASUREMENT_ID = "G-JGR9ENZ8W0";
@@ -329,6 +331,8 @@ const App = () => {
                 <Route path="/home" element={<Landing />} />
                 <Route path="/challenge-100k" element={<Challenge100K />} />
                 <Route path="/updates" element={<Updates />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/delete-account" element={<DeleteAccount />} />
 
                 {/* Default route - Landing page is now home */}
                 <Route path="/" element={<Landing />} />
