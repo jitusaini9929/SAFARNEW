@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { PremiumEmoji } from '@/components/PremiumEmoji';
 import SafarLogo from './SafarLogo';
 
@@ -50,8 +51,20 @@ const Footer = () => {
                     </div>
                 </div>
 
-                {/* Bottom - Copyright */}
-                <p className="text-road/40 dark:text-white/30 font-inter font-medium text-xs text-center pt-8">{t('footer.copyright')}</p>
+                {/* Bottom - Copyright & Links */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-12 border-t border-road/5 dark:border-white/5">
+                    <p className="text-road/40 dark:text-white/30 font-inter font-medium text-xs text-center sm:text-left">
+                        {t('footer.copyright')}
+                    </p>
+                    <div className="flex items-center gap-6">
+                        <Link to="/privacy" className="text-road/40 dark:text-white/30 hover:text-solar dark:hover:text-white transition-colors font-inter font-semibold text-xs">
+                            Privacy Policy
+                        </Link>
+                        <Link to="/delete-account" className="text-road/40 dark:text-white/30 hover:text-solar dark:hover:text-white transition-colors font-inter font-semibold text-xs">
+                            Delete Account
+                        </Link>
+                    </div>
+                </div>
             </div>
         </footer>
     );
