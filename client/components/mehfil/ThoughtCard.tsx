@@ -237,11 +237,21 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         }),
       });
 
+      const payload = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        throw new Error(t('mehfil.toasts.report_error'));
+        throw new Error(payload?.error || t('mehfil.toasts.report_error'));
       }
 
-      toast.success(t('mehfil.toasts.report_success'));
+      if (payload?.banApplied) {
+        toast.success('Report submitted. The post was reviewed and posting access was restricted.');
+      } else if (payload?.queuedForReview) {
+        toast.success('Report submitted. This post is queued for admin review.');
+      } else if (payload?.postHidden) {
+        toast.success('Report submitted. The post was hidden pending further review.');
+      } else {
+        toast.success(t('mehfil.toasts.report_success'));
+      }
       setIsReportDialogOpen(false);
       setReportReason("spam");
       setReportDetails("");

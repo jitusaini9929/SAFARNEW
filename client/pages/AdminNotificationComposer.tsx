@@ -136,12 +136,33 @@ export default function AdminNotificationComposer() {
 
             <div className="space-y-2">
               <Label htmlFor="admin-broadcast-deeplink">Deep Link</Label>
-              <Input
+              <select
                 id="admin-broadcast-deeplink"
                 value={deepLink}
                 onChange={(event) => setDeepLink(event.target.value)}
-                placeholder="safar://..."
-              />
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950"
+              >
+                <option value="" disabled>Select a screen...</option>
+                <option value="safar://dashboard">Home Dashboard</option>
+                <option value="safar://study_planner">Study Planner</option>
+                <option value="safar://mehfil">Mehfil (Community)</option>
+                <option value="safar://mehfil/dm_chat">Mehfil DM Chat</option>
+                <option value="safar://nishtha">Nishtha (Goals & Streaks)</option>
+                <option value="safar://nishtha/goals">Nishtha Goals</option>
+                <option value="safar://nishtha/streaks">Nishtha Streaks</option>
+                <option value="safar://nishtha/journal">Nishtha Journal</option>
+                <option value="safar://nishtha/checkin">Nishtha Check-in</option>
+                <option value="safar://nishtha/analytics">Nishtha Analytics</option>
+                <option value="safar://focus_shield">Focus Shield</option>
+                <option value="safar://ekagra/app_picker">App Picker</option>
+                <option value="safar://ekagra">Ekagra (Focus)</option>
+                <option value="safar://dhyan">Dhyan (Mindfulness)</option>
+                <option value="safar://live/sessions">Live Sessions</option>
+                <option value="safar://profile">Profile</option>
+                <option value="safar://settings">Settings</option>
+                <option value="safar://achievements">Achievements</option>
+                <option value="safar://admin/notifications">Admin Notifications</option>
+              </select>
             </div>
           </div>
 

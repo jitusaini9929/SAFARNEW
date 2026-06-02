@@ -1,8 +1,9 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { X, Home, Settings, Heart, MessageSquare, Timer, Wind, LayoutDashboard, Bookmark, BarChart3, Shield, Radio, Megaphone } from "lucide-react";
+import { X, Home, Settings, Heart, MessageSquare, Timer, Wind, LayoutDashboard, Bookmark, BarChart3, Shield, Radio, Megaphone, ShieldAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SHOW_LIVE_SESSIONS_IN_NAV } from "@/config/featureFlags";
 import { useAuth } from "@/contexts/AuthContext";
+import { canAccessMehfilModeration } from "@/utils/mehfilModerationAccess";
 
 interface GlobalSidebarProps {
     isOpen: boolean;
@@ -15,7 +16,8 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const canModerateMehfilReports = canAccessMehfilModeration(user?.email);
 
     const isMehfilPath = location.pathname.startsWith('/mehfil');
 
@@ -154,6 +156,38 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
                             </div>
                         </button>
                     </div>
+
+                    {canModerateMehfilReports && (
+                        <div className="py-2 border-t border-slate-200/50 pt-2 dark:border-white/5">
+                            <div className="mb-2 px-4 text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                                Mehfil moderation
+                            </div>
+                            <button
+                                onClick={() => handleNavigation("/admin/mehfil/reports")}
+                                className="ui-pressable w-full rounded-2xl px-4 py-3 text-left text-slate-950 font-semibold transition-[transform,background-color,color] duration-150 hover:bg-slate-100/85 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <ShieldAlert className="w-5 h-5 text-amber-600" />
+                                    <span className="font-medium">Reported posts</span>
+                                </div>
+                            </button>
+                        </div>
+                    )}
+
+                    {isAdmin && (
+                        <div className="py-2 border-t border-slate-200/50 pt-2 dark:border-white/5">
+                            <div className="mb-2 px-4 text-xs font-bold uppercase tracking-wider text-rose-500 dark:text-rose-400">Admin Panel</div>
+                            <button
+                                onClick={() => handleNavigation("/admin/notifications")}
+                                className="ui-pressable w-full rounded-2xl px-4 py-3 text-left text-slate-950 font-semibold transition-[transform,background-color,color] duration-150 hover:bg-slate-100/85 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Megaphone className="w-5 h-5 text-rose-500" />
+                                    <span className="font-medium">Admin Notifications</span>
+                                </div>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </>

@@ -25,6 +25,7 @@ import { paymentRoutes } from "./routes/payments";
 import { uploadRoutes, imageServeRouter } from "./routes/uploads";
 import { syllabusImportRoutes } from "./routes/syllabus-import";
 import { mehfilInteractionRoutes } from "./routes/mehfil-interactions";
+import { mehfilAdminRoutes } from "./routes/mehfil-admin.routes";
 import mehfilSocialRouter from "./routes/mehfil-social";
 import { dmRoutes } from "./routes/dm";
 import { getRedisClient } from "./lib/redis.client";
@@ -194,6 +195,7 @@ export async function createServer() {
   app.use("/api/syllabus", syllabusImportRoutes);
   app.use("/api/images", imageServeRouter);
   app.use("/api/mehfil/interactions", mehfilInteractionRoutes);
+  app.use("/api/admin/mehfil", mehfilAdminRoutes);
   app.use("/api/mehfil/sandesh", sandeshModule.sandeshRoutes);
   app.use("/api/mehfil", mehfilSocialRouter);
   app.use("/api/dm", dmRoutes);
