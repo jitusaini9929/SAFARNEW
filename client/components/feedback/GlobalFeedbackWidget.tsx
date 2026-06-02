@@ -14,6 +14,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiFetch } from "@/utils/apiFetch";
+import { useToast } from "@/hooks/use-toast";
 
 type FeedbackTriggerSource =
   | "floating_button"
@@ -90,6 +92,7 @@ function getFirstSeenAt(): Date | null {
 export function GlobalFeedbackWidget() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<FeedbackStep>("intro");
@@ -108,7 +111,7 @@ export function GlobalFeedbackWidget() {
 
   const mutation = useMutation({
     mutationFn: async (payload: FeedbackPayload) => {
-      const res = await fetch("/api/feedback", {
+      const res = await apiFetch("/api/feedback", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -128,6 +131,13 @@ export function GlobalFeedbackWidget() {
       setStep("success");
       setMessage("");
       setRating(undefined);
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Feedback failed",
+        description: error.message || "Failed to send feedback",
+      });
     },
   });
 
