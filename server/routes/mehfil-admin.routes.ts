@@ -43,7 +43,27 @@ mehfilAdminRoutes.get('/reports', async (req: Request, res: Response) => {
             latest_at: { $max: '$created_at' },
             report_count: { $sum: 1 },
             statuses: { $addToSet: '$status' },
-            reasons: { $push: { reason: '$reason', category: '$category', status: '$status' } },
+            reporter_ids: { $addToSet: '$reporter_id' },
+            reasons: {
+              $push: {
+                reason: '$reason',
+                category: '$category',
+                status: '$status',
+              },
+            },
+            reports: {
+              $push: {
+                id: '$id',
+                reporterId: '$reporter_id',
+                reason: '$reason',
+                category: '$category',
+                status: '$status',
+                createdAt: '$created_at',
+                moderatorVerdict: '$moderator_verdict',
+                moderatorVerdictAt: '$moderator_verdict_at',
+                moderatorVerdictBy: '$moderator_verdict_by',
+              },
+            },
           },
         },
         { $sort: { latest_at: -1 } },
@@ -54,7 +74,9 @@ mehfilAdminRoutes.get('/reports', async (req: Request, res: Response) => {
       .toArray();
 
     const thoughtIds = grouped.map((g) => g._id).filter(Boolean);
-    const userIds = [...new Set(grouped.map((g) => g.reported_user_id).filter(Boolean))];
+    const reportedUserIds = grouped.map((g) => g.reported_user_id).filter(Boolean);
+    const reporterIds = grouped.flatMap((g) => (Array.isArray(g.reporter_ids) ? g.reporter_ids : [])).filter(Boolean);
+    const userIds = [...new Set([...reportedUserIds, ...reporterIds])];
 
     const [thoughts, users] = await Promise.all([
       thoughtIds.length
@@ -76,7 +98,19 @@ mehfilAdminRoutes.get('/reports', async (req: Request, res: Response) => {
         ? collections
             .users()
             .find({ id: { $in: userIds } })
-            .project({ id: 1, email: 1, name: 1, mehfil_banned_until: 1, mehfil_banned_forever: 1 })
+            .project({
+              id: 1,
+              email: 1,
+              name: 1,
+              mehfil_banned_until: 1,
+              mehfil_banned_forever: 1,
+              mehfil_false_report_strike_count: 1,
+              last_mehfil_false_report_strike_at: 1,
+              mehfil_reporting_warning_count: 1,
+              last_mehfil_reporting_warning_at: 1,
+              mehfil_reporting_banned: 1,
+              mehfil_reporting_banned_at: 1,
+            })
             .toArray()
         : [],
     ]);
@@ -87,11 +121,54 @@ mehfilAdminRoutes.get('/reports', async (req: Request, res: Response) => {
     const items = grouped.map((group) => {
       const thought = thoughtMap.get(group._id);
       const user = userMap.get(group.reported_user_id);
+      const rawReports = Array.isArray(group.reports) ? group.reports : [];
+      const reports = rawReports
+        .map((report: any) => {
+          const reporterId = String(report?.reporterId || '');
+          const reporter = userMap.get(reporterId);
+          return {
+            id: report?.id,
+            reporterId,
+            reason: report?.reason,
+            category: report?.category,
+            status: report?.status,
+            createdAt: report?.createdAt,
+            moderatorVerdict: report?.moderatorVerdict,
+            moderatorVerdictAt: report?.moderatorVerdictAt,
+            moderatorVerdictBy: report?.moderatorVerdictBy,
+            reporter: reporter
+              ? {
+                  id: reporter.id,
+                  email: reporter.email,
+                  name: reporter.name,
+                  falseReportStrikes: Number(reporter.mehfil_false_report_strike_count || 0),
+                  lastFalseReportStrikeAt: reporter.last_mehfil_false_report_strike_at || null,
+                  warningCount: Number(reporter.mehfil_reporting_warning_count || 0),
+                  lastWarningAt: reporter.last_mehfil_reporting_warning_at || null,
+                  reportingBanned: Boolean(reporter.mehfil_reporting_banned),
+                  reportingBannedAt: reporter.mehfil_reporting_banned_at || null,
+                }
+              : {
+                  id: reporterId,
+                  email: null,
+                  name: null,
+                  falseReportStrikes: 0,
+                  lastFalseReportStrikeAt: null,
+                  warningCount: 0,
+                  lastWarningAt: null,
+                  reportingBanned: false,
+                  reportingBannedAt: null,
+                },
+          };
+        })
+        .filter((r: any) => Boolean(r.id) && Boolean(r.reporterId));
+
       return {
         thoughtId: group._id,
         reportCount: group.report_count,
         statuses: group.statuses,
         reasons: group.reasons,
+        reports,
         latestAt: group.latest_at,
         thought: thought
           ? {
@@ -122,6 +199,199 @@ mehfilAdminRoutes.get('/reports', async (req: Request, res: Response) => {
   }
 });
 
+/** Warn a reporter (enables the client-side/server-side warning acknowledgement gate). */
+mehfilAdminRoutes.post('/reporters/:reporterId/warn', async (req: Request, res: Response) => {
+  try {
+    const reporterId = String(req.params.reporterId || '').trim();
+    const moderatorUserId = req.user?.userId;
+    const note = req.body?.note ? String(req.body.note).slice(0, 2000) : null;
+
+    if (!moderatorUserId) {
+      return res.status(401).json({ error: 'unauthenticated' });
+    }
+    if (!reporterId) {
+      return res.status(400).json({ error: 'reporterId is required' });
+    }
+
+    const existing = await collections.users().findOne({ id: reporterId }, { projection: { id: 1 } });
+    if (!existing?.id) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await collections.users().updateOne(
+      { id: reporterId },
+      {
+        $inc: { mehfil_reporting_warning_count: 1 },
+        $set: {
+          last_mehfil_reporting_warning_at: new Date(),
+          last_mehfil_reporting_warning_by: moderatorUserId,
+          ...(note ? { mehfil_reporting_warning_note: note } : {}),
+        },
+      },
+    );
+
+    const updated = await collections.users().findOne(
+      { id: reporterId },
+      {
+        projection: {
+          mehfil_reporting_warning_count: 1,
+          last_mehfil_reporting_warning_at: 1,
+          mehfil_reporting_banned: 1,
+          mehfil_reporting_banned_at: 1,
+          mehfil_false_report_strike_count: 1,
+        },
+      },
+    );
+
+    return res.json({
+      success: true,
+      reporterId,
+      warningCount: Number(updated?.mehfil_reporting_warning_count || 0),
+      lastWarningAt: updated?.last_mehfil_reporting_warning_at || null,
+      reportingBanned: Boolean(updated?.mehfil_reporting_banned),
+      reportingBannedAt: updated?.mehfil_reporting_banned_at || null,
+      falseReportStrikes: Number(updated?.mehfil_false_report_strike_count || 0),
+    });
+  } catch (error) {
+    console.error('[MEHFIL ADMIN] warn reporter failed:', error);
+    res.status(500).json({ error: 'Failed to warn reporter' });
+  }
+});
+
+/** Ban a user from reporting (does NOT affect posting/commenting/reacting). */
+mehfilAdminRoutes.post('/reporters/:reporterId/ban-reporting', async (req: Request, res: Response) => {
+  try {
+    const reporterId = String(req.params.reporterId || '').trim();
+    const moderatorUserId = req.user?.userId;
+    const reason = req.body?.reason ? String(req.body.reason).slice(0, 2000) : null;
+
+    if (!moderatorUserId) {
+      return res.status(401).json({ error: 'unauthenticated' });
+    }
+    if (!reporterId) {
+      return res.status(400).json({ error: 'reporterId is required' });
+    }
+
+    const existing = await collections.users().findOne(
+      { id: reporterId },
+      { projection: { id: 1, mehfil_reporting_banned: 1 } },
+    );
+    if (!existing?.id) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (Boolean(existing.mehfil_reporting_banned)) {
+      return res.json({ success: true, alreadyBanned: true, reporterId, reportingBanned: true });
+    }
+
+    await collections.users().updateOne(
+      { id: reporterId },
+      {
+        $set: {
+          mehfil_reporting_banned: true,
+          mehfil_reporting_banned_at: new Date(),
+          mehfil_reporting_banned_by: moderatorUserId,
+          ...(reason ? { mehfil_reporting_banned_reason: reason } : {}),
+        },
+      },
+    );
+
+    const updated = await collections.users().findOne(
+      { id: reporterId },
+      { projection: { mehfil_reporting_banned: 1, mehfil_reporting_banned_at: 1 } },
+    );
+
+    return res.json({
+      success: true,
+      reporterId,
+      reportingBanned: Boolean(updated?.mehfil_reporting_banned),
+      reportingBannedAt: updated?.mehfil_reporting_banned_at || null,
+    });
+  } catch (error) {
+    console.error('[MEHFIL ADMIN] ban reporter from reporting failed:', error);
+    res.status(500).json({ error: 'Failed to ban reporter from reporting' });
+  }
+});
+
+/** Mark a single report as fake/malicious and apply a strike to the reporter. */
+mehfilAdminRoutes.post('/reports/:reportId/mark-fake', async (req: Request, res: Response) => {
+  try {
+    const reportId = String(req.params.reportId || '').trim();
+    const moderatorUserId = req.user?.userId;
+    const note = req.body?.note ? String(req.body.note).slice(0, 2000) : null;
+
+    if (!moderatorUserId) {
+      return res.status(401).json({ error: 'unauthenticated' });
+    }
+
+    if (!reportId) {
+      return res.status(400).json({ error: 'reportId is required' });
+    }
+
+    const report = await collections.mehfilReports().findOne(
+      { id: reportId },
+      { projection: { id: 1, reporter_id: 1, thought_id: 1, moderator_verdict: 1 } },
+    );
+
+    if (!report?.id || !report.reporter_id) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    if (String(report.moderator_verdict || '').toLowerCase() === 'fake') {
+      const reporter = await collections.users().findOne(
+        { id: String(report.reporter_id) },
+        { projection: { mehfil_false_report_strike_count: 1 } },
+      );
+      return res.json({
+        success: true,
+        alreadyMarked: true,
+        reportId,
+        thoughtId: report.thought_id,
+        reporterId: report.reporter_id,
+        falseReportStrikes: Number(reporter?.mehfil_false_report_strike_count || 0),
+      });
+    }
+
+    await collections.mehfilReports().updateOne(
+      { id: reportId },
+      {
+        $set: {
+          moderator_verdict: 'fake',
+          moderator_verdict_at: new Date(),
+          moderator_verdict_by: moderatorUserId,
+          status: 'dismissed',
+          resolved_at: new Date(),
+          ...(note ? { moderator_note: note } : {}),
+        },
+      },
+    );
+
+    await collections.users().updateOne(
+      { id: String(report.reporter_id) },
+      {
+        $inc: { mehfil_false_report_strike_count: 1 },
+        $set: { last_mehfil_false_report_strike_at: new Date() },
+      },
+    );
+
+    const reporter = await collections.users().findOne(
+      { id: String(report.reporter_id) },
+      { projection: { mehfil_false_report_strike_count: 1 } },
+    );
+
+    return res.json({
+      success: true,
+      reportId,
+      thoughtId: report.thought_id,
+      reporterId: report.reporter_id,
+      falseReportStrikes: Number(reporter?.mehfil_false_report_strike_count || 0),
+    });
+  } catch (error) {
+    console.error('[MEHFIL ADMIN] mark fake report failed:', error);
+    res.status(500).json({ error: 'Failed to mark fake report' });
+  }
+});
+
 /**
  * Resolve a reported thought:
  * - dismiss: clear reports, restore post, lift ban if any
@@ -142,15 +412,25 @@ mehfilAdminRoutes.post('/reports/thoughts/:thoughtId/resolve', async (req: Reque
       return res.status(400).json({ error: 'action must be dismiss, ban_user, or restore_post' });
     }
 
+    let reportedUserId = '';
     const thought = await collections.mehfilThoughts().findOne(
       { id: thoughtId },
       { projection: { id: 1, user_id: 1 } },
     );
-    if (!thought?.user_id) {
-      return res.status(404).json({ error: 'Thought not found' });
-    }
 
-    const reportedUserId = String(thought.user_id);
+    if (thought?.user_id) {
+      reportedUserId = String(thought.user_id);
+    } else {
+      const report = await collections.mehfilReports().findOne(
+        { thought_id: thoughtId },
+        { projection: { reported_user_id: 1 } }
+      );
+      if (report?.reported_user_id) {
+        reportedUserId = String(report.reported_user_id);
+      } else {
+        return res.status(404).json({ error: 'Thought not found' });
+      }
+    }
 
     if (action === 'dismiss') {
       await collections.mehfilReports().updateMany(

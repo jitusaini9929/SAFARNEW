@@ -16,8 +16,8 @@ export default function GlobalSidebar({ isOpen, onClose, homeRoute = "/home", on
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useTranslation();
-  const { isAdmin, user } = useAuth();
-  const canModerateMehfilReports = canAccessMehfilModeration(user?.email);
+    const { isAdmin, user } = useAuth();
+    const canModerateMehfilReports = canAccessMehfilModeration(user?.email, isAdmin);
 
     const isMehfilPath = location.pathname.startsWith('/mehfil');
 

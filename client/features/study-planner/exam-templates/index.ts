@@ -1,6 +1,8 @@
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import sscCglTier1 from "./ssc-cgl-tier1.json";
+import railwayNtpc from "./railway-ntpc.json";
+import bankPoPrelims from "./bank-po-prelims.json";
+import jeeMains from "./jee-mains.json";
+import neetUg from "./neet-ug.json";
 
 export interface ExamTemplateChapter {
   name: string;
@@ -36,44 +38,23 @@ export interface ExamTemplateSummary {
   tags: string[];
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const TEMPLATE_FILES: Record<string, string> = {
-  "ssc-cgl-tier1": "ssc-cgl-tier1.json",
-  "railway-ntpc": "railway-ntpc.json",
-  "bank-po-prelims": "bank-po-prelims.json",
-  "jee-mains": "jee-mains.json",
-  "neet-ug": "neet-ug.json",
+/** Bundled at build time — avoids readFileSync paths that break in dist/server. */
+const TEMPLATES: Record<string, ExamTemplate> = {
+  "ssc-cgl-tier1": sscCglTier1 as ExamTemplate,
+  "railway-ntpc": railwayNtpc as ExamTemplate,
+  "bank-po-prelims": bankPoPrelims as ExamTemplate,
+  "jee-mains": jeeMains as ExamTemplate,
+  "neet-ug": neetUg as ExamTemplate,
 };
 
-const templateCache = new Map<string, ExamTemplate>();
-
 function loadTemplate(id: string): ExamTemplate | null {
-  if (templateCache.has(id)) return templateCache.get(id)!;
-
-  const filename = TEMPLATE_FILES[id];
-  if (!filename) return null;
-
-  try {
-    const filePath = join(__dirname, filename);
-    const raw = readFileSync(filePath, "utf-8");
-    const template = JSON.parse(raw) as ExamTemplate;
-    templateCache.set(id, template);
-    return template;
-  } catch (error) {
-    console.error(`[TEMPLATES] Failed to load template "${id}":`, error);
-    return null;
-  }
+  return TEMPLATES[id] ?? null;
 }
 
 export function getAvailableTemplates(): ExamTemplateSummary[] {
   const summaries: ExamTemplateSummary[] = [];
 
-  for (const id of Object.keys(TEMPLATE_FILES)) {
-    const template = loadTemplate(id);
-    if (!template) continue;
-
+  for (const template of Object.values(TEMPLATES)) {
     summaries.push({
       id: template.id,
       name: template.name,

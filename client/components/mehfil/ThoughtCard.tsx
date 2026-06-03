@@ -33,6 +33,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ConnectButton } from "./ConnectButton";
@@ -84,6 +94,10 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
   const [reportReason, setReportReason] = useState("spam");
   const [reportDetails, setReportDetails] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [isFakeReportingWarningOpen, setIsFakeReportingWarningOpen] = useState(false);
+
+  const FAKE_REPORTING_WARNING_MESSAGE =
+    "You have been flagged for Fake Reporting an Innocent post . Continuing this will result in permanent suspension for  Reporting.";
 
   useEffect(() => {
     setEditText(thought.content);
@@ -210,9 +224,9 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
     }
   };
 
-  const handleReport = async () => {
+  const submitReport = async (ack: boolean) => {
     if (!currentUserId) {
-      toast.error(t('mehfil.toasts.report_login'));
+      toast.error(t("mehfil.toasts.report_login"));
       return;
     }
     if (reportReason === "other" && !reportDetails.trim()) {
@@ -220,10 +234,7 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
       return;
     }
 
-    const reasonText =
-      reportReason === "other"
-        ? `other: ${reportDetails.trim()}`
-        : reportReason;
+    const reasonText = reportReason === "other" ? `other: ${reportDetails.trim()}` : reportReason;
 
     setIsSubmittingReport(true);
     try {
@@ -234,33 +245,47 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
         body: JSON.stringify({
           thoughtId: thought.id,
           reason: reasonText,
+          ...(ack ? { ackFakeReportingWarning: true } : {}),
         }),
       });
 
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(payload?.error || t('mehfil.toasts.report_error'));
+        if (payload?.code === "FAKE_REPORTING_WARNING_REQUIRED" && !ack) {
+          setIsFakeReportingWarningOpen(true);
+          return;
+        }
+        if (payload?.code === "REPORTING_BANNED") {
+          toast.error(payload?.error || "You are banned from reporting.");
+          setIsReportDialogOpen(false);
+          return;
+        }
+        throw new Error(payload?.error || t("mehfil.toasts.report_error"));
       }
 
       if (payload?.banApplied) {
-        toast.success('Report submitted. The post was reviewed and posting access was restricted.');
+        toast.success("Report submitted. The post was reviewed and posting access was restricted.");
       } else if (payload?.queuedForReview) {
-        toast.success('Report submitted. This post is queued for admin review.');
+        toast.success("Report submitted. This post is queued for admin review.");
       } else if (payload?.postHidden) {
-        toast.success('Report submitted. The post was hidden pending further review.');
+        toast.success("Report submitted. The post was hidden pending further review.");
       } else {
-        toast.success(t('mehfil.toasts.report_success'));
+        toast.success(t("mehfil.toasts.report_success"));
       }
       setIsReportDialogOpen(false);
       setReportReason("spam");
       setReportDetails("");
     } catch (error: any) {
       console.error("Error reporting post:", error);
-      toast.error(error?.message || t('mehfil.toasts.report_error'));
+      toast.error(error?.message || t("mehfil.toasts.report_error"));
     } finally {
       setIsSubmittingReport(false);
     }
+  };
+
+  const handleReport = async () => {
+    await submitReport(false);
   };
 
   const handleShare = async () => {
@@ -662,6 +687,27 @@ const ThoughtCard: React.FC<ThoughtCardProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isFakeReportingWarningOpen} onOpenChange={setIsFakeReportingWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Warning</AlertDialogTitle>
+            <AlertDialogDescription>{FAKE_REPORTING_WARNING_MESSAGE}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmittingReport}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isSubmittingReport}
+              onClick={async () => {
+                setIsFakeReportingWarningOpen(false);
+                await submitReport(true);
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

@@ -16,11 +16,35 @@ type ReportReason = {
   status?: string;
 };
 
+type ReporterInfo = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  falseReportStrikes?: number;
+  lastFalseReportStrikeAt?: string | null;
+  warningCount?: number;
+  lastWarningAt?: string | null;
+  reportingBanned?: boolean;
+  reportingBannedAt?: string | null;
+};
+
+type ModerationReportEntry = {
+  id: string;
+  reporterId: string;
+  reason: string;
+  category?: string;
+  status?: string;
+  createdAt?: string;
+  moderatorVerdict?: string | null;
+  reporter: ReporterInfo;
+};
+
 type ModerationReportItem = {
   thoughtId: string;
   reportCount: number;
   statuses: string[];
   reasons: ReportReason[];
+  reports?: ModerationReportEntry[];
   latestAt: string;
   thought: {
     id: string;
@@ -45,6 +69,7 @@ function formatCategoryLabel(reason: ReportReason): string {
   const raw = reason.category || reason.reason || "";
   const normalized = String(raw).trim().toLowerCase();
   if (normalized.startsWith("other:")) return "Other";
+  if (normalized === "other") return "Other";
   if (normalized === "spam") return "Spam or misleading";
   if (normalized === "harassment") return "Harassment or hate speech";
   if (normalized === "inappropriate") return "Inappropriate content";
@@ -71,15 +96,17 @@ function formatDate(value: string | Date | undefined) {
 }
 
 export default function MehfilReportModeration() {
-  const { user, status } = useAuth();
+  const { user, status, isAdmin } = useAuth();
   const [items, setItems] = useState<ModerationReportItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
   const [isLoading, setIsLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [markingReportId, setMarkingReportId] = useState<string | null>(null);
+  const [reporterActionId, setReporterActionId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  const allowed = canAccessMehfilModeration(user?.email);
+  const allowed = canAccessMehfilModeration(user?.email, isAdmin);
 
   const loadReports = useCallback(async () => {
     if (!allowed) return;
@@ -144,6 +171,128 @@ export default function MehfilReportModeration() {
     }
   };
 
+  const markFakeReport = async (thoughtId: string, reportId: string) => {
+    setMarkingReportId(reportId);
+    try {
+      const response = await apiFetch(`${API_BASE}/admin/mehfil/reports/${reportId}/mark-fake`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to mark fake report");
+      }
+
+      toast.success(payload?.alreadyMarked ? "Already marked as fake." : "Reporter strike recorded.");
+
+      const nextStrikeCount =
+        typeof payload?.falseReportStrikes === "number" ? payload.falseReportStrikes : undefined;
+
+      setItems((prev) =>
+        prev.map((item) => {
+          if (item.thoughtId !== thoughtId) return item;
+          const nextReports = (item.reports || []).map((report) => {
+            if (report.id !== reportId) return report;
+            return {
+              ...report,
+              moderatorVerdict: "fake",
+              status: "dismissed",
+              reporter: {
+                ...report.reporter,
+                ...(typeof nextStrikeCount === "number" ? { falseReportStrikes: nextStrikeCount } : {}),
+              },
+            };
+          });
+          return { ...item, reports: nextReports };
+        }),
+      );
+    } catch (error: any) {
+      toast.error(error?.message || "Action failed");
+    } finally {
+      setMarkingReportId(null);
+    }
+  };
+
+  const warnReporter = async (thoughtId: string, reporterId: string) => {
+    setReporterActionId(reporterId);
+    try {
+      const response = await apiFetch(`${API_BASE}/admin/mehfil/reporters/${reporterId}/warn`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to warn reporter");
+      }
+
+      toast.success("Reporter warned.");
+
+      setItems((prev) =>
+        prev.map((item) => {
+          if (item.thoughtId !== thoughtId) return item;
+          const nextReports = (item.reports || []).map((report) => {
+            if (report.reporterId !== reporterId) return report;
+            return {
+              ...report,
+              reporter: {
+                ...report.reporter,
+                warningCount:
+                  typeof payload?.warningCount === "number" ? payload.warningCount : report.reporter.warningCount,
+                lastWarningAt: payload?.lastWarningAt ?? report.reporter.lastWarningAt,
+              },
+            };
+          });
+          return { ...item, reports: nextReports };
+        }),
+      );
+    } catch (error: any) {
+      toast.error(error?.message || "Action failed");
+    } finally {
+      setReporterActionId(null);
+    }
+  };
+
+  const banReporterFromReporting = async (thoughtId: string, reporterId: string) => {
+    setReporterActionId(reporterId);
+    try {
+      const response = await apiFetch(
+        `${API_BASE}/admin/mehfil/reporters/${reporterId}/ban-reporting`,
+        {
+          method: "POST",
+          body: JSON.stringify({}),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to ban reporter from reporting");
+      }
+
+      toast.success(payload?.alreadyBanned ? "Reporter already banned from reporting." : "Reporter banned from reporting.");
+
+      setItems((prev) =>
+        prev.map((item) => {
+          if (item.thoughtId !== thoughtId) return item;
+          const nextReports = (item.reports || []).map((report) => {
+            if (report.reporterId !== reporterId) return report;
+            return {
+              ...report,
+              reporter: {
+                ...report.reporter,
+                reportingBanned: true,
+                reportingBannedAt: payload?.reportingBannedAt ?? report.reporter.reportingBannedAt,
+              },
+            };
+          });
+          return { ...item, reports: nextReports };
+        }),
+      );
+    } catch (error: any) {
+      toast.error(error?.message || "Action failed");
+    } finally {
+      setReporterActionId(null);
+    }
+  };
+
   if (status === "loading") {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center">
@@ -168,7 +317,7 @@ export default function MehfilReportModeration() {
   return (
     <div className="mehfil-m3 min-h-[100dvh] bg-slate-50 text-slate-900 dark:bg-background dark:text-foreground">
       <M3TopNavbar moduleName="PROFILE" homeRoute="/dashboard" />
-      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Mehfil reported posts</h1>
@@ -218,7 +367,7 @@ export default function MehfilReportModeration() {
             <p className="text-sm text-slate-500">No reported posts in this view.</p>
           </div>
         ) : (
-          <ul className="space-y-5">
+          <ul className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {items.map((item) => {
               const isResolving = resolvingId === item.thoughtId;
               const isBanned =
@@ -232,7 +381,7 @@ export default function MehfilReportModeration() {
               return (
                 <li
                   key={item.thoughtId}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
+                  className="h-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
                 >
                   <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
                     <div className="flex flex-wrap items-center gap-2">
@@ -288,19 +437,107 @@ export default function MehfilReportModeration() {
                         Report reasons
                       </p>
                       <ul className="mt-2 space-y-2">
-                        {item.reasons.map((reason, index) => (
-                          <li
-                            key={`${item.thoughtId}-reason-${index}`}
-                            className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60"
-                          >
-                            <span className="font-semibold text-rose-600 dark:text-rose-400">
-                              {formatCategoryLabel(reason)}
-                            </span>
-                            <p className="mt-0.5 text-slate-600 dark:text-slate-300">
-                              {formatReasonDetail(reason)}
-                            </p>
-                          </li>
-                        ))}
+                        {(item.reports?.length ? item.reports : item.reasons.map((r) => ({
+                          id: `${item.thoughtId}:${r.reason}`,
+                          reporterId: "",
+                          reason: r.reason,
+                          category: r.category,
+                          status: r.status,
+                          moderatorVerdict: null,
+                          reporter: { id: "", email: null, name: null },
+                        } as ModerationReportEntry)))
+                          .map((report, index) => {
+                            const reporterLabel = report.reporter?.name || report.reporter?.email || report.reporterId;
+                            const strikeCount = typeof report.reporter?.falseReportStrikes === "number" ? report.reporter.falseReportStrikes : null;
+                            const warningCount = typeof report.reporter?.warningCount === "number" ? report.reporter.warningCount : null;
+                            const reportingBanned = Boolean(report.reporter?.reportingBanned);
+                            const isFake = String(report.moderatorVerdict || "").toLowerCase() === "fake";
+                            const canMarkFake = Boolean(report.id && report.reporterId) && !isFake;
+                            const isMarking = markingReportId === report.id;
+                            const isReporterActing = reporterActionId === report.reporterId;
+                            const canWarn = Boolean(report.reporterId);
+                            const canBanFromReporting = Boolean(report.reporterId) && !reportingBanned;
+
+                            return (
+                              <li
+                                key={report.id || `${item.thoughtId}-reason-${index}`}
+                                className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm dark:border-slate-800 dark:bg-slate-900/60"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                      Reporter: {reporterLabel || "Unknown"}
+                                      {strikeCount !== null ? (
+                                        <span className="ml-2 text-[10px] font-bold text-slate-500">
+                                          (false strikes: {strikeCount})
+                                        </span>
+                                      ) : null}
+                                      {warningCount !== null ? (
+                                        <span className="ml-2 text-[10px] font-bold text-slate-500">
+                                          (warns: {warningCount})
+                                        </span>
+                                      ) : null}
+                                    </p>
+                                    {report.reporter?.email || report.reporterId ? (
+                                      <p className="truncate text-[11px] text-slate-500">
+                                        {report.reporter?.email || report.reporterId}
+                                      </p>
+                                    ) : null}
+                                    {report.createdAt ? (
+                                      <p className="text-[11px] text-slate-500">
+                                        Reported at: {formatDate(report.createdAt)}
+                                      </p>
+                                    ) : null}
+                                    {reportingBanned ? (
+                                      <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                                        Reporting banned
+                                      </p>
+                                    ) : null}
+                                  </div>
+
+                                  {report.id && report.reporterId ? (
+                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={!canMarkFake || isMarking}
+                                        onClick={() => markFakeReport(item.thoughtId, report.id)}
+                                      >
+                                        {isMarking ? <Loader2 className="h-4 w-4 animate-spin" /> : isFake ? "Marked fake" : "Mark fake"}
+                                      </Button>
+
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={!canWarn || isReporterActing}
+                                        onClick={() => warnReporter(item.thoughtId, report.reporterId)}
+                                      >
+                                        {isReporterActing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Warn the user"}
+                                      </Button>
+
+                                      <Button
+                                        size="sm"
+                                        className="bg-rose-600 text-white hover:bg-rose-700"
+                                        disabled={!canBanFromReporting || isReporterActing}
+                                        onClick={() => banReporterFromReporting(item.thoughtId, report.reporterId)}
+                                      >
+                                        {isReporterActing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ban from reporting"}
+                                      </Button>
+                                    </div>
+                                  ) : null}
+                                </div>
+
+                                <div className="mt-2">
+                                  <span className="font-semibold text-rose-600 dark:text-rose-400">
+                                    {formatCategoryLabel({ reason: report.reason, category: report.category })}
+                                  </span>
+                                  <p className="mt-0.5 text-slate-600 dark:text-slate-300">
+                                    {formatReasonDetail({ reason: report.reason })}
+                                  </p>
+                                </div>
+                              </li>
+                            );
+                          })}
                       </ul>
                     </div>
 

@@ -56,7 +56,7 @@ export type ReportStats = {
 export async function getReportStatsForThought(thoughtId: string): Promise<ReportStats> {
   const reports = await collections
     .mehfilReports()
-    .find({ thought_id: thoughtId })
+    .find({ thought_id: thoughtId, status: { $in: ['pending', 'review_needed'] } })
     .project({ reporter_id: 1, reason: 1, category: 1 })
     .toArray();
 

@@ -232,7 +232,40 @@ mehfilInteractionRoutes.get("/save/:thoughtId", async (req: any, res: Response) 
 mehfilInteractionRoutes.post("/report", async (req: any, res: Response) => {
     try {
         const userId = req.session.userId;
-        const { thoughtId, reason } = req.body;
+        const { thoughtId, reason, ackFakeReportingWarning } = req.body;
+
+        const reporter = await collections.users().findOne(
+            { id: userId },
+            {
+                projection: {
+                    id: 1,
+                    mehfil_reporting_banned: 1,
+                    mehfil_false_report_strike_count: 1,
+                    mehfil_reporting_warning_count: 1,
+                },
+            },
+        );
+
+        if (Boolean(reporter?.mehfil_reporting_banned)) {
+            return res.status(403).json({
+                code: "REPORTING_BANNED",
+                error: "You are banned from reporting.",
+            });
+        }
+
+        const falseStrikes = Number(reporter?.mehfil_false_report_strike_count || 0);
+        const warnings = Number(reporter?.mehfil_reporting_warning_count || 0);
+        const isFlaggedReporter = falseStrikes > 0 || warnings > 0;
+
+        if (isFlaggedReporter && ackFakeReportingWarning !== true) {
+            return res.status(409).json({
+                code: "FAKE_REPORTING_WARNING_REQUIRED",
+                message:
+                    "You have been flagged for Fake Reporting an Innocent post . Continuing this will result in permanent suspension for  Reporting.",
+                error:
+                    "You have been flagged for Fake Reporting an Innocent post . Continuing this will result in permanent suspension for  Reporting.",
+            });
+        }
 
         if (!thoughtId || !reason) {
             return res.status(400).json({ error: "ThoughtId and reason are required" });

@@ -145,7 +145,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 /** Mehfil report review — steve123@example.com only (not general admin). */
 function MehfilModeratorRoute({ children }: { children: React.ReactNode }) {
-  const { status, isAuthenticated, user } = useAuth();
+  const { status, isAuthenticated, user, isAdmin } = useAuth();
 
   if (status === "loading") {
     return <PageLoadingFallback />;
@@ -153,7 +153,7 @@ function MehfilModeratorRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) {
     return <Navigate to="/?signin=true" replace />;
   }
-  if (!canAccessMehfilModeration(user?.email)) {
+  if (!canAccessMehfilModeration(user?.email, isAdmin)) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
@@ -179,169 +179,169 @@ const App = () => {
               <GuidedTourProvider>
                 <Suspense fallback={<PageLoadingFallback />}>
                   <Routes>
-                {/* Auth Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ForgotPassword />} />
+                    {/* Auth Routes */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<Login />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ForgotPassword />} />
 
-                {/* Protected Routes */}
-                <Route path="/nishtha/*" element={<NishthaRouteAlias />} />
-                <Route
-                  path="/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/check-in"
-                  element={
-                    <ProtectedRoute>
-                      <CheckIn />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/journal"
-                  element={
-                    <ProtectedRoute>
-                      <Journal />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/goals"
-                  element={
-                    <ProtectedRoute>
-                      <Goals />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/streaks"
-                  element={
-                    <ProtectedRoute>
-                      <Streaks />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/suggestions"
-                  element={
-                    <ProtectedRoute>
-                      <Suggestions />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/analytics"
-                  element={
-                    <ProtectedRoute>
-                      <Analytics />
-                    </ProtectedRoute>
-                  }
-                />
+                    {/* Protected Routes */}
+                    <Route path="/nishtha/*" element={<NishthaRouteAlias />} />
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <ProtectedRoute>
+                          <Dashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/check-in"
+                      element={
+                        <ProtectedRoute>
+                          <CheckIn />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/journal"
+                      element={
+                        <ProtectedRoute>
+                          <Journal />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/goals"
+                      element={
+                        <ProtectedRoute>
+                          <Goals />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/streaks"
+                      element={
+                        <ProtectedRoute>
+                          <Streaks />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/suggestions"
+                      element={
+                        <ProtectedRoute>
+                          <Suggestions />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/analytics"
+                      element={
+                        <ProtectedRoute>
+                          <Analytics />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                <Route
-                  path="/admin/notifications"
-                  element={
-                    <AdminRoute>
-                      <AdminNotificationComposer />
-                    </AdminRoute>
-                  }
-                />
-                <Route
-                  path="/admin/mehfil/reports"
-                  element={
-                    <MehfilModeratorRoute>
-                      <MehfilReportModeration />
-                    </MehfilModeratorRoute>
-                  }
-                />
-                <Route
-                  path="/study"
-                  element={
-                    <ProtectedRoute>
-                      <StudyWithMe />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/study/planner"
-                  element={
-                    <ProtectedRoute>
-                      <StudyPlannerPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/study/planner/:planId"
-                  element={
-                    <ProtectedRoute>
-                      <StudyPlannerPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/study/planner/:planId/:section"
-                  element={
-                    <ProtectedRoute>
-                      <StudyPlannerPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/study/analytics"
-                  element={
-                    <ProtectedRoute>
-                      <Navigate to="/analytics?tab=focus" replace />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/achievements"
-                  element={
-                    <ProtectedRoute>
-                      <Achievements />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <Profile />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="/mehfil" element={<Mehfil />} />
-                <Route
-                  path="/meditation"
-                  element={
-                    <ProtectedRoute>
-                      <Meditation />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/courses"
-                  element={
-                    <ProtectedRoute>
-                      <Courses />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/live-sessions"
-                  element={
-                    <ProtectedRoute>
-                      <LiveSessions />
-                    </ProtectedRoute>
-                  }
-                />
-                {/* 
+                    <Route
+                      path="/admin/notifications"
+                      element={
+                        <AdminRoute>
+                          <AdminNotificationComposer />
+                        </AdminRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/mehfil/reports"
+                      element={
+                        <MehfilModeratorRoute>
+                          <MehfilReportModeration />
+                        </MehfilModeratorRoute>
+                      }
+                    />
+                    <Route
+                      path="/study"
+                      element={
+                        <ProtectedRoute>
+                          <StudyWithMe />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/study/planner"
+                      element={
+                        <ProtectedRoute>
+                          <StudyPlannerPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/study/planner/:planId"
+                      element={
+                        <ProtectedRoute>
+                          <StudyPlannerPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/study/planner/:planId/:section"
+                      element={
+                        <ProtectedRoute>
+                          <StudyPlannerPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/study/analytics"
+                      element={
+                        <ProtectedRoute>
+                          <Navigate to="/analytics?tab=focus" replace />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/achievements"
+                      element={
+                        <ProtectedRoute>
+                          <Achievements />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <ProtectedRoute>
+                          <Profile />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="/mehfil" element={<Mehfil />} />
+                    <Route
+                      path="/meditation"
+                      element={
+                        <ProtectedRoute>
+                          <Meditation />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/courses"
+                      element={
+                        <ProtectedRoute>
+                          <Courses />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/live-sessions"
+                      element={
+                        <ProtectedRoute>
+                          <LiveSessions />
+                        </ProtectedRoute>
+                      }
+                    />
+                    {/* 
                 <Route
                   path="/mission/today"
                   element={
@@ -352,19 +352,19 @@ const App = () => {
                 />
                 */}
 
-                {/* Landing page - Public Home */}
-                <Route path="/landing" element={<Navigate to="/home" replace />} />
-                <Route path="/home" element={<Landing />} />
-                <Route path="/challenge-100k" element={<Challenge100K />} />
-                <Route path="/updates" element={<Updates />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/delete-account" element={<DeleteAccount />} />
+                    {/* Landing page - Public Home */}
+                    <Route path="/landing" element={<Navigate to="/home" replace />} />
+                    <Route path="/home" element={<Landing />} />
+                    <Route path="/challenge-100k" element={<Challenge100K />} />
+                    <Route path="/updates" element={<Updates />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/delete-account" element={<DeleteAccount />} />
 
-                {/* Default route - Landing page is now home */}
-                <Route path="/" element={<Landing />} />
+                    {/* Default route - Landing page is now home */}
+                    <Route path="/" element={<Landing />} />
 
-                {/* 404 */}
-                <Route path="*" element={<NotFound />} />
+                    {/* 404 */}
+                    <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
                 <GlobalOverlayLayer />
