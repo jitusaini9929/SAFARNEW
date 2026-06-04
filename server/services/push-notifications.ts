@@ -27,6 +27,10 @@ export type PushSendOptions = {
   ignoreQuietHours?: boolean;
   bypassDedupe?: boolean;
   bypassPreferences?: boolean;
+  /** When set (YYYY-MM-DD), the same payload is sent at most once per user for that calendar day. */
+  dedupeDayKey?: string;
+  /** When true, only the most recently updated device token receives the push (default for sendNotificationToUser). */
+  latestTokenOnly?: boolean;
 };
 
 export const ALLOWED_CHANNELS: NotificationChannel[] = [
@@ -192,11 +196,42 @@ function isInsideQuietHours(preferences: any, at = new Date()): boolean {
   return current >= startMinutes || current < endMinutes;
 }
 
-function buildDedupeKey(payload: PushPayload): string {
+function buildDedupeKey(payload: PushPayload, options: Pick<PushSendOptions, "dedupeDayKey"> = {}): string {
+  const windowPart = options.dedupeDayKey
+    ? `day:${options.dedupeDayKey}`
+    : `slot:${Math.floor(Date.now() / DEDUPE_WINDOW_MS)}`;
   return crypto
     .createHash("sha256")
-    .update(`${payload.type}|${payload.channel}|${payload.title}|${payload.body}|${payload.deepLink}`)
+    .update(
+      `${windowPart}|${payload.type}|${payload.channel}|${payload.title}|${payload.body}|${payload.deepLink}`,
+    )
     .digest("hex");
+}
+
+async function tryClaimUserDedupe(
+  userId: string,
+  dedupeKey: string,
+  payload: PushPayload,
+): Promise<boolean> {
+  try {
+    await collections.notificationDeliveryLog().insertOne({
+      user_id: userId,
+      type: payload.type,
+      channel: payload.channel,
+      dedupe_key: dedupeKey,
+      token: null,
+      token_preview: "user_claim",
+      created_at: new Date(),
+    });
+    return true;
+  } catch (error: any) {
+    if (error?.code === 11000) return false;
+    const existing = await collections.notificationDeliveryLog().findOne({
+      user_id: userId,
+      dedupe_key: dedupeKey,
+    });
+    return !existing;
+  }
 }
 
 async function evaluatePolicy(userId: string, payload: PushPayload, options: PushSendOptions = {}) {
@@ -217,12 +252,10 @@ async function evaluatePolicy(userId: string, payload: PushPayload, options: Pus
   }
 
   if (!options.bypassDedupe) {
-    const since = new Date(Date.now() - DEDUPE_WINDOW_MS);
+    const dedupeKey = buildDedupeKey(payload, options);
     const existing = await collections.notificationDeliveryLog().findOne({
       user_id: userId,
-      type: payload.type,
-      dedupe_key: buildDedupeKey(payload),
-      created_at: { $gte: since },
+      dedupe_key: dedupeKey,
     });
     if (existing) {
       return { allowed: false, reason: "deduped" };
@@ -292,19 +325,37 @@ async function deliverPushToken(
 
     const response = await getMessaging(app).send(message);
 
-    await collections.notificationDeliveryLog().insertOne({
-      user_id: userId,
-      token,
-      token_preview: preview,
-      type: payload.type,
-      channel: payload.channel,
-      dedupe_key: dedupeKey,
-      message_id: response,
-      created_at: new Date(),
-    });
+    const deliveryUpdate = await collections.notificationDeliveryLog().updateOne(
+      { user_id: userId, dedupe_key: dedupeKey, token_preview: "user_claim" },
+      {
+        $set: {
+          token,
+          token_preview: preview,
+          type: payload.type,
+          channel: payload.channel,
+          message_id: response,
+          delivered_at: new Date(),
+        },
+      },
+    );
+    if (deliveryUpdate.matchedCount === 0) {
+      await collections.notificationDeliveryLog().insertOne({
+        user_id: userId,
+        token,
+        token_preview: preview,
+        type: payload.type,
+        channel: payload.channel,
+        dedupe_key: dedupeKey,
+        message_id: response,
+        created_at: new Date(),
+      });
+    }
 
     return { tokenPreview: preview, success: true, messageId: response };
   } catch (error: any) {
+    await collections.notificationDeliveryLog()
+      .deleteOne({ user_id: userId, dedupe_key: dedupeKey, token_preview: "user_claim" })
+      .catch(() => undefined);
     console.error("Error in deliverPushToken:", error);
     const code = String(error?.code || "");
     if (code.includes("registration-token-not-registered") || code.includes("invalid-registration-token")) {
@@ -319,33 +370,68 @@ async function deliverPushToken(
 }
 
 export async function sendPushToTokens(tokens: any[], payload: PushPayload, options: PushSendOptions = {}) {
-  const results = [];
-  const dedupeKey = buildDedupeKey(payload);
-
-  // Batch fetch names to prevent N+1 queries
-  const userIds = Array.from(new Set(tokens.map(t => String(t.user_id || "")).filter(Boolean)));
-  const users = userIds.length > 0
-    ? await collections.users().find({ id: { $in: userIds } }).project({ id: 1, name: 1 }).toArray()
-    : [];
-  const userMap = new Map(users.map(u => [u.id, u.name]));
+  const results: any[] = [];
+  const dedupeKey = buildDedupeKey(payload, options);
+  const tokensByUser = new Map<string, any[]>();
 
   for (const tokenRow of tokens) {
-    const userId = String(tokenRow.user_id || "");
-    const preview = tokenPreview(String(tokenRow.token || ""));
+    const userId = String(tokenRow.user_id || "").trim();
     if (!userId) {
-      results.push({ tokenPreview: preview, success: false, error: "token_inactive" });
+      results.push({
+        tokenPreview: tokenPreview(String(tokenRow.token || "")),
+        success: false,
+        error: "token_inactive",
+      });
       continue;
     }
+    const bucket = tokensByUser.get(userId) || [];
+    bucket.push(tokenRow);
+    tokensByUser.set(userId, bucket);
+  }
+
+  const userIds = Array.from(tokensByUser.keys());
+  const users =
+    userIds.length > 0
+      ? await collections.users().find({ id: { $in: userIds } }).project({ id: 1, name: 1 }).toArray()
+      : [];
+  const userMap = new Map(users.map((u) => [u.id, u.name]));
+
+  for (const [userId, userTokens] of tokensByUser) {
+    const sortedTokens = [...userTokens].sort(
+      (a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime(),
+    );
+    const deliverTokens = options.latestTokenOnly ? sortedTokens.slice(0, 1) : sortedTokens;
 
     const policy = await evaluatePolicy(userId, payload, options);
     if (!policy.allowed) {
-      results.push({ tokenPreview: preview, success: false, error: policy.reason });
+      for (const tokenRow of deliverTokens) {
+        results.push({
+          tokenPreview: tokenPreview(String(tokenRow.token || "")),
+          success: false,
+          error: policy.reason,
+        });
+      }
       continue;
     }
 
+    if (!options.bypassDedupe) {
+      const claimed = await tryClaimUserDedupe(userId, dedupeKey, payload);
+      if (!claimed) {
+        for (const tokenRow of deliverTokens) {
+          results.push({
+            tokenPreview: tokenPreview(String(tokenRow.token || "")),
+            success: false,
+            error: "deduped",
+          });
+        }
+        continue;
+      }
+    }
+
     const userName = userMap.get(userId);
-    const result = await deliverPushToken(tokenRow, payload, dedupeKey, userName);
-    results.push(result);
+    for (const tokenRow of deliverTokens) {
+      results.push(await deliverPushToken(tokenRow, payload, dedupeKey, userName));
+    }
   }
 
   return results;
@@ -355,29 +441,14 @@ export async function sendPushToTokensBatched(
   tokens: any[],
   payload: PushPayload,
   chunkSize = 200,
+  options: PushSendOptions = {},
 ) {
-  const dedupeKey = buildDedupeKey(payload);
   const results: any[] = [];
-
-  // Batch fetch names to prevent N+1 queries
-  const userIds = Array.from(new Set(tokens.map(t => String(t.user_id || "")).filter(Boolean)));
-  const users = userIds.length > 0
-    ? await collections.users().find({ id: { $in: userIds } }).project({ id: 1, name: 1 }).toArray()
-    : [];
-  const userMap = new Map(users.map(u => [u.id, u.name]));
-
   for (let index = 0; index < tokens.length; index += chunkSize) {
     const chunk = tokens.slice(index, index + chunkSize);
-    const chunkResults = await Promise.all(
-      chunk.map((tokenRow) => {
-        const userId = String(tokenRow.user_id || "");
-        const userName = userMap.get(userId);
-        return deliverPushToken(tokenRow, payload, dedupeKey, userName);
-      }),
-    );
+    const chunkResults = await sendPushToTokens(chunk, payload, options);
     results.push(...chunkResults);
   }
-
   return results;
 }
 
@@ -392,7 +463,10 @@ export async function sendNotificationToUser(userId: string, payload: PushPayloa
     .sort({ updated_at: -1 })
     .toArray();
 
-  return sendPushToTokens(tokens, payload, options);
+  return sendPushToTokens(tokens, payload, {
+    ...options,
+    latestTokenOnly: options.latestTokenOnly ?? true,
+  });
 }
 
 export async function sendAnnouncementToActiveTokens(payload: PushPayload, flavor?: NotificationFlavor) {

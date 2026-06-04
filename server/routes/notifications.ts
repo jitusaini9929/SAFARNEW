@@ -101,6 +101,18 @@ notificationRoutes.post("/device-tokens", requireAuth, async (req: Request, res:
       { upsert: true },
     );
 
+    // Keep one active Android token per account so stale reinstall tokens do not multiply pushes.
+    await collections.deviceTokens().updateMany(
+      { user_id: userId, platform, token: { $ne: token }, revoked_at: null },
+      {
+        $set: {
+          notifications_enabled: false,
+          revoked_at: now,
+          updated_at: now,
+        },
+      },
+    );
+
     return res.json({ success: true, message: "device_token_registered" });
   } catch (error: any) {
     console.error("Register device token error:", error);

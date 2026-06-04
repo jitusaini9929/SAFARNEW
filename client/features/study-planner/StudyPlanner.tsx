@@ -106,6 +106,8 @@ const BEGINNER_MODE_STORAGE_KEY = "study-planner-beginner-mode";
 const SYLLABUS_LAYOUT_MODE_STORAGE_KEY = "study-planner-syllabus-layout-mode";
 /** When false, the Classic view toggle is hidden; classic layout code and branch stay in the file. */
 const SYLLABUS_CLASSIC_LAYOUT_UI_ENABLED = false;
+/** When false, Syllabus AI paste (raw text → structure-preview) is hidden; manual bulk entry only. */
+const SYLLABUS_AI_PASTE_ENABLED = false;
 const PLANNER_ONBOARDING_STORAGE_KEY = "study-planner-onboarding-v2";
 const BULK_IMPORT_SUBJECT_PALETTE = [
   "#0ea5e9",
@@ -1145,14 +1147,15 @@ export default function StudyPlanner({
       return "org-chart";
     });
   const [bulkAddOpen, setBulkAddOpen] = useState(false);
-  const [bulkAddMode, setBulkAddMode] = useState<BulkAddMode>("txt-file");
+  const [bulkAddMode, setBulkAddMode] = useState<BulkAddMode>("manual");
   const [bulkSubjectId, setBulkSubjectId] = useState("");
   const [bulkSubjectName, setBulkSubjectName] = useState("");
   const [bulkChapterName, setBulkChapterName] = useState("");
   const [bulkTopicsText, setBulkTopicsText] = useState("");
   const [bulkAddError, setBulkAddError] = useState("");
   const [bulkTxtGuideOpen, setBulkTxtGuideOpen] = useState(false);
-  const isTxtBulkMode = bulkAddMode === "txt-file";
+  const isTxtBulkMode =
+    SYLLABUS_AI_PASTE_ENABLED && bulkAddMode === "txt-file";
   const [bulkSyllabusOverwritePrompt, setBulkSyllabusOverwritePrompt] =
     useState<BulkSyllabusOverwritePrompt>(null);
   const bulkSyllabusImportOverwriteRef = useRef(false);
@@ -1318,7 +1321,7 @@ export default function StudyPlanner({
       setCalendar(calendarData || {});
       setError("");
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load planner");
+      setError(err?.message || err?.response?.data?.message || "Failed to load planner");
     } finally {
       setLoading(false);
     }
@@ -2307,7 +2310,7 @@ export default function StudyPlanner({
 
   function resetBulkAdd() {
     setBulkAddOpen(false);
-    setBulkAddMode("txt-file");
+    setBulkAddMode("manual");
     setBulkSubjectId("");
     setBulkSubjectName("");
     setBulkChapterName("");
@@ -2324,7 +2327,7 @@ export default function StudyPlanner({
   function openBulkAddDialog() {
     bulkSyllabusImportOverwriteRef.current = false;
     setBulkSyllabusOverwritePrompt(null);
-    setBulkAddMode("txt-file");
+    setBulkAddMode(SYLLABUS_AI_PASTE_ENABLED ? "txt-file" : "manual");
     setRawSyllabusText("");
     setIsStructuringSyllabus(false);
     setHasStructured(false);
@@ -2914,8 +2917,20 @@ export default function StudyPlanner({
   const completedTasks = topics.filter((t) => t.status === "done");
   const todayTasks = topics.filter(
     (topic) =>
-      topic.plannedDate && toIsoDateOnly(topic.plannedDate) === todayKey,
+      topic.plannedDate &&
+      toIsoDateOnly(topic.plannedDate) === todayKey &&
+      topic.status !== "done",
   );
+  const todayTotalCount = topics.filter(
+    (topic) =>
+      topic.plannedDate && toIsoDateOnly(topic.plannedDate) === todayKey,
+  ).length;
+  const todayDoneCount = topics.filter(
+    (topic) =>
+      topic.plannedDate &&
+      toIsoDateOnly(topic.plannedDate) === todayKey &&
+      topic.status === "done",
+  ).length;
   const overdueTasks = topics.filter((topic) => {
     if (!topic.plannedDate) return false;
     const plannedKey = toIsoDateOnly(topic.plannedDate);
@@ -2933,6 +2948,14 @@ export default function StudyPlanner({
     })
     .sort((a, b) => (a.plannedDate || "").localeCompare(b.plannedDate || ""));
   const upcomingMerged = upcomingTasks.slice(0, 6);
+  const bonusTopics = [...overdueTasks, ...upcomingTasks].slice(0, 5);
+  const bonusDoneCount = topics.filter(
+    (topic) =>
+      topic.status === "done" &&
+      topic.completedDate &&
+      toIsoDateOnly(topic.completedDate) === todayKey &&
+      (!topic.plannedDate || toIsoDateOnly(topic.plannedDate) !== todayKey),
+  ).length;
 
   const selectedDayItems = pickedDay ? calendar[pickedDay] || [] : [];
   const selectedDayDone = selectedDayItems.filter(
@@ -3631,9 +3654,13 @@ export default function StudyPlanner({
                 void saveCapacitySettings();
               }}
               todayTopics={todayTasks}
+              todayDoneCount={todayDoneCount}
+              todayTotalCount={todayTotalCount}
               overdueTopics={overdueTasks}
               upcomingTopics={upcomingMerged}
               completedTopics={completedTasks}
+              bonusTopics={bonusTopics}
+              bonusDoneCount={bonusDoneCount}
               formatPlannedDate={formatDate}
               daysOverdue={(plannedIso, tk) =>
                 daysBetweenDateKeys(toIsoDateOnly(plannedIso), tk)
@@ -6100,30 +6127,32 @@ export default function StudyPlanner({
             )}
 
             <div className="space-y-6">
-              <div className="flex p-1 bg-slate-100/80 dark:bg-slate-800/40 rounded-2xl w-fit">
-                <button
-                  type="button"
-                  onClick={() => switchBulkAddMode("txt-file")}
-                  className={`px-6 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all duration-200 ${
-                    isTxtBulkMode
-                      ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                  }`}
-                >
-                  Syllabus AI Paste
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchBulkAddMode("manual")}
-                  className={`px-6 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all duration-200 ${
-                    !isTxtBulkMode
-                      ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                  }`}
-                >
-                  Manual Entry
-                </button>
-              </div>
+              {SYLLABUS_AI_PASTE_ENABLED ? (
+                <div className="flex p-1 bg-slate-100/80 dark:bg-slate-800/40 rounded-2xl w-fit">
+                  <button
+                    type="button"
+                    onClick={() => switchBulkAddMode("txt-file")}
+                    className={`px-6 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all duration-200 ${
+                      isTxtBulkMode
+                        ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    Syllabus AI Paste
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchBulkAddMode("manual")}
+                    className={`px-6 py-2.5 rounded-xl text-[12px] font-black uppercase tracking-widest transition-all duration-200 ${
+                      !isTxtBulkMode
+                        ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    }`}
+                  >
+                    Manual Entry
+                  </button>
+                </div>
+              ) : null}
 
               {isTxtBulkMode ? (
                 // Syllabus AI Paste Mode

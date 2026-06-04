@@ -414,7 +414,18 @@ export interface CreateFromTemplateOptions {
   autoDistribute?: boolean;
 }
 
-export function createPlanFromTemplate(opts: CreateFromTemplateOptions): StudyPlan {
+function normalizeExamDateInput(raw?: string): string | undefined {
+  if (!raw || !String(raw).trim()) return undefined;
+  const key = toIsoDateOnly(String(raw).trim());
+  if (!key) return undefined;
+  const parsed = new Date(`${key}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString();
+}
+
+export function createPlanFromTemplate(
+  opts: CreateFromTemplateOptions,
+): { plan: StudyPlan; scheduleAssigned: number } {
   const now = new Date().toISOString();
 
   const subjects: StudySubject[] = opts.template.subjects.map((templateSubject) => {
@@ -445,7 +456,7 @@ export function createPlanFromTemplate(opts: CreateFromTemplateOptions): StudyPl
     userId: opts.userId,
     title: (opts.title || opts.template.name).trim(),
     examType: opts.template.name,
-    examDate: opts.examDate ? new Date(opts.examDate).toISOString() : undefined,
+    examDate: normalizeExamDateInput(opts.examDate),
     dailyGoal: opts.dailyGoal || opts.template.recommendedDailyGoal || 3,
     offDays: clampOffDays(opts.offDays),
     subjects,
@@ -458,12 +469,14 @@ export function createPlanFromTemplate(opts: CreateFromTemplateOptions): StudyPl
     updatedAt: now,
   };
 
+  let scheduleAssigned = 0;
   if (opts.autoDistribute) {
-    autoDistributeTopics(plan, {
+    const result = autoDistributeTopics(plan, {
       lockExistingDates: false,
       includeRevisionNeeded: false,
     });
+    scheduleAssigned = result.assigned;
   }
 
-  return plan;
+  return { plan, scheduleAssigned };
 }

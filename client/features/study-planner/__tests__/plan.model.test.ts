@@ -503,7 +503,7 @@ describe("createPlanFromTemplate", () => {
   };
 
   it("creates a plan with correct structure", () => {
-    const plan = createPlanFromTemplate({
+    const { plan } = createPlanFromTemplate({
       userId: "user-1",
       template: mockTemplate,
       isPremium: true,
@@ -517,7 +517,7 @@ describe("createPlanFromTemplate", () => {
   });
 
   it("uses provided title over template name", () => {
-    const plan = createPlanFromTemplate({
+    const { plan } = createPlanFromTemplate({
       userId: "user-1",
       template: mockTemplate,
       title: "My Custom Title",
@@ -527,7 +527,7 @@ describe("createPlanFromTemplate", () => {
   });
 
   it("clamps offDays", () => {
-    const plan = createPlanFromTemplate({
+    const { plan } = createPlanFromTemplate({
       userId: "user-1",
       template: mockTemplate,
       offDays: [-1, 0, 7, 3, 3],
@@ -537,7 +537,7 @@ describe("createPlanFromTemplate", () => {
   });
 
   it("generates unique IDs for all entities", () => {
-    const plan = createPlanFromTemplate({
+    const { plan } = createPlanFromTemplate({
       userId: "user-1",
       template: mockTemplate,
       isPremium: false,

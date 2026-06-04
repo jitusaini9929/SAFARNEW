@@ -525,7 +525,7 @@ router.post("/from-template", async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Template not found" });
     }
 
-    const plan = createPlanFromTemplate({
+    const { plan, scheduleAssigned } = createPlanFromTemplate({
       userId,
       template,
       title,
@@ -544,9 +544,10 @@ router.post("/from-template", async (req: Request, res: Response) => {
       templateId,
       totalTopics: progress.totalTopics,
       autoDistribute: Boolean(autoDistribute),
+      scheduleAssigned,
     });
 
-    return res.status(201).json({ ...plan, progress });
+    return res.status(201).json({ ...plan, progress, scheduleAssigned });
   } catch (error) {
     console.error("[PLANNER] Create from template failed:", error);
     return res

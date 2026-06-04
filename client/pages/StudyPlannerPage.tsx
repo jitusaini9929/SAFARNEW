@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { apiFetch, API_BASE } from "@/utils/apiFetch";
 import StudyPlanner from "@/features/study-planner/StudyPlanner";
+import PlannerSidebar from "@/components/PlannerSidebar";
 import { QuickStart } from "@/features/study-planner/StudyPlannerQuickStart";
 import {
   YourExamsPlansPanel,
@@ -103,40 +104,46 @@ export default function StudyPlannerPage() {
   if (!planId) {
     if (showQuickStart) {
       return (
-        <QuickStart
-          onCancel={() => setShowQuickStart(false)}
-          onComplete={(id) => navigate(`/study/planner/${id}/syllabus`, { replace: true })}
-        />
+        <>
+          <PlannerSidebar />
+          <QuickStart
+            onCancel={() => setShowQuickStart(false)}
+            onComplete={(id) => navigate(`/study/planner/${id}/plan`, { replace: true })}
+          />
+        </>
       );
     }
 
     return (
-      <YourExamsPlansPanel
-        plans={plans}
-        variant="page"
-        onOpenPlan={(id) => navigate(`/study/planner/${id}/plan`)}
-        onNewPlan={() => setShowQuickStart(true)}
-        onRequestDelete={setPlanToDelete}
-        planToDelete={planToDelete}
-        onDismissDelete={() => setPlanToDelete(null)}
-        onConfirmDelete={async () => {
-          if (!planToDelete) return;
-          setIsDeletingPlan(true);
-          try {
-            const res = await apiFetch(`${API_BASE}/plans/${planToDelete.id}`, {
-              method: "DELETE",
-            });
-            if (!res.ok) throw new Error("Failed to delete plan");
-            setPlans((prev) => prev.filter((p) => p.id !== planToDelete.id));
-            setPlanToDelete(null);
-          } catch {
-            // Stay on modal
-          } finally {
-            setIsDeletingPlan(false);
-          }
-        }}
-        isDeletingPlan={isDeletingPlan}
-      />
+      <>
+        <PlannerSidebar />
+        <YourExamsPlansPanel
+          plans={plans}
+          variant="page"
+          onOpenPlan={(id) => navigate(`/study/planner/${id}/plan`)}
+          onNewPlan={() => setShowQuickStart(true)}
+          onRequestDelete={setPlanToDelete}
+          planToDelete={planToDelete}
+          onDismissDelete={() => setPlanToDelete(null)}
+          onConfirmDelete={async () => {
+            if (!planToDelete) return;
+            setIsDeletingPlan(true);
+            try {
+              const res = await apiFetch(`${API_BASE}/plans/${planToDelete.id}`, {
+                method: "DELETE",
+              });
+              if (!res.ok) throw new Error("Failed to delete plan");
+              setPlans((prev) => prev.filter((p) => p.id !== planToDelete.id));
+              setPlanToDelete(null);
+            } catch {
+              // Stay on modal
+            } finally {
+              setIsDeletingPlan(false);
+            }
+          }}
+          isDeletingPlan={isDeletingPlan}
+        />
+      </>
     );
   }
 

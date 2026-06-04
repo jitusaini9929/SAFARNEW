@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const PLANNER_PRESS_EASE = "motion-safe:ease-\\[cubic-bezier(0.23,1,0.32,1)\\]";
@@ -153,7 +153,10 @@ export type MergedPlanTabProps = {
   formatPlannedDate: (iso?: string) => string;
   daysOverdue: (plannedIso: string, todayKey: string) => number;
   todayKey: string;
-  patchTopic: (id: string, patch: Record<string, unknown>) => void;
+  patchTopic: (
+    id: string,
+    patch: Record<string, unknown>,
+  ) => void | Promise<void>;
   onTopicOpen: (topic: MergedPlanTopic) => void;
   emptySyllabus: boolean;
   onGoSyllabusFromEmpty: () => void;
@@ -215,6 +218,7 @@ export default function MergedPlanTab({
   const [taskTab, setTaskTab] = useState<TaskTab>("today");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isFlowModeActive, setIsFlowModeActive] = useState(false);
+  const [flowSaving, setFlowSaving] = useState(false);
   const tasksRef = useRef<HTMLDivElement | null>(null);
   const basicsRef = useRef<HTMLDivElement | null>(null);
   const capacityRef = useRef<HTMLDivElement | null>(null);
@@ -242,10 +246,25 @@ export default function MergedPlanTab({
     onFocusRequestHandled?.();
   }, [focusRequest, onFocusRequestHandled]);
 
-  const activeFlowTopic = todayTopics.length > 0 ? todayTopics[0] : bonusTopics.length > 0 ? bonusTopics[0] : null;
-  if (isFlowModeActive && !activeFlowTopic) {
-    setIsFlowModeActive(false);
-  }
+  const flowQueue = useMemo(() => {
+    const seen = new Set<string>();
+    const queue: MergedPlanTopic[] = [];
+    for (const topic of [...todayTopics, ...overdueTopics]) {
+      if (topic.status === "done" || seen.has(topic.id)) continue;
+      seen.add(topic.id);
+      queue.push(topic);
+    }
+    if (queue.length > 0) return queue;
+    return bonusTopics.filter((topic) => topic.status !== "done");
+  }, [todayTopics, overdueTopics, bonusTopics]);
+
+  const activeFlowTopic = flowQueue[0] ?? null;
+
+  useEffect(() => {
+    if (isFlowModeActive && !activeFlowTopic) {
+      setIsFlowModeActive(false);
+    }
+  }, [isFlowModeActive, activeFlowTopic]);
 
   const overdueShown = overdueTopics.slice(0, 12);
 
@@ -420,15 +439,26 @@ export default function MergedPlanTab({
               
               <button
                 type="button"
+                disabled={flowSaving}
                 onClick={() => {
-                  patchTopic(activeFlowTopic.id, { status: "done" });
+                  void (async () => {
+                    if (!activeFlowTopic || flowSaving) return;
+                    setFlowSaving(true);
+                    try {
+                      await Promise.resolve(
+                        patchTopic(activeFlowTopic.id, { status: "done" }),
+                      );
+                    } finally {
+                      setFlowSaving(false);
+                    }
+                  })();
                 }}
-                className={`flex w-full items-center justify-center gap-3 rounded-full safar-btn-primary px-12 py-5 text-[18px] font-black uppercase tracking-widest hover:shadow-2xl active:scale-95 sm:w-auto`}
+                className={`flex w-full items-center justify-center gap-3 rounded-full safar-btn-primary px-12 py-5 text-[18px] font-black uppercase tracking-widest hover:shadow-2xl active:scale-95 sm:w-auto disabled:opacity-60 disabled:active:scale-100`}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                Mark as Done
+                {flowSaving ? "Saving..." : "Mark as Done"}
               </button>
             </motion.div>
           </AnimatePresence>

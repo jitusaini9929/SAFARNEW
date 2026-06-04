@@ -2,41 +2,41 @@ import { collections } from "../db";
 import {
   getDefaultNotificationPreferences,
   getSavedNotificationPreferences,
-  isValidTimeString,
   isValidTimezone,
   sendNotificationToUser,
 } from "./push-notifications";
 
-const CHECK_INTERVAL_MS = Number(process.env.NOTIFICATION_SCHEDULER_INTERVAL_MS || 5 * 60 * 1000);
-const MORNING_TARGET = "09:00";
-const EVENING_TARGET = "19:00";
-const WINDOW_MINUTES = 10;
+const HOURLY_INTERVAL_MS = 60 * 60 * 1000;
+
+function parseHourEnv(name: string, fallback: number): number {
+  const raw = Number(process.env[name]);
+  if (!Number.isFinite(raw) || raw < 0 || raw > 23) return fallback;
+  return Math.floor(raw);
+}
+
+const MORNING_HOUR = parseHourEnv("NOTIFICATION_MORNING_HOUR", 9);
+const EVENING_HOUR = parseHourEnv("NOTIFICATION_EVENING_HOUR", 19);
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-let schedulerTimer: NodeJS.Timeout | null = null;
+let schedulerInterval: NodeJS.Timeout | null = null;
+let alignTimeout: NodeJS.Timeout | null = null;
 
-function minutesFromHHmm(value: string): number {
-  const [hours, minutes] = value.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function getLocalMinutes(timezone: string, at = new Date()): number {
+function getLocalHour(timezone: string, at = new Date()): number {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "2-digit",
-    minute: "2-digit",
     hourCycle: "h23",
   }).formatToParts(at);
-  const hour = Number(parts.find((part) => part.type === "hour")?.value || "0");
-  const minute = Number(parts.find((part) => part.type === "minute")?.value || "0");
-  return hour * 60 + minute;
+  return Number(parts.find((part) => part.type === "hour")?.value || "0");
 }
 
-function isWithinWindow(currentMinutes: number, targetMinutes: number, windowMinutes: number): boolean {
-  const diff = (currentMinutes - targetMinutes + 1440) % 1440;
-  return diff >= 0 && diff < windowMinutes;
+function msUntilNextHour(at = new Date()): number {
+  const next = new Date(at);
+  next.setUTCMinutes(0, 0, 0);
+  next.setUTCHours(next.getUTCHours() + 1);
+  return Math.max(0, next.getTime() - at.getTime());
 }
 
 function toISTDate(date: Date): Date {
@@ -75,6 +75,7 @@ async function countGoals(userId: string, query: Record<string, any>): Promise<n
 }
 
 async function sendMorningReminders(userId: string, now: Date) {
+  const dedupeDayKey = getISTDateKey(now);
   const todayStart = getStartOfISTDayUTC(now);
   const todayEnd = new Date(todayStart.getTime() + DAY_MS);
   const yesterdayStart = new Date(todayStart.getTime() - DAY_MS);
@@ -88,17 +89,21 @@ async function sendMorningReminders(userId: string, now: Date) {
   });
 
   if (scheduledCount > 0) {
-    await sendNotificationToUser(userId, {
-      type: "study_reminders",
-      title: "Scheduled goals due today",
-      body:
-        scheduledCount === 1
-          ? "You have 1 goal scheduled for today."
-          : `You have ${scheduledCount} goals scheduled for today.`,
-      channel: "study_reminders",
-      deepLink: "safar://nishtha/goals",
-      priority: "normal",
-    });
+    await sendNotificationToUser(
+      userId,
+      {
+        type: "study_reminders",
+        title: "Scheduled goals due today",
+        body:
+          scheduledCount === 1
+            ? "You have 1 goal scheduled for today."
+            : `You have ${scheduledCount} goals scheduled for today.`,
+        channel: "study_reminders",
+        deepLink: "safar://nishtha/goals",
+        priority: "normal",
+      },
+      { dedupeDayKey },
+    );
   }
 
   const missedTodayCount = await countGoals(userId, {
@@ -109,17 +114,21 @@ async function sendMorningReminders(userId: string, now: Date) {
   });
 
   if (missedTodayCount > 0) {
-    await sendNotificationToUser(userId, {
-      type: "study_reminders",
-      title: "You missed a goal yesterday",
-      body:
-        missedTodayCount === 1
-          ? "You missed 1 goal yesterday. Start again today."
-          : `You missed ${missedTodayCount} goals yesterday. Start again today.`,
-      channel: "study_reminders",
-      deepLink: "safar://nishtha/goals",
-      priority: "normal",
-    });
+    await sendNotificationToUser(
+      userId,
+      {
+        type: "study_reminders",
+        title: "You missed a goal yesterday",
+        body:
+          missedTodayCount === 1
+            ? "You missed 1 goal yesterday. Start again today."
+            : `You missed ${missedTodayCount} goals yesterday. Start again today.`,
+        channel: "study_reminders",
+        deepLink: "safar://nishtha/goals",
+        priority: "normal",
+      },
+      { dedupeDayKey },
+    );
   }
 
   const moodToday = await countMoodsForDay(userId, now);
@@ -127,14 +136,18 @@ async function sendMorningReminders(userId: string, now: Date) {
 
   const moodYesterday = await countMoodsForDay(userId, new Date(now.getTime() - DAY_MS));
   if (moodYesterday === 0) {
-    await sendNotificationToUser(userId, {
-      type: "streak",
-      title: "Restart your streak",
-      body: "You missed yesterday's check-in. Start again today.",
-      channel: "study_reminders",
-      deepLink: "safar://streaks",
-      priority: "normal",
-    });
+    await sendNotificationToUser(
+      userId,
+      {
+        type: "streak",
+        title: "Restart your Check-in Streak",
+        body: "You missed yesterday's check-in. Start again today.",
+        channel: "study_reminders",
+        deepLink: "safar://streaks",
+        priority: "normal",
+      },
+      { dedupeDayKey },
+    );
   }
 }
 
@@ -142,19 +155,25 @@ async function sendEveningCheckInReminder(userId: string, now: Date) {
   const moodToday = await countMoodsForDay(userId, now);
   if (moodToday > 0) return;
 
-  await sendNotificationToUser(userId, {
-    type: "streak",
-    title: "Keep your streak alive",
-    body: "Log your emotional check-in before the day ends.",
-    channel: "study_reminders",
-    deepLink: "safar://streaks",
-    priority: "normal",
-  });
+  await sendNotificationToUser(
+    userId,
+    {
+      type: "streak",
+      title: "Keep your streak alive",
+      body: "Log your emotional check-in before the day ends.",
+      channel: "study_reminders",
+      deepLink: "safar://streaks",
+      priority: "normal",
+    },
+    { dedupeDayKey: getISTDateKey(now) },
+  );
 }
 
-async function runSchedulerTick() {
+export async function runSchedulerTick() {
   const now = new Date();
   const userIds = await getActiveUserIds();
+  let morningRuns = 0;
+  let eveningRuns = 0;
 
   for (const userId of userIds) {
     if (!userId) continue;
@@ -164,33 +183,60 @@ async function runSchedulerTick() {
       ? preferences.timezone
       : getDefaultNotificationPreferences().timezone;
 
-    const currentMinutes = getLocalMinutes(timezone, now);
+    const localHour = getLocalHour(timezone, now);
 
-    if (isWithinWindow(currentMinutes, minutesFromHHmm(MORNING_TARGET), WINDOW_MINUTES)) {
+    if (localHour === MORNING_HOUR) {
+      morningRuns += 1;
       await sendMorningReminders(userId, now);
     }
 
-    if (isWithinWindow(currentMinutes, minutesFromHHmm(EVENING_TARGET), WINDOW_MINUTES)) {
+    if (localHour === EVENING_HOUR) {
+      eveningRuns += 1;
       await sendEveningCheckInReminder(userId, now);
     }
   }
+
+  console.info(
+    `[NOTIFICATION SCHEDULER] tick users=${userIds.length} morningRuns=${morningRuns} eveningRuns=${eveningRuns} morningHour=${MORNING_HOUR} eveningHour=${EVENING_HOUR}`,
+  );
 }
 
-export function startNotificationScheduler() {
-  if (schedulerTimer) return;
-  schedulerTimer = setInterval(() => {
-    runSchedulerTick().catch((error) => {
-      console.error("[NOTIFICATION SCHEDULER] Tick failed:", error);
-    });
-  }, CHECK_INTERVAL_MS);
-
+function runTickSafe() {
   runSchedulerTick().catch((error) => {
-    console.error("[NOTIFICATION SCHEDULER] Initial tick failed:", error);
+    console.error("[NOTIFICATION SCHEDULER] Tick failed:", error);
   });
 }
 
+function scheduleAlignedHourlyTicks() {
+  const delayMs = msUntilNextHour();
+  console.info(
+    `[NOTIFICATION SCHEDULER] hourly mode intervalMs=${HOURLY_INTERVAL_MS} nextTickInMs=${delayMs} morningHour=${MORNING_HOUR} eveningHour=${EVENING_HOUR}`,
+  );
+
+  alignTimeout = setTimeout(() => {
+    alignTimeout = null;
+    runTickSafe();
+    schedulerInterval = setInterval(runTickSafe, HOURLY_INTERVAL_MS);
+  }, delayMs);
+}
+
+export function startNotificationScheduler() {
+  if (schedulerInterval || alignTimeout) return;
+
+  scheduleAlignedHourlyTicks();
+
+  if (process.env.NOTIFICATION_SCHEDULER_RUN_ON_START === "true") {
+    runTickSafe();
+  }
+}
+
 export function stopNotificationScheduler() {
-  if (!schedulerTimer) return;
-  clearInterval(schedulerTimer);
-  schedulerTimer = null;
+  if (alignTimeout) {
+    clearTimeout(alignTimeout);
+    alignTimeout = null;
+  }
+  if (schedulerInterval) {
+    clearInterval(schedulerInterval);
+    schedulerInterval = null;
+  }
 }

@@ -295,6 +295,14 @@ export async function initDatabase(): Promise<void> {
         await db.collection('device_tokens').createIndex({ notifications_enabled: 1, platform: 1, flavor: 1 });
         await db.collection('notification_preferences').createIndex({ user_id: 1 }, { unique: true });
         await db.collection('notification_delivery_log').createIndex({ user_id: 1, type: 1, dedupe_key: 1, created_at: -1 });
+        await db.collection('notification_delivery_log').createIndex(
+            { user_id: 1, dedupe_key: 1 },
+            {
+                unique: true,
+                name: 'notification_one_send_per_dedupe_key',
+                partialFilterExpression: { token_preview: 'user_claim' },
+            },
+        );
         await db.collection('notification_delivery_log').createIndex({ created_at: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 });
 
         // Feedback entries (global feedback system)

@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const SESSION_DISMISSED_KEY = 'safar-banner:ai-planner-session-dismissed';
-const TARGET_DATE = new Date('2026-06-05T00:00:00+05:30').getTime();
+const TARGET_DATE = new Date('2026-06-05T15:00:00+05:30').getTime();
 
 export default function FeatureAnnouncementBanner() {
   const [isVisible, setIsVisible] = useState(false);

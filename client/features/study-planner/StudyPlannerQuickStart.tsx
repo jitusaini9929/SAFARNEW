@@ -281,7 +281,28 @@ export function QuickStart({
         throw new Error(payload?.message || "Failed to create plan");
       }
 
-      const created = await res.json();
+      let created = await res.json();
+
+      if (
+        (created.scheduleAssigned ?? 0) === 0 &&
+        (created.progress?.totalTopics ?? 0) > 0 &&
+        examDate
+      ) {
+        const buildRes = await apiFetch(
+          `${API_BASE}/plans/${created.id}/auto-distribute`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              lockExistingDates: false,
+              includeRevisionNeeded: false,
+            }),
+          },
+        );
+        if (buildRes.ok) {
+          created = await buildRes.json().catch(() => created);
+        }
+      }
+
       onComplete(created.id);
     } catch (err: any) {
       setError(err?.message || "Something went wrong");
