@@ -10,7 +10,6 @@ import CommunitySpotlight from '../components/landing/CommunitySpotlight';
 import ExternalResources from '../components/landing/ExternalResources';
 import Footer from '../components/landing/Footer';
 import YoutubePromotionModal from '../components/landing/YoutubePromotionModal';
-import FeatureAnnouncementBanner from '../components/landing/FeatureAnnouncementBanner';
 
 const YOUTUBE_MODAL_SESSION_KEY_PREFIX = 'youtube-modal:auto-open-dismissed';
 
@@ -75,13 +74,10 @@ const Landing = () => {
       {/* Theme Toggle - Fixed Position */}
 
 
-      <FeatureAnnouncementBanner />
-
       <main className="w-full min-h-[100dvh] relative">
         <HeroSection
           user={user}
           setIsAuthModalOpen={handleOpenAuthModal}
-          showStudyPlanner={false}
         />
 
         {/* Combined Apps & Community Section */}

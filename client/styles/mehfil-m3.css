@@ -54,9 +54,16 @@
   --mehfil-room-accent-container: var(--mehfil-info-container);
   --mehfil-room-accent-on-container: var(--mehfil-info-on-container);
 
-  font-family: "Source Sans 3", "Source Sans Pro", sans-serif;
+  font-family: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
   color: var(--mehfil-on-surface);
   background-color: var(--mehfil-bg);
+
+  /* Match site typography inside Material Web components (shadow DOM) */
+  --md-ref-typeface-brand: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
+  --md-ref-typeface-plain: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
+  --md-sys-typescale-body-large-font: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
+  --md-sys-typescale-label-large-font: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
+  --md-sys-typescale-title-medium-font: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
 
   --md-sys-color-background: var(--mehfil-bg);
   --md-sys-color-on-background: var(--mehfil-on-surface);
@@ -354,6 +361,20 @@
 .mehfil-m3-search-field {
   width: 100%;
   max-width: 36rem;
+}
+
+.mehfil-m3 md-outlined-text-field {
+  --md-outlined-text-field-label-text-font: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
+  --md-outlined-text-field-input-text-font: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
+  --md-outlined-text-field-supporting-text-font: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
+}
+
+.mehfil-m3 md-filled-button,
+.mehfil-m3 md-outlined-button,
+.mehfil-m3 md-text-button {
+  --md-filled-button-label-text-font: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
+  --md-outlined-button-label-text-font: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
+  --md-text-button-label-text-font: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
 }
 
 .mehfil-m3-search-field md-outlined-text-field {

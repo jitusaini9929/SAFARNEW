@@ -5,7 +5,6 @@ import { jsPDF } from "jspdf";
 import { motion, AnimatePresence } from "framer-motion";
 import { API_BASE, apiFetch, type ApiFetchOptions } from "@/utils/apiFetch";
 import PlannerSidebar from "@/components/PlannerSidebar";
-import LanguageToggle from "@/components/LanguageToggle";
 import ThemeToggle from "@/components/ui/theme-toggle";
 import { Switch } from "@/components/ui/switch";
 import { TourPrompt } from "@/components/guided-tour";
@@ -2046,6 +2045,9 @@ export default function StudyPlanner({
       `${BASE}/${planId}/calendar`,
     );
     setCalendar(calendarData || {});
+    if (selectedSubjectId === subjectId) {
+      setSelectedSubjectId("");
+    }
     showToast("Subject deleted.", "success");
   }
 
@@ -2070,6 +2072,9 @@ export default function StudyPlanner({
       `${BASE}/${planId}/calendar`,
     );
     setCalendar(calendarData || {});
+    if (selectedChapterId === chapterId) {
+      setSelectedChapterId("");
+    }
     showToast("Chapter deleted.", "success");
   }
 
@@ -2094,6 +2099,9 @@ export default function StudyPlanner({
       `${BASE}/${planId}/calendar`,
     );
     setCalendar(calendarData || {});
+    if (selectedTopicId === topicId) {
+      setSelectedTopicId("");
+    }
     showToast("Topic deleted.", "success");
   }
 
@@ -3189,9 +3197,6 @@ export default function StudyPlanner({
         }
       `}</style>
       <div className="fixed top-6 right-6 z-[40] flex items-center gap-4">
-        <div className="rounded-2xl bg-white/70 dark:bg-black/20 backdrop-blur-md px-4 py-2 shadow-[6px_6px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-slate-300 dark:border-white/20 scale-110 origin-right transition-all hover:scale-115">
-          <LanguageToggle />
-        </div>
         <div className="rounded-2xl bg-white/70 dark:bg-black/20 backdrop-blur-md p-1.5 shadow-[6px_6px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.05)] border border-slate-300 dark:border-white/20 scale-110 origin-right transition-all hover:scale-115">
           <ThemeToggle />
         </div>
@@ -3218,7 +3223,7 @@ export default function StudyPlanner({
                 onClick={() => navigate("/study/planner")}
                 className={`text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] inline-block ${PLANNER_TEXT_PRESSABLE}`}
               >
-                â† All Plans
+                {"\u2190"} All Plans
               </button>
             </div>
           ) : (
@@ -3231,7 +3236,7 @@ export default function StudyPlanner({
                   onClick={() => navigate("/study/planner")}
                   className={`text-[12px] font-semibold uppercase tracking-[0.08em] text-[#8b919e] dark:text-[#767575] hover:text-[#2d333b] dark:hover:text-[#e7e5e5] mb-3 inline-block ${PLANNER_TEXT_PRESSABLE}`}
                 >
-                  â† All Plans
+                  {"\u2190"} All Plans
                 </button>
                 <h1
                   className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-[#2d333b] dark:text-[#fcf9f8] drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
@@ -5070,7 +5075,7 @@ export default function StudyPlanner({
                     {/* Shared Focused Editor for Org Chart View */}
                     {isOrgChartEditorOpen && (
                       <div
-                        className={`rounded-3xl p-5 sm:p-6 transition-colors duration-500 h-fit self-start xl:sticky xl:top-24 xl:max-h-[calc(100vh-140px)] xl:overflow-y-auto ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_10px_rgba(0,0,0,0.8),inset_-1px_-1px_4px_rgba(255,255,255,0.03)] border border-[#1f232b]" : "bg-[#e8ebf3] shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.9)] border border-[#d0d6e3]"}`}
+                        className={`rounded-3xl p-5 sm:p-6 transition-colors duration-500 h-fit self-start xl:sticky xl:top-24 xl:max-h-[calc(100vh-140px)] xl:overflow-y-auto xl:overflow-x-hidden overflow-x-hidden ${isDarkMode ? "bg-[#0b0c0e] shadow-[inset_2px_2px_10px_rgba(0,0,0,0.8),inset_-1px_-1px_4px_rgba(255,255,255,0.03)] border border-[#1f232b]" : "bg-[#e8ebf3] shadow-[inset_4px_4px_8px_rgba(166,171,189,0.5),inset_-4px_-4px_8px_rgba(255,255,255,0.9)] border border-[#d0d6e3]"}`}
                       >
                         <div className="text-[12px] font-black uppercase tracking-[0.2em] mb-4 text-[#8b919e] dark:text-[#767575]">
                           Selection Details
@@ -5166,20 +5171,11 @@ export default function StudyPlanner({
                               ) : (
                                 <div className="mt-2 flex items-center justify-between gap-2">
                                   <h4
-                                    className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                                    className={`text-xl font-bold truncate ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                                    title={selectedTopicContext.topic.name}
                                   >
                                     {selectedTopicContext.topic.name}
                                   </h4>
-                                  <button
-                                    onClick={() =>
-                                      startTopicRename(
-                                        selectedTopicContext.topic,
-                                      )
-                                    }
-                                    className={`text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
-                                  >
-                                    Edit
-                                  </button>
                                 </div>
                               )}
                             </div>
@@ -5205,23 +5201,26 @@ export default function StudyPlanner({
                                 Revision
                               </button>
                             </div>
-                            <label
-                              className={`text-[11px] font-black uppercase tracking-widest ${isDarkMode ? "text-[#94a3b8]" : "text-[#64748b]"}`}
-                            >
-                              Notes
-                            </label>
-                            <textarea
-                              key={selectedTopicContext.topic.id}
-                              defaultValue={selectedTopicContext.topic.notes || ""}
-                              rows={3}
-                              placeholder="Add notes for this topic (optional)"
-                              onBlur={(e) =>
-                                patchTopic(selectedTopicContext.topic.id, {
-                                  notes: e.target.value,
-                                })
-                              }
-                              className={`w-full rounded-xl border px-4 py-3 text-sm font-medium resize-y min-h-[88px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${isDarkMode ? "bg-[#131416] border-[#3a3d42] text-[#e7e5e5] placeholder-[#767575]" : "bg-white border-[#d1d5db] text-[#1f2937] placeholder-[#94a3b8]"}`}
-                            />
+                            {editingTopicId !== selectedTopicContext.topic.id && (
+                              <div className="flex gap-2.5 pt-2">
+                                <button
+                                  onClick={() =>
+                                    startTopicRename(selectedTopicContext.topic)
+                                  }
+                                  className={`flex-1 text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                                >
+                                  Edit Name
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    deleteTopic(selectedTopicContext.topic.id)
+                                  }
+                                  className="flex-1 text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#dc2626] text-white hover:bg-[#b91c1c] transition-colors"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ) : selectedChapterContext ? (
                           <div className="space-y-4">
@@ -5285,24 +5284,14 @@ export default function StudyPlanner({
                             ) : (
                               <div className="flex items-center justify-between gap-2">
                                 <h4
-                                  className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                                  className={`text-xl font-bold truncate ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                                  title={selectedChapterContext.chapterNode.chapter.name}
                                 >
                                   {
                                     selectedChapterContext.chapterNode.chapter
                                       .name
                                   }
                                 </h4>
-                                <button
-                                  onClick={() =>
-                                    startChapterRename(
-                                      selectedChapterContext.chapterNode
-                                        .chapter,
-                                    )
-                                  }
-                                  className={`text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
-                                >
-                                  Edit Name
-                                </button>
                               </div>
                             )}
 
@@ -5311,6 +5300,32 @@ export default function StudyPlanner({
                               {selectedChapterContext.chapterNode.totalTopics}{" "}
                               Done
                             </div>
+                            {editingChapterId !== selectedChapterContext.chapterNode.chapter.id && (
+                              <div className="flex gap-2.5 pt-2">
+                                <button
+                                  onClick={() =>
+                                    startChapterRename(
+                                      selectedChapterContext.chapterNode
+                                        .chapter,
+                                    )
+                                  }
+                                  className={`flex-1 text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                                >
+                                  Edit Name
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    deleteChapter(
+                                      selectedChapterContext.subjectNode.subject.id,
+                                      selectedChapterContext.chapterNode.chapter.id,
+                                    )
+                                  }
+                                  className="flex-1 text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#dc2626] text-white hover:bg-[#b91c1c] transition-colors"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ) : activeHierarchySubject ? (
                           <div className="space-y-4">
@@ -5367,20 +5382,11 @@ export default function StudyPlanner({
                             ) : (
                               <div className="flex items-center justify-between gap-2">
                                 <h4
-                                  className={`text-xl font-bold ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                                  className={`text-xl font-bold truncate ${isDarkMode ? "text-[#e7e5e5]" : "text-[#1f2937]"}`}
+                                  title={activeHierarchySubject.subject.name}
                                 >
                                   {activeHierarchySubject.subject.name}
                                 </h4>
-                                <button
-                                  onClick={() =>
-                                    startSubjectRename(
-                                      activeHierarchySubject.subject,
-                                    )
-                                  }
-                                  className={`text-[12px] font-black uppercase tracking-widest whitespace-nowrap flex-shrink-0 px-5 py-2.5 rounded-full ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
-                                >
-                                  Edit Name
-                                </button>
                               </div>
                             )}
 
@@ -5389,6 +5395,30 @@ export default function StudyPlanner({
                               {activeHierarchySubject.totalTopics} Done ·{" "}
                               {activeHierarchySubject.chapters.length} Chapters
                             </div>
+                            {editingSubjectId !== activeHierarchySubject.subject.id && (
+                              <div className="flex gap-2.5 pt-2">
+                                <button
+                                  onClick={() =>
+                                    startSubjectRename(
+                                      activeHierarchySubject.subject,
+                                    )
+                                  }
+                                  className={`flex-1 text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl ${isDarkMode ? "bg-[#202225] text-[#c6c6c6]" : "bg-[#f0f0f5] text-[#4b5563]"}`}
+                                >
+                                  Edit Name
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    deleteSubject(
+                                      activeHierarchySubject.subject.id,
+                                    )
+                                  }
+                                  className="flex-1 text-[12px] font-black uppercase tracking-widest px-5 py-3 rounded-xl bg-[#dc2626] text-white hover:bg-[#b91c1c] transition-colors"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="text-[14px] font-bold text-[#8b919e] dark:text-[#767575]">

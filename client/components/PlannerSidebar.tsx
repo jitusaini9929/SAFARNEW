@@ -58,13 +58,7 @@ export default function PlannerSidebar() {
                 shadow-[16px_0_32px_rgba(166,171,189,0.3)] dark:shadow-[20px_0_40px_rgba(0,0,0,0.8)]
               "
             >
-              <div className="flex items-center justify-between mb-12 mt-2">
-                <div className="inline-flex rounded-full px-3 py-1 bg-[#d9dbe2] dark:bg-[#0e0e0e] shadow-[inset_1px_1px_2px_rgba(166,171,189,0.6),inset_-1px_-1px_2px_rgba(255,255,255,0.8)] dark:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.8)]">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#6b7280] dark:text-[#767575] flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.8)]" />
-                    SYSTEM NAV
-                  </span>
-                </div>
+              <div className="flex items-center justify-end mb-12 mt-2">
                 <button
                   onClick={() => setIsOpen(false)}
                   className="w-8 h-8 rounded-full flex items-center justify-center bg-[#e6e7ee] dark:bg-[#202225] shadow-[2px_2px_4px_rgba(166,171,189,0.4),-2px_-2px_4px_rgba(255,255,255,0.9),inset_0_1px_1px_rgba(255,255,255,1)] dark:shadow-[2px_2px_6px_rgba(0,0,0,0.6),-1px_-1px_3px_rgba(255,255,255,0.02),inset_0_1px_1px_rgba(255,255,255,0.05)] text-[#4b5563] dark:text-[#acabaa] font-bold"

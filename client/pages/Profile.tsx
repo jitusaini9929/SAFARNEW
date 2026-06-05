@@ -70,9 +70,11 @@ export default function Profile() {
     try {
       await authService.logout();
       toast.success(t('profile.logout_success'));
-      navigate("/login");
     } catch (error) {
+      console.error("[AUTH] Logout failed:", error);
       toast.error(t('profile.logout_error'));
+    } finally {
+      navigate("/login");
     }
   };
 

@@ -175,6 +175,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
           border-radius: 1.5rem;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
           animation: modal-slide-up 0.3s ease-out;
+          font-family: "Source Sans 3", "Source Sans Pro", system-ui, sans-serif;
         }
         @keyframes modal-slide-up {
           from { opacity: 0; transform: translateY(20px); }
@@ -183,7 +184,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalP
       `}</style>
 
             <div className="auth-modal-backdrop" onClick={onClose}>
-                <div className="auth-modal-container mehfil-m3 mehfil-m3-card p-8 md:p-10" onClick={(e) => e.stopPropagation()}>
+                <div
+                    className="auth-modal-container mehfil-m3 mehfil-m3-card p-8 md:p-10 font-sans antialiased"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <button
                         onClick={onClose}
                         className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-10"

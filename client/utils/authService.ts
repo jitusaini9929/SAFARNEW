@@ -150,17 +150,23 @@ export const authService = {
     }
 
     try {
-      await apiFetch(`${API_BASE}/auth/logout`, {
+      const response = await apiFetch(`${API_BASE}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
-    } finally {
-      setAccessToken(null);
-      writeCachedUser(null);
-      clearCurrentUserCache();
-      emitAuthChanged(false, null);
-      resetCsrfToken();
+      if (!response.ok) {
+        console.warn("[AUTH] Server logout responded with", response.status);
+      }
+    } catch (error) {
+      // Network/timeout — client logout still succeeds below
+      console.warn("[AUTH] Server logout request failed:", error);
     }
+
+    setAccessToken(null);
+    writeCachedUser(null);
+    clearCurrentUserCache();
+    emitAuthChanged(false, null);
+    resetCsrfToken();
   },
 
   async initAuth(): Promise<User | null> {
