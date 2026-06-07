@@ -224,7 +224,7 @@ export default function Profile() {
                         label={t('profile.full_name')}
                         type="text"
                         value={formData.name}
-                        onInput={(e: any) => setFormData({ ...formData, name: e.target.value })}
+                        onInput={(e: any) => setFormData({ ...formData, name: (e.target as HTMLInputElement).value })}
                         style={{ width: "100%" }}
                       />
                     </div>
@@ -340,6 +340,7 @@ export default function Profile() {
                 <MdFilledButtonReact
                   onClick={handleSave}
                   disabled={isSaving}
+                  type="button"
                   style={{
                     "--md-filled-button-container-shape": "12px",
                     "--md-filled-button-container-height": "48px"

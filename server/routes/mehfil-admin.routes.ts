@@ -513,3 +513,172 @@ mehfilAdminRoutes.post('/reports/thoughts/:thoughtId/apply-auto', async (req: Re
     res.status(500).json({ error: 'Failed to apply moderation' });
   }
 });
+
+/** Search a user by email to get their flagged posts, reports on their posts, and reporters. */
+mehfilAdminRoutes.get('/reports/search-user', async (req: Request, res: Response) => {
+  try {
+    const email = String(req.query.email || '').trim();
+    if (!email) {
+      return res.status(400).json({ error: 'Email parameter is required' });
+    }
+
+    const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const targetUser = await collections.users().findOne({
+      email: { $regex: `^${escaped}$`, $options: 'i' }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // 1. Get his posts that were flagged by AI (status === 'flagged')
+    const flaggedThoughts = await collections
+      .mehfilThoughts()
+      .find({ user_id: targetUser.id, status: 'flagged' })
+      .sort({ created_at: -1 })
+      .toArray();
+
+    // 2. Get any reports on his posts
+    const reports = await collections
+      .mehfilReports()
+      .find({ reported_user_id: targetUser.id })
+      .sort({ created_at: -1 })
+      .toArray();
+
+    // 3. Find unique thoughts and reporters associated with those reports
+    const thoughtIds = [...new Set(reports.map((r) => r.thought_id).filter(Boolean))];
+    const reporterIds = [...new Set(reports.map((r) => r.reporter_id).filter(Boolean))];
+
+    const [thoughts, reporters] = await Promise.all([
+      thoughtIds.length
+        ? collections
+            .mehfilThoughts()
+            .find({ id: { $in: thoughtIds } })
+            .toArray()
+        : [],
+      reporterIds.length
+        ? collections
+            .users()
+            .find({ id: { $in: reporterIds } })
+            .project({
+              id: 1,
+              email: 1,
+              name: 1,
+              mehfil_false_report_strike_count: 1,
+              last_mehfil_false_report_strike_at: 1,
+              mehfil_reporting_warning_count: 1,
+              last_mehfil_reporting_warning_at: 1,
+              mehfil_reporting_banned: 1,
+              mehfil_reporting_banned_at: 1,
+            })
+            .toArray()
+        : [],
+    ]);
+
+    const thoughtMap = new Map(thoughts.map((t) => [String(t.id), t] as const));
+    const userMap = new Map(reporters.map((u) => [String(u.id), u] as const));
+
+    // Group reports by thought_id
+    const reportsByThought = new Map<string, typeof reports>();
+    for (const report of reports) {
+      const tId = String(report.thought_id);
+      if (!reportsByThought.has(tId)) {
+        reportsByThought.set(tId, []);
+      }
+      reportsByThought.get(tId)!.push(report);
+    }
+
+    const reportedThoughts = Array.from(reportsByThought.entries()).map(([thoughtId, thoughtReports]) => {
+      const thought = thoughtMap.get(thoughtId);
+      const reportsMapped = thoughtReports.map((report: any) => {
+        const reporterId = String(report.reporter_id || '');
+        const reporter = userMap.get(reporterId);
+        return {
+          id: report.id,
+          reporterId,
+          reason: report.reason,
+          category: report.category,
+          status: report.status,
+          createdAt: report.created_at,
+          moderatorVerdict: report.moderator_verdict,
+          moderatorVerdictAt: report.moderator_verdict_at,
+          moderatorVerdictBy: report.moderator_verdict_by,
+          reporter: reporter
+            ? {
+                id: reporter.id,
+                email: reporter.email,
+                name: reporter.name,
+                falseReportStrikes: Number(reporter.mehfil_false_report_strike_count || 0),
+                lastFalseReportStrikeAt: reporter.last_mehfil_false_report_strike_at || null,
+                warningCount: Number(reporter.mehfil_reporting_warning_count || 0),
+                lastWarningAt: reporter.last_mehfil_reporting_warning_at || null,
+                reportingBanned: Boolean(reporter.mehfil_reporting_banned),
+                reportingBannedAt: reporter.mehfil_reporting_banned_at || null,
+              }
+            : {
+                id: reporterId,
+                email: null,
+                name: null,
+                falseReportStrikes: 0,
+                lastFalseReportStrikeAt: null,
+                warningCount: 0,
+                lastWarningAt: null,
+                reportingBanned: false,
+                reportingBannedAt: null,
+              },
+        };
+      });
+
+      return {
+        thoughtId,
+        reportCount: thoughtReports.length,
+        statuses: [...new Set(thoughtReports.map((r) => r.status))],
+        reports: reportsMapped,
+        latestAt: thoughtReports[0]?.created_at || new Date(),
+        thought: thought
+          ? {
+              id: thought.id,
+              content: thought.content,
+              status: thought.status,
+              removedReason: thought.removed_reason,
+              createdAt: thought.created_at,
+              category: thought.category,
+            }
+          : null,
+        reportedUser: {
+          id: targetUser.id,
+          email: targetUser.email,
+          name: targetUser.name,
+          mehfilBannedUntil: targetUser.mehfil_banned_until,
+          mehfilBannedForever: targetUser.mehfil_banned_forever,
+        },
+      };
+    });
+
+    res.json({
+      user: {
+        id: targetUser.id,
+        email: targetUser.email,
+        name: targetUser.name,
+        mehfilBannedUntil: targetUser.mehfil_banned_until,
+        mehfilBannedForever: targetUser.mehfil_banned_forever,
+      },
+      flaggedThoughts: flaggedThoughts.map((t: any) => ({
+        id: t.id,
+        content: t.content,
+        status: t.status,
+        createdAt: t.created_at,
+        category: t.category,
+        aiTags: t.ai_tags,
+        aiScore: t.ai_score,
+        moderationReason: t.moderation_reason,
+        isToxic: t.is_toxic,
+      })),
+      reportedThoughts,
+    });
+  } catch (error) {
+    console.error('[MEHFIL ADMIN] search user reports failed:', error);
+    res.status(500).json({ error: 'Failed to search user reports' });
+  }
+});
+

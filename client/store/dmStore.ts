@@ -252,7 +252,10 @@ export const useDMStore = create<DMStore>((set, get) => ({
         }));
       });
 
-      socket.on("dm:error", (payload: { message?: string }) => {
+      socket.on("dm:error", (payload: { message?: string; code?: string; feature?: string }) => {
+        if (payload?.code === "PREMIUM_REQUIRED") {
+          window.dispatchEvent(new CustomEvent("premium-gate:mehfil-dm"));
+        }
         set({ requestError: payload?.message || "DM action failed", requestState: "idle" });
       });
     }

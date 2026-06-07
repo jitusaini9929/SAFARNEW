@@ -42,6 +42,7 @@ const AdminNotificationComposer = React.lazy(() => import("./pages/AdminNotifica
 const MehfilReportModeration = React.lazy(() => import("./pages/MehfilReportModeration"));
 const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
 const DeleteAccount = React.lazy(() => import("./pages/DeleteAccount"));
+const MehfilDmPaywall = React.lazy(() => import("./pages/premium/MehfilDmPaywall"));
 
 const queryClient = new QueryClient();
 const GA_MEASUREMENT_ID = "G-JGR9ENZ8W0";
@@ -317,6 +318,14 @@ const App = () => {
                       }
                     />
                     <Route path="/mehfil" element={<Mehfil />} />
+                    <Route
+                      path="/premium/mehfil-dm"
+                      element={
+                        <ProtectedRoute>
+                          <MehfilDmPaywall />
+                        </ProtectedRoute>
+                      }
+                    />
                     <Route
                       path="/meditation"
                       element={

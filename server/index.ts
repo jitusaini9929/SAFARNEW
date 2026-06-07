@@ -36,6 +36,7 @@ import { wishboxAdminRoutes } from "./temporaryFeatures/birthdayWishBox/wishbox.
 import { startWishboxWorker } from "./temporaryFeatures/birthdayWishBox/wishbox.worker";
 import { startNotificationScheduler } from "./services/notification-scheduler";
 import { feedbackRoutes } from "./routes/feedback";
+import { premiumRoutes } from "./routes/premium";
 
 // Setup Mehfil Socket.IO Config Constants
 // Redis adapter logic moved down
@@ -191,6 +192,7 @@ export async function createServer() {
   app.use("/api/achievements", achievementsModule.achievementRoutes);
   app.use("/api/analytics", analyticsRoutes);
   app.use("/api/payments", paymentRoutes);
+  app.use("/api/premium", premiumRoutes);
   app.use("/api/upload", uploadRoutes);
   app.use("/api/syllabus", syllabusImportRoutes);
   app.use("/api/images", imageServeRouter);

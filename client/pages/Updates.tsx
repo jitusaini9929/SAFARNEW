@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Wrench, Zap, Star, Shield, Cpu, CheckCircle2, AlertCircle } from 'lucide-react';
 import { updates, type UpdateEntry, type TagType } from '../data/updates';
 import Footer from '../components/landing/Footer';
-import BetaAnnouncementCard from '../components/landing/BetaAnnouncementCard';
+
 import "@/styles/mehfil-m3.css";
 import { MdFilterChipReact, MdChipSetReact } from "@/components/mehfil/material/MdComponents";
 
@@ -278,9 +278,7 @@ export default function Updates() {
           </div>
         </FadeInCard>
 
-        <FadeInCard delay={50}>
-          <BetaAnnouncementCard />
-        </FadeInCard>
+
 
         {/* Updates timeline */}
         <div className="mt-8">

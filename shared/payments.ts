@@ -93,6 +93,8 @@ export const DHYAN_COURSES: Course[] = [
 ];
 
 // Study Planner Pro subscription products
+export const MEHFIL_DM_PRODUCT_ID = "mehfil-dm";
+
 export const STUDY_PLANNER_PRODUCTS: Course[] = [
   {
     id: "study-planner-pro-monthly",

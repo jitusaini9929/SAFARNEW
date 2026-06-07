@@ -7,6 +7,7 @@ import { markDmUserOffline, markDmUserOnline } from './dm-presence';
 import { validateBlockedWords } from '../utils/contentFilter';
 import { sendNotificationToUser } from '../services/push-notifications';
 import { queueCommunityLikeNotification } from '../services/community-activity-aggregator';
+import { canUseMehfilDm } from '../lib/premium-features';
 
 type MehfilCategory = 'ACADEMIC' | 'REFLECTIVE' | 'BULLSHIT';
 type MehfilRoom = 'ACADEMIC' | 'REFLECTIVE';
@@ -708,6 +709,16 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
         const toUserId = String(payload?.toUserId || '').trim();
         if (!fromUserId || !toUserId || fromUserId === toUserId) {
           socket.emit('dm:error', { message: 'Invalid user for request' });
+          return;
+        }
+
+        const hasPremium = await canUseMehfilDm(fromUserId);
+        if (!hasPremium) {
+          socket.emit('dm:error', {
+            code: 'PREMIUM_REQUIRED',
+            feature: 'mehfil_dm',
+            message: 'Connect is a Premium feature. Upgrade to send connection requests.',
+          });
           return;
         }
 

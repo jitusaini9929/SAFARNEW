@@ -16,7 +16,7 @@ interface HeroSectionProps {
 const HeroSection: React.FC<HeroSectionProps> = ({
     user,
     setIsAuthModalOpen,
-    showStudyPlanner = true,
+    showStudyPlanner = false,
 }) => {
     const { theme, toggleTheme } = useTheme();
     const { t } = useTranslation();

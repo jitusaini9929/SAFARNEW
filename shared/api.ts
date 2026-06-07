@@ -9,6 +9,10 @@ export interface User {
   isAdmin?: boolean;
 }
 
+export interface PremiumFeaturesResponse {
+  mehfilDm: boolean;
+}
+
 export interface MoodEntry {
   id: string;
   userId: string;
