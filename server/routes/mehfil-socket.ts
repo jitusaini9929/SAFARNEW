@@ -1456,6 +1456,69 @@ export function setupMehfilSocket(httpServer: HttpServer, options?: MehfilSocket
       }
     });
 
+    // ─── Live Session: Real-time chat ────────────────────────────────────────
+    // Clients emit live:join when they open a live session screen.
+    socket.on('live:join', (payload: { sessionId?: string }) => {
+      try {
+        const sessionId = String(payload?.sessionId || '').trim();
+        if (!sessionId) {
+          socket.emit('live:error', { message: 'Session ID is required to join live chat.' });
+          return;
+        }
+        const room = `live:${sessionId}`;
+        socket.join(room);
+        if (MEHFIL_SOCKET_DEBUG_LOGS) {
+          console.log(`[LIVE] ${socket.id} joined room ${room}`);
+        }
+      } catch (err) {
+        console.error('[LIVE] live:join error:', err);
+        socket.emit('live:error', { message: 'Unable to join live session. Please try again.' });
+      }
+    });
+
+    // Clients emit live:message to send a chat message during a live session.
+    socket.on('live:message', async (payload: { sessionId?: string; name?: string; text?: string }) => {
+      try {
+        const sessionId = String(payload?.sessionId || '').trim();
+        const name = String(payload?.name || '').trim().slice(0, 64) || 'Student';
+        const text = String(payload?.text || '').trim().slice(0, 500);
+
+        if (!sessionId || !text) {
+          socket.emit('live:error', { message: 'Session ID and message text are required.' });
+          return;
+        }
+
+        const room = `live:${sessionId}`;
+        const message = { name, text, sentAt: new Date().toISOString() };
+
+        // Broadcast to all users in this live session room (including sender)
+        mehfil.to(room).emit('live:message', message);
+
+        if (MEHFIL_SOCKET_DEBUG_LOGS) {
+          console.log(`[LIVE] ${name} → ${room}: ${text}`);
+        }
+      } catch (err) {
+        console.error('[LIVE] live:message error:', err);
+        socket.emit('live:error', { message: 'Failed to send message. Please try again.' });
+      }
+    });
+
+    // Clients emit live:leave when they close the live session screen.
+    socket.on('live:leave', (payload: { sessionId?: string }) => {
+      try {
+        const sessionId = String(payload?.sessionId || '').trim();
+        if (!sessionId) return;
+        const room = `live:${sessionId}`;
+        socket.leave(room);
+        if (MEHFIL_SOCKET_DEBUG_LOGS) {
+          console.log(`[LIVE] ${socket.id} left room ${room}`);
+        }
+      } catch (err) {
+        console.error('[LIVE] live:leave error:', err);
+      }
+    });
+    // ─── End Live Session handlers ────────────────────────────────────────────
+
     socket.on('disconnect', async () => {
       const userId = socketToUser.get(socket.id);
       if (userId) {

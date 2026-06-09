@@ -37,6 +37,7 @@ import { startWishboxWorker } from "./temporaryFeatures/birthdayWishBox/wishbox.
 import { startNotificationScheduler } from "./services/notification-scheduler";
 import { feedbackRoutes } from "./routes/feedback";
 import { premiumRoutes } from "./routes/premium";
+import { liveSessionRoutes } from "./routes/live-sessions";
 
 // Setup Mehfil Socket.IO Config Constants
 // Redis adapter logic moved down
@@ -208,6 +209,7 @@ export async function createServer() {
   app.use("/api/wishbox", wishboxRoutes);
   app.use("/api/admin/wishbox", wishboxAdminRoutes);
   app.use("/api/feedback", feedbackRoutes);
+  app.use("/api/live-sessions", liveSessionRoutes);
 
   app.get("/api/ping", (_req, res) => {
     const ping = process.env.PING_MESSAGE ?? "ping";

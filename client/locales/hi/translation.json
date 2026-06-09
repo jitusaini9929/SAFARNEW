@@ -19,7 +19,8 @@
         "analytics": "रिपोर्ट",
         "suggestions": "सुझाव",
         "saved_posts": "सेवड पोस्ट्स",
-        "activity": "एक्टिविटी"
+        "activity": "एक्टिविटी",
+        "live_session": "लाइव सेशन"
     },
     "btn": {
         "login": "लॉगिन करें",

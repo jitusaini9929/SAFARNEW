@@ -19,7 +19,8 @@
         "analytics": "Analytics",
         "suggestions": "Suggestions",
         "saved_posts": "Saved Posts",
-        "activity": "Activity"
+        "activity": "Activity",
+        "live_session": "Live session"
     },
     "btn": {
         "login": "Login",

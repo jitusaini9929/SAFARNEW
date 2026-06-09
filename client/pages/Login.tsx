@@ -1,20 +1,9 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { authService } from "@/utils/authService";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import SafarLogo from "@/components/landing/SafarLogo";
-import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import AuthForm from "@/components/AuthForm";
 import "@/styles/mehfil-m3.css";
-import { MdFilledButtonReact, MdOutlinedTextFieldReact, MdCheckboxReact } from "@/components/mehfil/material/MdComponents";
-
-const ALLOWED_SIGNUP_DOMAINS = new Set(["gmail.com", "outlook.com"]);
-const SIGNUP_EMAIL_EXCEPTION = "steve123@example.com";
-
-function isAllowedSignupEmail(email: string): boolean {
-  if (email === SIGNUP_EMAIL_EXCEPTION) return true;
-  const domain = email.split("@")[1] || "";
-  return ALLOWED_SIGNUP_DOMAINS.has(domain);
-}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -23,21 +12,7 @@ export default function Login() {
   const { t } = useTranslation();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
-
-  // Auth fields
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
-
-  // Signup fields
-  const [name, setName] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [examType, setExamType] = useState("");
-  const [preparationStage, setPreparationStage] = useState("");
-  const [gender, setGender] = useState("");
-
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [key, setKey] = useState(0);
 
   // Check URL path or query params or returning user status
   useEffect(() => {
@@ -48,86 +23,15 @@ export default function Login() {
       const isReturning = localStorage.getItem("safar_returning_user") === "true";
       setMode(isReturning ? "login" : "signup");
     }
+    setKey(prev => prev + 1); // remount form
   }, [location.pathname, searchParams]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!email.trim() || !password.trim()) {
-      setError(t('auth.error_fill_email_password'));
-      return;
-    }
-
-    if (!email.includes("@")) {
-      setError(t('auth.error_valid_email'));
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await authService.login(email, password, rememberMe);
-      toast.success(t('auth.welcome_back_toast'));
-      sessionStorage.setItem("showWelcomeNishtha", "true");
-      localStorage.setItem("safar_returning_user", "true");
-      navigate("/home", { replace: true });
-    } catch (err: any) {
-      setError(err.message || t('auth.error_invalid_creds'));
-      setIsLoading(false);
-    }
+  const handleSuccess = () => {
+    navigate("/home", { replace: true });
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (!name.trim() || !email.trim() || !password.trim() || !gender) {
-      setError(t('auth.error_fill_all'));
-      return;
-    }
-
-    if (!email.includes("@")) {
-      setError(t('auth.error_valid_email'));
-      return;
-    }
-
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!isAllowedSignupEmail(normalizedEmail)) {
-      setError(t('auth.error_gmail_only'));
-      return;
-    }
-
-    if (password.length < 6) {
-      setError(t('auth.error_password_min'));
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError(t('auth.error_password_match'));
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Create account
-      await authService.signup(
-        name,
-        email,
-        password,
-        examType || undefined,
-        preparationStage || undefined,
-        gender
-      );
-
-      toast.success(t('auth.signup_success'));
-      sessionStorage.setItem("showWelcomeNishtha", "true");
-      localStorage.setItem("safar_returning_user", "true");
-      navigate("/home", { replace: true });
-    } catch (err: any) {
-      setError(err.message || t('auth.error_invalid_creds'));
-    } finally {
-      setIsLoading(false);
-    }
+  const handleForgotPassword = () => {
+    navigate("/forgot-password");
   };
 
   return (
@@ -206,235 +110,13 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Login Form */}
-            {mode === "login" && (
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div className="w-full flex flex-col gap-2">
-                  <MdOutlinedTextFieldReact
-                    id="email"
-                    label={t('auth.email')}
-                    type="email"
-                    value={email}
-                    onInput={(e: any) => setEmail(e.target.value.toLowerCase())}
-                    required
-                    disabled={isLoading}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-
-                <div className="w-full flex flex-col gap-2">
-                  <MdOutlinedTextFieldReact
-                    id="password"
-                    label={t('auth.password')}
-                    type="password"
-                    value={password}
-                    onInput={(e: any) => setPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    style={{ width: "100%" }}
-                  />
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => !isLoading && setRememberMe(prev => !prev)}>
-                      <MdCheckboxReact
-                        id="remember-me"
-                        checked={rememberMe}
-                        disabled={isLoading}
-                      />
-                      <label htmlFor="remember-me" className="text-sm text-gray-700 dark:text-gray-300 font-medium cursor-pointer">
-                        {t('auth.remember_me')}
-                      </label>
-                    </div>
-                    <Link
-                      to="/forgot-password"
-                      className="text-xs font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 transition-colors"
-                    >
-                      Forgot password?
-                    </Link>
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm border border-red-200 dark:border-red-800">
-                    {error}
-                  </div>
-                )}
-
-                <div className="w-full">
-                  <MdFilledButtonReact
-                    type="submit"
-                    disabled={isLoading}
-                    style={{
-                      width: "100%",
-                      "--md-filled-button-container-height": "48px",
-                      "--md-filled-button-container-shape": "12px",
-                      "--md-filled-button-container-color": "var(--md-sys-color-primary)",
-                    } as React.CSSProperties}
-                  >
-                    <span>{isLoading ? t('auth.signin_loading') : t('auth.signin')}</span>
-                  </MdFilledButtonReact>
-                </div>
-              </form>
-            )}
-
-            {/* Signup Form */}
-            {mode === "signup" && (
-              <form onSubmit={handleSignup} className="space-y-4">
-                <div className="w-full flex flex-col gap-2">
-                  <MdOutlinedTextFieldReact
-                    id="signup-name"
-                    label={t('auth.full_name')}
-                    type="text"
-                    value={name}
-                    onInput={(e: any) => setName(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-
-                <div className="w-full flex flex-col gap-2">
-                  <MdOutlinedTextFieldReact
-                    id="signup-email"
-                    label={t('auth.email')}
-                    type="email"
-                    value={email}
-                    onInput={(e: any) => setEmail(e.target.value.toLowerCase())}
-                    required
-                    disabled={isLoading}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <MdOutlinedTextFieldReact
-                    id="signup-password"
-                    label={t('auth.password')}
-                    type="password"
-                    value={password}
-                    onInput={(e: any) => setPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    style={{ width: "100%" }}
-                  />
-                  <MdOutlinedTextFieldReact
-                    id="signup-confirm-password"
-                    label="Confirm"
-                    type="password"
-                    value={confirmPassword}
-                    onInput={(e: any) => setConfirmPassword(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    style={{ width: "100%" }}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('auth.exam_type')}</label>
-                    <select
-                      value={examType}
-                      onChange={(e) => setExamType(e.target.value)}
-                      disabled={isLoading}
-                      className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-xs font-sans"
-                    >
-                      <option value="">{t('auth.select')}</option>
-                      <option value="CGL">CGL</option>
-                      <option value="CHSL">CHSL</option>
-                      <option value="GD">GD</option>
-                      <option value="MTS">MTS</option>
-                      <option value="12th Boards">12th Boards</option>
-                      <option value="NTPC">NTPC</option>
-                      <option value="JEE">JEE</option>
-                      <option value="Other">{t('auth.other')}</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">Prep Stage</label>
-                    <select
-                      value={preparationStage}
-                      onChange={(e) => setPreparationStage(e.target.value)}
-                      disabled={isLoading}
-                      className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-xs font-sans"
-                    >
-                      <option value="">{t('auth.select')}</option>
-                      <option value="Beginner">{t('auth.beginner')}</option>
-                      <option value="Intermediate">{t('auth.intermediate')}</option>
-                      <option value="Advanced">{t('auth.advanced')}</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">{t('auth.gender')}</label>
-                  <select
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                    disabled={isLoading}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all text-xs font-sans"
-                  >
-                    <option value="">{t('auth.select_gender')}</option>
-                    <option value="male">{t('auth.male')}</option>
-                    <option value="female">{t('auth.female')}</option>
-                    <option value="other">{t('auth.other')}</option>
-                  </select>
-                </div>
-
-                {error && (
-                  <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs border border-red-200 dark:border-red-800">
-                    {error}
-                  </div>
-                )}
-
-                <div className="w-full pt-2">
-                  <MdFilledButtonReact
-                    type="submit"
-                    disabled={isLoading}
-                    style={{
-                      width: "100%",
-                      "--md-filled-button-container-height": "48px",
-                      "--md-filled-button-container-shape": "12px",
-                      "--md-filled-button-container-color": "var(--md-sys-color-primary)",
-                    } as React.CSSProperties}
-                  >
-                    <span>{isLoading ? t('auth.signup_loading') : t('auth.signup')}</span>
-                  </MdFilledButtonReact>
-                </div>
-              </form>
-            )}
-
-            {mode === "login" ? (
-              <div className="mt-8 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t('auth.no_account')}{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("signup");
-                      setError("");
-                    }}
-                    className="font-bold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 hover:underline transition-colors bg-transparent border-none p-0 cursor-pointer"
-                  >
-                    {t('auth.signup_here')}
-                  </button>
-                </p>
-              </div>
-            ) : (
-              <div className="mt-6 text-center">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t('auth.have_account')}{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode("login");
-                      setError("");
-                    }}
-                    className="font-bold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-300 hover:underline transition-colors bg-transparent border-none p-0 cursor-pointer"
-                  >
-                    {t('auth.signin_here')}
-                  </button>
-                </p>
-              </div>
-            )}
+            <AuthForm
+              key={key}
+              initialMode={mode}
+              onSuccess={handleSuccess}
+              onForgotPassword={handleForgotPassword}
+              onModeChange={setMode}
+            />
           </div>
 
           <div className="mt-8 text-center">

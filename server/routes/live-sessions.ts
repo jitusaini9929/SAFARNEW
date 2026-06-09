@@ -4,6 +4,7 @@ import { collections } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { notifyLiveSessionStarted } from '../services/push-notifications';
 import { buildYouTubeUrls, parseYouTubeVideoInput } from '../utils/youtubeLive';
+import { getMehfilNamespace } from './mehfil-socket';
 
 type LiveSessionStatus = 'scheduled' | 'live' | 'ended' | 'cancelled';
 
@@ -302,6 +303,22 @@ router.patch('/:id/start', requireAuth, async (req: Request, res: Response) => {
     }
 
     const updated = await collections.liveSessions().findOne({ id: session.id });
+
+    // Broadcast real-time status change to all socket clients watching this session
+    try {
+      const mehfil = getMehfilNamespace();
+      if (mehfil) {
+        mehfil.to(`live:${session.id}`).emit('live:status_changed', {
+          sessionId: session.id,
+          status: 'live',
+          youtubeEmbedUrl: urls.embedUrl,
+          youtubeVideoId: parsed.videoId,
+        });
+      }
+    } catch (broadcastErr) {
+      console.error('[LIVE] Failed to broadcast live:status_changed (start):', broadcastErr);
+    }
+
     return res.json({ liveSession: toApiModel(updated, user) });
   } catch (error) {
     console.error('Start live session error:', error);
@@ -338,6 +355,21 @@ router.patch('/:id/end', requireAuth, async (req: Request, res: Response) => {
     await collections.liveSessions().updateOne({ id: session.id }, { $set: patch });
     liveSessionChats.delete(session.id);
     const updated = await collections.liveSessions().findOne({ id: session.id });
+
+    // Broadcast real-time status change to all socket clients watching this session
+    try {
+      const mehfil = getMehfilNamespace();
+      if (mehfil) {
+        mehfil.to(`live:${session.id}`).emit('live:status_changed', {
+          sessionId: session.id,
+          status: 'ended',
+          recordingVideoId: updated?.recording_video_id || null,
+        });
+      }
+    } catch (broadcastErr) {
+      console.error('[LIVE] Failed to broadcast live:status_changed (end):', broadcastErr);
+    }
+
     return res.json({ liveSession: toApiModel(updated, user) });
   } catch (error) {
     console.error('End live session error:', error);

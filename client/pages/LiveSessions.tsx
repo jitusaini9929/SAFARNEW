@@ -6,8 +6,11 @@ import {
   Calendar,
   Play,
   Square,
-  StickyNote,
   Share2,
+  Trash2,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -23,7 +26,7 @@ const FILTER_MAP = {
 
 type FilterTab = keyof typeof FILTER_MAP;
 type ApiStatus = (typeof FILTER_MAP)[FilterTab];
-type SidebarNav = "live-sessions" | "completed" | "resources";
+type SidebarNav = "live-sessions" | "completed";
 
 type LiveSessionResource = {
   label: string;
@@ -128,10 +131,14 @@ export default function LiveSessions() {
   const apiStatus: ApiStatus = FILTER_MAP[filterTab];
 
   const filteredSessions = useMemo(() => {
+    let list = sessions;
+    if (filterTab === "live") {
+      list = list.filter((s) => s.status === "live" || s.status === "scheduled");
+    }
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return sessions;
-    return sessions.filter((s) => (s.title || "").toLowerCase().includes(q));
-  }, [sessions, searchQuery]);
+    if (!q) return list;
+    return list.filter((s) => (s.title || "").toLowerCase().includes(q));
+  }, [sessions, filterTab, searchQuery]);
 
   const selectedSession = useMemo(
     () =>
@@ -141,7 +148,9 @@ export default function LiveSessions() {
     [selectedSessionId, filteredSessions],
   );
 
-  const isSteve = currentUser?.email === "steve123@example.com";
+  const isSteve =
+    currentUser?.email === "steve123@example.com" ||
+    currentUser?.email === "safarparmar0@gmail.com";
 
   const manageableSession = useMemo(() => {
     if (!isSteve || apiStatus !== "active") return null;
@@ -335,6 +344,38 @@ export default function LiveSessions() {
     } finally {
       setIsActionLoading(false);
       loadSessions();
+    }
+  }
+
+  async function deleteSession(sessionId: string) {
+    if (!window.confirm("Are you sure you want to delete this session?")) return;
+    setIsActionLoading(true);
+    try {
+      const res = await apiFetch(`${API_BASE}/live-sessions/${sessionId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(await parseErrorResponse(res, "Failed to delete session"));
+      toast.success("Session deleted");
+      loadSessions();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete session");
+    } finally {
+      setIsActionLoading(false);
+    }
+  }
+
+  async function editSessionTitle(sessionId: string, newTitle: string) {
+    if (!newTitle.trim()) return;
+    try {
+      const res = await apiFetch(`${API_BASE}/live-sessions/${sessionId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title: newTitle }),
+      });
+      if (!res.ok) throw new Error(await parseErrorResponse(res, "Failed to update title"));
+      toast.success("Title updated");
+      loadSessions();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update title");
     }
   }
 
@@ -593,7 +634,12 @@ export default function LiveSessions() {
 
               {showSessionContent && (
                 <>
-                  <LiveSessionPlayer session={selectedSession} />
+                  <LiveSessionPlayer
+                    session={selectedSession}
+                    isSteve={isSteve}
+                    onDelete={deleteSession}
+                    onEditTitle={editSessionTitle}
+                  />
                   {filteredSessions.length > 1 && (
                     <SessionGrid
                       sessions={filteredSessions}
@@ -659,7 +705,6 @@ function LiveClassroomSidebar({
       <nav className="flex-1 space-y-2 min-h-0 overflow-y-auto">
         {navItem("live-sessions", "sensors", "Live Sessions")}
         {navItem("completed", "task_alt", "Completed")}
-        {navItem("resources", "folder_open", "Resources")}
       </nav>
       <button
         type="button"
@@ -692,7 +737,20 @@ function EmptyStateCanvas({ children }: { children: React.ReactNode }) {
   );
 }
 
-function LiveSessionPlayer({ session }: { session: LiveSession }) {
+function LiveSessionPlayer({
+  session,
+  isSteve,
+  onDelete,
+  onEditTitle,
+}: {
+  session: LiveSession;
+  isSteve?: boolean;
+  onDelete?: (id: string) => void;
+  onEditTitle?: (id: string, newTitle: string) => void;
+}) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState("");
+
   const showEmbed = !!(
     session.youtubeEmbedUrl &&
     (session.status === "live" || session.isRecordingAvailable)
@@ -730,10 +788,52 @@ function LiveSessionPlayer({ session }: { session: LiveSession }) {
 
       <div className="space-y-5 p-5 md:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="lc-headline text-2xl font-semibold tracking-tight text-[var(--lc-on-surface)]">
-              {session.title || "Untitled live class"}
-            </h2>
+          <div className="flex-1">
+            {isEditingTitle ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={editTitleValue}
+                  onChange={(e) => setEditTitleValue(e.target.value)}
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-[var(--lc-outline-variant)] bg-[var(--lc-surface-container-low)] text-[var(--lc-on-surface)] text-xl font-semibold outline-none focus:border-[var(--lc-primary)] focus:ring-1 focus:ring-[var(--lc-primary)]"
+                  autoFocus
+                />
+                <button
+                  onClick={() => {
+                    if (onEditTitle && session.id) {
+                      onEditTitle(session.id, editTitleValue);
+                    }
+                    setIsEditingTitle(false);
+                  }}
+                  className="p-2 rounded-lg bg-[var(--lc-primary)] text-[var(--lc-on-primary)] hover:opacity-90"
+                >
+                  <Check className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setIsEditingTitle(false)}
+                  className="p-2 rounded-lg border border-[var(--lc-outline-variant)] text-[var(--lc-on-surface-variant)] hover:bg-[var(--lc-surface-container-high)]"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <h2 className="lc-headline text-2xl font-semibold tracking-tight text-[var(--lc-on-surface)]">
+                  {session.title || "Untitled live class"}
+                </h2>
+                {isSteve && (
+                  <button
+                    onClick={() => {
+                      setEditTitleValue(session.title || "");
+                      setIsEditingTitle(true);
+                    }}
+                    className="p-1.5 rounded-md text-[var(--lc-on-surface-variant)] hover:bg-[var(--lc-surface-container-high)] transition-colors"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
             <div className="mt-3 flex flex-wrap gap-3 text-sm font-medium text-[var(--lc-on-surface-variant)]">
               <span className="flex items-center gap-1.5">
                 <Calendar className="h-4 w-4" />
@@ -741,13 +841,25 @@ function LiveSessionPlayer({ session }: { session: LiveSession }) {
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--lc-outline-variant)] text-[var(--lc-primary)] text-sm font-medium hover:bg-[var(--lc-surface-container-high)] transition-colors shrink-0"
-          >
-            <Share2 className="h-4 w-4" />
-            Share
-          </button>
+          <div className="flex items-center gap-3">
+            {isSteve && onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(session.id)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--lc-error)] text-[var(--lc-error)] text-sm font-medium hover:bg-[var(--lc-error)]/10 transition-colors shrink-0"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--lc-outline-variant)] text-[var(--lc-primary)] text-sm font-medium hover:bg-[var(--lc-surface-container-high)] transition-colors shrink-0"
+            >
+              <Share2 className="h-4 w-4" />
+              Share
+            </button>
+          </div>
         </div>
 
         {session.description && (
@@ -755,26 +867,6 @@ function LiveSessionPlayer({ session }: { session: LiveSession }) {
             {session.description}
           </p>
         )}
-
-        <div className="grid gap-3 md:grid-cols-2">
-          {(session.resources || []).map((resource) => (
-            <a
-              key={`${resource.label}-${resource.url}`}
-              href={resource.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-3 rounded-xl border border-[var(--lc-outline-variant)] bg-[var(--lc-surface-container-low)] p-4 text-sm font-semibold text-[var(--lc-primary)] hover:bg-[var(--lc-surface-container-high)] transition-colors"
-            >
-              <StickyNote className="h-5 w-5" />
-              {resource.label}
-            </a>
-          ))}
-          {(!session.resources || session.resources.length === 0) && (
-            <div className="rounded-xl border border-dashed border-[var(--lc-outline-variant)] bg-[var(--lc-surface-container-low)] p-4 text-sm text-[var(--lc-on-surface-variant)] md:col-span-2">
-              No resources added for this session.
-            </div>
-          )}
-        </div>
       </div>
     </section>
   );
