@@ -78,6 +78,13 @@ function verifyRazorpaySignature(
   return expectedSignature === signature;
 }
 
+function getPremiumPlanInfo(productId: string): { planType: "3month" | "6month" | "yearly" | null; durationMonths: number } {
+  if (productId.includes("exam") || productId.includes("3month")) return { planType: "3month", durationMonths: 3 };
+  if (productId.includes("annual") || productId.includes("yearly")) return { planType: "yearly", durationMonths: 12 };
+  if (productId.includes("6month") || productId.includes("half-year")) return { planType: "6month", durationMonths: 6 };
+  return { planType: null, durationMonths: 0 };
+}
+
 function verifyWebhookSignature(rawBody: Buffer, signature: string): boolean {
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
   if (!webhookSecret) return false;
@@ -217,7 +224,6 @@ router.post("/verify", requireAuth, async (req: any, res: Response) => {
         const order = await collections.orders().findOne(
           {
             razorpay_order_id,
-            user_id: userId,
           },
           { session },
         );
@@ -279,6 +285,58 @@ router.post("/verify", requireAuth, async (req: any, res: Response) => {
           { upsert: true, session },
         );
 
+        const planInfo = getPremiumPlanInfo(order.course_id);
+        if (planInfo.planType) {
+          const existingEntitlement = await collections.premiumEntitlements().findOne(
+            { userId },
+            { session }
+          );
+
+          const now = new Date();
+          let baseDate = now;
+          if (existingEntitlement && existingEntitlement.expiresAt && existingEntitlement.expiresAt > now) {
+            baseDate = existingEntitlement.expiresAt;
+          }
+
+          const newExpiresAt = new Date(baseDate);
+          newExpiresAt.setMonth(newExpiresAt.getMonth() + planInfo.durationMonths);
+
+          const alreadyProcessed = existingEntitlement?.razorpayPaymentId === razorpay_payment_id;
+
+          if (!alreadyProcessed) {
+            await collections.premiumEntitlements().updateOne(
+              { userId },
+              {
+                $set: {
+                  isActive: true,
+                  planType: planInfo.planType,
+                  expiresAt: newExpiresAt,
+                  razorpayOrderId: razorpay_order_id,
+                  razorpayPaymentId: razorpay_payment_id,
+                  updatedAt: now,
+                },
+                $setOnInsert: {
+                  startedAt: now,
+                  createdAt: now,
+                }
+              },
+              { upsert: true, session }
+            );
+
+            await collections.users().updateOne(
+              { id: userId },
+              {
+                $set: {
+                  is_premium: true,
+                  subscription_tier: "pro",
+                  premium_until: newExpiresAt,
+                }
+              },
+              { session }
+            );
+          }
+        }
+
         const enrollment = await collections.courseEnrollments().findOne(
           { user_id: userId, course_id: order.course_id },
           { session },
@@ -306,11 +364,39 @@ router.post("/verify", requireAuth, async (req: any, res: Response) => {
         notifyPaymentSuccess(userId, COURSES[paidCourseId]?.name || paidCourseId);
       }
 
+      let finalPremiumState = {
+        isPremium: false,
+        planType: null as string | null,
+        expiresAt: null as string | null,
+        features: {
+          mehfilDm: false,
+          studyPlannerInsights: false,
+          nishthaAnalytics: false,
+          focusAnalytics: false
+        }
+      };
+
+      const entitlement = await collections.premiumEntitlements().findOne({ userId });
+      if (entitlement && entitlement.isActive && entitlement.expiresAt > new Date()) {
+        finalPremiumState = {
+          isPremium: true,
+          planType: entitlement.planType,
+          expiresAt: entitlement.expiresAt.toISOString(),
+          features: {
+            mehfilDm: true,
+            studyPlannerInsights: true,
+            nishthaAnalytics: true,
+            focusAnalytics: true
+          }
+        };
+      }
+
       return res.json({
         success: true,
-        message: "Payment verified and enrollment granted",
+        message: "Payment verified",
         paymentId: razorpay_payment_id,
         enrollmentId,
+        premium: finalPremiumState
       });
     } catch (error: any) {
       if (error?.message === "ORDER_NOT_FOUND") {
@@ -424,6 +510,55 @@ router.post("/webhook", async (req: Request, res: Response) => {
       },
       { upsert: true },
     );
+
+    const planInfo = getPremiumPlanInfo(order.course_id);
+    if (planInfo.planType) {
+      const existingEntitlement = await collections.premiumEntitlements().findOne(
+        { userId: order.user_id }
+      );
+
+      let baseDate = now;
+      if (existingEntitlement && existingEntitlement.expiresAt && existingEntitlement.expiresAt > now) {
+        baseDate = existingEntitlement.expiresAt;
+      }
+
+      const newExpiresAt = new Date(baseDate);
+      newExpiresAt.setMonth(newExpiresAt.getMonth() + planInfo.durationMonths);
+
+      const alreadyProcessed = existingEntitlement?.razorpayPaymentId === razorpayPaymentId;
+
+      if (!alreadyProcessed) {
+        await collections.premiumEntitlements().updateOne(
+          { userId: order.user_id },
+          {
+            $set: {
+              isActive: true,
+              planType: planInfo.planType,
+              expiresAt: newExpiresAt,
+              razorpayOrderId: razorpayOrderId,
+              razorpayPaymentId: razorpayPaymentId,
+              updatedAt: now,
+            },
+            $setOnInsert: {
+              startedAt: now,
+              createdAt: now,
+            }
+          },
+          { upsert: true }
+        );
+
+        await collections.users().updateOne(
+          { id: order.user_id },
+          {
+            $set: {
+              is_premium: true,
+              subscription_tier: "pro",
+              premium_until: newExpiresAt,
+            }
+          }
+        );
+      }
+    }
 
     await collections.transactionLogs().insertOne({
       id: uuidv4(),

@@ -117,8 +117,6 @@ export default function LiveSessions() {
   const [error, setError] = useState<string | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [isActionLoading, setIsActionLoading] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
 
@@ -228,9 +226,12 @@ export default function LiveSessions() {
       const list: LiveSession[] = Array.isArray(data?.liveSessions) ? data.liveSessions : [];
 
       setSessions(list);
-      setSelectedSessionId((prev) =>
-        prev && list.some((s) => s.id === prev) ? prev : list[0]?.id || "",
-      );
+      setSelectedSessionId((prev) => {
+        if (apiStatus === "ended") {
+          return prev && list.some((s) => s.id === prev) ? prev : "";
+        }
+        return prev && list.some((s) => s.id === prev) ? prev : list[0]?.id || "";
+      });
     } catch (err) {
       setSessions([]);
       setError(err instanceof Error ? err.message : "Failed to load live sessions");
@@ -297,13 +298,15 @@ export default function LiveSessions() {
   }
 
   async function createSession() {
-    const title = newTitle.trim();
-    if (!title) {
-      toast.error("Please enter a session title.");
-      return;
-    }
     setIsCreating(true);
     try {
+      const formattedDate = new Date().toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      }).toUpperCase();
+      const title = `DHYAN SESSION - ${formattedDate}`;
+
       const body: Record<string, unknown> = { title, status: "scheduled" };
       const res = await apiFetch(`${API_BASE}/live-sessions`, {
         method: "POST",
@@ -313,14 +316,17 @@ export default function LiveSessions() {
         throw new Error(await parseErrorResponse(res, "Failed to create session"));
       }
       toast.success("Session created!");
-      setNewTitle("");
-      setShowCreateForm(false);
       setFilterTab("live");
+      setSidebarNav("live-sessions");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create session");
     } finally {
       setIsCreating(false);
-      loadSessions();
+      // Only reload manually if we were already on the live tab
+      // Otherwise, the setFilterTab will trigger a useEffect reload
+      if (filterTab === "live") {
+        loadSessions();
+      }
     }
   }
 
@@ -343,7 +349,8 @@ export default function LiveSessions() {
       toast.error(err instanceof Error ? err.message : "Failed to end live class");
     } finally {
       setIsActionLoading(false);
-      loadSessions();
+      // DO NOT call loadSessions() here. The setFilterTab("completed") will trigger 
+      // useEffect which will fetch the updated 'ended' sessions list correctly.
     }
   }
 
@@ -405,8 +412,6 @@ export default function LiveSessions() {
 
       <div className="flex flex-1 w-full min-h-0 overflow-hidden">
         <LiveClassroomSidebar
-          activeNav={sidebarNav}
-          onNav={handleSidebarNav}
           onViewLive={handleViewLive}
           onSettings={() => navigate("/settings")}
         />
@@ -416,25 +421,27 @@ export default function LiveSessions() {
             <div className="flex flex-col gap-6 lg:gap-8 w-full max-w-none">
             <div className="rounded-2xl p-6 md:p-8 flex flex-col gap-6 shadow-sm border lc-ghost-border bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)]">
               <div className="flex items-center gap-2 text-[var(--lc-primary)] text-sm lc-label uppercase tracking-wider font-semibold">
-                <MaterialIcon name="podcasts" className="text-[18px]" />
-                Live Classes
+                <MaterialIcon name={filterTab === "completed" ? "task_alt" : "podcasts"} className="text-[18px]" />
+                {filterTab === "completed" ? "Completed Sessions" : "Live Classes"}
               </div>
 
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-1 items-center gap-3 max-w-full">
-                  <div className="relative flex-1 min-w-0">
-                    <MaterialIcon
-                      name="search"
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--lc-on-surface-variant)] text-[20px] pointer-events-none"
-                    />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search sessions..."
-                      className="w-full pl-10 pr-4 py-2 rounded-xl bg-[var(--lc-surface-container-low)] dark:bg-[var(--lc-surface-container-lowest)] border border-[var(--lc-outline-variant)] focus:border-[var(--lc-primary)] focus:ring-1 focus:ring-[var(--lc-primary)] text-sm outline-none transition-all placeholder:text-[var(--lc-on-surface-variant)]/60 text-[var(--lc-on-surface)]"
-                    />
-                  </div>
+                <div className={cn("flex flex-1 items-center gap-3 max-w-full", filterTab !== "completed" && "justify-end")}>
+                  {filterTab === "completed" && (
+                    <div className="relative flex-1 min-w-0">
+                      <MaterialIcon
+                        name="search"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--lc-on-surface-variant)] text-[20px] pointer-events-none"
+                      />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search sessions..."
+                        className="w-full pl-10 pr-4 py-2 rounded-xl bg-[var(--lc-surface-container-low)] dark:bg-[var(--lc-surface-container-lowest)] border border-[var(--lc-outline-variant)] focus:border-[var(--lc-primary)] focus:ring-1 focus:ring-[var(--lc-primary)] text-sm outline-none transition-all placeholder:text-[var(--lc-on-surface-variant)]/60 text-[var(--lc-on-surface)]"
+                      />
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => loadSessions()}
@@ -446,53 +453,17 @@ export default function LiveSessions() {
                   {showNewSessionButton && (
                     <button
                       type="button"
-                      onClick={() => setShowCreateForm((v) => !v)}
-                      className="lc-btn-primary px-4 py-2 rounded-xl lc-label text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity flex items-center gap-2 whitespace-nowrap shrink-0"
+                      onClick={createSession}
+                      disabled={isCreating}
+                      className="lc-btn-primary px-4 py-2 rounded-xl lc-label text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity flex items-center gap-2 whitespace-nowrap shrink-0 disabled:opacity-50"
                     >
                       <MaterialIcon name="add" className="text-[20px]" />
-                      New Session
+                      {isCreating ? "Creating..." : "New Session"}
                     </button>
                   )}
                 </div>
               </div>
             </div>
-
-            {showCreateForm && (
-              <div className="rounded-2xl p-6 border lc-ghost-border bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)] shadow-sm">
-                <p className="text-sm lc-label uppercase tracking-wider font-semibold text-[var(--lc-primary)] mb-4">
-                  Create New Session
-                </p>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <input
-                    type="text"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="Session title (e.g. Maths Live Class – Chapter 5)"
-                    className="flex-1 w-full px-4 py-3 rounded-xl border border-[var(--lc-outline-variant)] bg-[var(--lc-surface-container-low)] text-sm text-[var(--lc-on-surface)] outline-none focus:border-[var(--lc-primary)] focus:ring-1 focus:ring-[var(--lc-primary)]"
-                  />
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={createSession}
-                      disabled={isCreating}
-                      className="lc-btn-primary px-5 py-2.5 rounded-xl lc-label text-sm font-semibold disabled:opacity-60"
-                    >
-                      {isCreating ? "Creating..." : "Create"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCreateForm(false);
-                        setNewTitle("");
-                      }}
-                      className="px-5 py-2.5 rounded-xl border border-[var(--lc-outline-variant)] text-[var(--lc-on-surface-variant)] hover:bg-[var(--lc-surface-container-high)] text-sm font-medium transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="flex flex-col gap-6">
               <div className="flex items-center gap-2">
@@ -501,6 +472,7 @@ export default function LiveSessions() {
                   onClick={() => {
                     setFilterTab("live");
                     setSidebarNav("live-sessions");
+                    setSelectedSessionId("");
                   }}
                   className={cn(
                     "px-5 py-2 rounded-full lc-label text-sm font-medium flex items-center gap-2 transition-all shadow-sm",
@@ -519,6 +491,7 @@ export default function LiveSessions() {
                   onClick={() => {
                     setFilterTab("completed");
                     setSidebarNav("completed");
+                    setSelectedSessionId("");
                   }}
                   className={cn(
                     "px-5 py-2 rounded-full lc-label text-sm font-medium transition-all",
@@ -610,17 +583,18 @@ export default function LiveSessions() {
                 <EmptyStateCanvas>
                   <div className="w-20 h-20 rounded-full bg-[var(--lc-surface-container-high)] flex items-center justify-center mb-2 z-10">
                     <MaterialIcon
-                      name="videocam_off"
+                      name={filterTab === "completed" ? "task_alt" : "videocam_off"}
                       filled
                       className="text-4xl text-[var(--lc-primary)]/60 dark:text-[var(--lc-primary)]/60"
                     />
                   </div>
                   <h3 className="lc-headline text-xl font-semibold text-[var(--lc-on-surface)] z-10">
-                    No active sessions found
+                    {filterTab === "completed" ? "No completed sessions found" : "No active sessions found"}
                   </h3>
                   <p className="text-[var(--lc-on-surface-variant)] text-center max-w-sm z-10 text-sm">
-                    There are currently no live sessions matching this filter. You can start a new
-                    session or check completed ones.
+                    {filterTab === "completed" 
+                      ? "There are currently no completed sessions matching this filter." 
+                      : "There are currently no live sessions matching this filter. You can start a new session or check completed ones."}
                   </p>
                   <button
                     type="button"
@@ -634,18 +608,40 @@ export default function LiveSessions() {
 
               {showSessionContent && (
                 <>
-                  <LiveSessionPlayer
-                    session={selectedSession}
-                    isSteve={isSteve}
-                    onDelete={deleteSession}
-                    onEditTitle={editSessionTitle}
-                  />
-                  {filteredSessions.length > 1 && (
+                  {filterTab === "live" && selectedSession && (
+                    <LiveSessionPlayer
+                      session={selectedSession}
+                      isSteve={isSteve}
+                      onDelete={deleteSession}
+                      onEditTitle={editSessionTitle}
+                    />
+                  )}
+                  {((filterTab === "live" && filteredSessions.length > 1) || filterTab === "completed") && (
                     <SessionGrid
                       sessions={filteredSessions}
-                      selectedSessionId={selectedSession.id}
+                      selectedSessionId={selectedSessionId}
                       onSelect={setSelectedSessionId}
+                      isCompletedView={filterTab === "completed"}
                     />
+                  )}
+                  {filterTab === "completed" && selectedSessionId && selectedSession && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8" onClick={() => setSelectedSessionId("")}>
+                      <div className="w-full max-w-5xl bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)] rounded-2xl overflow-hidden shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                          onClick={() => setSelectedSessionId("")}
+                        >
+                          <X className="h-6 w-6" />
+                        </button>
+                        <LiveSessionPlayer
+                          session={selectedSession}
+                          isSteve={isSteve}
+                          onDelete={deleteSession}
+                          onEditTitle={editSessionTitle}
+                        />
+                      </div>
+                    </div>
                   )}
                 </>
               )}
@@ -668,32 +664,12 @@ export default function LiveSessions() {
 }
 
 function LiveClassroomSidebar({
-  activeNav,
-  onNav,
   onViewLive,
   onSettings,
 }: {
-  activeNav: SidebarNav;
-  onNav: (nav: SidebarNav) => void;
   onViewLive: () => void;
   onSettings: () => void;
 }) {
-  const navItem = (nav: SidebarNav, icon: string, label: string) => (
-    <button
-      type="button"
-      onClick={() => onNav(nav)}
-      className={cn(
-        "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left",
-        activeNav === nav
-          ? "text-[var(--lc-primary)] font-bold bg-[var(--lc-surface-container-highest)] scale-[0.99]"
-          : "text-[var(--lc-on-surface-variant)] hover:text-[var(--lc-primary)] hover:bg-[var(--lc-surface-container-high)]",
-      )}
-    >
-      <MaterialIcon name={icon} className="text-[22px]" />
-      <span>{label}</span>
-    </button>
-  );
-
   return (
     <aside className="hidden lg:flex flex-col w-72 shrink-0 min-h-0 bg-[var(--lc-surface-container-low)] dark:bg-[var(--lc-surface-container-low)] p-6 border-r border-[var(--lc-outline-variant)]">
       <div className="mb-6 shrink-0">
@@ -702,10 +678,7 @@ function LiveClassroomSidebar({
         </h2>
         <p className="text-sm text-[var(--lc-on-surface-variant)]">All teacher sessions</p>
       </div>
-      <nav className="flex-1 space-y-2 min-h-0 overflow-y-auto">
-        {navItem("live-sessions", "sensors", "Live Sessions")}
-        {navItem("completed", "task_alt", "Completed")}
-      </nav>
+      <div className="flex-1 min-h-0 overflow-y-auto"></div>
       <button
         type="button"
         onClick={onViewLive}
@@ -762,7 +735,7 @@ function LiveSessionPlayer({
         {showEmbed && session.youtubeEmbedUrl ? (
           <iframe
             title={session.title || "Live session"}
-            src={session.youtubeEmbedUrl}
+            src={session.youtubeEmbedUrl.replace("autoplay=1", "autoplay=0")}
             className="h-full w-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
@@ -876,44 +849,87 @@ function SessionGrid({
   sessions,
   selectedSessionId,
   onSelect,
+  isCompletedView,
 }: {
   sessions: LiveSession[];
   selectedSessionId: string;
   onSelect: (id: string) => void;
+  isCompletedView?: boolean;
 }) {
   return (
     <section className="grid gap-3 md:grid-cols-2">
-      {sessions.map((session) => (
-        <button
-          key={session.id}
-          type="button"
-          onClick={() => onSelect(session.id)}
-          className={cn(
-            "rounded-2xl p-5 text-left transition hover:-translate-y-0.5 border shadow-sm bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)]",
-            selectedSessionId === session.id
-              ? "border-[var(--lc-primary)] ring-1 ring-[var(--lc-primary)]"
-              : "border-[var(--lc-outline-variant)]",
-          )}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="line-clamp-2 lc-headline text-lg font-semibold text-[var(--lc-on-surface)]">
-              {session.title}
-            </h3>
-            <StatusBadge status={session.status} />
-          </div>
-          <p className="mt-3 flex items-center gap-2 text-sm text-[var(--lc-on-surface-variant)]">
-            <Calendar className="h-4 w-4" />
-            {formatScheduledDate(session.scheduledStartAt)}
-          </p>
-          <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--lc-primary)]/15 px-3 py-1 text-xs font-semibold text-[var(--lc-primary)] lc-label">
-            {session.status === "live"
-              ? "Join Live"
-              : session.status === "ended"
-                ? "View Replay"
-                : "View Details"}
-          </p>
-        </button>
-      ))}
+      {sessions.map((session, index) => {
+        if (isCompletedView) {
+          let dateStr = "Unknown Date";
+          if (session.scheduledStartAt) {
+             dateStr = new Date(session.scheduledStartAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' });
+          } else if (session.title && session.title.includes("-")) {
+             dateStr = session.title.split("-")[1]?.trim() || "Unknown Date";
+          }
+
+          return (
+            <button
+              key={session.id}
+              type="button"
+              onClick={() => onSelect(session.id)}
+              className={cn(
+                "rounded-2xl p-0 text-left transition hover:-translate-y-0.5 border shadow-sm bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)] flex overflow-hidden h-32 items-stretch",
+                selectedSessionId === session.id
+                  ? "border-[var(--lc-primary)] ring-2 ring-[var(--lc-primary)]"
+                  : "border-[var(--lc-outline-variant)] hover:border-[var(--lc-primary)]/50",
+              )}
+            >
+              <div className="w-40 shrink-0 relative bg-black/5">
+                <img
+                  src={`/dhyan_session_placeholder.webp`}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1 p-4 flex flex-col justify-center">
+                <h3 className="line-clamp-2 lc-headline text-sm font-semibold text-[var(--lc-on-surface)] uppercase">
+                  {session.title || `Dhyan Session - ${sessions.length - index}`}
+                </h3>
+                <div className="mt-2 text-xs text-[var(--lc-on-surface-variant)] space-y-1">
+                  <p>Date: {dateStr}</p>
+                </div>
+              </div>
+            </button>
+          );
+        }
+
+        return (
+          <button
+            key={session.id}
+            type="button"
+            onClick={() => onSelect(session.id)}
+            className={cn(
+              "rounded-2xl p-5 text-left transition hover:-translate-y-0.5 border shadow-sm bg-[var(--lc-surface-container-lowest)] dark:bg-[var(--lc-surface-container-low)]",
+              selectedSessionId === session.id
+                ? "border-[var(--lc-primary)] ring-1 ring-[var(--lc-primary)]"
+                : "border-[var(--lc-outline-variant)]",
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="line-clamp-2 lc-headline text-lg font-semibold text-[var(--lc-on-surface)]">
+                {session.title}
+              </h3>
+              <StatusBadge status={session.status} />
+            </div>
+            <p className="mt-3 flex items-center gap-2 text-sm text-[var(--lc-on-surface-variant)]">
+              <Calendar className="h-4 w-4" />
+              {formatScheduledDate(session.scheduledStartAt)}
+            </p>
+            <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--lc-primary)]/15 px-3 py-1 text-xs font-semibold text-[var(--lc-primary)] lc-label">
+              {session.status === "live"
+                ? "Join Live"
+                : session.status === "ended"
+                  ? "View Replay"
+                  : "View Details"}
+            </p>
+          </button>
+        );
+      })}
     </section>
   );
 }

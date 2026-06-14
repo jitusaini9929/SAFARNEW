@@ -285,6 +285,10 @@ router.post('/signup', async (req: Request, res) => {
                 preparationStage,
                 gender,
                 isAdmin,
+                isPremium: false,
+                subscriptionTier: undefined,
+                premiumUntil: undefined,
+                paidFeatures: []
             }
         });
     } catch (error) {
@@ -346,6 +350,10 @@ router.post('/login', async (req: any, res) => {
                         preparation_stage: 1,
                         gender: 1,
                         created_at: 1,
+                        is_premium: 1,
+                        subscription_tier: 1,
+                        premium_until: 1,
+                        paid_features: 1,
                     },
                 }
             )
@@ -455,7 +463,11 @@ router.post('/login', async (req: any, res) => {
                 examType: authenticatedUser.exam_type,
                 preparationStage: authenticatedUser.preparation_stage,
                 gender: authenticatedUser.gender,
-                isAdmin
+                isAdmin,
+                isPremium: Boolean(authenticatedUser.is_premium) || (authenticatedUser.premium_until ? new Date(authenticatedUser.premium_until).getTime() > Date.now() : false),
+                subscriptionTier: authenticatedUser.subscription_tier,
+                premiumUntil: authenticatedUser.premium_until ? new Date(authenticatedUser.premium_until).toISOString() : undefined,
+                paidFeatures: authenticatedUser.paid_features || [],
             }
         });
         logMeDebug('[LOGIN] Response sent');
@@ -712,7 +724,7 @@ router.get('/me', requireAuth, async (req: Request, res) => {
     try {
         const user = await collections.users().findOne(
             { id: userId },
-            { projection: { id: 1, email: 1, name: 1, exam_type: 1, preparation_stage: 1, gender: 1, avatar: 1, created_at: 1 } }
+            { projection: { id: 1, email: 1, name: 1, exam_type: 1, preparation_stage: 1, gender: 1, avatar: 1, created_at: 1, is_premium: 1, subscription_tier: 1, premium_until: 1, paid_features: 1 } }
         );
         logMeDebug('🔵 [ME] User found:', user ? 'Yes' : 'No');
 
@@ -780,6 +792,10 @@ router.get('/me', requireAuth, async (req: Request, res) => {
                 preparationStage: user.preparation_stage,
                 gender: user.gender,
                 isAdmin: isAdminEmail(user.email),
+                isPremium: Boolean(user.is_premium) || (user.premium_until ? new Date(user.premium_until).getTime() > Date.now() : false),
+                subscriptionTier: user.subscription_tier,
+                premiumUntil: user.premium_until ? new Date(user.premium_until).toISOString() : undefined,
+                paidFeatures: user.paid_features || [],
             },
             streaks: {
                 loginStreak: streaks?.login_streak || 0,

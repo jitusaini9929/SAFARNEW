@@ -43,6 +43,7 @@ const MehfilReportModeration = React.lazy(() => import("./pages/MehfilReportMode
 const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
 const DeleteAccount = React.lazy(() => import("./pages/DeleteAccount"));
 const MehfilDmPaywall = React.lazy(() => import("./pages/premium/MehfilDmPaywall"));
+const PremiumPaywall = React.lazy(() => import("./pages/premium/PremiumPaywall"));
 
 const queryClient = new QueryClient();
 const GA_MEASUREMENT_ID = "G-JGR9ENZ8W0";
@@ -323,6 +324,14 @@ const App = () => {
                       element={
                         <ProtectedRoute>
                           <MehfilDmPaywall />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/premium"
+                      element={
+                        <ProtectedRoute>
+                          <PremiumPaywall />
                         </ProtectedRoute>
                       }
                     />

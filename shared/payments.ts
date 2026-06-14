@@ -97,24 +97,24 @@ export const MEHFIL_DM_PRODUCT_ID = "mehfil-dm";
 
 export const STUDY_PLANNER_PRODUCTS: Course[] = [
   {
-    id: "study-planner-pro-monthly",
-    name: "Study Planner Pro — Monthly",
-    description: "Unlock Auto-Schedule, unlimited topics, exam templates, full insights dashboard, and reschedule tools.",
-    price: 199,
-    currency: "INR",
-  },
-  {
-    id: "study-planner-pro-exam",
-    name: "Study Planner Pro — Exam Season",
+    id: "study-planner-pro-3month",
+    name: "Study Planner Pro — 3 Months",
     description: "3 months of full premium access. Perfect for competitive exam preparation.",
-    price: 499,
+    price: 69,
     currency: "INR",
   },
   {
-    id: "study-planner-pro-annual",
+    id: "study-planner-pro-6month",
+    name: "Study Planner Pro — Half Yearly",
+    description: "6 months of premium access. Great for a semester.",
+    price: 99,
+    currency: "INR",
+  },
+  {
+    id: "study-planner-pro-yearly",
     name: "Study Planner Pro — Annual",
     description: "12 months of premium access. Best value for long-haul JEE/NEET preparation.",
-    price: 999,
+    price: 149,
     currency: "INR",
   },
 ];

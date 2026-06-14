@@ -350,6 +350,9 @@ router.patch('/:id/end', requireAuth, async (req: Request, res: Response) => {
         patch.youtube_embed_url = urls.embedUrl;
         patch.thumbnail_url = urls.thumbnailUrl;
       }
+    } else if (session.youtube_video_id) {
+      patch.recording_video_id = session.youtube_video_id;
+      patch.is_recording_available = true;
     }
 
     await collections.liveSessions().updateOne({ id: session.id }, { $set: patch });

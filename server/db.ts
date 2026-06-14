@@ -60,6 +60,7 @@ export const collections = {
     mehfilFriendships: () => getDb().collection('mehfil_friendships'),
     orders: () => getDb().collection('orders'),
     payments: () => getDb().collection('payments'),
+    premiumEntitlements: () => getDb().collection('premium_entitlements'),
     refunds: () => getDb().collection('refunds'),
     courseEnrollments: () => getDb().collection('course_enrollments'),
     transactionLogs: () => getDb().collection('transaction_logs'),
@@ -249,6 +250,15 @@ export async function initDatabase(): Promise<void> {
         await db.collection('payments').createIndex({ razorpay_payment_id: 1 }, { unique: true });
         await db.collection('payments').createIndex({ razorpay_order_id: 1 });
         await db.collection('payments').createIndex({ user_id: 1 });
+        await db.collection('premium_entitlements').createIndex({ userId: 1 });
+        await db.collection('premium_entitlements').createIndex(
+            { razorpayPaymentId: 1 },
+            {
+                unique: true,
+                partialFilterExpression: { razorpayPaymentId: { $type: 'string' } },
+                name: 'premium_entitlements_payment_id_unique',
+            }
+        );
         await db.collection('refunds').createIndex({ razorpay_refund_id: 1 }, { unique: true });
         await db.collection('refunds').createIndex({ razorpay_payment_id: 1 });
         await db.collection('course_enrollments').createIndex({ user_id: 1, course_id: 1 }, { unique: true });

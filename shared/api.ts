@@ -7,6 +7,10 @@ export interface User {
   preparationStage?: string;
   gender?: string;
   isAdmin?: boolean;
+  isPremium?: boolean;
+  subscriptionTier?: string;
+  premiumUntil?: string;
+  paidFeatures?: string[];
 }
 
 export interface PremiumFeaturesResponse {

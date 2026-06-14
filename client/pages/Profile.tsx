@@ -29,6 +29,12 @@ export default function Profile() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Enforce 5MB limit on the client side
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(t('profile.file_too_large', 'File is too large. Maximum 5MB allowed.'));
+        return;
+      }
+
       // Use object URL for instant preview — no base64 encoding needed
       setAvatarPreview(URL.createObjectURL(file));
       setAvatarFile(file);

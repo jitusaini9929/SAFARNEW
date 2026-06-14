@@ -39,7 +39,7 @@ export function PremiumGateDialog({ open, onOpenChange }: PremiumGateDialogProps
             type="button"
             onClick={() => {
               onOpenChange(false);
-              navigate("/premium/mehfil-dm");
+              navigate("/premium");
             }}
           >
             View plans
