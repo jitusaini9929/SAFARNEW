@@ -92,29 +92,29 @@ export const DHYAN_COURSES: Course[] = [
   },
 ];
 
-// Study Planner Pro subscription products
+// Safar Premium subscription products
 export const MEHFIL_DM_PRODUCT_ID = "mehfil-dm";
 
 export const STUDY_PLANNER_PRODUCTS: Course[] = [
   {
     id: "study-planner-pro-3month",
-    name: "Study Planner Pro — 3 Months",
+    name: "Safar Premium — 3 Months",
     description: "3 months of full premium access. Perfect for competitive exam preparation.",
-    price: 69,
+    price: 1,
     currency: "INR",
   },
   {
     id: "study-planner-pro-6month",
-    name: "Study Planner Pro — Half Yearly",
+    name: "Safar Premium — Half Yearly",
     description: "6 months of premium access. Great for a semester.",
-    price: 99,
+    price: 1,
     currency: "INR",
   },
   {
     id: "study-planner-pro-yearly",
-    name: "Study Planner Pro — Annual",
+    name: "Safar Premium — Annual",
     description: "12 months of premium access. Best value for long-haul JEE/NEET preparation.",
-    price: 149,
+    price: 1,
     currency: "INR",
   },
 ];

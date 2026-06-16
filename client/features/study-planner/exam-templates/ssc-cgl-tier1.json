@@ -3,10 +3,15 @@
   "name": "SSC CGL Tier-1",
   "examBody": "SSC",
   "category": "government",
-  "description": "Combined Graduate Level Examination Tier-1 — 100 questions, 200 marks, 60 minutes",
-  "estimatedTopics": 196,
+  "description": "Combined Graduate Level Examination Tier-1 - 100 questions, 200 marks, 60 minutes",
+  "estimatedTopics": 233,
   "recommendedDailyGoal": 4,
-  "tags": ["ssc", "cgl", "tier1", "government"],
+  "tags": [
+    "ssc",
+    "cgl",
+    "tier1",
+    "government"
+  ],
   "subjects": [
     {
       "name": "Quantitative Aptitude",
@@ -112,8 +117,8 @@
           "name": "Geometry",
           "topics": [
             "Lines & Angles",
-            "Triangles — Properties & Theorems",
-            "Circles — Chords, Tangents, Arcs",
+            "Triangles - Properties & Theorems",
+            "Circles - Chords, Tangents, Arcs",
             "Quadrilaterals & Polygons",
             "Coordinate Geometry Basics"
           ]
@@ -121,9 +126,9 @@
         {
           "name": "Mensuration",
           "topics": [
-            "Area — Triangle, Circle, Quadrilateral",
-            "Volume — Cube, Cuboid, Cylinder",
-            "Volume — Cone, Sphere, Hemisphere",
+            "Area - Triangle, Circle, Quadrilateral",
+            "Volume - Cube, Cuboid, Cylinder",
+            "Volume - Cone, Sphere, Hemisphere",
             "Surface Area Problems",
             "Combined Solid Problems"
           ]
@@ -213,13 +218,13 @@
           "topics": [
             "Analogy",
             "Classification (Odd One Out)",
-            "Series — Number & Alphabet",
+            "Series - Number & Alphabet",
             "Coding-Decoding",
             "Blood Relations",
             "Direction & Distance",
             "Order & Ranking",
-            "Seating Arrangement — Linear",
-            "Seating Arrangement — Circular",
+            "Seating Arrangement - Linear",
+            "Seating Arrangement - Circular",
             "Syllogism"
           ]
         },
@@ -248,70 +253,195 @@
       ]
     },
     {
-      "name": "General Awareness",
+      "name": "General Knowledge (GK)",
       "color": "#8b5cf6",
       "chapters": [
         {
-          "name": "History",
+          "name": "Geography",
           "topics": [
-            "Ancient India — Indus Valley to Gupta",
-            "Medieval India — Delhi Sultanate & Mughals",
-            "Modern India — British Rule & Freedom Struggle",
-            "Art & Culture",
-            "Important Dates & Events"
+            "Solar System",
+            "Longitude and Latitude",
+            "Earth's Interior and Plate Tectonics",
+            "Rocks, Continents and Oceans",
+            "Geomorphology and Landforms",
+            "Atmosphere",
+            "Wind, Ocean Current and Cyclone",
+            "India and its Location",
+            "Himalayas",
+            "Peninsular Plateaus",
+            "Northern Plain and Islands",
+            "Himalayan River System",
+            "Peninsular Rivers",
+            "Dams, Lakes and Waterfalls",
+            "Monsoon",
+            "Forest and Grassland",
+            "Soil and Agriculture",
+            "Minerals",
+            "World Map",
+            "National Parks",
+            "Transport"
           ]
         },
         {
-          "name": "Geography",
+          "name": "Ancient History",
           "topics": [
-            "Physical Geography — Landforms & Climate",
-            "Indian Geography — Rivers, Soils, Agriculture",
-            "World Geography — Continents & Oceans",
-            "Economic Geography — Industries & Trade",
-            "Maps & Important Places"
+            "Stone Age",
+            "Indus Valley Civilization",
+            "Vedic Age",
+            "Jainism and Buddhism",
+            "Mahajanapadas",
+            "Maurya Dynasty",
+            "Post-Maurya Dynasties",
+            "Gupta Dynasty",
+            "Post-Gupta Dynasties",
+            "Sangam Age",
+            "Tripartite Struggle and Cholas"
+          ]
+        },
+        {
+          "name": "Medieval History",
+          "topics": [
+            "Delhi Sultanate",
+            "Vijayanagara and Bahmani Kingdoms",
+            "Mughal Empire",
+            "Marathas",
+            "Bhakti and Sufi Movements"
+          ]
+        },
+        {
+          "name": "Modern History",
+          "topics": [
+            "Advent of Europeans",
+            "Socio-Religious Reforms",
+            "Revolt of 1857",
+            "Indian National Congress",
+            "Bengal Partition",
+            "Gandhian Era",
+            "CDM and Simon Commission",
+            "Quit India Movement",
+            "Governor-General and Viceroy"
           ]
         },
         {
           "name": "Polity",
           "topics": [
-            "Indian Constitution — Preamble & Features",
-            "Fundamental Rights & Duties",
-            "Parliament & State Legislature",
-            "Judiciary — Supreme Court & High Court",
-            "Local Self Government",
-            "Constitutional Amendments"
+            "Making of Constitution",
+            "Salient Features of the Constitution",
+            "Preamble",
+            "Part 1 and Part 2 of the Constitution",
+            "Fundamental Rights",
+            "DPSP and Fundamental Duties",
+            "President and Vice President of India",
+            "Prime Minister and Council of Ministers",
+            "Parliament",
+            "State Legislature",
+            "Emergency & Constitutional Amendment",
+            "Supreme Court and High Court",
+            "Local Government",
+            "Constitutional and Non-Constitutional Bodies",
+            "Important Acts",
+            "Sources of the Indian Constitution"
           ]
         },
         {
           "name": "Economics",
           "topics": [
-            "Basic Economic Concepts",
-            "Indian Economy — Planning & Reforms",
-            "Banking & Finance — RBI, SEBI, NABARD",
-            "Budget & Fiscal Policy",
-            "International Organizations — IMF, WTO, World Bank",
-            "Government Schemes"
+            "Basics of Economy",
+            "Demand and Supply",
+            "National Income",
+            "Inflation and Unemployment",
+            "Budget and Taxation",
+            "Monetary Policy",
+            "Money and Banking",
+            "Balance of Payment and Poverty",
+            "Five Year Plan and Industrial Policy Resolution"
           ]
         },
         {
-          "name": "General Science",
+          "name": "Physics",
           "topics": [
-            "Physics — Mechanics, Heat, Light, Sound",
-            "Chemistry — Elements, Compounds, Reactions",
-            "Biology — Human Body Systems",
-            "Biology — Diseases & Nutrition",
-            "Science & Technology — Current Developments",
-            "Space & Defense Technology"
+            "Motion",
+            "Force and Laws of Motion",
+            "Gravitation and Work Done",
+            "Sound",
+            "Reflection and Refraction",
+            "Human Eye and Vision",
+            "Electricity",
+            "Magnetic Effect of Electric Current"
           ]
         },
         {
-          "name": "Static GK & Current Affairs",
+          "name": "Chemistry",
           "topics": [
-            "Books & Authors",
-            "Awards & Honours",
-            "Sports — Tournaments & Records",
-            "National & International Organizations",
-            "Current Affairs — Last 6 Months"
+            "Matter",
+            "Atom and its Structure",
+            "Periodic Table",
+            "Chemical Reactions",
+            "Metals and Non-Metals",
+            "Acid, Base and Salt",
+            "Carbon and its Compounds"
+          ]
+        },
+        {
+          "name": "Biology",
+          "topics": [
+            "Cell",
+            "Plant Tissue and Animal Tissue",
+            "Plant and Animal Kingdom",
+            "Nervous System",
+            "Hormones and Plant Movements",
+            "Reproduction",
+            "Digestion and Respiration",
+            "Circulatory System and Excretory System",
+            "Diseases",
+            "Nutrients",
+            "Hereditary and Evolution"
+          ]
+        },
+        {
+          "name": "Environment",
+          "topics": [
+            "Basics of Environmental Sciences",
+            "Ecosystem",
+            "Trophic Dynamics and Energy Transfer",
+            "Biogeochemical Cycles",
+            "Environmental Conventions"
+          ]
+        },
+        {
+          "name": "Static GK",
+          "topics": [
+            "Classical Dance",
+            "Folk Dances of India",
+            "Census",
+            "Musical Instruments",
+            "Gharanas",
+            "Important Days",
+            "Books and Authors",
+            "Sports",
+            "International Organisations",
+            "National Organisations",
+            "Festivals of India",
+            "Government Schemes",
+            "Awards and Honours"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Current Affairs (CA)",
+      "color": "#ec4899",
+      "chapters": [
+        {
+          "name": "Current Affairs",
+          "topics": [
+            "National & International News",
+            "Economy & Financial Updates",
+            "Science, Space & Tech Developments",
+            "Sports Events & Tournaments",
+            "Awards, Appointments & Honors",
+            "Important Days, Themes & Summits",
+            "Government Schemes & Policy Initiatives"
           ]
         }
       ]

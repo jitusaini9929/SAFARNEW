@@ -31,27 +31,25 @@ interface Plan {
 
 const PLANS: Plan[] = [
   {
-    id: "study-planner-pro-monthly",
-    name: "Monthly Pro",
-    price: 199,
-    duration: "/ month",
+    id: "study-planner-pro-3month",
+    name: "Safar Premium - 3 Months",
+    price: 1,
+    duration: "/ 3 months",
   },
   {
-    id: "study-planner-pro-exam",
-    name: "Exam Season (3 Mo)",
-    price: 499,
-    duration: "/ 3 months",
+    id: "study-planner-pro-6month",
+    name: "Safar Premium - Half Yearly",
+    price: 1,
+    duration: "/ 6 months",
     badge: "Recommended",
-    savings: "Save 15%",
     popular: true,
   },
   {
-    id: "study-planner-pro-annual",
-    name: "Annual Pro",
-    price: 999,
+    id: "study-planner-pro-yearly",
+    name: "Safar Premium - Annual",
+    price: 1,
     duration: "/ year",
     badge: "Best Value",
-    savings: "Save 60%",
   },
 ];
 
@@ -75,7 +73,7 @@ export default function PremiumPaywall() {
   const { user, refreshUser } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [selectedPlanId, setSelectedPlanId] = useState<string>("study-planner-pro-exam");
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("study-planner-pro-6month");
   const [loading, setLoading] = useState<boolean>(false);
   const [success, setSuccess] = useState<boolean>(false);
 
@@ -146,7 +144,7 @@ export default function PremiumPaywall() {
         key: orderData.keyId,
         amount: orderData.order.amount,
         currency: orderData.order.currency,
-        name: "SAFAR Pro",
+        name: "Safar Premium",
         description: orderData.course.name,
         image: "/favicon.svg",
         order_id: orderData.order.id,
@@ -180,7 +178,7 @@ export default function PremiumPaywall() {
             // 5. Success states
             toast({
               title: "Payment Successful!",
-              description: "Thank you for upgrading to SAFAR Pro.",
+              description: "Thank you for upgrading to Safar Premium.",
             });
             setSuccess(true);
             await refreshUser(true);
@@ -223,9 +221,9 @@ export default function PremiumPaywall() {
             <Crown className="h-10 w-10" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-3xl font-extrabold tracking-tight">You're Pro!</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight">You're Premium!</h1>
             <p className="text-slate-400">
-              Welcome to the premium club. Your SAFAR Pro subscription is now active!
+              Welcome to the premium club. Your Safar Premium subscription is now active!
             </p>
           </div>
           <div className="rounded-2xl border border-slate-800 bg-[#151D30] p-5">
@@ -270,9 +268,9 @@ export default function PremiumPaywall() {
             <Crown className="h-8 w-8" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight">Active Pro Subscription</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Active Premium Subscription</h1>
             <p className="text-slate-400">
-              You are currently enjoying all premium benefits of SAFAR Pro.
+              You are currently enjoying all benefits of Safar Premium.
             </p>
           </div>
           {user.premiumUntil && (
@@ -322,7 +320,7 @@ export default function PremiumPaywall() {
             <span>Elevate Your Mindset & Productivity</span>
           </div>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">
-            Unlock <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-indigo-400 bg-clip-text text-transparent">SAFAR Pro</span>
+            Unlock <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-indigo-400 bg-clip-text text-transparent">Safar Premium</span>
           </h1>
           <p className="text-slate-400 text-base md:text-lg">
             Say goodbye to limits. Organize your exam syllabus seamlessly, connect directly with study peers, and unlock advanced scoreboard logs.
@@ -398,7 +396,7 @@ export default function PremiumPaywall() {
             ) : (
               <>
                 <Zap className="mr-2 h-5 w-5 fill-current" />
-                Unlock Pro Access Now
+                Unlock Premium Access Now
               </>
             )}
           </Button>
@@ -411,7 +409,7 @@ export default function PremiumPaywall() {
         {/* Comparison Section */}
         <section className="bg-[#0b0e17] rounded-3xl border border-slate-800/70 p-6 md:p-8 space-y-6 mt-10">
           <div className="text-center space-y-1">
-            <h2 className="text-xl md:text-2xl font-bold tracking-tight">Compare Pro vs Free</h2>
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight">Compare Premium vs Free</h2>
             <p className="text-sm text-slate-400">Maximize your focus efficiency by unlocking our premium toolbox.</p>
           </div>
 
@@ -419,7 +417,7 @@ export default function PremiumPaywall() {
             <div className="grid grid-cols-2 md:grid-cols-3 py-4 text-xs md:text-sm font-bold text-slate-400">
               <div>Feature</div>
               <div className="text-center">Free Edition</div>
-              <div className="text-center text-emerald-400 hidden md:block">SAFAR Pro</div>
+              <div className="text-center text-emerald-400 hidden md:block">Safar Premium</div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 py-4 text-sm items-center">
